@@ -1,0 +1,16 @@
+{
+  "name": "edualto",
+  "private": true,
+  "version": "0.1.0",
+  "description": "EduAlto online learning platform foundation",
+  "packageManager": "pnpm@11.9.0",
+  "scripts": {
+    "frontend:dev": "pnpm --dir frontend dev",
+    "frontend:lint": "CI=true pnpm --dir frontend lint",
+    "frontend:typecheck": "CI=true pnpm --dir frontend typecheck",
+    "frontend:build": "CI=true pnpm --dir frontend build",
+    "backend:test": "mvn -f backend/pom.xml test",
+    "backend:build": "mvn -f backend/pom.xml package",
+    "test": "pnpm frontend:typecheck && pnpm backend:test"
+  }
+}
