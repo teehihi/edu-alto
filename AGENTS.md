@@ -9,7 +9,7 @@ EduAlto là nền tảng học tập trực tuyến dành cho người dùng Vi�
 ## Tech stack
 
 - Frontend: Next.js, React, TypeScript, Tailwind CSS.
-- Backend: Java 17, Spring Boot, REST API, OpenAPI, Spring Security, WebSocket.
+- Backend: Java 25 LTS, Spring Boot, REST API, OpenAPI, Spring Security, WebSocket.
 - Database: PostgreSQL.
 - Cache/realtime support: Redis.
 - Testing: Vitest/Testing Library, JUnit 5/Spring Boot Test.

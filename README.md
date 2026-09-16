@@ -7,7 +7,7 @@ EduAlto là nền tảng học tập trực tuyến hướng tới người dùn
 Repository ban đầu không phải Git checkout và gần như trống, chỉ có thư mục `Logo/` chứa tài sản nhận diện. Lần chạy foundation này thiết lập:
 
 - Frontend Next.js + TypeScript + Tailwind CSS.
-- Backend Java 17 + Spring Boot + Maven.
+- Backend Java 25 LTS + Spring Boot + Maven.
 - PostgreSQL và Redis qua Docker Compose.
 - Cấu trúc test cho frontend/backend.
 - Tài liệu kiến trúc, database, API, AI extension, Figma analysis và coding standards.
@@ -16,11 +16,11 @@ Repository ban đầu không phải Git checkout và gần như trống, chỉ c
 ## Tech stack
 
 - Frontend: Next.js App Router, React, TypeScript, Tailwind CSS.
-- Backend: Java 17, Spring Boot, Spring Security, Spring WebSocket, Spring Data JPA, Spring Validation, springdoc-openapi.
+- Backend: Java 25 LTS, Spring Boot, Spring Security, Spring WebSocket, Spring Data JPA, Spring Validation, springdoc-openapi.
 - Database: PostgreSQL.
 - Cache/realtime support: Redis.
 - Testing: Vitest/Testing Library cho frontend, JUnit 5 + Spring Boot Test cho backend.
-- DevOps: Dockerfile cho frontend/backend, Docker Compose cho local development.
+- DevOps: Dockerfile trong `frontend/` và `backend/`, Docker Compose cho local development.
 
 ## Kiến trúc
 
@@ -41,8 +41,9 @@ Controller không chứa business logic. Entity không được trả trực ti�
 ├── AGENTS.md
 ├── docs/
 ├── frontend/
+│   └── Dockerfile
 ├── backend/
-├── infra/docker/
+│   └── Dockerfile
 ├── docker-compose.yml
 └── .env.example
 ```

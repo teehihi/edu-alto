@@ -22,7 +22,7 @@ Lý do:
 ## 3. Technology Stack
 
 - Frontend: Next.js App Router, React, TypeScript, Tailwind CSS, pnpm.
-- Backend: Java 17, Spring Boot, Spring Security, Spring Data JPA, Spring WebSocket/STOMP, OpenAPI.
+- Backend: Java 25 LTS, Spring Boot, Spring Security, Spring Data JPA, Spring WebSocket/STOMP, OpenAPI.
 - Database: PostgreSQL.
 - Supporting infrastructure: Redis.
 - Containerization: Docker, Docker Compose.

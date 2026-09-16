@@ -90,7 +90,7 @@ Quy ước dữ liệu:
 Foundation technology stack:
 
 - Frontend: Next.js, React, TypeScript, Tailwind CSS.
-- Backend: Java 17, Spring Boot, Spring Security, Spring Data JPA.
+- Backend: Java 25 LTS, Spring Boot, Spring Security, Spring Data JPA.
 - API: REST, OpenAPI, WebSocket/STOMP.
 - Database: PostgreSQL.
 - Cache/realtime support: Redis.
