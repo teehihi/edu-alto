@@ -1,0 +1,16 @@
+sequenceDiagram
+  autonumber
+  actor User
+  participant Web as Next.js Web
+  participant Api as ScheduleController
+  participant Service as ScheduleService
+  participant Repo as CalendarEventRepository
+
+  User->>Web: Open learning calendar
+  Web->>Api: GET /api/v1/me/calendar-events
+  Api->>Service: listEvents(userId, range)
+  Service->>Repo: Query owned and course-related events
+  Repo-->>Service: Events
+  Service-->>Api: CalendarEventResponse list
+  Api-->>Web: 200 OK
+  Web-->>User: Render calendar

@@ -1,0 +1,74 @@
+---
+title: EduAlto EA-inspired Application Architecture
+---
+flowchart TB
+  subgraph Client["Client application boundary"]
+    Browser["Browser"]
+    NextApp["Next.js Web App\nReact + TypeScript + Tailwind CSS"]
+  end
+
+  subgraph APIBoundary["Backend API boundary"]
+    Rest["REST API\n/api/v1"]
+    Ws["WebSocket/STOMP endpoint"]
+    OpenAPI["OpenAPI documentation"]
+    Security["Spring Security\nAuthN/AuthZ"]
+  end
+
+  subgraph Monolith["Spring Boot modular monolith boundary"]
+    Auth["auth"]
+    User["user/profile/instructor"]
+    Course["course/lesson/document"]
+    Enrollment["enrollment/learning"]
+    Assessment["quiz/assignment"]
+    Community["discussion/messaging"]
+    Engagement["notification/schedule/review/certificate"]
+    Admin["admin"]
+    Analytics["analytics"]
+    AI["ai\nfuture extension"]
+  end
+
+  subgraph Support["Application support services boundary"]
+    PostgreSQL[("PostgreSQL")]
+    Redis[("Redis")]
+    Email["Email Provider"]
+    FutureAI["Future AI Provider\noptional"]
+  end
+
+  Browser --> NextApp
+  NextApp --> Rest
+  Browser <-->|Realtime messaging and notification| Ws
+  Rest --> Security
+  Ws --> Security
+  Security --> Auth
+  Security --> User
+  Security --> Course
+  Security --> Enrollment
+  Security --> Assessment
+  Security --> Community
+  Security --> Engagement
+  Security --> Admin
+  Security --> Analytics
+  OpenAPI -.documents.-> Rest
+
+  Auth --> User
+  User --> Course
+  Course --> Enrollment
+  Course --> Assessment
+  Course --> Community
+  Enrollment --> Analytics
+  Assessment --> Analytics
+  Analytics -.signals.-> AI
+  AI -.recommendations.-> Course
+
+  Auth --> PostgreSQL
+  User --> PostgreSQL
+  Course --> PostgreSQL
+  Enrollment --> PostgreSQL
+  Assessment --> PostgreSQL
+  Community --> PostgreSQL
+  Engagement --> PostgreSQL
+  Analytics --> PostgreSQL
+  Community --> Redis
+  Engagement --> Redis
+  Auth --> Email
+  AI -.optional future.-> FutureAI

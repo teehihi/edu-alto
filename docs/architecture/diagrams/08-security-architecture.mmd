@@ -1,0 +1,25 @@
+---
+title: Security Architecture
+---
+flowchart TB
+  Browser["Browser"]
+  FEGuard["Frontend route guard\nUX only"]
+  API["Spring Boot API"]
+  AuthN["Authentication Filter\nJWT/session future"]
+  AuthZ["Authorization Rules\nRBAC + ownership"]
+  Validation["Request Validation"]
+  Service["Application Service"]
+  DB[("PostgreSQL")]
+  Redis[("Redis OTP/rate limit")]
+
+  Browser --> FEGuard
+  FEGuard --> API
+  API --> AuthN
+  AuthN --> AuthZ
+  AuthZ --> Validation
+  Validation --> Service
+  Service --> DB
+  Service --> Redis
+
+  AuthZ -.prevents.-> IDOR["IDOR / cross-user access"]
+  Validation -.prevents.-> BadInput["Invalid input"]

@@ -1,0 +1,19 @@
+sequenceDiagram
+  autonumber
+  actor Sender
+  actor Receiver
+  participant Ws as WebSocketGateway
+  participant Service as MessagingService
+  participant Repo as MessageRepository
+  participant Broker as STOMP Broker
+  participant Notify as NotificationService
+
+  Sender->>Ws: SEND /app/conversations/{id}/messages
+  Ws->>Service: sendMessage(userId, conversationId, body)
+  Service->>Service: Verify JWT and participant membership
+  Service->>Repo: Persist message
+  Service->>Notify: Create notification for offline recipients
+  Service-->>Ws: MessageResponse
+  Ws->>Broker: Broadcast to /topic/conversations/{id}
+  Broker-->>Receiver: Deliver message event
+  Receiver->>Ws: ACK through client state or REST sync later

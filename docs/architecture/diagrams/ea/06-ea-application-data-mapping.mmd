@@ -1,0 +1,76 @@
+---
+title: EduAlto EA-inspired Application Data Mapping
+---
+flowchart LR
+  subgraph Modules["Application module boundary"]
+    Auth["auth"]
+    User["user"]
+    Profile["profile"]
+    Instructor["instructor"]
+    Course["course"]
+    Enrollment["enrollment"]
+    Lesson["lesson"]
+    Learning["learning"]
+    Quiz["quiz"]
+    Assignment["assignment"]
+    Document["document"]
+    Discussion["discussion"]
+    Messaging["messaging"]
+    Notification["notification"]
+    Schedule["schedule"]
+    Review["review"]
+    Certificate["certificate"]
+    Analytics["analytics"]
+    Admin["admin"]
+    AI["ai\nfuture extension"]
+  end
+
+  subgraph DataDomains["Data domain boundary"]
+    Identity["Identity"]
+    Profiles["Profiles"]
+    Catalog["Course catalog"]
+    LessonContent["Lesson content"]
+    Participation["Enrollment and progress"]
+    Assessment["Assessment"]
+    Documents["Documents and notes"]
+    Community["Community and messages"]
+    Engagement["Notifications and schedule"]
+    Trust["Reviews and certificates"]
+    Insight["Analytics and AI signals"]
+    Governance["Admin configuration"]
+  end
+
+  Auth --> Identity
+  User --> Identity
+  Profile --> Profiles
+  Profile --> Identity
+  Instructor --> Profiles
+  Course --> Catalog
+  Lesson --> LessonContent
+  Lesson --> Catalog
+  Enrollment --> Participation
+  Enrollment --> Catalog
+  Learning --> Participation
+  Learning --> LessonContent
+  Quiz --> Assessment
+  Quiz --> Catalog
+  Assignment --> Assessment
+  Assignment --> Catalog
+  Document --> Documents
+  Document --> Catalog
+  Discussion --> Community
+  Discussion --> Catalog
+  Messaging --> Community
+  Notification --> Engagement
+  Schedule --> Engagement
+  Review --> Trust
+  Review --> Catalog
+  Certificate --> Trust
+  Certificate --> Participation
+  Analytics --> Insight
+  Analytics -.reads.-> Participation
+  Analytics -.reads.-> Assessment
+  Admin --> Governance
+  Admin --> Identity
+  AI -.future reads.-> Insight
+  AI -.future writes.-> Insight

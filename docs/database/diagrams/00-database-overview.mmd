@@ -1,0 +1,21 @@
+flowchart LR
+  identity["Identity\nusers roles permissions"]
+  profile["Profile\nstudent instructor"]
+  catalog["Course catalog\ncategories courses lessons"]
+  participation["Participation\nenrollment progress notes"]
+  assessment["Assessment\nquiz assignment grading"]
+  collaboration["Collaboration\ndocument discussion messaging"]
+  engagement["Engagement\nnotification schedule review certificate"]
+  insight["Insight and AI\nsignals analytics recommendations"]
+
+  identity --> profile
+  identity --> participation
+  profile --> catalog
+  catalog --> participation
+  catalog --> assessment
+  catalog --> collaboration
+  participation --> assessment
+  participation --> insight
+  assessment --> insight
+  collaboration --> engagement
+  engagement --> insight

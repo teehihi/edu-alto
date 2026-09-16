@@ -1,0 +1,95 @@
+erDiagram
+  users {
+    uuid id PK
+    varchar email
+  }
+  courses {
+    uuid id PK
+    varchar title
+  }
+  lessons {
+    uuid id PK
+    varchar title
+  }
+  documents {
+    uuid id PK
+    uuid course_id FK
+    uuid lesson_id FK
+    uuid uploaded_by FK
+    varchar title
+    varchar storage_key
+    varchar content_type
+    bigint size_bytes
+    timestamptz deleted_at
+  }
+  saved_documents {
+    uuid user_id FK
+    uuid document_id FK
+    timestamptz created_at
+  }
+  discussions {
+    uuid id PK
+    uuid course_id FK
+    uuid lesson_id FK
+    uuid author_id FK
+    varchar title
+    text body
+    varchar status
+    timestamptz deleted_at
+  }
+  discussion_comments {
+    uuid id PK
+    uuid discussion_id FK
+    uuid author_id FK
+    uuid parent_comment_id FK
+    text body
+    timestamptz deleted_at
+  }
+  conversations {
+    uuid id PK
+    varchar type
+    uuid course_id FK
+    timestamptz created_at
+  }
+  conversation_participants {
+    uuid conversation_id FK
+    uuid user_id FK
+    timestamptz last_read_at
+  }
+  messages {
+    uuid id PK
+    uuid conversation_id FK
+    uuid sender_id FK
+    text body
+    timestamptz sent_at
+    timestamptz edited_at
+    timestamptz deleted_at
+  }
+  notifications {
+    uuid id PK
+    uuid recipient_id FK
+    varchar type
+    varchar channel
+    varchar status
+    jsonb payload
+    timestamptz read_at
+    timestamptz created_at
+  }
+
+  courses ||--o{ documents : has
+  lessons ||--o{ documents : may_have
+  users ||--o{ documents : uploads
+  users ||--o{ saved_documents : saves
+  documents ||--o{ saved_documents : saved_by
+  courses ||--o{ discussions : has
+  lessons ||--o{ discussions : may_have
+  users ||--o{ discussions : creates
+  discussions ||--o{ discussion_comments : has
+  users ||--o{ discussion_comments : writes
+  discussion_comments ||--o{ discussion_comments : replies
+  courses ||--o{ conversations : may_scope
+  conversations ||--o{ conversation_participants : has
+  users ||--o{ conversation_participants : joins
+  conversations ||--o{ messages : contains
+  users ||--o{ messages : sends
+  users ||--o{ notifications : receives

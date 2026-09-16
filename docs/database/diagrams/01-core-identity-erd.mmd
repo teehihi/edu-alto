@@ -1,0 +1,79 @@
+erDiagram
+  users {
+    uuid id PK
+    varchar full_name
+    varchar email UK
+    varchar password_hash
+    varchar status
+    timestamptz email_verified_at
+    timestamptz last_login_at
+    timestamptz created_at
+    timestamptz updated_at
+  }
+  roles {
+    uuid id PK
+    varchar name UK
+    varchar description
+    timestamptz created_at
+    timestamptz updated_at
+  }
+  permissions {
+    uuid id PK
+    varchar code UK
+    varchar description
+    timestamptz created_at
+    timestamptz updated_at
+  }
+  user_roles {
+    uuid user_id FK
+    uuid role_id FK
+    timestamptz created_at
+  }
+  role_permissions {
+    uuid role_id FK
+    uuid permission_id FK
+    timestamptz created_at
+  }
+  email_otps {
+    uuid id PK
+    uuid user_id FK
+    varchar purpose
+    varchar otp_hash
+    timestamptz expires_at
+    timestamptz consumed_at
+    timestamptz created_at
+  }
+  refresh_tokens {
+    uuid id PK
+    uuid user_id FK
+    varchar token_hash UK
+    varchar device_name
+    timestamptz expires_at
+    timestamptz revoked_at
+    timestamptz created_at
+  }
+  student_profiles {
+    uuid user_id PK
+    varchar headline
+    text learning_goal
+    varchar avatar_url
+    timestamptz created_at
+    timestamptz updated_at
+  }
+  instructor_profiles {
+    uuid user_id PK
+    text bio
+    varchar expertise
+    timestamptz verified_at
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
+  users ||--o{ user_roles : has
+  roles ||--o{ user_roles : assigned
+  roles ||--o{ role_permissions : has
+  permissions ||--o{ role_permissions : grants
+  users ||--o{ email_otps : receives
+  users ||--o{ refresh_tokens : owns
+  users ||--o| student_profiles : has
+  users ||--o| instructor_profiles : has

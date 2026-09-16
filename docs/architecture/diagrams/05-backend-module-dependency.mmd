@@ -1,0 +1,48 @@
+---
+title: Backend Module Dependency
+---
+flowchart LR
+  Common["common\napi, config, exception, security"]
+  Auth["auth"]
+  User["user/profile"]
+  Instructor["instructor"]
+  Course["course"]
+  Enrollment["enrollment"]
+  Lesson["lesson"]
+  Learning["learning"]
+  Assessment["quiz + assignment"]
+  Document["document"]
+  Discussion["discussion"]
+  Messaging["messaging"]
+  Notification["notification"]
+  Schedule["schedule"]
+  Review["review"]
+  Certificate["certificate"]
+  Analytics["analytics"]
+  Admin["admin"]
+  AI["ai extension"]
+
+  Auth --> Common
+  Auth --> User
+  Instructor --> User
+  Course --> Instructor
+  Enrollment --> Course
+  Enrollment --> User
+  Lesson --> Course
+  Learning --> Enrollment
+  Learning --> Lesson
+  Assessment --> Course
+  Assessment --> Learning
+  Document --> Course
+  Document --> User
+  Discussion --> Course
+  Messaging --> User
+  Notification --> User
+  Schedule --> User
+  Review --> Course
+  Certificate --> Course
+  Analytics --> Learning
+  Analytics --> Assessment
+  Admin --> User
+  Admin --> Course
+  AI -.reads signals.-> Analytics

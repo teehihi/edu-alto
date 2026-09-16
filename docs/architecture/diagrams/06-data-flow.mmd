@@ -1,0 +1,27 @@
+---
+title: Data Flow Overview
+---
+flowchart LR
+  Web["Web App"]
+  API["REST API"]
+  Module["Application Module"]
+  Tx["Transactional Command"]
+  DB[("PostgreSQL")]
+  Redis[("Redis")]
+  Signal["Learning Signal"]
+  Analytics["Analytics Projection"]
+  AI["Future AI Recommendation"]
+
+  Web --> API
+  API --> Module
+  Module --> Tx
+  Tx --> DB
+  Module --> Redis
+  Tx --> Signal
+  Signal --> Analytics
+  Analytics -.batch/export.-> AI
+  AI -.recommendation result.-> DB
+
+  DB --> API
+  Redis --> API
+  API --> Web

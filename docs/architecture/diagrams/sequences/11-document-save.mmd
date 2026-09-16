@@ -1,0 +1,17 @@
+sequenceDiagram
+  autonumber
+  actor Student
+  participant Web as Next.js Web
+  participant Api as DocumentController
+  participant Service as DocumentService
+  participant Access as EnrollmentAccessService
+  participant Repo as SavedDocumentRepository
+
+  Student->>Web: Save document
+  Web->>Api: POST /api/v1/documents/{documentId}/save
+  Api->>Service: saveDocument(studentId, documentId)
+  Service->>Access: Require course access
+  Service->>Repo: Upsert saved document
+  Service-->>Api: SavedDocumentResponse
+  Api-->>Web: 200 OK
+  Web-->>Student: Update saved state

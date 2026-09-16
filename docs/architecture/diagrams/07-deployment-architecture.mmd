@@ -1,0 +1,19 @@
+---
+title: Local Deployment Architecture
+---
+flowchart TB
+  Dev["Developer Machine"]
+  subgraph Docker["Docker Compose Network"]
+    FE["frontend container\nNext.js"]
+    BE["backend container\nSpring Boot JVM"]
+    PG[("postgres container")]
+    RD[("redis container")]
+  end
+
+  Browser["Browser"]
+  Browser -->|localhost:3000| FE
+  FE -->|HTTP /api/v1| BE
+  Browser <-->|/ws STOMP| BE
+  BE -->|JDBC| PG
+  BE -->|TCP 6379| RD
+  Dev --> Docker

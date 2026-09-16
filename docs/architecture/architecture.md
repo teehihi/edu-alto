@@ -1,319 +1,244 @@
-# Architecture
+# EduAlto Architecture
 
-## Decision
+EduAlto sử dụng kiến trúc modular monolith cho nền tảng học tập trực tuyến. Tài liệu này là entrypoint architecture chính cho các Run sau.
 
-EduAlto starts as a modular monolith.
+## 1. System Overview
 
-Reasons:
+EduAlto gồm một web app Next.js, một backend Spring Boot API, PostgreSQL làm source of truth, Redis cho trạng thái tạm/cache/realtime và WebSocket/STOMP cho các use case realtime có giá trị.
 
-- University project scope does not justify microservices.
-- Faster local development and testing.
-- Lower operational complexity.
-- Clear module boundaries still allow future extraction.
-- PostgreSQL transactions remain simple.
+![System Context](./diagrams/01-system-context.svg)
 
-## High-level architecture
+## 2. Architecture Style
 
-```mermaid
-flowchart TB
-  Browser[Browser]
-  Next[Next.js Frontend]
-  API[Spring Boot API]
-  Security[Spring Security]
-  Modules[Application Modules]
-  JPA[Spring Data JPA]
-  DB[(PostgreSQL)]
-  Redis[(Redis)]
-  WS[WebSocket/STOMP]
-  OpenAPI[OpenAPI Docs]
+Quyết định: modular monolith, không bắt đầu bằng microservices.
 
-  Browser --> Next
-  Next --> API
-  Browser <-->|Realtime| WS
-  WS --> API
-  API --> Security
-  Security --> Modules
-  Modules --> JPA
-  JPA --> DB
-  Modules --> Redis
-  API --> OpenAPI
-```
+Lý do:
 
-## Backend module dependency
+- Scope đồ án phù hợp với một deployable backend duy nhất.
+- Development, test và deploy đơn giản hơn.
+- Transaction boundary dễ kiểm soát hơn microservices.
+- Module boundary vẫn rõ để có thể tách service trong tương lai nếu domain đủ lớn.
 
-```mermaid
-flowchart LR
-  Auth --> User
-  Profile --> User
-  Instructor --> User
-  Course --> User
-  Enrollment --> Course
-  Lesson --> Course
-  Learning --> Lesson
-  Quiz --> Course
-  Assignment --> Course
-  Document --> Course
-  Discussion --> Course
-  Messaging --> User
-  Notification --> User
-  Schedule --> User
-  Review --> Course
-  Certificate --> Course
-  Analytics --> Learning
-  Analytics --> Quiz
-  Analytics --> Assignment
-  AI -.reads signals.-> Analytics
-```
+## 3. Technology Stack
 
-## Backend package structure
+- Frontend: Next.js App Router, React, TypeScript, Tailwind CSS, pnpm.
+- Backend: Java 17, Spring Boot, Spring Security, Spring Data JPA, Spring WebSocket/STOMP, OpenAPI.
+- Database: PostgreSQL.
+- Supporting infrastructure: Redis.
+- Containerization: Docker, Docker Compose.
+- Testing: Vitest/Testing Library, JUnit 5, Spring Boot Test.
+
+## 4. Enterprise Architecture
+
+Run #2 áp dụng tư duy EA-inspired architecture. EduAlto không claim fully compliant với TOGAF hoặc ArchiMate. Mục tiêu là traceability rõ giữa business capability, application module, data domain và technology component.
+
+EA details: [enterprise-architecture.md](./enterprise-architecture.md)
+
+## 5. Layer Architecture
+
+Backend dependency direction:
 
 ```text
-com.edualto
-├── EduAltoApplication.java
-├── common
-│   ├── api
-│   ├── config
-│   ├── exception
-│   └── security
-├── auth
-├── user
-├── course
-├── enrollment
-├── lesson
-├── learning
-├── quiz
-├── assignment
-├── document
-├── discussion
-├── messaging
-├── notification
-├── schedule
-├── review
-├── certificate
-├── analytics
-├── admin
-└── ai
+controller -> application/service -> domain -> repository -> infrastructure
 ```
 
-Each module may contain:
+Quy tắc:
+
+- Controller không chứa business logic.
+- Service/application layer sở hữu use case.
+- Domain layer chứa entity/value object/rule cốt lõi.
+- Repository chỉ truy cập persistence.
+- Module khác không gọi trực tiếp internal repository/entity của module khác.
+- Cross-module communication dùng application service, DTO, ID/reference hoặc domain event.
+
+![High-Level Architecture](./diagrams/04-high-level-architecture.svg)
+
+## 6. Module Architecture
+
+Module boundaries được chốt ở [module-boundaries.md](./module-boundaries.md).
+
+Nhóm module chính:
+
+- Identity: auth, user, profile, instructor.
+- Learning catalog: course, section, lesson, category.
+- Enrollment and progress: enrollment, learning.
+- Assessment: quiz, assignment.
+- Content: document, saved document, note.
+- Social/realtime: discussion, messaging, notification.
+- Operations: schedule, review, certificate, analytics, admin.
+- Extension: ai.
+
+![Functional Modules](./diagrams/03-functional-modules.svg)
+
+![Backend Module Dependency](./diagrams/05-backend-module-dependency.svg)
+
+## 7. Dependency Rules
+
+Hard rules:
+
+- `controller` không gọi `repository` trực tiếp khi use case có logic.
+- Module A không truy cập database implementation của Module B.
+- Module A không phụ thuộc vào JPA entity nội bộ của Module B.
+- Shared code trong `common` chỉ chứa API response, config, exception, security utilities và primitives thật sự cross-cutting.
+- Không tạo `GenericBaseService` hoặc `GenericBaseController`.
+
+## 8. Authentication
+
+Authentication architecture:
+
+- Registration creates a pending account and email OTP challenge.
+- OTP verifies email; account becomes active.
+- Login does not require OTP every time.
+- Forgot password and change email use OTP.
+- Password hashing uses BCrypt.
+- Access token + refresh token strategy is planned for later implementation.
+- Backend is source of truth; frontend auth state is UX only.
+
+Security details: [authentication-authorization.md](../security/authentication-authorization.md)
+
+## 9. Authorization
+
+Roles:
+
+- Guest
+- Student
+- Instructor
+- Administrator
+
+Authorization combines RBAC and resource ownership checks. Examples:
+
+- Student cannot read another student's private submission/message/document.
+- Instructor cannot modify a course they do not own or manage.
+- Student cannot call admin APIs.
+
+Permission matrix: [permission-matrix.md](../security/permission-matrix.md)
+
+## 10. API
+
+Base path: `/api/v1`.
+
+API conventions:
+
+- English resource names.
+- RESTful nouns and HTTP methods.
+- Pagination with `page`, `size`, `sort`.
+- Filtering/search with explicit query parameters.
+- Consistent success and error envelopes.
+- Validation errors use Vietnamese user-facing messages and English machine-readable codes.
+- Idempotent write operations use constraints or idempotency keys where risk exists.
+
+Details: [API design](../api/api-design.md)
+
+## 11. Database
+
+PostgreSQL is the source of truth. Redis is not source of truth.
+
+Database principles:
+
+- UUID primary keys.
+- English snake_case table/column names.
+- Strong FK and unique constraints.
+- Query-driven indexes with documented reason.
+- Timestamps on important entities.
+- Optimistic locking on mutable aggregate roots when concurrent update risk exists.
+- Soft delete only where audit/recovery requires it.
+- JSONB only for metadata with justified flexible schema, not as a shortcut around relational design.
+
+Details: [database-design.md](../database/database-design.md)
+
+![Database Overview](../database/diagrams/00-database-overview.svg)
+
+## 12. Redis
+
+Redis use cases are intentionally limited:
+
+- OTP temporary state.
+- Rate limiting counters.
+- Short-lived cache for read-heavy catalog queries.
+- WebSocket/session presence metadata.
+- Idempotency/short locks only when DB constraint alone is insufficient.
+
+Details: [redis-strategy.md](./redis-strategy.md)
+
+![Redis Strategy](./diagrams/09-redis-strategy.svg)
+
+## 13. WebSocket
+
+WebSocket/STOMP is used for realtime use cases:
+
+- Messaging.
+- Notifications.
+- Optional discussion realtime.
+
+REST remains default for normal request/response workflows.
+
+Details: [websocket-strategy.md](./websocket-strategy.md)
+
+![WebSocket Architecture](./diagrams/10-websocket-architecture.svg)
+
+## 14. Security
+
+Primary risks reviewed:
+
+- Password hashing and credential storage.
+- OTP brute force and replay.
+- Token expiry/refresh/logout.
+- IDOR across users, submissions, messages and private documents.
+- Instructor ownership enforcement.
+- CORS and CSRF strategy.
+- XSS in frontend content rendering.
+- SQL injection through repository/query design.
+- File upload security.
+- WebSocket destination authorization.
+- Sensitive logging.
+
+Backend must enforce authorization. Frontend route protection is not a security boundary.
+
+## 15. Testing
+
+Testing strategy:
+
+- Unit tests for domain/business rules.
+- Controller/API tests for validation/error/authorization mapping.
+- Repository/integration tests once schema and migrations are implemented.
+- Security tests for permission boundaries.
+- WebSocket tests for authenticated delivery and forbidden subscriptions.
+- Frontend component tests for states and accessibility.
+- E2E tests for critical user journeys in later phases.
+
+Details: [testing-strategy.md](../testing/testing-strategy.md)
+
+## 16. AI Extension
+
+AI is a future extension. Core LMS must work when AI service is absent.
+
+Flow:
 
 ```text
-controller/
-service/
-domain/
-repository/
-dto/
-mapper/
-exception/
+Learning behavior -> Learning signals -> Skill assessment -> Skill level -> Recommendation -> Reason
 ```
 
-## Frontend structure
+AI module reads learning signals and writes recommendations/reasons. Course, enrollment, lesson, quiz and assignment modules do not depend directly on AI.
 
-```text
-src/
-├── app/
-├── components/
-│   ├── ui/
-│   ├── layout/
-│   ├── course/
-│   └── marketing/
-├── features/
-├── hooks/
-├── lib/
-├── services/
-├── types/
-├── constants/
-└── styles/
-```
+Details: [ai-extension.md](./ai-extension.md)
 
-## Authentication sequence
+## 17. Deployment
 
-```mermaid
-sequenceDiagram
-  participant User
-  participant Web
-  participant API
-  participant Auth
-  participant Email
-  participant DB
+Foundation supports local Docker Compose:
 
-  User->>Web: Submit register form
-  Web->>API: POST /api/v1/auth/register
-  API->>Auth: Validate and create pending OTP
-  Auth->>DB: Store user pending verification
-  Auth->>Email: Send OTP
-  API-->>Web: Registration pending
-  User->>Web: Enter OTP
-  Web->>API: POST /api/v1/auth/verify-email
-  API->>Auth: Verify OTP
-  Auth->>DB: Activate account
-  API-->>Web: Account verified
-```
+- Frontend container.
+- Backend container.
+- PostgreSQL container.
+- Redis container.
 
-## Course enrollment sequence
+![Deployment Architecture](./diagrams/07-deployment-architecture.svg)
 
-```mermaid
-sequenceDiagram
-  participant Student
-  participant Web
-  participant API
-  participant Enrollment
-  participant DB
-  participant Notification
+## 18. Future Scalability
 
-  Student->>Web: Click Đăng ký khóa học
-  Web->>API: POST /api/v1/courses/{id}/enrollments
-  API->>Enrollment: Enroll student
-  Enrollment->>DB: Create enrollment if allowed
-  Enrollment->>Notification: Create notification
-  API-->>Web: Enrollment response
-```
+Potential future extraction candidates:
 
-## Lesson learning sequence
+- Messaging/notification if realtime load grows.
+- Analytics/AI if event volume grows.
+- Search if PostgreSQL search becomes insufficient.
 
-```mermaid
-sequenceDiagram
-  participant Student
-  participant Web
-  participant API
-  participant Lesson
-  participant Progress
-  participant Signals
-
-  Student->>Web: Open lesson
-  Web->>API: GET /api/v1/lessons/{id}
-  API->>Lesson: Load lesson
-  Lesson-->>API: Lesson content DTO
-  API-->>Web: Lesson response
-  Student->>Web: Mark complete
-  Web->>API: POST /api/v1/lessons/{id}/complete
-  API->>Progress: Update progress
-  Progress->>Signals: Emit lesson_completed
-```
-
-## Quiz submission sequence
-
-```mermaid
-sequenceDiagram
-  participant Student
-  participant Web
-  participant API
-  participant Quiz
-  participant DB
-  participant Progress
-
-  Student->>Web: Submit answers
-  Web->>API: POST /api/v1/quizzes/{id}/attempts
-  API->>Quiz: Grade attempt
-  Quiz->>DB: Store attempt and answers
-  Quiz->>Progress: Update assessment progress
-  API-->>Web: Score and feedback
-```
-
-## Assignment submission sequence
-
-```mermaid
-sequenceDiagram
-  participant Student
-  participant Web
-  participant API
-  participant Assignment
-  participant Storage
-  participant DB
-
-  Student->>Web: Submit assignment
-  Web->>API: POST /api/v1/assignments/{id}/submissions
-  API->>Assignment: Validate submission
-  Assignment->>Storage: Store file if present
-  Assignment->>DB: Save submission
-  API-->>Web: Submission accepted
-```
-
-## Messaging/WebSocket sequence
-
-```mermaid
-sequenceDiagram
-  participant UserA
-  participant UserB
-  participant WebSocket
-  participant API
-  participant DB
-
-  UserA->>WebSocket: SEND /app/conversations/{id}/messages
-  WebSocket->>API: Validate participant
-  API->>DB: Persist message
-  API-->>WebSocket: Message DTO
-  WebSocket-->>UserB: /topic/conversations/{id}
-```
-
-## Notification sequence
-
-```mermaid
-sequenceDiagram
-  participant Module
-  participant Notification
-  participant DB
-  participant Redis
-  participant Web
-
-  Module->>Notification: Create notification command
-  Notification->>DB: Persist notification
-  Notification->>Redis: Publish notification event
-  Redis-->>Web: WebSocket push when connected
-```
-
-## Learning progress sequence
-
-```mermaid
-sequenceDiagram
-  participant Lesson
-  participant Progress
-  participant Analytics
-  participant AI
-
-  Lesson->>Progress: Lesson completed
-  Progress->>Progress: Recalculate course completion
-  Progress->>Analytics: Store learning signal
-  Analytics-.batch.->>AI: Future skill analysis
-```
-
-## Future AI recommendation sequence
-
-```mermaid
-sequenceDiagram
-  participant Scheduler
-  participant Signals
-  participant AI
-  participant Recommendation
-  participant Student
-
-  Scheduler->>Signals: Collect learner signals
-  Signals->>AI: Build learner feature set
-  AI->>Recommendation: Return ranked items and reasons
-  Recommendation->>Recommendation: Store model version and reasons
-  Student->>Recommendation: GET /api/v1/recommendations
-```
-
-## Security foundation
-
-- Stateless JWT planned for access tokens.
-- Refresh token rotation planned.
-- Password hashing with BCrypt.
-- OTP for email verification, forgot password and change email.
-- CORS restricted by environment.
-- CSRF reviewed per auth strategy; stateless API can disable CSRF with care.
-- Global exception handler avoids stack trace exposure.
-
-## WebSocket foundation
-
-Use WebSocket/STOMP for messaging and notifications. REST remains default for CRUD and request/response workflows.
-
-## Review checklist
-
-- No circular module dependency.
-- No business logic in controller.
-- DTO/entity separation.
-- Vietnamese user-facing text.
-- Design tokens aligned with Figma.
-- Accessibility and responsive foundation present.
-- Tests/build pass before integration.
+Extraction is deferred until operational need exists. Until then, module boundaries and data ownership are enforced inside the modular monolith.

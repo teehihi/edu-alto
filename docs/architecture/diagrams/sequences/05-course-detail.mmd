@@ -1,0 +1,18 @@
+sequenceDiagram
+  autonumber
+  actor Visitor
+  participant Web as Next.js Web
+  participant Api as CourseController
+  participant Service as CourseService
+  participant CourseRepo as CourseRepository
+  participant ReviewRepo as ReviewRepository
+
+  Visitor->>Web: Open course detail
+  Web->>Api: GET /api/v1/courses/{courseId}
+  Api->>Service: getPublicCourseDetail(courseId)
+  Service->>CourseRepo: Load course, sections, lessons summary
+  Service->>ReviewRepo: Load review summary
+  Service->>Service: Hide restricted lesson content
+  Service-->>Api: CourseDetailResponse
+  Api-->>Web: 200 OK
+  Web-->>Visitor: Render course information

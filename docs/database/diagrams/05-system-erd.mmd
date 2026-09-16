@@ -1,0 +1,62 @@
+erDiagram
+  users {
+    uuid id PK
+    varchar email
+  }
+  courses {
+    uuid id PK
+    varchar title
+  }
+  file_assets {
+    uuid id PK
+    uuid owner_id FK
+    varchar storage_key UK
+    varchar original_name
+    varchar content_type
+    bigint size_bytes
+    varchar scan_status
+    timestamptz created_at
+  }
+  audit_logs {
+    uuid id PK
+    uuid actor_id FK
+    varchar action
+    varchar resource_type
+    uuid resource_id
+    jsonb metadata
+    timestamptz created_at
+  }
+  calendar_events {
+    uuid id PK
+    uuid owner_id FK
+    uuid course_id FK
+    varchar title
+    timestamptz start_at
+    timestamptz end_at
+    varchar status
+  }
+  reviews {
+    uuid id PK
+    uuid student_id FK
+    uuid course_id FK
+    int rating
+    text comment
+    varchar status
+    timestamptz created_at
+  }
+  certificates {
+    uuid id PK
+    uuid student_id FK
+    uuid course_id FK
+    varchar certificate_code UK
+    timestamptz issued_at
+  }
+
+  users ||--o{ file_assets : owns
+  users ||--o{ audit_logs : performs
+  users ||--o{ calendar_events : owns
+  courses ||--o{ calendar_events : schedules
+  users ||--o{ reviews : writes
+  courses ||--o{ reviews : receives
+  users ||--o{ certificates : earns
+  courses ||--o{ certificates : awards

@@ -1,0 +1,18 @@
+sequenceDiagram
+  autonumber
+  actor Student
+  participant Web as Next.js Web
+  participant Api as ReviewController
+  participant Service as ReviewService
+  participant Enrollment as EnrollmentService
+  participant Repo as ReviewRepository
+
+  Student->>Web: Submit course review
+  Web->>Api: POST /api/v1/courses/{courseId}/reviews
+  Api->>Service: reviewCourse(studentId, courseId, request)
+  Service->>Enrollment: Require enrolled student
+  Service->>Service: Validate rating and duplicate rule
+  Service->>Repo: Save or update review
+  Service-->>Api: ReviewResponse
+  Api-->>Web: 200 OK
+  Web-->>Student: Show review state

@@ -1,0 +1,35 @@
+---
+title: High-Level Architecture
+---
+flowchart TB
+  subgraph Client["Client Layer"]
+    Browser["Browser"]
+    Next["Next.js App Router"]
+  end
+
+  subgraph Backend["Backend Layer - Modular Monolith"]
+    Security["Spring Security"]
+    Controllers["REST Controllers"]
+    Services["Application Services"]
+    Modules["Domain Modules"]
+    WS["WebSocket/STOMP"]
+    OpenAPI["OpenAPI"]
+  end
+
+  subgraph Data["Data Layer"]
+    JPA["Spring Data JPA"]
+    Postgres[("PostgreSQL\nsource of truth")]
+    Redis[("Redis\ncache/temp/realtime")]
+  end
+
+  Browser --> Next
+  Next --> Controllers
+  Browser <-->|STOMP| WS
+  Controllers --> Security
+  Security --> Services
+  Services --> Modules
+  Modules --> JPA
+  JPA --> Postgres
+  Services --> Redis
+  Controllers --> OpenAPI
+  WS --> Services

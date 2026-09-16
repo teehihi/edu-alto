@@ -1,0 +1,20 @@
+sequenceDiagram
+  autonumber
+  actor Student
+  participant Web as Next.js Web
+  participant Api as CertificateController
+  participant Service as CertificateService
+  participant Learning as LearningService
+  participant Repo as CertificateRepository
+  participant Notify as NotificationService
+
+  Student->>Web: Open certificate page
+  Web->>Api: POST /api/v1/courses/{courseId}/certificate
+  Api->>Service: issueIfEligible(studentId, courseId)
+  Service->>Learning: Check completion threshold
+  Service->>Service: Check required quiz and assignment rules
+  Service->>Repo: Create certificate if absent
+  Service->>Notify: Notify student
+  Service-->>Api: CertificateResponse
+  Api-->>Web: 200 OK
+  Web-->>Student: Show certificate

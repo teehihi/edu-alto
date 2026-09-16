@@ -1,0 +1,37 @@
+---
+title: EduAlto System Context
+---
+flowchart LR
+  subgraph Boundary["EduAlto System Boundary"]
+    Web["Next.js Web App"]
+    API["Spring Boot API"]
+    WS["WebSocket/STOMP Endpoint"]
+    DB[("PostgreSQL")]
+    Redis[("Redis")]
+  end
+
+  Guest["Guest"]
+  Student["Student"]
+  Instructor["Instructor"]
+  Admin["Administrator"]
+  Email["Email Provider\n(future integration)"]
+  AI["AI Analysis Service\n(future extension)"]
+
+  Guest --> Web
+  Student --> Web
+  Instructor --> Web
+  Admin --> Web
+  Web --> API
+  Web <-->|Realtime| WS
+  WS --> API
+  API --> DB
+  API --> Redis
+  API -.OTP email.-> Email
+  API -.learning signals.-> AI
+
+  classDef actor fill:#EAF7F3,stroke:#20B486,color:#101A2C
+  classDef system fill:#F5FBF9,stroke:#1A906B,color:#101A2C
+  classDef external fill:#FFF7E0,stroke:#F5C34D,color:#101A2C
+  class Guest,Student,Instructor,Admin actor
+  class Web,API,WS,DB,Redis system
+  class Email,AI external

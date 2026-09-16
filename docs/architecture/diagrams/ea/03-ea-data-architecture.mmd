@@ -1,0 +1,59 @@
+---
+title: EduAlto EA-inspired Data Architecture
+---
+flowchart TB
+  subgraph Owners["Data ownership boundary"]
+    AuthModule["auth module"]
+    UserModule["user/profile/instructor modules"]
+    CourseModule["course/lesson/document modules"]
+    LearningModule["enrollment/learning modules"]
+    AssessmentModule["quiz/assignment modules"]
+    CollaborationModule["discussion/messaging modules"]
+    EngagementModule["notification/schedule/review/certificate modules"]
+    InsightModule["analytics/ai modules"]
+  end
+
+  subgraph DataDomains["PostgreSQL data domain boundary"]
+    Identity["Identity data\nusers, roles, permissions, OTP"]
+    Profile["Profile data\nprofiles, instructor profiles"]
+    Catalog["Learning catalog data\ncategories, courses, sections, lessons"]
+    Participation["Participation data\nenrollments, progress, saved documents, notes"]
+    Assessment["Assessment data\nquizzes, questions, attempts, assignments, submissions"]
+    Collaboration["Collaboration data\ndiscussions, comments, conversations, messages"]
+    Engagement["Engagement data\nnotifications, schedules, reviews, certificates"]
+    Insight["Insight data\nanalytics signals, learning signals, recommendations"]
+  end
+
+  subgraph Stores["Storage boundary"]
+    PostgreSQL[("PostgreSQL\nsystem of record")]
+    Redis[("Redis\ncache and realtime support")]
+    FileStorage["Future file storage\noptional"]
+  end
+
+  AuthModule --> Identity
+  UserModule --> Profile
+  UserModule --> Identity
+  CourseModule --> Catalog
+  CourseModule --> FileStorage
+  LearningModule --> Participation
+  LearningModule --> Catalog
+  AssessmentModule --> Assessment
+  AssessmentModule --> Catalog
+  CollaborationModule --> Collaboration
+  CollaborationModule --> Identity
+  EngagementModule --> Engagement
+  EngagementModule --> Identity
+  InsightModule --> Insight
+  InsightModule -.reads signals.-> Participation
+  InsightModule -.reads outcomes.-> Assessment
+
+  Identity --> PostgreSQL
+  Profile --> PostgreSQL
+  Catalog --> PostgreSQL
+  Participation --> PostgreSQL
+  Assessment --> PostgreSQL
+  Collaboration --> PostgreSQL
+  Engagement --> PostgreSQL
+  Insight --> PostgreSQL
+  Collaboration -.realtime fanout.-> Redis
+  Engagement -.notification fanout.-> Redis

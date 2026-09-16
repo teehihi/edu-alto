@@ -1,0 +1,20 @@
+sequenceDiagram
+  autonumber
+  actor Student
+  participant Web as Next.js Web
+  participant Api as LessonController
+  participant Learning as LearningService
+  participant Enrollment as EnrollmentService
+  participant Progress as LearningProgressRepository
+  participant Signal as LearningSignalPublisher
+
+  Student->>Web: Mark lesson complete
+  Web->>Api: POST /api/v1/lessons/{lessonId}/complete
+  Api->>Learning: completeLesson(studentId, lessonId)
+  Learning->>Enrollment: Require enrolled student
+  Learning->>Progress: Upsert lesson progress
+  Learning->>Progress: Recalculate course progress
+  Learning->>Signal: Append LESSON_COMPLETED signal
+  Learning-->>Api: ProgressResponse
+  Api-->>Web: 200 OK
+  Web-->>Student: Update progress UI

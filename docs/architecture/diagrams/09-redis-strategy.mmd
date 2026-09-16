@@ -1,0 +1,22 @@
+---
+title: Redis Strategy
+---
+flowchart LR
+  Redis[("Redis")]
+  OTP["OTP keys\notp:{purpose}:{email}\nTTL 5-10m"]
+  Rate["Rate limit keys\nrl:{scope}:{id}\nTTL window"]
+  Cache["Read cache\ncache:{resource}:{hash}\nshort TTL"]
+  Realtime["Realtime support\nws:user:{id}:sessions"]
+  Lock["Short locks/idempotency\nidem:{key}"]
+
+  Auth["Auth module"] --> OTP
+  Security["Security filters"] --> Rate
+  Course["Course queries"] --> Cache
+  Messaging["Messaging/Notification"] --> Realtime
+  Enrollment["Enrollment/Submission"] --> Lock
+
+  OTP --> Redis
+  Rate --> Redis
+  Cache --> Redis
+  Realtime --> Redis
+  Lock --> Redis

@@ -1,0 +1,40 @@
+---
+title: EduAlto EA-inspired Deployment View
+---
+flowchart TB
+  subgraph UserDevice["User device boundary"]
+    Browser["Browser"]
+  end
+
+  subgraph WebRuntime["Web runtime boundary"]
+    NextRuntime["Next.js Web App"]
+  end
+
+  subgraph ApiRuntime["Backend runtime boundary"]
+    SpringBoot["Spring Boot API\nmodular monolith"]
+    WsRuntime["WebSocket/STOMP runtime"]
+    Security["Spring Security"]
+  end
+
+  subgraph DataRuntime["Data runtime boundary"]
+    PostgreSQL[("PostgreSQL")]
+    Redis[("Redis")]
+  end
+
+  subgraph External["External integration boundary"]
+    Email["Email Provider"]
+    FutureStorage["Future file storage"]
+    FutureAI["Future AI Provider\noptional"]
+  end
+
+  Browser -->|HTTPS pages and assets| NextRuntime
+  NextRuntime -->|HTTPS REST /api/v1| SpringBoot
+  Browser <-->|WSS realtime messaging and notification| WsRuntime
+  SpringBoot --> Security
+  WsRuntime --> Security
+  Security --> SpringBoot
+  SpringBoot -->|JDBC| PostgreSQL
+  SpringBoot -->|cache and pub/sub support| Redis
+  SpringBoot -->|OTP and email notification| Email
+  SpringBoot -.future document upload.-> FutureStorage
+  SpringBoot -.future recommendation call.-> FutureAI

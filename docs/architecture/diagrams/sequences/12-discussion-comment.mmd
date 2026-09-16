@@ -1,0 +1,20 @@
+sequenceDiagram
+  autonumber
+  actor Student
+  participant Web as Next.js Web
+  participant Api as DiscussionController
+  participant Service as DiscussionService
+  participant Access as CourseAccessService
+  participant Repo as DiscussionRepository
+  participant Notify as NotificationService
+
+  Student->>Web: Write discussion comment
+  Web->>Api: POST /api/v1/discussions/{discussionId}/comments
+  Api->>Service: addComment(userId, request)
+  Service->>Access: Require discussion access
+  Service->>Service: Validate content and moderation rules
+  Service->>Repo: Save comment
+  Service->>Notify: Notify discussion participants
+  Service-->>Api: DiscussionCommentResponse
+  Api-->>Web: 201 Created
+  Web-->>Student: Append comment

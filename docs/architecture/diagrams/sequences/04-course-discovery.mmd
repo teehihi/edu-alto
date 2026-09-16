@@ -1,0 +1,16 @@
+sequenceDiagram
+  autonumber
+  actor Visitor
+  participant Web as Next.js Web
+  participant CourseApi as CourseController
+  participant CourseService as CourseService
+  participant CourseRepo as CourseRepository
+
+  Visitor->>Web: Search or filter courses
+  Web->>CourseApi: GET /api/v1/courses?q=&category=&page=&size=
+  CourseApi->>CourseService: findPublishedCourses(query)
+  CourseService->>CourseRepo: Query PUBLISHED courses with pagination
+  CourseRepo-->>CourseService: Page of courses
+  CourseService-->>CourseApi: CourseSummaryResponse page
+  CourseApi-->>Web: 200 OK with meta
+  Web-->>Visitor: Render list or Vietnamese empty state

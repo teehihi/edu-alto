@@ -1,0 +1,81 @@
+---
+title: EduAlto EA-inspired Business Architecture
+---
+flowchart TB
+  subgraph Actors["Actor boundary"]
+    Guest["Guest"]
+    Student["Student"]
+    Instructor["Instructor"]
+    Admin["Administrator"]
+  end
+
+  subgraph Acquisition["Acquisition & Access capability boundary"]
+    Browse["Browse courses"]
+    Register["Register account"]
+    Verify["Verify email with OTP"]
+    Login["Login and access account"]
+  end
+
+  subgraph Learning["Learning Delivery capability boundary"]
+    Enroll["Enroll course"]
+    Learn["Learn lesson"]
+    Track["Track learning progress"]
+    Quiz["Submit quiz"]
+    Assignment["Submit assignment"]
+    Document["Save document and note"]
+  end
+
+  subgraph Engagement["Collaboration & Engagement capability boundary"]
+    Discussion["Discuss course topics"]
+    Messaging["Message users"]
+    Notification["Receive notifications"]
+    Schedule["Manage learning schedule"]
+    Review["Review and rate course"]
+  end
+
+  subgraph Governance["Governance & Insight capability boundary"]
+    ManageContent["Manage course content"]
+    ReviewSubmission["Review submissions"]
+    ManageUsers["Manage users and roles"]
+    Analytics["View analytics"]
+    Certificate["Issue and view certificates"]
+    Recommendation["Future AI recommendations"]
+  end
+
+  Guest --> Browse
+  Guest --> Register
+  Guest --> Verify
+  Guest --> Login
+
+  Student --> Enroll
+  Student --> Learn
+  Student --> Track
+  Student --> Quiz
+  Student --> Assignment
+  Student --> Document
+  Student --> Discussion
+  Student --> Messaging
+  Student --> Notification
+  Student --> Schedule
+  Student --> Review
+  Student --> Certificate
+  Student -.optional future.-> Recommendation
+
+  Instructor --> ManageContent
+  Instructor --> ReviewSubmission
+  Instructor --> Discussion
+  Instructor --> Messaging
+  Instructor --> Analytics
+
+  Admin --> ManageUsers
+  Admin --> ManageContent
+  Admin --> Analytics
+
+  Browse --> Enroll
+  Enroll --> Learn
+  Learn --> Track
+  Quiz --> Track
+  Assignment --> Track
+  Track --> Certificate
+  Track -.learning signals.-> Analytics
+  Analytics -.future input.-> Recommendation

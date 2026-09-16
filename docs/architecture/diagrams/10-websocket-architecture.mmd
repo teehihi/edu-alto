@@ -1,0 +1,22 @@
+---
+title: WebSocket Architecture
+---
+sequenceDiagram
+  participant Browser
+  participant STOMP as WebSocket/STOMP
+  participant Security as Connection Auth
+  participant Module as Messaging/Notification Service
+  participant DB as PostgreSQL
+  participant Redis
+
+  Browser->>STOMP: CONNECT /ws with token
+  STOMP->>Security: Validate identity and destination access
+  Security-->>STOMP: Principal established
+  Browser->>STOMP: SUBSCRIBE /user/queue/notifications
+  Browser->>STOMP: SEND /app/conversations/{id}/messages
+  STOMP->>Module: Command with authenticated user
+  Module->>DB: Persist message/notification
+  Module->>Redis: Publish realtime event
+  Redis-->>Module: Event fan-out
+  Module-->>STOMP: Message DTO
+  STOMP-->>Browser: /topic or /user/queue delivery

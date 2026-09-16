@@ -1,0 +1,21 @@
+sequenceDiagram
+  autonumber
+  actor Student
+  participant Web as Next.js Web
+  participant Api as QuizController
+  participant Service as QuizService
+  participant Enrollment as EnrollmentService
+  participant Repo as QuizAttemptRepository
+  participant Signal as LearningSignalPublisher
+
+  Student->>Web: Submit quiz answers
+  Web->>Api: POST /api/v1/quizzes/{quizId}/attempts
+  Api->>Service: submitAttempt(studentId, quizId, answers)
+  Service->>Enrollment: Require enrolled student
+  Service->>Service: Validate attempt policy and deadline
+  Service->>Service: Score objective questions
+  Service->>Repo: Save attempt and answers
+  Service->>Signal: Append QUIZ_SUBMITTED signal
+  Service-->>Api: QuizAttemptResponse
+  Api-->>Web: 201 Created
+  Web-->>Student: Show result allowed by policy

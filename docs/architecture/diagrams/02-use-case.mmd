@@ -1,0 +1,48 @@
+---
+title: EduAlto Use Case View
+---
+flowchart TB
+  Guest(("Guest"))
+  Student(("Student"))
+  Instructor(("Instructor"))
+  Admin(("Administrator"))
+
+  Browse["Browse courses"]
+  Register["Register and verify email"]
+  Login["Login / logout"]
+  Enroll["Enroll in course"]
+  Learn["Learn lesson"]
+  Progress["View learning progress"]
+  Quiz["Submit quiz"]
+  Assignment["Submit assignment"]
+  Document["Save document and notes"]
+  Discuss["Discuss and message"]
+  Notify["Receive notification"]
+  Review["Review course"]
+  Cert["Receive certificate"]
+  CourseManage["Manage course content"]
+  Grade["Review submissions"]
+  AdminManage["Manage users, roles, content"]
+  Analytics["View analytics"]
+  Recommend["Receive future recommendations"]
+
+  Guest --> Browse
+  Guest --> Register
+  Guest --> Login
+  Student --> Enroll
+  Student --> Learn
+  Student --> Progress
+  Student --> Quiz
+  Student --> Assignment
+  Student --> Document
+  Student --> Discuss
+  Student --> Notify
+  Student --> Review
+  Student --> Cert
+  Student -.future.-> Recommend
+  Instructor --> CourseManage
+  Instructor --> Grade
+  Instructor --> Discuss
+  Instructor --> Notify
+  Admin --> AdminManage
+  Admin --> Analytics

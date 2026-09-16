@@ -1,0 +1,20 @@
+sequenceDiagram
+  autonumber
+  actor Instructor
+  participant Web as Next.js Web
+  participant Api as AssignmentController
+  participant Service as AssignmentService
+  participant Course as CourseAccessService
+  participant Repo as AssignmentSubmissionRepository
+  participant Notify as NotificationService
+
+  Instructor->>Web: Grade submission
+  Web->>Api: POST /api/v1/assignment-submissions/{submissionId}/grade
+  Api->>Service: gradeSubmission(instructorId, request)
+  Service->>Course: Require course owner or admin permission
+  Service->>Repo: Load submission
+  Service->>Repo: Save score and feedback
+  Service->>Notify: Notify student
+  Service-->>Api: GradingResponse
+  Api-->>Web: 200 OK
+  Web-->>Instructor: Show saved grade

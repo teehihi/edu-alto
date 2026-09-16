@@ -11,6 +11,10 @@
     "frontend:build": "CI=true pnpm --dir frontend build",
     "backend:test": "mvn -f backend/pom.xml test",
     "backend:build": "mvn -f backend/pom.xml package",
+    "docs:render-diagrams": "node scripts/render-mermaid.mjs",
     "test": "pnpm frontend:typecheck && pnpm backend:test"
+  },
+  "devDependencies": {
+    "@mermaid-js/mermaid-cli": "^11.17.0"
   }
 }

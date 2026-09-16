@@ -1,0 +1,53 @@
+---
+title: EduAlto EA-inspired Technology Architecture
+---
+flowchart TB
+  subgraph Presentation["Presentation technology layer"]
+    Next["Next.js"]
+    React["React"]
+    TypeScript["TypeScript"]
+    Tailwind["Tailwind CSS"]
+  end
+
+  subgraph Integration["API and integration technology layer"]
+    REST["REST over HTTP\n/api/v1"]
+    WebSocket["WebSocket/STOMP"]
+    OpenAPI["OpenAPI"]
+  end
+
+  subgraph Backend["Backend technology layer"]
+    Java["Java 17"]
+    SpringBoot["Spring Boot"]
+    SpringSecurity["Spring Security"]
+    SpringData["Spring Data JPA"]
+  end
+
+  subgraph Data["Data technology layer"]
+    PostgreSQL[("PostgreSQL")]
+    Redis[("Redis")]
+  end
+
+  subgraph Quality["Quality and delivery technology layer"]
+    Vitest["Vitest + Testing Library"]
+    JUnit["JUnit 5 + Spring Boot Test"]
+    Docker["Docker Compose\nlocal foundation"]
+  end
+
+  Browser["Browser"] --> Next
+  Next --> React
+  React --> TypeScript
+  React --> Tailwind
+  Next --> REST
+  Browser --> WebSocket
+  REST --> SpringBoot
+  WebSocket --> SpringBoot
+  OpenAPI -.documents.-> REST
+  SpringBoot --> Java
+  SpringBoot --> SpringSecurity
+  SpringBoot --> SpringData
+  SpringData --> PostgreSQL
+  SpringBoot --> Redis
+  Vitest -.tests.-> React
+  JUnit -.tests.-> SpringBoot
+  Docker -.runs local dependencies.-> PostgreSQL
+  Docker -.runs local dependencies.-> Redis

@@ -1,0 +1,20 @@
+sequenceDiagram
+  autonumber
+  participant Job as Recommendation Job
+  participant Ai as AiRecommendationService
+  participant Analytics as AnalyticsSnapshotRepository
+  participant Model as AiModelVersionRepository
+  participant Repo as RecommendationRepository
+  actor Student
+  participant Api as RecommendationController
+
+  Job->>Ai: generateRecommendations()
+  Ai->>Model: Load active model version
+  Ai->>Analytics: Read learning snapshots and signals
+  Ai->>Ai: Rank recommended learning items
+  Ai->>Repo: Save recommendation items and reasons
+  Student->>Api: GET /api/v1/me/recommendations
+  Api->>Ai: listForStudent(studentId)
+  Ai->>Repo: Load latest active recommendations
+  Ai-->>Api: RecommendationResponse
+  Api-->>Student: 200 OK or Vietnamese empty state

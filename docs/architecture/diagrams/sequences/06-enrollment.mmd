@@ -1,0 +1,20 @@
+sequenceDiagram
+  autonumber
+  actor Student
+  participant Web as Next.js Web
+  participant Api as EnrollmentController
+  participant Service as EnrollmentService
+  participant Course as CourseService
+  participant Repo as EnrollmentRepository
+  participant Notify as NotificationService
+
+  Student->>Web: Click enroll
+  Web->>Api: POST /api/v1/courses/{courseId}/enrollments
+  Api->>Service: enroll(studentId, courseId)
+  Service->>Course: Require published course
+  Service->>Repo: Check duplicate enrollment
+  Service->>Repo: Save enrollment
+  Service->>Notify: Create in-app notification
+  Service-->>Api: EnrollmentResponse
+  Api-->>Web: 201 Created
+  Web-->>Student: Show enrollment success

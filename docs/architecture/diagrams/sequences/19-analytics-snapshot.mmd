@@ -1,0 +1,18 @@
+sequenceDiagram
+  autonumber
+  participant Job as Scheduled Job
+  participant Analytics as AnalyticsService
+  participant Signals as LearningSignalRepository
+  participant Snapshots as AnalyticsSnapshotRepository
+  participant Api as AnalyticsController
+  actor Instructor
+
+  Job->>Analytics: calculateCourseSnapshots()
+  Analytics->>Signals: Read new learning signals
+  Analytics->>Analytics: Aggregate progress and engagement metrics
+  Analytics->>Snapshots: Save snapshot payload
+  Instructor->>Api: GET /api/v1/instructor/courses/{courseId}/analytics
+  Api->>Analytics: getCourseAnalytics(instructorId, courseId)
+  Analytics->>Snapshots: Load latest snapshot
+  Analytics-->>Api: AnalyticsResponse
+  Api-->>Instructor: 200 OK

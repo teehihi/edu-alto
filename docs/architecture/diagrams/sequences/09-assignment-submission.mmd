@@ -1,0 +1,20 @@
+sequenceDiagram
+  autonumber
+  actor Student
+  participant Web as Next.js Web
+  participant Api as AssignmentController
+  participant Service as AssignmentService
+  participant File as FileAssetService
+  participant Repo as AssignmentSubmissionRepository
+  participant Notify as NotificationService
+
+  Student->>Web: Upload assignment
+  Web->>Api: POST /api/v1/assignments/{assignmentId}/submissions
+  Api->>Service: submitAssignment(studentId, assignmentId, file)
+  Service->>Service: Validate enrollment, deadline and file policy
+  Service->>File: Store file metadata and storage key
+  Service->>Repo: Save submission
+  Service->>Notify: Notify instructor
+  Service-->>Api: AssignmentSubmissionResponse
+  Api-->>Web: 201 Created
+  Web-->>Student: Show submitted state

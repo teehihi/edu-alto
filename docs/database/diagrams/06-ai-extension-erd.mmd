@@ -1,0 +1,68 @@
+erDiagram
+  users {
+    uuid id PK
+    varchar email
+  }
+  courses {
+    uuid id PK
+    varchar title
+  }
+  lessons {
+    uuid id PK
+    varchar title
+  }
+  learning_signals {
+    uuid id PK
+    uuid user_id FK
+    uuid course_id FK
+    uuid lesson_id FK
+    varchar signal_type
+    jsonb metadata
+    timestamptz occurred_at
+  }
+  analytics_snapshots {
+    uuid id PK
+    uuid user_id FK
+    uuid course_id FK
+    varchar snapshot_type
+    jsonb payload
+    timestamptz calculated_at
+  }
+  ai_model_versions {
+    uuid id PK
+    varchar name
+    varchar version
+    varchar status
+    timestamptz activated_at
+  }
+  recommendations {
+    uuid id PK
+    uuid user_id FK
+    uuid model_version_id FK
+    varchar status
+    timestamptz generated_at
+  }
+  recommendation_items {
+    uuid id PK
+    uuid recommendation_id FK
+    varchar item_type
+    uuid item_id
+    int rank
+    numeric score
+  }
+  recommendation_reasons {
+    uuid id PK
+    uuid recommendation_item_id FK
+    varchar reason_code
+    text reason_text
+  }
+
+  users ||--o{ learning_signals : emits
+  courses ||--o{ learning_signals : scopes
+  lessons ||--o{ learning_signals : may_scope
+  users ||--o{ analytics_snapshots : has
+  courses ||--o{ analytics_snapshots : may_scope
+  users ||--o{ recommendations : receives
+  ai_model_versions ||--o{ recommendations : generates
+  recommendations ||--o{ recommendation_items : includes
+  recommendation_items ||--o{ recommendation_reasons : explains

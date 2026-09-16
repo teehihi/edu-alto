@@ -1,0 +1,89 @@
+erDiagram
+  users {
+    uuid id PK
+    varchar email UK
+  }
+  instructor_profiles {
+    uuid user_id PK
+  }
+  categories {
+    uuid id PK
+    varchar name
+    varchar slug UK
+    uuid parent_id FK
+    int position
+  }
+  courses {
+    uuid id PK
+    uuid instructor_id FK
+    varchar title
+    varchar slug UK
+    varchar level
+    varchar status
+    timestamptz published_at
+    timestamptz deleted_at
+  }
+  course_categories {
+    uuid course_id FK
+    uuid category_id FK
+  }
+  sections {
+    uuid id PK
+    uuid course_id FK
+    varchar title
+    int position
+  }
+  lessons {
+    uuid id PK
+    uuid section_id FK
+    varchar title
+    varchar type
+    varchar status
+    int position
+  }
+  lesson_contents {
+    uuid id PK
+    uuid lesson_id FK
+    varchar content_type
+    text body
+    varchar storage_key
+  }
+  enrollments {
+    uuid id PK
+    uuid student_id FK
+    uuid course_id FK
+    varchar status
+    timestamptz enrolled_at
+    timestamptz completed_at
+  }
+  learning_progress {
+    uuid id PK
+    uuid enrollment_id FK
+    uuid lesson_id FK
+    numeric progress_percent
+    timestamptz completed_at
+  }
+  notes {
+    uuid id PK
+    uuid user_id FK
+    uuid course_id FK
+    uuid lesson_id FK
+    int video_second
+    text body
+  }
+
+  users ||--o| instructor_profiles : may_be
+  instructor_profiles ||--o{ courses : creates
+  categories ||--o{ categories : parent
+  courses ||--o{ course_categories : tagged
+  categories ||--o{ course_categories : groups
+  courses ||--o{ sections : contains
+  sections ||--o{ lessons : contains
+  lessons ||--o{ lesson_contents : has
+  users ||--o{ enrollments : enrolls
+  courses ||--o{ enrollments : has
+  enrollments ||--o{ learning_progress : tracks
+  lessons ||--o{ learning_progress : completed_by
+  users ||--o{ notes : writes
+  courses ||--o{ notes : scopes
+  lessons ||--o{ notes : anchors

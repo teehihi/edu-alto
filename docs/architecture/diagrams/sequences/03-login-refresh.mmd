@@ -1,0 +1,23 @@
+sequenceDiagram
+  autonumber
+  actor User
+  participant Web as Next.js Web
+  participant Auth as AuthController
+  participant Service as AuthService
+  participant Users as UserRepository
+  participant Tokens as RefreshTokenRepository
+
+  User->>Web: Submit login form
+  Web->>Auth: POST /api/v1/auth/login
+  Auth->>Service: login(request)
+  Service->>Users: Load user by email
+  Service->>Service: Verify password and account status
+  Service->>Tokens: Store refresh token hash
+  Service-->>Auth: Access token and refresh token
+  Auth-->>Web: 200 OK
+  Web-->>User: Enter authenticated app
+  Web->>Auth: POST /api/v1/auth/refresh
+  Auth->>Service: rotateRefreshToken(request)
+  Service->>Tokens: Revoke old token and save new hash
+  Service-->>Auth: New token pair
+  Auth-->>Web: 200 OK

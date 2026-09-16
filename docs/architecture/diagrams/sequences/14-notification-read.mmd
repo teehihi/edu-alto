@@ -1,0 +1,20 @@
+sequenceDiagram
+  autonumber
+  actor User
+  participant Web as Next.js Web
+  participant Api as NotificationController
+  participant Service as NotificationService
+  participant Repo as NotificationRepository
+
+  User->>Web: Open notifications
+  Web->>Api: GET /api/v1/me/notifications
+  Api->>Service: listMyNotifications(userId)
+  Service->>Repo: Query recipient notifications
+  Repo-->>Service: Notifications
+  Service-->>Api: Notification list
+  Api-->>Web: 200 OK
+  User->>Web: Mark one as read
+  Web->>Api: POST /api/v1/me/notifications/{id}/read
+  Api->>Service: markRead(userId, notificationId)
+  Service->>Repo: Update read state
+  Api-->>Web: 204 No Content

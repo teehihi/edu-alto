@@ -1,0 +1,64 @@
+---
+title: EduAlto EA-inspired Layered Architecture
+---
+flowchart TB
+  subgraph Experience["Experience layer"]
+    WebUI["Next.js UI\nVietnamese UX copy"]
+    Responsive["Responsive and accessible interactions"]
+  end
+
+  subgraph API["API layer"]
+    Controllers["REST Controllers"]
+    WsEndpoint["WebSocket/STOMP Endpoints"]
+    Validation["Request validation"]
+    ErrorFormat["Consistent response and error format"]
+  end
+
+  subgraph Application["Application layer"]
+    UseCases["Use case services"]
+    Commands["Commands and queries"]
+    DTOs["Request/Response DTOs"]
+  end
+
+  subgraph Domain["Domain layer"]
+    Entities["Entities and value objects"]
+    Rules["Business rules"]
+    State["State transitions"]
+  end
+
+  subgraph Persistence["Persistence layer"]
+    Repositories["Repositories"]
+    JpaMappings["JPA mappings"]
+    Queries["Focused queries"]
+  end
+
+  subgraph Infrastructure["Infrastructure layer"]
+    PostgreSQL[("PostgreSQL")]
+    Redis[("Redis")]
+    Email["Email Provider"]
+    Storage["Future file storage"]
+    AIProvider["Future AI provider"]
+  end
+
+  WebUI --> Controllers
+  WebUI --> WsEndpoint
+  Responsive --> WebUI
+  Controllers --> Validation
+  Controllers --> UseCases
+  WsEndpoint --> UseCases
+  Validation --> DTOs
+  UseCases --> Commands
+  UseCases --> DTOs
+  UseCases --> Entities
+  Commands --> Rules
+  Entities --> Rules
+  Rules --> State
+  UseCases --> Repositories
+  Repositories --> JpaMappings
+  Repositories --> Queries
+  JpaMappings --> PostgreSQL
+  Queries --> PostgreSQL
+  UseCases --> Redis
+  UseCases --> Email
+  UseCases -.future document upload.-> Storage
+  UseCases -.future recommendation.-> AIProvider

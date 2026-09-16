@@ -1,0 +1,33 @@
+---
+title: Functional Module Map
+---
+flowchart LR
+  Identity["Identity\nAuth, User, Profile, Instructor"]
+  Catalog["Course Catalog\nCourse, Category, Section, Lesson"]
+  Enrollment["Enrollment"]
+  Learning["Learning Progress"]
+  Assessment["Assessment\nQuiz, Assignment"]
+  Content["Documents and Notes"]
+  Social["Social\nDiscussion, Messaging"]
+  Notify["Notification and Schedule"]
+  Outcome["Review and Certificate"]
+  Analytics["Analytics and Signals"]
+  AI["Future AI Extension"]
+  Admin["Administration"]
+
+  Identity --> Catalog
+  Identity --> Enrollment
+  Catalog --> Enrollment
+  Catalog --> Learning
+  Catalog --> Assessment
+  Catalog --> Content
+  Enrollment --> Learning
+  Learning --> Analytics
+  Assessment --> Analytics
+  Social --> Notify
+  Notify --> Identity
+  Outcome --> Catalog
+  Admin --> Identity
+  Admin --> Catalog
+  Analytics -.signals.-> AI
+  AI -.recommendations.-> Catalog

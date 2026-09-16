@@ -1,0 +1,18 @@
+sequenceDiagram
+  autonumber
+  actor Admin
+  participant Web as Admin UI
+  participant Api as AdminUserController
+  participant Service as AdminUserService
+  participant User as UserService
+  participant Audit as AuditLogService
+
+  Admin->>Web: Change user status
+  Web->>Api: PUT /api/v1/admin/users/{userId}/status
+  Api->>Service: updateStatus(adminId, targetUserId, status)
+  Service->>Service: Require admin permission
+  Service->>User: Update user status
+  Service->>Audit: Record governance action
+  Service-->>Api: UserAdminResponse
+  Api-->>Web: 200 OK
+  Web-->>Admin: Show saved state

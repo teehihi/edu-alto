@@ -1,0 +1,88 @@
+erDiagram
+  courses {
+    uuid id PK
+    varchar title
+  }
+  lessons {
+    uuid id PK
+    varchar title
+  }
+  users {
+    uuid id PK
+    varchar email
+  }
+  quizzes {
+    uuid id PK
+    uuid course_id FK
+    uuid lesson_id FK
+    varchar title
+    int max_attempts
+    timestamptz available_from
+    timestamptz available_until
+  }
+  questions {
+    uuid id PK
+    uuid quiz_id FK
+    varchar type
+    text prompt
+    numeric points
+    int position
+  }
+  question_options {
+    uuid id PK
+    uuid question_id FK
+    text label
+    boolean is_correct
+    int position
+  }
+  quiz_attempts {
+    uuid id PK
+    uuid quiz_id FK
+    uuid student_id FK
+    varchar status
+    numeric score
+    timestamptz started_at
+    timestamptz submitted_at
+  }
+  quiz_answers {
+    uuid id PK
+    uuid attempt_id FK
+    uuid question_id FK
+    text answer_text
+    boolean is_correct
+    numeric earned_points
+  }
+  assignments {
+    uuid id PK
+    uuid course_id FK
+    uuid lesson_id FK
+    varchar title
+    timestamptz due_at
+    numeric max_score
+  }
+  assignment_submissions {
+    uuid id PK
+    uuid assignment_id FK
+    uuid student_id FK
+    uuid graded_by FK
+    varchar status
+    uuid file_asset_id
+    numeric score
+    text feedback
+    timestamptz submitted_at
+    timestamptz graded_at
+  }
+
+  courses ||--o{ quizzes : has
+  lessons ||--o{ quizzes : may_have
+  quizzes ||--o{ questions : contains
+  questions ||--o{ question_options : has
+  quizzes ||--o{ quiz_attempts : receives
+  users ||--o{ quiz_attempts : submits
+  quiz_attempts ||--o{ quiz_answers : includes
+  questions ||--o{ quiz_answers : answered
+  courses ||--o{ assignments : has
+  lessons ||--o{ assignments : may_have
+  assignments ||--o{ assignment_submissions : receives
+  users ||--o{ assignment_submissions : submits
+  users ||--o{ assignment_submissions : grades

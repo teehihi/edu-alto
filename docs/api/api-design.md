@@ -2,6 +2,8 @@
 
 Base path: `/api/v1`.
 
+API của EduAlto dùng REST, JSON, DTO rõ ràng và error format nhất quán. User-facing `message` dùng tiếng Việt; API path, field name và machine-readable `code` dùng tiếng Anh.
+
 ## Response format
 
 Success:
@@ -24,7 +26,8 @@ Paginated success:
     "page": 0,
     "size": 20,
     "totalElements": 100,
-    "totalPages": 5
+    "totalPages": 5,
+    "sort": "publishedAt,desc"
   }
 }
 ```
@@ -46,12 +49,13 @@ Error:
 
 ## Conventions
 
-- Use nouns, not verbs.
-- Use HTTP status codes correctly.
-- Validate request DTOs.
-- Use `page`, `size`, `sort`, `q` for pagination/search.
-- Do not expose stack traces or internal class names.
-- Use Vietnamese user-facing `message`, English machine-readable `code`.
+- Dùng nouns, không dùng verbs trong resource path.
+- Prefix mọi endpoint bằng `/api/v1`.
+- Request/response dùng DTO, không expose entity.
+- Pagination dùng `page`, `size`, `sort`.
+- Search/filter dùng `q` và field filter rõ nghĩa.
+- `message` an toàn cho end user, không chứa stack trace/class name.
+- OpenAPI phải phản ánh endpoint thật.
 
 ## Authentication
 
@@ -67,12 +71,30 @@ POST /api/v1/auth/reset-password
 
 Registration flow:
 
-1. User submits full name, email, password and confirm password.
-2. Backend validates input and sends email OTP.
-3. User verifies OTP.
-4. Account becomes active.
+1. User gửi full name, email, password và confirm password.
+2. Backend validate input, hash password và gửi email OTP.
+3. User verify OTP.
+4. Account chuyển sang `ACTIVE`.
 
-Login does not require OTP every time.
+Login không yêu cầu OTP mỗi lần.
+
+## Users and profile
+
+```text
+GET /api/v1/me
+PUT /api/v1/me
+GET /api/v1/me/profile
+PUT /api/v1/me/profile
+```
+
+Admin:
+
+```text
+GET  /api/v1/admin/users
+GET  /api/v1/admin/users/{userId}
+PUT  /api/v1/admin/users/{userId}/status
+POST /api/v1/admin/users/{userId}/roles
+```
 
 ## Courses
 
@@ -93,6 +115,8 @@ Filters:
 GET /api/v1/courses?q=java&category=backend&level=beginner&page=0&size=12&sort=publishedAt,desc
 ```
 
+Public course listing chỉ trả khóa học `PUBLISHED`.
+
 ## Learning
 
 ```text
@@ -110,6 +134,8 @@ POST /api/v1/quizzes/{quizId}/attempts
 GET  /api/v1/quiz-attempts/{attemptId}
 ```
 
+Backend quyết định khi nào trả đáp án đúng theo policy của quiz, không để frontend tự kiểm soát.
+
 ## Assignment
 
 ```text
@@ -118,6 +144,8 @@ POST /api/v1/assignments/{assignmentId}/submissions
 GET  /api/v1/assignment-submissions/{submissionId}
 POST /api/v1/assignment-submissions/{submissionId}/grade
 ```
+
+File upload phải validate dung lượng, loại file và storage metadata trước production.
 
 ## Documents and notes
 
@@ -153,11 +181,13 @@ GET  /api/v1/conversations/{conversationId}/messages
 WebSocket/STOMP:
 
 ```text
-CONNECT /ws
-SEND /app/conversations/{conversationId}/messages
+CONNECT   /ws
+SEND      /app/conversations/{conversationId}/messages
 SUBSCRIBE /topic/conversations/{conversationId}
 SUBSCRIBE /user/queue/notifications
 ```
+
+REST là nguồn đồng bộ lại sau reconnect; WebSocket không thay thế persistence.
 
 ## Notifications
 
@@ -167,26 +197,38 @@ POST /api/v1/me/notifications/{notificationId}/read
 POST /api/v1/me/notifications/read-all
 ```
 
+## Analytics
+
+```text
+GET /api/v1/me/analytics/learning-summary
+GET /api/v1/instructor/courses/{courseId}/analytics
+GET /api/v1/admin/analytics/overview
+```
+
+Student chỉ đọc dữ liệu của chính mình. Instructor chỉ đọc course mình quản lý. Admin đọc toàn hệ thống.
+
 ## Recommendations
 
 Future AI extension:
 
 ```text
-GET /api/v1/me/recommendations
+GET  /api/v1/me/recommendations
 POST /api/v1/admin/ai/model-versions
+GET  /api/v1/admin/ai/model-versions
 ```
 
-If no recommendation exists, frontend shows Vietnamese empty state.
+Nếu chưa có recommendation, frontend hiển thị `Chưa có gợi ý học tập phù hợp`.
 
 ## HTTP status
 
-- `200 OK` for successful reads/updates.
-- `201 Created` for create.
-- `204 No Content` for delete.
-- `400 Bad Request` for malformed input.
-- `401 Unauthorized` for missing/invalid auth.
-- `403 Forbidden` for insufficient permission.
-- `404 Not Found` for missing resource.
-- `409 Conflict` for duplicate state.
-- `422 Unprocessable Entity` for domain validation failure.
-- `500 Internal Server Error` for unexpected server error with safe message.
+- `200 OK` cho read/update thành công.
+- `201 Created` cho create.
+- `204 No Content` cho delete/mark action không cần body.
+- `400 Bad Request` cho malformed input.
+- `401 Unauthorized` cho thiếu/sai auth.
+- `403 Forbidden` cho không đủ quyền.
+- `404 Not Found` cho resource không tồn tại hoặc không được phép biết tồn tại.
+- `409 Conflict` cho duplicate/trạng thái xung đột.
+- `422 Unprocessable Entity` cho domain validation fail.
+- `500 Internal Server Error` cho lỗi bất ngờ với message an toàn.
+

@@ -1,0 +1,21 @@
+sequenceDiagram
+  autonumber
+  actor Guest
+  participant Web as Next.js Web
+  participant Auth as AuthController
+  participant Service as AuthService
+  participant User as UserRepository
+  participant Otp as EmailOtpRepository
+  participant Mail as EmailProvider
+
+  Guest->>Web: Submit register form
+  Web->>Auth: POST /api/v1/auth/register
+  Auth->>Service: register(request)
+  Service->>User: Check email uniqueness
+  Service->>Service: Hash password and validate confirmation
+  Service->>User: Save pending user
+  Service->>Otp: Save hashed OTP with TTL
+  Service-->>Mail: Send verification email after commit
+  Service-->>Auth: Registration pending response
+  Auth-->>Web: 201 Created
+  Web-->>Guest: Show Vietnamese OTP instruction
