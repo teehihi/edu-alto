@@ -1,114 +1,276 @@
-# EduAlto
+<div align="center">
+  <img src="frontend/public/images/logo-with-text.png" alt="EduAlto" width="260" />
 
-EduAlto là nền tảng học tập trực tuyến hướng tới người dùng Việt Nam. Dự án được thiết kế theo kiến trúc modular monolith để phát triển nhanh, dễ kiểm thử, dễ triển khai và vẫn giữ ranh giới module rõ ràng cho các phase mở rộng sau này.
+  <h1>EduAlto</h1>
 
-## Trạng thái foundation
+  <p>
+    Nền tảng học tập trực tuyến cho người dùng Việt Nam, được xây dựng theo kiến trúc modular monolith,
+    ưu tiên correctness, security, maintainability và khả năng mở rộng theo từng vertical slice.
+  </p>
 
-Repository ban đầu không phải Git checkout và gần như trống, chỉ có thư mục `Logo/` chứa tài sản nhận diện. Lần chạy foundation này thiết lập:
+  <p>
+    <img alt="Java 25" src="https://img.shields.io/badge/Java-25%20LTS-20B486?style=for-the-badge" />
+    <img alt="Spring Boot" src="https://img.shields.io/badge/Spring%20Boot-3.5.16-6DB33F?style=for-the-badge" />
+    <img alt="Next.js" src="https://img.shields.io/badge/Next.js-14-101A2C?style=for-the-badge" />
+    <img alt="PostgreSQL" src="https://img.shields.io/badge/PostgreSQL-16-4169E1?style=for-the-badge" />
+    <img alt="Redis" src="https://img.shields.io/badge/Redis-7-DC382D?style=for-the-badge" />
+  </p>
+</div>
 
-- Frontend Next.js + TypeScript + Tailwind CSS.
-- Backend Java 25 LTS + Spring Boot + Maven.
-- PostgreSQL và Redis qua Docker Compose.
-- Cấu trúc test cho frontend/backend.
-- Tài liệu kiến trúc, database, API, AI extension, Figma analysis và coding standards.
-- Foundation cho security, WebSocket, validation, error handling và OpenAPI.
+---
 
-## Tech stack
+## Tổng Quan
 
-- Frontend: Next.js App Router, React, TypeScript, Tailwind CSS.
-- Backend: Java 25 LTS, Spring Boot, Spring Security, Spring WebSocket, Spring Data JPA, Spring Validation, springdoc-openapi.
-- Database: PostgreSQL.
-- Cache/realtime support: Redis.
-- Testing: Vitest/Testing Library cho frontend, JUnit 5 + Spring Boot Test cho backend.
-- DevOps: Dockerfile trong `frontend/` và `backend/`, Docker Compose cho local development.
+EduAlto là LMS foundation dành cho học viên, giảng viên và quản trị viên. Dự án hiện tập trung vào một lõi backend chắc chắn: xác thực, quản lý người dùng, database migration và hạ tầng local bằng Docker Compose.
 
-## Kiến trúc
+Sản phẩm được thiết kế để phát triển theo từng module rõ ràng thay vì tách microservices quá sớm. Các feature như khóa học, ghi danh, bài học, quiz, assignment, notification và AI recommendation sẽ được bổ sung theo các run tiếp theo.
 
-EduAlto sử dụng modular monolith. Các module chính gồm auth, user, course, enrollment, lesson, learning, quiz, assignment, document, discussion, messaging, notification, schedule, review, certificate, analytics, admin và ai.
+## Trạng Thái Hiện Tại
 
-Nguyên tắc phụ thuộc backend:
+| Hạng mục | Trạng thái |
+| --- | --- |
+| Monorepo foundation | Hoàn thành |
+| Java 25 LTS migration | Hoàn thành |
+| Dockerfile organization | Hoàn thành |
+| Architecture/database/security/API docs | Hoàn thành foundation |
+| PostgreSQL + Redis local infrastructure | Hoàn thành |
+| Flyway migration V1 | Hoàn thành |
+| User + Authentication backend slice | Hoàn thành |
+| Frontend auth UI | Chưa triển khai |
+| Course/Learning modules | Chưa triển khai |
+
+## Tính Năng Đã Có
+
+### Backend Authentication
+
+- Đăng ký tài khoản.
+- Xác thực email bằng OTP.
+- Gửi lại OTP xác thực.
+- Đăng nhập bằng email/password.
+- JWT access token.
+- Refresh token lưu dạng hash, có rotation/revoke.
+- Đăng xuất bằng refresh token revoke.
+- Quên mật khẩu, xác thực OTP reset, đặt mật khẩu mới.
+- API người dùng hiện tại: `GET /api/v1/me`, `PUT /api/v1/me`.
+
+### Security Foundation
+
+- Password hash bằng BCrypt.
+- OTP lưu dạng hash, có TTL, attempt limit và chống reuse.
+- Account mới ở trạng thái `PENDING_VERIFICATION`.
+- Chỉ account `ACTIVE` được login.
+- Refresh token không lưu raw token trong database.
+- Secret local nằm trong `.env`, không commit lên Git.
+- Error response nhất quán, không expose stack trace cho frontend.
+
+### Database Foundation
+
+Flyway migration `V1__auth_user_management.sql` tạo các bảng:
+
+- `users`
+- `roles`
+- `user_roles`
+- `email_otps`
+- `refresh_tokens`
+
+PostgreSQL runtime đã được verify với Flyway history, bảng thật, constraints và indexes.
+
+## Tech Stack
+
+| Layer | Công nghệ |
+| --- | --- |
+| Frontend | Next.js App Router, React, TypeScript, Tailwind CSS |
+| Backend | Java 25 LTS, Spring Boot 3.5.16, Spring Security, Spring Data JPA |
+| API | REST, OpenAPI, JSON DTO |
+| Database | PostgreSQL 16 |
+| Cache/realtime support | Redis 7 |
+| Migration | Flyway |
+| Testing | Vitest, Testing Library, JUnit 5, Spring Boot Test |
+| DevOps | Docker Compose, Dockerfile riêng cho backend/frontend |
+
+## Kiến Trúc
+
+EduAlto dùng modular monolith. Backend giữ dependency direction:
 
 ```text
-controller -> application/service -> domain -> repository -> infrastructure
+controller -> service/application -> domain -> repository -> infrastructure
 ```
 
-Controller không chứa business logic. Entity không được trả trực tiếp ra API khi dữ liệu cần DTO. AI là extension độc lập: core LMS vẫn hoạt động khi AI service chưa tồn tại.
+Các module chính:
 
-## Cấu trúc dự án
+```text
+auth, user, profile, instructor, course, enrollment, lesson, learning,
+quiz, assignment, document, discussion, messaging, notification,
+schedule, review, certificate, analytics, admin, ai
+```
+
+Nguyên tắc quan trọng:
+
+- Controller chỉ nhận request, validate và gọi service.
+- Service xử lý use case.
+- Domain giữ entity/value object/rule cốt lõi.
+- Repository chỉ truy cập persistence.
+- DTO không lẫn entity.
+- Không tạo abstraction chung nếu chưa có nhu cầu thật.
+- AI là extension tương lai, không nhúng cứng vào core LMS.
+
+## Cấu Trúc Dự Án
 
 ```text
 .
 ├── AGENTS.md
-├── docs/
-├── frontend/
-│   └── Dockerfile
-├── backend/
-│   └── Dockerfile
+├── README.md
 ├── docker-compose.yml
-└── .env.example
+├── .env.example
+├── backend/
+│   ├── Dockerfile
+│   ├── pom.xml
+│   └── src/
+├── frontend/
+│   ├── Dockerfile
+│   ├── package.json
+│   └── src/
+├── docs/
+│   ├── api/
+│   ├── architecture/
+│   ├── database/
+│   ├── security/
+│   └── testing/
+└── Logo/
 ```
 
-## Chạy local
+## Chạy Local
 
-Chạy hạ tầng PostgreSQL và Redis bằng Docker Compose:
+### 1. Tạo file môi trường
 
 ```bash
 cp .env.example .env
+```
+
+Với môi trường local hiện tại, `.env` không được commit. Hãy dùng secret riêng cho máy của bạn.
+
+### 2. Chạy PostgreSQL và Redis
+
+```bash
 docker compose up -d postgres redis
 ```
 
-Khi chạy backend trực tiếp trên macOS và muốn dùng PostgreSQL trong Docker, truyền datasource qua environment:
+Kiểm tra trạng thái:
+
+```bash
+docker compose ps
+```
+
+### 3. Chạy backend trực tiếp trên macOS
+
+Khi backend chạy ngoài Docker nhưng database chạy trong Docker, dùng `localhost`:
 
 ```bash
 export SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/edualto
 export SPRING_DATASOURCE_USERNAME=edualto
-export SPRING_DATASOURCE_PASSWORD=edualto_dev_password
+export SPRING_DATASOURCE_PASSWORD=<your-local-postgres-password>
 export SPRING_DATASOURCE_DRIVER=org.postgresql.Driver
 export REDIS_HOST=localhost
 export REDIS_PORT=6379
-export JWT_SECRET=replace-with-local-development-secret
-```
+export JWT_SECRET=<your-local-jwt-secret>
 
-Sau đó chạy app:
-
-```bash
-pnpm install
-pnpm frontend:dev
 mvn -f backend/pom.xml spring-boot:run
 ```
 
-Nếu chạy backend trong Docker Compose, service backend tự dùng hostname nội bộ `postgres` và `redis`.
+Nếu không cấu hình datasource PostgreSQL, backend fallback sang H2 để phục vụ test/dev nhanh.
+
+### 4. Chạy frontend
+
+```bash
+pnpm install
+pnpm --dir frontend dev
+```
+
+Frontend mặc định gọi API qua:
+
+```text
+http://localhost:8080/api/v1
+```
+
+### 5. Chạy backend bằng Docker Compose
+
+Khi backend chạy trong Compose, service tự dùng hostname nội bộ `postgres` và `redis`:
 
 ```bash
 docker compose up backend
 ```
 
-Fallback H2 trong `application.yml` phục vụ test/dev nhanh khi không cấu hình datasource PostgreSQL.
+## Kiểm Thử Và Build
 
-## Kiểm thử và build
+Backend:
 
 ```bash
-pnpm frontend:lint
-pnpm frontend:typecheck
-pnpm frontend:build
 mvn -f backend/pom.xml test
 mvn -f backend/pom.xml package
 ```
 
-## API documentation
+Frontend:
 
-Khi backend chạy, OpenAPI UI dự kiến có tại:
+```bash
+CI=true pnpm --dir frontend typecheck
+CI=true pnpm --dir frontend lint
+CI=true pnpm --dir frontend test
+CI=true pnpm --dir frontend build
+```
+
+Docker Compose:
+
+```bash
+docker compose config
+```
+
+## API Documentation
+
+Khi backend chạy, OpenAPI UI có tại:
 
 ```text
 http://localhost:8080/swagger-ui.html
 ```
 
-API dùng prefix `/api/v1`.
+API dùng prefix:
+
+```text
+/api/v1
+```
+
+Một số endpoint auth đã có:
+
+```text
+POST /api/v1/auth/register
+POST /api/v1/auth/verify-email
+POST /api/v1/auth/resend-verification
+POST /api/v1/auth/login
+POST /api/v1/auth/refresh
+POST /api/v1/auth/logout
+POST /api/v1/auth/forgot-password
+POST /api/v1/auth/verify-reset-otp
+POST /api/v1/auth/reset-password
+GET  /api/v1/me
+PUT  /api/v1/me
+```
+
+## Tài Liệu Chính
+
+| Tài liệu | Nội dung |
+| --- | --- |
+| [Architecture](docs/architecture/architecture.md) | Kiến trúc tổng thể |
+| [Module boundaries](docs/architecture/module-boundaries.md) | Ranh giới module backend |
+| [Database design](docs/database/database-design.md) | Thiết kế database |
+| [API design](docs/api/api-design.md) | Quy ước API |
+| [Security](docs/security/authentication-authorization.md) | Xác thực và phân quyền |
+| [Testing strategy](docs/testing/testing-strategy.md) | Chiến lược kiểm thử |
+| [Figma analysis](docs/ui/figma-analysis.md) | Phân tích UI/Figma |
+| [AI extension](docs/architecture/ai-extension.md) | Hướng mở rộng AI |
 
 ## Roadmap
 
-1. Authentication + Authorization.
-2. User + Profile.
+1. Authentication + User Management.
+2. Profile module.
 3. Course + Category.
 4. Enrollment.
 5. Section + Lesson.
@@ -121,12 +283,17 @@ API dùng prefix `/api/v1`.
 12. AI Skill Analysis.
 13. AI Recommendation.
 
-## Tài liệu
+## Quy Ước Đóng Góp
 
-- [System analysis](docs/architecture/system-analysis.md)
-- [Architecture](docs/architecture/architecture.md)
-- [Coding standards](docs/architecture/coding-standards.md)
-- [AI extension](docs/architecture/ai-extension.md)
-- [Database design](docs/database/database-design.md)
-- [API design](docs/api/api-design.md)
-- [Figma analysis](docs/ui/figma-analysis.md)
+- UI copy, validation message và user-facing message dùng tiếng Việt.
+- Source code, class, function, API path và database naming dùng tiếng Anh.
+- Không commit `.env`, secrets, build artifacts, `node_modules`, `target`.
+- Không đổi modular monolith sang microservices trong foundation.
+- Không merge code nếu làm vỡ lint, typecheck, build hoặc test.
+
+---
+
+<div align="center">
+  <strong>EduAlto</strong><br />
+  LMS foundation gọn gàng, an toàn và đủ chắc để phát triển từng module.
+</div>
