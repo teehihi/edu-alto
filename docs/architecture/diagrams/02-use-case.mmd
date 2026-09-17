@@ -1,48 +1,83 @@
 ---
 title: EduAlto Use Case View
 ---
-flowchart TB
-  Guest(("Guest"))
-  Student(("Student"))
-  Instructor(("Instructor"))
-  Admin(("Administrator"))
+%% EA-style rendered diagram is maintained in 02-use-case.svg.
+%% Mermaid does not provide native UML use-case notation, so this file
+%% keeps the editable source-of-truth relationships and grouping.
+flowchart LR
+  Guest((Guest))
+  Student((Student))
+  Instructor((Instructor))
+  Admin((Administrator))
 
-  Browse["Browse courses"]
-  Register["Register and verify email"]
-  Login["Login / logout"]
-  Enroll["Enroll in course"]
-  Learn["Learn lesson"]
-  Progress["View learning progress"]
-  Quiz["Submit quiz"]
-  Assignment["Submit assignment"]
-  Document["Save document and notes"]
-  Discuss["Discuss and message"]
-  Notify["Receive notification"]
-  Review["Review course"]
-  Cert["Receive certificate"]
-  CourseManage["Manage course content"]
-  Grade["Review submissions"]
-  AdminManage["Manage users, roles, content"]
-  Analytics["View analytics"]
-  Recommend["Receive future recommendations"]
+  subgraph EduAlto["EduAlto LMS"]
+    direction TB
 
-  Guest --> Browse
-  Guest --> Register
-  Guest --> Login
-  Student --> Enroll
-  Student --> Learn
-  Student --> Progress
-  Student --> Quiz
-  Student --> Assignment
-  Student --> Document
-  Student --> Discuss
-  Student --> Notify
-  Student --> Review
-  Student --> Cert
-  Student -.future.-> Recommend
-  Instructor --> CourseManage
-  Instructor --> Grade
-  Instructor --> Discuss
-  Instructor --> Notify
-  Admin --> AdminManage
-  Admin --> Analytics
+    subgraph PublicAccess["Public access"]
+      direction LR
+      Browse(["Browse courses"])
+      Register(["Register and verify email"])
+      Login(["Login / logout"])
+    end
+
+    subgraph StudentLearning["Student learning"]
+      direction LR
+      Enroll(["Enroll in course"])
+      Learn(["Learn lesson"])
+      Progress(["View learning progress"])
+      Quiz(["Submit quiz"])
+      Assignment(["Submit assignment"])
+      Document(["Save document and notes"])
+      Discuss(["Discuss and message"])
+      Notify(["Receive notification"])
+      Review(["Review course"])
+      Cert(["Receive certificate"])
+      Recommend(["Receive future recommendations"])
+    end
+
+    subgraph InstructorOperations["Instructor operations"]
+      direction LR
+      CourseManage(["Manage course content"])
+      Grade(["Review submissions"])
+    end
+
+    subgraph AdminOperations["Administration"]
+      direction LR
+      AdminManage(["Manage users, roles, content"])
+      Analytics(["View analytics"])
+    end
+  end
+
+  Guest --- Browse
+  Guest --- Register
+  Guest --- Login
+
+  Student --- Enroll
+  Student --- Learn
+  Student --- Progress
+  Student --- Quiz
+  Student --- Assignment
+  Student --- Document
+  Student --- Discuss
+  Student --- Notify
+  Student --- Review
+  Student --- Cert
+  Student -. future .- Recommend
+
+  Instructor --- CourseManage
+  Instructor --- Grade
+  Instructor --- Discuss
+  Instructor --- Notify
+
+  Admin --- AdminManage
+  Admin --- Analytics
+
+  classDef actor fill:#fff,stroke:#333,stroke-width:1.4px,color:#101A2C;
+  classDef usecase fill:#fff4cf,stroke:#bfa96c,stroke-width:1.2px,color:#101A2C;
+  classDef future fill:#f7f8fa,stroke:#98a2b3,stroke-width:1.2px,stroke-dasharray:4 4,color:#475467;
+  classDef boundary fill:#fff,stroke:#667085,stroke-width:1px,color:#101A2C;
+
+  class Guest,Student,Instructor,Admin actor;
+  class Browse,Register,Login,Enroll,Learn,Progress,Quiz,Assignment,Document,Discuss,Notify,Review,Cert,CourseManage,Grade,AdminManage,Analytics usecase;
+  class Recommend future;
+  class EduAlto,PublicAccess,StudentLearning,InstructorOperations,AdminOperations boundary;

@@ -53,46 +53,9 @@ flowchart LR
 
 ## Use case diagram
 
-```mermaid
-flowchart TB
-  Guest((Guest))
-  Student((Student))
-  Instructor((Instructor))
-  Admin((Administrator))
+![EduAlto use case diagram](./diagrams/02-use-case.svg)
 
-  UC1[Browse courses]
-  UC2[Register and verify email]
-  UC3[Login]
-  UC4[Enroll course]
-  UC5[Learn lesson]
-  UC6[Submit quiz]
-  UC7[Submit assignment]
-  UC8[Save document and note]
-  UC9[Discuss and message]
-  UC10[View progress and certificate]
-  UC11[Manage course content]
-  UC12[Review submissions]
-  UC13[Manage users and roles]
-  UC14[View analytics]
-  UC15[Receive recommendations]
-
-  Guest --> UC1
-  Guest --> UC2
-  Guest --> UC3
-  Student --> UC4
-  Student --> UC5
-  Student --> UC6
-  Student --> UC7
-  Student --> UC8
-  Student --> UC9
-  Student --> UC10
-  Student --> UC15
-  Instructor --> UC11
-  Instructor --> UC12
-  Instructor --> UC9
-  Admin --> UC13
-  Admin --> UC14
-```
+Source quan hệ actor/use case được giữ tại `docs/architecture/diagrams/02-use-case.mmd`; bản SVG dùng layout UML/EA-style để dễ đọc trong tài liệu.
 
 ## Functional module diagram
 
