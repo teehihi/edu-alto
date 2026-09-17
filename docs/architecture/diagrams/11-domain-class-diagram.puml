@@ -1,0 +1,136 @@
+@startuml
+title EduAlto Domain Class Diagram
+hide empty methods
+skinparam classAttributeIconSize 0
+
+class User {
+  +UUID id
+  +String fullName
+  +String email
+  +String passwordHash
+  +AccountStatus status
+  +Instant emailVerifiedAt
+}
+
+class Role {
+  +UUID id
+  +RoleName name
+}
+
+class StudentProfile {
+  +UUID userId
+  +String headline
+  +String learningGoal
+  +String avatarUrl
+}
+
+class InstructorProfile {
+  +UUID userId
+  +String bio
+  +String expertise
+  +Instant verifiedAt
+}
+
+class EmailOtp {
+  +UUID id
+  +OtpPurpose purpose
+  +String otpHash
+  +Instant expiresAt
+  +Integer attemptCount
+  +Instant consumedAt
+}
+
+class RefreshToken {
+  +UUID id
+  +String tokenHash
+  +Instant expiresAt
+  +Instant revokedAt
+}
+
+class Course {
+  +UUID id
+  +String title
+  +String slug
+  +CourseStatus status
+  +Money price
+}
+
+class Category {
+  +UUID id
+  +String name
+  +String slug
+}
+
+class Section {
+  +UUID id
+  +String title
+  +Integer position
+}
+
+class Lesson {
+  +UUID id
+  +String title
+  +LessonStatus status
+  +Integer position
+}
+
+class Enrollment {
+  +UUID id
+  +EnrollmentStatus status
+  +Instant enrolledAt
+  +Instant completedAt
+}
+
+class LearningProgress {
+  +UUID id
+  +BigDecimal progressPercent
+  +Instant completedAt
+}
+
+class Quiz
+class QuizAttempt
+class Assignment
+class AssignmentSubmission
+class Document
+class Discussion
+class Message
+class Notification
+class Review
+class Certificate
+class Recommendation
+
+User "1" -- "0..*" Role : assigned
+User "1" -- "0..1" StudentProfile
+User "1" -- "0..1" InstructorProfile
+User "1" -- "0..*" EmailOtp
+User "1" -- "0..*" RefreshToken
+
+InstructorProfile "1" -- "0..*" Course : owns
+Category "0..1" -- "0..*" Category : parent
+Category "0..*" -- "0..*" Course
+Course "1" -- "1..*" Section
+Section "1" -- "1..*" Lesson
+
+User "1" -- "0..*" Enrollment : student
+Course "1" -- "0..*" Enrollment
+Enrollment "1" -- "0..*" LearningProgress
+Lesson "1" -- "0..*" LearningProgress
+
+Course "1" -- "0..*" Quiz
+Quiz "1" -- "0..*" QuizAttempt
+User "1" -- "0..*" QuizAttempt
+Course "1" -- "0..*" Assignment
+Assignment "1" -- "0..*" AssignmentSubmission
+User "1" -- "0..*" AssignmentSubmission
+
+Course "1" -- "0..*" Document
+Course "1" -- "0..*" Discussion
+Discussion "1" -- "0..*" Message
+User "1" -- "0..*" Message
+User "1" -- "0..*" Notification
+Course "1" -- "0..*" Review
+User "1" -- "0..*" Review
+Course "1" -- "0..*" Certificate
+User "1" -- "0..*" Certificate
+User "1" -- "0..*" Recommendation : future
+@enduml

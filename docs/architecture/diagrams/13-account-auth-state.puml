@@ -1,0 +1,26 @@
+@startuml
+title EduAlto Account and Auth State Diagram
+
+[*] --> PendingVerification : register
+PendingVerification --> Active : email OTP verified
+PendingVerification --> Locked : too many OTP attempts
+PendingVerification --> Disabled : admin disables
+
+Active --> Authenticated : login success
+Authenticated --> Active : access token expires
+Authenticated --> LoggedOut : logout / refresh token revoked
+LoggedOut --> Active
+
+Active --> PasswordResetRequested : forgot password
+PasswordResetRequested --> ResetOtpVerified : reset OTP verified
+ResetOtpVerified --> Active : password changed
+PasswordResetRequested --> Active : reset OTP expired
+
+Active --> Locked : security lock
+Locked --> Active : admin unlocks
+Active --> Disabled : admin disables
+Locked --> Disabled : admin disables
+Disabled --> Active : admin re-enables
+
+Disabled --> [*]
+@enduml

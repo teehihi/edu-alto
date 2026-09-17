@@ -1,0 +1,74 @@
+@startuml
+title EduAlto Component Diagram
+
+package "Frontend" {
+  [Next.js App Router] as NextApp
+  [Vietnamese UI Components] as UI
+  [API Client] as ApiClient
+}
+
+package "Backend Modular Monolith" {
+  [REST Controllers] as Controllers
+  [WebSocket/STOMP Endpoints] as WsEndpoints
+  [Spring Security] as Security
+  [Auth Module] as Auth
+  [User/Profile Module] as User
+  [Course/Lesson Module] as Course
+  [Enrollment/Learning Module] as Learning
+  [Quiz/Assignment Module] as Assessment
+  [Document/Discussion/Messaging Module] as Collaboration
+  [Notification/Schedule Module] as Notification
+  [Review/Certificate Module] as Credential
+  [Analytics Module] as Analytics
+  [AI Module - future] as AI
+  [Repository Layer] as Repository
+}
+
+database "PostgreSQL" as PostgreSQL
+database "Redis" as Redis
+cloud "Email Provider" as Email
+cloud "Future AI Provider" as FutureAI
+
+NextApp --> UI
+NextApp --> ApiClient
+ApiClient --> Controllers : REST /api/v1
+NextApp --> WsEndpoints : WebSocket/STOMP
+
+Controllers --> Security
+WsEndpoints --> Security
+Controllers --> Auth
+Controllers --> User
+Controllers --> Course
+Controllers --> Learning
+Controllers --> Assessment
+Controllers --> Collaboration
+Controllers --> Notification
+Controllers --> Credential
+
+Auth --> User
+Learning --> Course
+Assessment --> Course
+Collaboration --> Course
+Notification --> User
+Credential --> Course
+Credential --> User
+Analytics --> Learning
+Analytics --> Assessment
+AI ..> Analytics : future signals
+
+Auth --> Repository
+User --> Repository
+Course --> Repository
+Learning --> Repository
+Assessment --> Repository
+Collaboration --> Repository
+Notification --> Repository
+Credential --> Repository
+Analytics --> Repository
+
+Repository --> PostgreSQL
+Auth --> Redis : OTP/rate limit/token metadata
+Notification --> Redis : realtime support
+Auth --> Email : OTP email
+AI ..> FutureAI : future recommendation
+@enduml

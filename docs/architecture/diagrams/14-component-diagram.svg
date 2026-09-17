@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1450" height="880" viewBox="0 0 1450 880" role="img" aria-labelledby="title desc">
+  <title id="title">EduAlto UML Component Diagram</title>
+  <desc id="desc">UML component diagram for EduAlto frontend, backend modular monolith modules, PostgreSQL, Redis, email, and future AI provider.</desc>
+  <defs>
+    <style>.page{fill:#fff}.title{font:700 24px Arial;fill:#101a2c;text-anchor:middle}.pkg{fill:#f8fafc;stroke:#667085;stroke-width:1.6;rx:8}.comp{fill:#fff4cf;stroke:#bfa96c;stroke-width:1.5;rx:6}.head{fill:#fff9e6}.label{font:700 16px Arial;fill:#101a2c}.txt{font:700 14px Arial;fill:#2d2f33;text-anchor:middle}.small{font:12px Arial;fill:#475467;text-anchor:middle}.line{fill:none;stroke:#3f3f46;stroke-width:1.3;marker-end:url(#arr)}.dash{stroke-dasharray:7 6}.db{fill:#eef8f4;stroke:#20b486;stroke-width:1.6}.cloud{fill:#f9fafb;stroke:#98a2b3;stroke-width:1.6}</style>
+    <marker id="arr" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 Z" fill="#3f3f46"/></marker>
+  </defs>
+  <rect class="page" width="1450" height="880"/>
+  <text class="title" x="725" y="42">EduAlto Component Diagram</text>
+  <rect class="pkg" x="55" y="85" width="300" height="710"/><text class="label" x="80" y="120">Frontend</text>
+  <rect class="comp" x="95" y="160" width="220" height="62"/><text class="txt" x="205" y="187">Next.js App Router</text><text class="small" x="205" y="207">React + TypeScript</text>
+  <rect class="comp" x="95" y="275" width="220" height="62"/><text class="txt" x="205" y="302">Vietnamese UI</text><text class="small" x="205" y="322">forms, states, components</text>
+  <rect class="comp" x="95" y="390" width="220" height="62"/><text class="txt" x="205" y="417">API Client</text><text class="small" x="205" y="437">env-based base URL</text>
+  <rect class="comp" x="95" y="505" width="220" height="62"/><text class="txt" x="205" y="532">WebSocket Client</text><text class="small" x="205" y="552">messaging/notification</text>
+
+  <rect class="pkg" x="420" y="85" width="660" height="710"/><text class="label" x="445" y="120">Backend Modular Monolith</text>
+  <rect class="comp" x="460" y="155" width="180" height="54"/><text class="txt" x="550" y="187">REST Controllers</text>
+  <rect class="comp" x="675" y="155" width="180" height="54"/><text class="txt" x="765" y="187">Spring Security</text>
+  <rect class="comp" x="890" y="155" width="150" height="54"/><text class="txt" x="965" y="187">WebSocket</text>
+  <rect class="comp" x="460" y="260" width="150" height="52"/><text class="txt" x="535" y="291">Auth</text>
+  <rect class="comp" x="635" y="260" width="150" height="52"/><text class="txt" x="710" y="291">User/Profile</text>
+  <rect class="comp" x="810" y="260" width="150" height="52"/><text class="txt" x="885" y="291">Course/Lesson</text>
+  <rect class="comp" x="460" y="345" width="150" height="52"/><text class="txt" x="535" y="376">Enrollment</text>
+  <rect class="comp" x="635" y="345" width="150" height="52"/><text class="txt" x="710" y="376">Quiz/Assignment</text>
+  <rect class="comp" x="810" y="345" width="150" height="52"/><text class="txt" x="885" y="376">Document</text>
+  <rect class="comp" x="460" y="430" width="150" height="52"/><text class="txt" x="535" y="461">Discussion</text>
+  <rect class="comp" x="635" y="430" width="150" height="52"/><text class="txt" x="710" y="461">Notification</text>
+  <rect class="comp" x="810" y="430" width="150" height="52"/><text class="txt" x="885" y="461">Review/Cert</text>
+  <rect class="comp" x="555" y="525" width="150" height="52"/><text class="txt" x="630" y="556">Analytics</text>
+  <rect class="comp" x="760" y="525" width="150" height="52"/><text class="txt" x="835" y="556">AI future</text>
+  <rect class="comp" x="610" y="655" width="220" height="62"/><text class="txt" x="720" y="682">Repository Layer</text><text class="small" x="720" y="702">JPA repositories / queries</text>
+
+  <g transform="translate(1160 220)"><path class="db" d="M0,18 a80,18 0 0 0 160,0 v90 a80,18 0 0 1 -160,0 z"/><ellipse class="db" cx="80" cy="18" rx="80" ry="18"/><text class="txt" x="80" y="65">PostgreSQL</text></g>
+  <g transform="translate(1160 420)"><path class="db" d="M0,18 a80,18 0 0 0 160,0 v90 a80,18 0 0 1 -160,0 z"/><ellipse class="db" cx="80" cy="18" rx="80" ry="18"/><text class="txt" x="80" y="65">Redis</text></g>
+  <path class="cloud" d="M1135 635 C1140 600 1195 590 1225 615 C1255 590 1325 612 1320 655 C1360 665 1360 725 1318 735 C1290 765 1225 755 1210 732 C1170 752 1120 730 1135 690 C1105 675 1110 645 1135 635 Z"/>
+  <text class="txt" x="1230" y="675">Email Provider</text><text class="txt" x="1230" y="705">Future AI Provider</text>
+
+  <path class="line" d="M315 421 H460"/><text class="small" x="385" y="405">REST /api/v1</text>
+  <path class="line" d="M315 536 H890"/><text class="small" x="555" y="520">STOMP</text>
+  <path class="line" d="M550 209 V260"/><path class="line" d="M765 209 V260"/><path class="line" d="M965 209 V430"/>
+  <path class="line" d="M535 312 V345"/><path class="line" d="M710 312 V345"/><path class="line" d="M885 312 V345"/>
+  <path class="line" d="M535 482 C560 535 600 590 720 655"/><path class="line" d="M710 482 V655"/><path class="line" d="M885 482 C850 560 805 610 720 655"/>
+  <path class="line" d="M830 686 H1160"/><text class="small" x="995" y="670">JDBC</text>
+  <path class="line" d="M535 286 C1090 285 1110 460 1160 465"/><text class="small" x="930" y="315">OTP / token metadata</text>
+  <path class="line" d="M710 456 C1080 460 1095 500 1160 492"/><text class="small" x="965" y="448">realtime support</text>
+  <path class="line" d="M535 286 C1050 360 1030 650 1135 665"/><text class="small" x="940" y="600">OTP email</text>
+  <path class="line dash" d="M835 551 C1000 585 1030 705 1135 705"/><text class="small" x="980" y="700">future recommendation</text>
+</svg>

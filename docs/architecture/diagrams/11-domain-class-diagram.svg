@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="560" viewBox="0 0 1500 560" role="img" aria-labelledby="title desc">
+  <title id="title">EduAlto Domain UML Class Diagram</title>
+  <desc id="desc">UML class overview for EduAlto domain entities and relationships.</desc>
+  <defs>
+    <style>
+      .page{fill:#fff}.title{font:700 25px Arial;fill:#101a2c;text-anchor:middle}.pkg{fill:#f8fafc;stroke:#667085;stroke-width:1.5;rx:8}.class{fill:#fffdf5;stroke:#bfa96c;stroke-width:1.4;rx:6}.head{fill:#fff4cf;stroke:#bfa96c;stroke-width:1.4}.name{font:700 15px Arial;fill:#101a2c;text-anchor:middle}.attr{font:13px Arial;fill:#344054}.label{font:700 16px Arial;fill:#101a2c}.line{stroke:#3f3f46;stroke-width:1.2;fill:none}.dash{stroke-dasharray:6 5}.mult{font:12px Arial;fill:#475467}
+    </style>
+  </defs>
+  <rect class="page" width="1500" height="560"/>
+  <text class="title" x="750" y="42">EduAlto Domain Class Diagram</text>
+
+  <rect class="pkg" x="35" y="75" width="330" height="410"/><text class="label" x="55" y="105">Identity</text>
+  <g transform="translate(70 125)"><rect class="class" width="250" height="125"/><rect class="head" width="250" height="32"/><text class="name" x="125" y="21">User</text><text class="attr" x="14" y="55">+ id: UUID</text><text class="attr" x="14" y="75">+ fullName: String</text><text class="attr" x="14" y="95">+ email: String</text><text class="attr" x="14" y="115">+ status: AccountStatus</text></g>
+  <g transform="translate(70 275)"><rect class="class" width="250" height="70"/><rect class="head" width="250" height="32"/><text class="name" x="125" y="21">Role</text><text class="attr" x="14" y="55">+ name: RoleName</text></g>
+  <g transform="translate(70 370)"><rect class="class" width="250" height="85"/><rect class="head" width="250" height="32"/><text class="name" x="125" y="21">EmailOtp / RefreshToken</text><text class="attr" x="14" y="55">+ hash: String</text><text class="attr" x="14" y="75">+ expiresAt: Instant</text></g>
+
+  <rect class="pkg" x="400" y="75" width="330" height="410"/><text class="label" x="420" y="105">Profile &amp; Catalog</text>
+  <g transform="translate(435 125)"><rect class="class" width="250" height="70"/><rect class="head" width="250" height="32"/><text class="name" x="125" y="21">StudentProfile</text><text class="attr" x="14" y="55">+ learningGoal: String</text></g>
+  <g transform="translate(435 215)"><rect class="class" width="250" height="70"/><rect class="head" width="250" height="32"/><text class="name" x="125" y="21">InstructorProfile</text><text class="attr" x="14" y="55">+ expertise: String</text></g>
+  <g transform="translate(435 305)"><rect class="class" width="250" height="95"/><rect class="head" width="250" height="32"/><text class="name" x="125" y="21">Course</text><text class="attr" x="14" y="55">+ title: String</text><text class="attr" x="14" y="75">+ status: CourseStatus</text></g>
+  <g transform="translate(435 420)"><rect class="class" width="115" height="45"/><rect class="head" width="115" height="45"/><text class="name" x="57" y="27">Category</text></g>
+  <g transform="translate(570 420)"><rect class="class" width="115" height="45"/><rect class="head" width="115" height="45"/><text class="name" x="57" y="27">Lesson</text></g>
+
+  <rect class="pkg" x="765" y="75" width="330" height="410"/><text class="label" x="785" y="105">Learning &amp; Assessment</text>
+  <g transform="translate(800 125)"><rect class="class" width="250" height="70"/><rect class="head" width="250" height="32"/><text class="name" x="125" y="21">Enrollment</text><text class="attr" x="14" y="55">+ status: EnrollmentStatus</text></g>
+  <g transform="translate(800 215)"><rect class="class" width="250" height="70"/><rect class="head" width="250" height="32"/><text class="name" x="125" y="21">LearningProgress</text><text class="attr" x="14" y="55">+ progressPercent: Decimal</text></g>
+  <g transform="translate(800 305)"><rect class="class" width="115" height="45"/><rect class="head" width="115" height="45"/><text class="name" x="57" y="27">Quiz</text></g>
+  <g transform="translate(935 305)"><rect class="class" width="115" height="45"/><rect class="head" width="115" height="45"/><text class="name" x="57" y="27">QuizAttempt</text></g>
+  <g transform="translate(800 380)"><rect class="class" width="115" height="45"/><rect class="head" width="115" height="45"/><text class="name" x="57" y="27">Assignment</text></g>
+  <g transform="translate(935 380)"><rect class="class" width="115" height="45"/><rect class="head" width="115" height="45"/><text class="name" x="57" y="20">Assignment</text><text class="name" x="57" y="36">Submission</text></g>
+
+  <rect class="pkg" x="1130" y="75" width="330" height="410"/><text class="label" x="1150" y="105">Collaboration &amp; Insight</text>
+  <g transform="translate(1165 125)"><rect class="class" width="115" height="45"/><rect class="head" width="115" height="45"/><text class="name" x="57" y="27">Document</text></g>
+  <g transform="translate(1300 125)"><rect class="class" width="115" height="45"/><rect class="head" width="115" height="45"/><text class="name" x="57" y="27">Discussion</text></g>
+  <g transform="translate(1165 200)"><rect class="class" width="115" height="45"/><rect class="head" width="115" height="45"/><text class="name" x="57" y="27">Message</text></g>
+  <g transform="translate(1300 200)"><rect class="class" width="115" height="45"/><rect class="head" width="115" height="45"/><text class="name" x="57" y="27">Notification</text></g>
+  <g transform="translate(1165 275)"><rect class="class" width="115" height="45"/><rect class="head" width="115" height="45"/><text class="name" x="57" y="27">Review</text></g>
+  <g transform="translate(1300 275)"><rect class="class" width="115" height="45"/><rect class="head" width="115" height="45"/><text class="name" x="57" y="27">Certificate</text></g>
+  <g transform="translate(1230 365)"><rect class="class" width="130" height="55"/><rect class="head" width="130" height="55"/><text class="name" x="65" y="24">Recommendation</text><text class="name" x="65" y="41">future</text></g>
+
+  <path class="line" d="M320 185 H435"/><text class="mult" x="355" y="175">1..1</text>
+  <path class="line" d="M320 310 H435"/><text class="mult" x="350" y="300">roles</text>
+  <path class="line" d="M685 250 C735 250 750 160 800 160"/><text class="mult" x="720" y="230">enrolls</text>
+  <path class="line" d="M685 350 H800"/><text class="mult" x="720" y="340">course</text>
+  <path class="line" d="M1050 160 H1165"/><text class="mult" x="1080" y="150">content</text>
+  <path class="line" d="M1050 325 H1165"/><text class="mult" x="1080" y="315">review</text>
+  <path class="line dash" d="M1050 405 H1230"/><text class="mult" x="1110" y="395">future AI</text>
+  <text class="mult" x="750" y="535" text-anchor="middle">Overview only: source of database truth remains PostgreSQL ERD and Flyway migrations.</text>
+</svg>

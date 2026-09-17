@@ -152,4 +152,5 @@ Khi module, data domain hoặc deployment boundary thay đổi, cập nhật sou
 
 - UML/EA-style diagrams dùng `.puml` làm source chính và render ra `.svg`.
 - Mermaid diagrams dùng `.mmd` làm source chính và render ra `.svg`.
+- Không giữ `.mmd` mirror nếu diagram đã có source UML `.puml`.
 - Sequence và ERD hiện tại có thể tiếp tục dùng Mermaid nếu vẫn rõ lifeline/entity relationship.

@@ -57,6 +57,14 @@ flowchart LR
 
 Source UML được giữ tại `docs/architecture/diagrams/02-use-case.puml`; bản SVG dùng layout UML/EA-style để dễ đọc trong tài liệu.
 
+## Activity diagram
+
+![Authentication activity diagram](./diagrams/12-auth-user-activity.svg)
+
+## State diagram
+
+![Account authentication state diagram](./diagrams/13-account-auth-state.svg)
+
 ## Functional module diagram
 
 ```mermaid

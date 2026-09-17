@@ -74,6 +74,10 @@ Nhóm module chính:
 
 ![Backend Module Dependency](./diagrams/05-backend-module-dependency.svg)
 
+UML component view:
+
+![Component Diagram](./diagrams/14-component-diagram.svg)
+
 ## 7. Dependency Rules
 
 Hard rules:
@@ -97,6 +101,12 @@ Authentication architecture:
 - Backend is source of truth; frontend auth state is UX only.
 
 Security details: [authentication-authorization.md](../security/authentication-authorization.md)
+
+UML activity and state views:
+
+![Authentication Activity](./diagrams/12-auth-user-activity.svg)
+
+![Account Auth State](./diagrams/13-account-auth-state.svg)
 
 ## 9. Authorization
 
@@ -149,6 +159,14 @@ Database principles:
 Details: [database-design.md](../database/database-design.md)
 
 ![Database Overview](../database/diagrams/00-database-overview.svg)
+
+Full database ERD:
+
+![Full ERD](../database/diagrams/99-full-erd.svg)
+
+Domain class overview:
+
+![Domain Class Diagram](./diagrams/11-domain-class-diagram.svg)
 
 ## 12. Redis
 

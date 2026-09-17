@@ -1,0 +1,50 @@
+@startuml
+title EduAlto Authentication and User Activity
+
+start
+:Guest submits registration form;
+:Validate email, password and confirmation;
+
+if (Input valid?) then (yes)
+  :Create pending user;
+  :Assign default STUDENT role;
+  :Generate hashed email OTP;
+  :Send verification email;
+else (no)
+  :Return validation errors;
+  stop
+endif
+
+:User submits verification OTP;
+if (OTP valid and not expired?) then (yes)
+  :Consume OTP;
+  :Activate account;
+else (no)
+  :Increase attempt counter;
+  :Return OTP error;
+  stop
+endif
+
+:User submits login credentials;
+if (Credentials valid and account active?) then (yes)
+  :Issue access token;
+  :Store hashed refresh token;
+  :Return safe user profile;
+else (no)
+  :Return authentication error;
+  stop
+endif
+
+fork
+  :Call authenticated /me;
+  :Return current user DTO;
+fork again
+  :Request password reset when needed;
+  :Generate reset OTP;
+  :Verify reset OTP;
+  :Set new hashed password;
+  :Invalidate reset flow;
+end fork
+
+stop
+@enduml

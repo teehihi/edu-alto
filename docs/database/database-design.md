@@ -15,7 +15,7 @@ Database chính của EduAlto là PostgreSQL. Thiết kế này phục vụ modu
 
 ## Diagram index
 
-Nguồn Mermaid nằm trong `docs/database/diagrams/` và phải được render sang SVG trước khi hoàn tất RUN #2:
+Nguồn ERD Mermaid nằm trong `docs/database/diagrams/` và được render sang SVG để nhúng tài liệu:
 
 - `00-database-overview.mmd`: tổng quan data domains.
 - `01-core-identity-erd.mmd`: identity, role, permission, token, OTP.
@@ -25,6 +25,16 @@ Nguồn Mermaid nằm trong `docs/database/diagrams/` và phải được render
 - `05-system-erd.mmd`: audit, file asset, calendar, review, certificate.
 - `06-ai-extension-erd.mmd`: learning signal, recommendation, model version.
 - `99-full-erd.mmd`: ERD hợp nhất ở mức foundation.
+
+## ERD
+
+Full database ERD:
+
+![Full ERD](./diagrams/99-full-erd.svg)
+
+Core identity ERD:
+
+![Core Identity ERD](./diagrams/01-core-identity-erd.svg)
 
 ## Data domains
 
