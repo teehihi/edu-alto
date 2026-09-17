@@ -30,7 +30,7 @@ Nguồn Mermaid nằm trong `docs/database/diagrams/` và phải được render
 
 | Domain | Main tables | Owner module | Notes |
 | --- | --- | --- | --- |
-| Identity | `users`, `roles`, `permissions`, `user_roles`, `role_permissions`, `email_otps`, `refresh_tokens` | `auth`, `user` | Auth service thao tác qua user boundary, không expose hash/token. |
+| Identity | `users`, `roles`, `user_roles`, `email_otps`, `refresh_tokens` | `auth`, `user` | RUN #3 triển khai phân quyền theo role. `permissions` và `role_permissions` là extension quyền chi tiết cho giai đoạn sau. |
 | Profile | `student_profiles`, `instructor_profiles` | `profile`, `instructor` | Profile mở rộng user, không thay thế `users`. |
 | Course catalog | `categories`, `courses`, `course_categories`, `sections`, `lessons`, `lesson_contents` | `course`, `lesson` | Public listing chỉ trả course `PUBLISHED`. |
 | Participation | `enrollments`, `learning_progress`, `notes` | `enrollment`, `learning` | Unique enrollment theo student/course. |
@@ -61,16 +61,15 @@ Constraints and indexes:
 - index `idx_users_status(status)`
 - check `status in ('PENDING_VERIFICATION','ACTIVE','LOCKED','DISABLED')`
 
-`roles`, `permissions`, `user_roles`, `role_permissions`
+`roles`, `user_roles`
 
 - Role names: `STUDENT`, `INSTRUCTOR`, `ADMIN`.
-- Permission codes use stable strings such as `course:write`, `admin:user:manage`.
 - `user_roles` has unique `(user_id, role_id)`.
-- `role_permissions` has unique `(role_id, permission_id)`.
+- `permissions` và `role_permissions` có thể được thêm sau với code ổn định như `course:write` hoặc `admin:user:manage`.
 
 `email_otps`
 
-- Stores OTP hash, purpose, expiry and consumed timestamp.
+- Lưu OTP hash, purpose, expiry, verification timestamp, consumed timestamp và attempt counters.
 - Unique active OTP is enforced in service because partial uniqueness depends on expiry/consumed state.
 - Index `(user_id, purpose, expires_at)`.
 
@@ -274,7 +273,7 @@ Constraints:
 ## Migration strategy
 
 - Use Flyway or Liquibase before implementing persistence-heavy features.
-- First executable migration should be `backend/src/main/resources/db/migration/V1__initial_schema.sql`.
+- RUN #3 dùng Flyway với `backend/src/main/resources/db/migration/V1__auth_user_management.sql` cho vertical slice auth/user đầu tiên.
 - Migration must include UUID extension strategy, FK constraints, unique constraints and key indexes.
 - Test profile may use H2 only if PostgreSQL compatibility gaps are covered by integration tests or Testcontainers.
 

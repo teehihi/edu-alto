@@ -6,7 +6,7 @@ Tài liệu này định nghĩa nền tảng xác thực và phân quyền cho E
 
 - `users` là danh tính chính.
 - `roles` gồm `STUDENT`, `INSTRUCTOR`, `ADMIN`.
-- `permissions` dùng cho quyền chi tiết, gắn với role qua `role_permissions`.
+- RUN #3 dùng phân quyền theo role. `permissions` và `role_permissions` là extension cho quyền chi tiết khi implementation cần đến.
 - User có thể có nhiều role, nhưng UI foundation nên tối ưu cho vai trò chính.
 - Account status tối thiểu: `PENDING_VERIFICATION`, `ACTIVE`, `LOCKED`, `DISABLED`.
 
@@ -87,4 +87,3 @@ Không expose stack trace, SQL error, Java class name hoặc raw `AxiosError`.
 - Rate limit auth và upload endpoint.
 - Log auth event quan trọng nhưng không log token/password/OTP.
 - Có audit trail cho admin action nhạy cảm.
-

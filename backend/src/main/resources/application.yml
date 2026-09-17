@@ -28,3 +28,16 @@ springdoc:
 edualto:
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
+  auth:
+    jwt:
+      secret: ${JWT_SECRET:dev-only-change-this-jwt-secret-with-at-least-32-characters}
+      access-token-ttl-minutes: ${JWT_ACCESS_TOKEN_TTL_MINUTES:15}
+      issuer: ${JWT_ISSUER:edualto}
+    refresh-token-ttl-days: ${REFRESH_TOKEN_TTL_DAYS:14}
+    otp:
+      ttl-minutes: ${OTP_TTL_MINUTES:10}
+      resend-cooldown-seconds: ${OTP_RESEND_COOLDOWN_SECONDS:60}
+      max-attempts: ${OTP_MAX_ATTEMPTS:5}
+      fixed-code: ${OTP_FIXED_CODE:}
+  mail:
+    from: ${MAIL_FROM:no-reply@edualto.local}

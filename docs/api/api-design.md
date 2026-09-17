@@ -62,10 +62,12 @@ Error:
 ```text
 POST /api/v1/auth/register
 POST /api/v1/auth/verify-email
+POST /api/v1/auth/resend-verification
 POST /api/v1/auth/login
 POST /api/v1/auth/refresh
 POST /api/v1/auth/logout
 POST /api/v1/auth/forgot-password
+POST /api/v1/auth/verify-reset-otp
 POST /api/v1/auth/reset-password
 ```
 
@@ -78,11 +80,25 @@ Registration flow:
 
 Login không yêu cầu OTP mỗi lần.
 
+Password reset flow:
+
+1. User yêu cầu reset bằng email.
+2. Backend trả message an toàn, không tiết lộ email có tồn tại hay không.
+3. User verify reset OTP.
+4. User đặt mật khẩu mới bằng OTP đã verify.
+
 ## Users and profile
+
+RUN #3 triển khai endpoint current user:
 
 ```text
 GET /api/v1/me
 PUT /api/v1/me
+```
+
+Endpoint profile riêng thuộc implementation của profile module:
+
+```text
 GET /api/v1/me/profile
 PUT /api/v1/me/profile
 ```
@@ -231,4 +247,3 @@ Nếu chưa có recommendation, frontend hiển thị `Chưa có gợi ý học 
 - `409 Conflict` cho duplicate/trạng thái xung đột.
 - `422 Unprocessable Entity` cho domain validation fail.
 - `500 Internal Server Error` cho lỗi bất ngờ với message an toàn.
-

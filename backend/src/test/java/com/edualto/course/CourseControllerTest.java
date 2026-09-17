@@ -7,12 +7,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.edualto.course.controller.CourseController;
 import com.edualto.course.service.CourseCatalogService;
+import com.edualto.auth.service.JwtTokenService;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @WebMvcTest(CourseController.class)
 @Import(CourseCatalogService.class)
@@ -21,6 +23,9 @@ class CourseControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @MockitoBean
+    private JwtTokenService jwtTokenService;
 
     @Test
     void listCoursesReturnsVietnameseDemoData() throws Exception {
