@@ -50,18 +50,40 @@ Controller không chứa business logic. Entity không được trả trực ti�
 
 ## Chạy local
 
+Chạy hạ tầng PostgreSQL và Redis bằng Docker Compose:
+
 ```bash
 cp .env.example .env
+docker compose up -d postgres redis
+```
+
+Khi chạy backend trực tiếp trên macOS và muốn dùng PostgreSQL trong Docker, truyền datasource qua environment:
+
+```bash
+export SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/edualto
+export SPRING_DATASOURCE_USERNAME=edualto
+export SPRING_DATASOURCE_PASSWORD=edualto_dev_password
+export SPRING_DATASOURCE_DRIVER=org.postgresql.Driver
+export REDIS_HOST=localhost
+export REDIS_PORT=6379
+export JWT_SECRET=replace-with-local-development-secret
+```
+
+Sau đó chạy app:
+
+```bash
 pnpm install
 pnpm frontend:dev
 mvn -f backend/pom.xml spring-boot:run
 ```
 
-Hoặc chạy hạ tầng phụ thuộc:
+Nếu chạy backend trong Docker Compose, service backend tự dùng hostname nội bộ `postgres` và `redis`.
 
 ```bash
-docker compose up postgres redis
+docker compose up backend
 ```
+
+Fallback H2 trong `application.yml` phục vụ test/dev nhanh khi không cấu hình datasource PostgreSQL.
 
 ## Kiểm thử và build
 
