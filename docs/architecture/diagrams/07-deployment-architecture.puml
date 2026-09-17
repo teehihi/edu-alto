@@ -1,0 +1,26 @@
+@startuml
+title EduAlto Local Deployment Architecture
+
+node "Developer machine" as Dev {
+  node "Browser" as Browser
+
+  node "Docker Compose network" as Docker {
+    node "frontend container" as Frontend {
+      artifact "Next.js web app" as NextApp
+    }
+
+    node "backend container" as Backend {
+      artifact "Spring Boot JVM\nmodular monolith" as SpringBoot
+    }
+
+    database "postgres container\nPostgreSQL" as PostgreSQL
+    database "redis container\nRedis" as Redis
+  }
+}
+
+Browser --> NextApp : localhost:3000
+NextApp --> SpringBoot : HTTP /api/v1
+Browser <--> SpringBoot : /ws STOMP
+SpringBoot --> PostgreSQL : JDBC
+SpringBoot --> Redis : TCP 6379
+@enduml

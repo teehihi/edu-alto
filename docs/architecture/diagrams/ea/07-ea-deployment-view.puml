@@ -1,0 +1,40 @@
+@startuml
+title EduAlto EA-inspired Deployment View
+
+node "User device" as UserDevice {
+  node "Browser" as Browser
+}
+
+node "Web runtime" as WebRuntime {
+  artifact "Next.js Web App" as NextRuntime
+}
+
+node "Backend runtime" as ApiRuntime {
+  artifact "Spring Boot API\nmodular monolith" as SpringBoot
+  artifact "WebSocket/STOMP runtime" as WsRuntime
+  artifact "Spring Security" as Security
+}
+
+node "Data runtime" as DataRuntime {
+  database "PostgreSQL" as PostgreSQL
+  database "Redis" as Redis
+}
+
+cloud "External integration" as External {
+  artifact "Email Provider" as Email
+  artifact "Future file storage" as FutureStorage
+  artifact "Future AI Provider\noptional" as FutureAI
+}
+
+Browser --> NextRuntime : HTTPS pages/assets
+NextRuntime --> SpringBoot : HTTPS REST /api/v1
+Browser <--> WsRuntime : WSS realtime
+SpringBoot --> Security
+WsRuntime --> Security
+Security --> SpringBoot
+SpringBoot --> PostgreSQL : JDBC
+SpringBoot --> Redis : cache/pub-sub support
+SpringBoot --> Email : OTP/email notification
+SpringBoot ..> FutureStorage : future document upload
+SpringBoot ..> FutureAI : future recommendation call
+@enduml

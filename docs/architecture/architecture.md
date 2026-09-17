@@ -34,6 +34,8 @@ Run #2 áp dụng tư duy EA-inspired architecture. EduAlto không claim fully c
 
 EA details: [enterprise-architecture.md](./enterprise-architecture.md)
 
+Diagram standards: [diagram-standards.md](./diagram-standards.md)
+
 ## 5. Layer Architecture
 
 Backend dependency direction:

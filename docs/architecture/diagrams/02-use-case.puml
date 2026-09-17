@@ -1,0 +1,57 @@
+@startuml
+title EduAlto Use Case View
+left to right direction
+
+actor Guest
+actor Student
+actor Instructor
+actor Administrator as Admin
+
+rectangle "EduAlto LMS" {
+  usecase "Browse courses" as Browse
+  usecase "Register and verify\nemail" as Register
+  usecase "Login / logout" as Login
+
+  usecase "Enroll in course" as Enroll
+  usecase "Learn lesson" as Learn
+  usecase "View learning\nprogress" as Progress
+  usecase "Submit quiz" as Quiz
+  usecase "Submit assignment" as Assignment
+  usecase "Save document\nand notes" as Document
+  usecase "Discuss and message" as Discuss
+  usecase "Receive\nnotification" as Notify
+  usecase "Review course" as Review
+  usecase "Receive\ncertificate" as Certificate
+  usecase "Receive future\nrecommendations" as Recommend
+
+  usecase "Manage course\ncontent" as CourseManage
+  usecase "Review submissions" as Grade
+
+  usecase "Manage users,\nroles, content" as AdminManage
+  usecase "View analytics" as Analytics
+}
+
+Guest -- Browse
+Guest -- Register
+Guest -- Login
+
+Student -- Enroll
+Student -- Learn
+Student -- Progress
+Student -- Quiz
+Student -- Assignment
+Student -- Document
+Student -- Discuss
+Student -- Notify
+Student -- Review
+Student -- Certificate
+Student .. Recommend : future
+
+Instructor -- CourseManage
+Instructor -- Grade
+Instructor -- Discuss
+Instructor -- Notify
+
+Admin -- AdminManage
+Admin -- Analytics
+@enduml

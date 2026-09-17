@@ -2,7 +2,7 @@
 
 Tài liệu này mô tả kiến trúc doanh nghiệp của EduAlto theo hướng **EA-inspired**. Mục tiêu là tạo một góc nhìn thống nhất giữa năng lực nghiệp vụ, ứng dụng, dữ liệu, công nghệ và triển khai cho foundation LMS.
 
-Tài liệu này **không claim TOGAF compliance** và **không claim ArchiMate compliance**. Các sơ đồ dùng Mermaid để truyền đạt boundary, layer và relationship một cách dễ đọc cho nhóm phát triển.
+Tài liệu này **không claim TOGAF compliance** và **không claim ArchiMate compliance**. Mermaid vẫn được dùng cho flow, overview, ERD và sequence; các sơ đồ UML nghiệp vụ như use case hoặc deployment có source UML/EA-style riêng để đúng chuẩn phân tích thiết kế hơn.
 
 ## Architecture intent
 
@@ -18,7 +18,7 @@ EduAlto là nền tảng học tập trực tuyến cho người dùng Việt Na
 
 ## Enterprise architecture views
 
-Nguồn Mermaid nằm trong `docs/architecture/diagrams/ea/`:
+Nguồn diagram nằm trong `docs/architecture/diagrams/ea/`:
 
 - `01-ea-business-architecture.mmd`: capability và actor nghiệp vụ.
 - `02-ea-application-architecture.mmd`: application components và module groups.
@@ -26,7 +26,7 @@ Nguồn Mermaid nằm trong `docs/architecture/diagrams/ea/`:
 - `04-ea-technology-architecture.mmd`: technology stack foundation.
 - `05-ea-layered-architecture.mmd`: layer từ user experience đến infrastructure.
 - `06-ea-application-data-mapping.mmd`: mapping application module với data domain.
-- `07-ea-deployment-view.mmd`: deployment view cho môi trường foundation.
+- `07-ea-deployment-view.puml`: deployment view UML/EA-style cho môi trường foundation.
 
 ## Business architecture view
 
@@ -148,4 +148,8 @@ Trong foundation, deployment nên giữ đơn giản để phục vụ phát tri
 
 ## Diagram maintenance
 
-Khi module, data domain hoặc deployment boundary thay đổi, cập nhật file Mermaid tương ứng trước hoặc cùng lúc với thay đổi code. Không generate `.svg` vào repository trong phạm vi tài liệu này; `.mmd` là source of truth cho diagram.
+Khi module, data domain hoặc deployment boundary thay đổi, cập nhật source diagram tương ứng trước hoặc cùng lúc với thay đổi code. Dùng [diagram-standards.md](./diagram-standards.md) để chọn đúng loại source:
+
+- UML/EA-style diagrams dùng `.puml` làm source chính và render ra `.svg`.
+- Mermaid diagrams dùng `.mmd` làm source chính và render ra `.svg`.
+- Sequence và ERD hiện tại có thể tiếp tục dùng Mermaid nếu vẫn rõ lifeline/entity relationship.

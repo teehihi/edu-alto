@@ -55,7 +55,7 @@ flowchart LR
 
 ![EduAlto use case diagram](./diagrams/02-use-case.svg)
 
-Source quan hệ actor/use case được giữ tại `docs/architecture/diagrams/02-use-case.mmd`; bản SVG dùng layout UML/EA-style để dễ đọc trong tài liệu.
+Source UML được giữ tại `docs/architecture/diagrams/02-use-case.puml`; bản SVG dùng layout UML/EA-style để dễ đọc trong tài liệu.
 
 ## Functional module diagram
 
