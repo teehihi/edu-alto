@@ -23,6 +23,6 @@ EduAlto dùng đúng loại sơ đồ cho đúng mục đích tài liệu. Merma
 
 - `.puml` dùng làm source cho sơ đồ UML/EA-style khi có thể.
 - `.mmd` chỉ dùng cho Mermaid source thật sự. Nếu diagram đã có UML `.puml`, không giữ thêm `.mmd` mirror để tránh trùng lặp và nặng repo.
-- `.svg` là bản render được nhúng trong Markdown.
+- `.svg` chỉ commit cho Mermaid/ERD/overview khi cần nhúng trực tiếp trong Markdown. Với UML `.puml`, giữ source `.puml` và render bằng PlantUML Preview/EA khi xem hoặc xuất báo cáo.
 - Khi nội dung nghiệp vụ thay đổi, cập nhật source trước rồi mới cập nhật SVG.
 - Không thay flow Mermaid thành UML nếu đó là architecture overview, ERD, system flow hoặc sequence đang đọc tốt.

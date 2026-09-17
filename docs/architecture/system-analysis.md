@@ -53,17 +53,15 @@ flowchart LR
 
 ## Use case diagram
 
-![EduAlto use case diagram](./diagrams/02-use-case.svg)
-
-Source UML được giữ tại `docs/architecture/diagrams/02-use-case.puml`; bản SVG dùng layout UML/EA-style để dễ đọc trong tài liệu.
+UML source: [02-use-case.puml](./diagrams/02-use-case.puml)
 
 ## Activity diagram
 
-![Authentication activity diagram](./diagrams/12-auth-user-activity.svg)
+UML source: [12-auth-user-activity.puml](./diagrams/12-auth-user-activity.puml)
 
 ## State diagram
 
-![Account authentication state diagram](./diagrams/13-account-auth-state.svg)
+UML source: [13-account-auth-state.puml](./diagrams/13-account-auth-state.puml)
 
 ## Functional module diagram
 

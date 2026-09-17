@@ -74,9 +74,7 @@ Nhóm module chính:
 
 ![Backend Module Dependency](./diagrams/05-backend-module-dependency.svg)
 
-UML component view:
-
-![Component Diagram](./diagrams/14-component-diagram.svg)
+UML component view source: [14-component-diagram.puml](./diagrams/14-component-diagram.puml)
 
 ## 7. Dependency Rules
 
@@ -102,11 +100,9 @@ Authentication architecture:
 
 Security details: [authentication-authorization.md](../security/authentication-authorization.md)
 
-UML activity and state views:
+UML activity source: [12-auth-user-activity.puml](./diagrams/12-auth-user-activity.puml)
 
-![Authentication Activity](./diagrams/12-auth-user-activity.svg)
-
-![Account Auth State](./diagrams/13-account-auth-state.svg)
+UML state source: [13-account-auth-state.puml](./diagrams/13-account-auth-state.puml)
 
 ## 9. Authorization
 
@@ -164,9 +160,7 @@ Full database ERD:
 
 ![Full ERD](../database/diagrams/99-full-erd.svg)
 
-Domain class overview:
-
-![Domain Class Diagram](./diagrams/11-domain-class-diagram.svg)
+Domain class source: [11-domain-class-diagram.puml](./diagrams/11-domain-class-diagram.puml)
 
 ## 12. Redis
 
@@ -251,7 +245,7 @@ Foundation supports local Docker Compose:
 - PostgreSQL container.
 - Redis container.
 
-![Deployment Architecture](./diagrams/07-deployment-architecture.svg)
+UML deployment source: [07-deployment-architecture.puml](./diagrams/07-deployment-architecture.puml)
 
 ## 18. Future Scalability
 
