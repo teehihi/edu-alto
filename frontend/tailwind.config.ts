@@ -28,7 +28,23 @@ const config: Config = {
       boxShadow: {
         xs: "0 1px 2px rgba(16, 24, 40, 0.05)",
         soft: "0 12px 16px -4px rgba(16, 24, 40, 0.08), 0 4px 6px -2px rgba(16, 24, 40, 0.03)",
+        card: "0 14px 35px rgba(16, 24, 40, 0.09)",
+        cardHover: "0 20px 40px rgba(16, 24, 40, 0.14)",
         focus: "0 0 0 4px rgba(32, 180, 134, 0.18)"
+      },
+      keyframes: {
+        float: {
+          "0%, 100%": { transform: "translateY(0px)" },
+          "50%": { transform: "translateY(-8px)" }
+        },
+        floatSlow: {
+          "0%, 100%": { transform: "translateY(0px)" },
+          "50%": { transform: "translateY(6px)" }
+        }
+      },
+      animation: {
+        float: "float 4s ease-in-out infinite",
+        floatSlow: "floatSlow 5s ease-in-out infinite"
       }
     }
   },

@@ -1,0 +1,699 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1840" height="2442" viewBox="0 0 1840 2442" role="img" aria-labelledby="title desc">
+<title id="title">EduAlto Full Standard ERD</title>
+<desc id="desc">Full EduAlto database entity relationship diagram with table columns, primary keys, foreign keys, unique keys, and relationships.</desc>
+<defs><style>
+.page{fill:#fff}.title{font:700 26px Arial,Helvetica,sans-serif;fill:#101a2c;text-anchor:middle}.subtitle{font:13px Arial,Helvetica,sans-serif;fill:#667085;text-anchor:middle}.group{fill:#f8fafc;stroke:#dde5ee;stroke-width:1.2;rx:10}.groupTitle{font:700 15px Arial,Helvetica,sans-serif;fill:#344054}.table{fill:#fff;stroke:#9aa8b5;stroke-width:1.2;rx:6}.thead{fill:#9ec7df;stroke:#7daac2;stroke-width:1.2}.tname{font:700 13px Arial,Helvetica,sans-serif;fill:#101a2c}.col{font:12px Arial,Helvetica,sans-serif;fill:#344054}.pk{font:700 12px Arial,Helvetica,sans-serif;fill:#101a2c}.fk{font:12px Arial,Helvetica,sans-serif;fill:#b54708}.pkfk{font:700 12px Arial,Helvetica,sans-serif;fill:#b54708}.uk{font:12px Arial,Helvetica,sans-serif;fill:#027a48}.idx{fill:#e4e7ec}.rel{fill:none;stroke:#6b7280;stroke-width:1.05;stroke-dasharray:7 5;opacity:.55}.crow{font:13px Arial,Helvetica,sans-serif;fill:#344054}
+</style><marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10" fill="none" stroke="#6b7280" stroke-width="1.2"/></marker></defs>
+<rect class="page" width="1840" height="2442"/>
+<text class="title" x="920" y="34">EduAlto Full Database ERD</text>
+<text class="subtitle" x="920" y="56">Foundation schema: identity, catalog, learning, assessment, collaboration, engagement, system and future AI extension</text>
+<rect class="group" x="26" y="48" width="348" height="1288"/>
+<text class="groupTitle" x="38" y="73">Identity</text>
+<rect class="group" x="384" y="48" width="348" height="394"/>
+<text class="groupTitle" x="396" y="73">Profile</text>
+<rect class="group" x="384" y="808" width="348" height="1318"/>
+<text class="groupTitle" x="396" y="833">Catalog</text>
+<rect class="group" x="742" y="48" width="348" height="670"/>
+<text class="groupTitle" x="754" y="73">Learning</text>
+<rect class="group" x="742" y="808" width="348" height="1558"/>
+<text class="groupTitle" x="754" y="833">Assessment</text>
+<rect class="group" x="1100" y="48" width="348" height="820"/>
+<text class="groupTitle" x="1112" y="73">Collaboration</text>
+<rect class="group" x="1100" y="808" width="348" height="508"/>
+<text class="groupTitle" x="1112" y="833">Messaging</text>
+<rect class="group" x="1100" y="1568" width="348" height="244"/>
+<text class="groupTitle" x="1112" y="1593">Engagement</text>
+<rect class="group" x="1458" y="48" width="348" height="1024"/>
+<text class="groupTitle" x="1470" y="73">System</text>
+<rect class="group" x="1458" y="808" width="348" height="1084"/>
+<text class="groupTitle" x="1470" y="833">AI</text>
+<path class="rel" d="M40 198 H200 V720 H360" marker-end="url(#arrow)"/>
+<path class="rel" d="M40 402 H200 V720 H360" marker-end="url(#arrow)"/>
+<path class="rel" d="M40 402 H200 V852 H360" marker-end="url(#arrow)"/>
+<path class="rel" d="M40 570 H200 V852 H360" marker-end="url(#arrow)"/>
+<path class="rel" d="M40 198 H200 V1029 H360" marker-end="url(#arrow)"/>
+<path class="rel" d="M40 198 H200 V1242 H360" marker-end="url(#arrow)"/>
+<path class="rel" d="M360 198 H379 V171 H398" marker-end="url(#arrow)"/>
+<path class="rel" d="M360 198 H379 V357 H398" marker-end="url(#arrow)"/>
+<path class="rel" d="M398 357 H558 V1216 H718" marker-end="url(#arrow)"/>
+<path class="rel" d="M398 940 H558 V940 H718" marker-end="url(#arrow)"/>
+<path class="rel" d="M398 1216 H558 V1456 H718" marker-end="url(#arrow)"/>
+<path class="rel" d="M398 940 H558 V1456 H718" marker-end="url(#arrow)"/>
+<path class="rel" d="M398 1216 H558 V1615 H718" marker-end="url(#arrow)"/>
+<path class="rel" d="M398 1615 H558 V1819 H718" marker-end="url(#arrow)"/>
+<path class="rel" d="M398 1819 H558 V2032 H718" marker-end="url(#arrow)"/>
+<path class="rel" d="M360 198 H558 V189 H756" marker-end="url(#arrow)"/>
+<path class="rel" d="M718 1216 H737 V189 H756" marker-end="url(#arrow)"/>
+<path class="rel" d="M756 189 H916 V402 H1076" marker-end="url(#arrow)"/>
+<path class="rel" d="M718 1819 H737 V402 H756" marker-end="url(#arrow)"/>
+<path class="rel" d="M360 198 H558 V615 H756" marker-end="url(#arrow)"/>
+<path class="rel" d="M718 1216 H737 V615 H756" marker-end="url(#arrow)"/>
+<path class="rel" d="M718 1819 H737 V615 H756" marker-end="url(#arrow)"/>
+<path class="rel" d="M718 1216 H737 V958 H756" marker-end="url(#arrow)"/>
+<path class="rel" d="M718 1819 H737 V958 H756" marker-end="url(#arrow)"/>
+<path class="rel" d="M756 958 H916 V1189 H1076" marker-end="url(#arrow)"/>
+<path class="rel" d="M756 1189 H916 V1402 H1076" marker-end="url(#arrow)"/>
+<path class="rel" d="M756 958 H916 V1606 H1076" marker-end="url(#arrow)"/>
+<path class="rel" d="M360 198 H558 V1606 H756" marker-end="url(#arrow)"/>
+<path class="rel" d="M756 1606 H916 V1801 H1076" marker-end="url(#arrow)"/>
+<path class="rel" d="M756 1189 H916 V1801 H1076" marker-end="url(#arrow)"/>
+<path class="rel" d="M718 1216 H737 V2005 H756" marker-end="url(#arrow)"/>
+<path class="rel" d="M718 1819 H737 V2005 H756" marker-end="url(#arrow)"/>
+<path class="rel" d="M756 2005 H916 V2245 H1076" marker-end="url(#arrow)"/>
+<path class="rel" d="M360 198 H558 V2245 H756" marker-end="url(#arrow)"/>
+<path class="rel" d="M1472 189 H1274 V2245 H1076" marker-end="url(#arrow)"/>
+<path class="rel" d="M718 1216 H916 V198 H1114" marker-end="url(#arrow)"/>
+<path class="rel" d="M718 1819 H916 V198 H1114" marker-end="url(#arrow)"/>
+<path class="rel" d="M360 198 H737 V198 H1114" marker-end="url(#arrow)"/>
+<path class="rel" d="M360 198 H737 V384 H1114" marker-end="url(#arrow)"/>
+<path class="rel" d="M1114 198 H1274 V384 H1434" marker-end="url(#arrow)"/>
+<path class="rel" d="M718 1216 H916 V561 H1114" marker-end="url(#arrow)"/>
+<path class="rel" d="M718 1819 H916 V561 H1114" marker-end="url(#arrow)"/>
+<path class="rel" d="M360 198 H737 V561 H1114" marker-end="url(#arrow)"/>
+<path class="rel" d="M1114 561 H1274 V774 H1434" marker-end="url(#arrow)"/>
+<path class="rel" d="M360 198 H737 V774 H1114" marker-end="url(#arrow)"/>
+<path class="rel" d="M1114 774 H1274 V774 H1434" marker-end="url(#arrow)"/>
+<path class="rel" d="M718 1216 H916 V913 H1114" marker-end="url(#arrow)"/>
+<path class="rel" d="M1114 913 H1274 V1054 H1434" marker-end="url(#arrow)"/>
+<path class="rel" d="M360 198 H737 V1054 H1114" marker-end="url(#arrow)"/>
+<path class="rel" d="M1114 913 H1274 V1222 H1434" marker-end="url(#arrow)"/>
+<path class="rel" d="M360 198 H737 V1222 H1114" marker-end="url(#arrow)"/>
+<path class="rel" d="M360 198 H737 V1709 H1114" marker-end="url(#arrow)"/>
+<path class="rel" d="M360 198 H916 V189 H1472" marker-end="url(#arrow)"/>
+<path class="rel" d="M360 198 H916 V402 H1472" marker-end="url(#arrow)"/>
+<path class="rel" d="M360 198 H916 V606 H1472" marker-end="url(#arrow)"/>
+<path class="rel" d="M718 1216 H1095 V606 H1472" marker-end="url(#arrow)"/>
+<path class="rel" d="M360 198 H916 V810 H1472" marker-end="url(#arrow)"/>
+<path class="rel" d="M718 1216 H1095 V810 H1472" marker-end="url(#arrow)"/>
+<path class="rel" d="M360 198 H916 V996 H1472" marker-end="url(#arrow)"/>
+<path class="rel" d="M718 1216 H1095 V996 H1472" marker-end="url(#arrow)"/>
+<path class="rel" d="M360 198 H916 V940 H1472" marker-end="url(#arrow)"/>
+<path class="rel" d="M718 1216 H1095 V940 H1472" marker-end="url(#arrow)"/>
+<path class="rel" d="M718 1819 H1095 V940 H1472" marker-end="url(#arrow)"/>
+<path class="rel" d="M360 198 H916 V1135 H1472" marker-end="url(#arrow)"/>
+<path class="rel" d="M718 1216 H1095 V1135 H1472" marker-end="url(#arrow)"/>
+<path class="rel" d="M360 198 H916 V1480 H1472" marker-end="url(#arrow)"/>
+<path class="rel" d="M1472 1312 H1632 V1480 H1792" marker-end="url(#arrow)"/>
+<path class="rel" d="M1472 1480 H1632 V1657 H1792" marker-end="url(#arrow)"/>
+<path class="rel" d="M1472 1657 H1632 V1825 H1792" marker-end="url(#arrow)"/>
+<g>
+<rect class="table" x="40" y="90" width="320" height="216"/>
+<rect class="thead" x="40" y="90" width="320" height="28" rx="6"/>
+<text class="tname" x="52" y="109">▦ users</text>
+<text class="pk" x="52" y="136"><tspan>🔑</tspan> id uuid</text>
+<text class="col" x="52" y="154"><tspan>◇</tspan> full_name varchar(160)</text>
+<text class="uk" x="52" y="172"><tspan>◇</tspan> email varchar(255)</text>
+<text class="col" x="52" y="190"><tspan>◇</tspan> password_hash varchar(255)</text>
+<text class="col" x="52" y="208"><tspan>◇</tspan> status varchar(40)</text>
+<text class="col" x="52" y="226"><tspan>◇</tspan> email_verified_at timestamptz</text>
+<text class="col" x="52" y="244"><tspan>◇</tspan> last_login_at timestamptz</text>
+<text class="col" x="52" y="262"><tspan>◇</tspan> created_at timestamptz</text>
+<text class="col" x="52" y="280"><tspan>◇</tspan> updated_at timestamptz</text>
+<rect class="idx" x="40" y="288" width="320" height="18" rx="0"/>
+<text class="col" x="52" y="301">Indexes / constraints documented in database-design.md</text>
+</g>
+<g>
+<rect class="table" x="40" y="330" width="320" height="144"/>
+<rect class="thead" x="40" y="330" width="320" height="28" rx="6"/>
+<text class="tname" x="52" y="349">▦ roles</text>
+<text class="pk" x="52" y="376"><tspan>🔑</tspan> id uuid</text>
+<text class="uk" x="52" y="394"><tspan>◇</tspan> name varchar(80)</text>
+<text class="col" x="52" y="412"><tspan>◇</tspan> description varchar(255)</text>
+<text class="col" x="52" y="430"><tspan>◇</tspan> created_at timestamptz</text>
+<text class="col" x="52" y="448"><tspan>◇</tspan> updated_at timestamptz</text>
+<rect class="idx" x="40" y="456" width="320" height="18" rx="0"/>
+<text class="col" x="52" y="469">Indexes / constraints documented in database-design.md</text>
+</g>
+<g>
+<rect class="table" x="40" y="498" width="320" height="144"/>
+<rect class="thead" x="40" y="498" width="320" height="28" rx="6"/>
+<text class="tname" x="52" y="517">▦ permissions</text>
+<text class="pk" x="52" y="544"><tspan>🔑</tspan> id uuid</text>
+<text class="uk" x="52" y="562"><tspan>◇</tspan> code varchar(120)</text>
+<text class="col" x="52" y="580"><tspan>◇</tspan> description varchar(255)</text>
+<text class="col" x="52" y="598"><tspan>◇</tspan> created_at timestamptz</text>
+<text class="col" x="52" y="616"><tspan>◇</tspan> updated_at timestamptz</text>
+<rect class="idx" x="40" y="624" width="320" height="18" rx="0"/>
+<text class="col" x="52" y="637">Indexes / constraints documented in database-design.md</text>
+</g>
+<g>
+<rect class="table" x="40" y="666" width="320" height="108"/>
+<rect class="thead" x="40" y="666" width="320" height="28" rx="6"/>
+<text class="tname" x="52" y="685">▦ user_roles</text>
+<text class="pkfk" x="52" y="712"><tspan>◆</tspan> user_id uuid</text>
+<text class="pkfk" x="52" y="730"><tspan>◆</tspan> role_id uuid</text>
+<text class="col" x="52" y="748"><tspan>◇</tspan> created_at timestamptz</text>
+<rect class="idx" x="40" y="756" width="320" height="18" rx="0"/>
+<text class="col" x="52" y="769">Indexes / constraints documented in database-design.md</text>
+</g>
+<g>
+<rect class="table" x="40" y="798" width="320" height="108"/>
+<rect class="thead" x="40" y="798" width="320" height="28" rx="6"/>
+<text class="tname" x="52" y="817">▦ role_permissions</text>
+<text class="pkfk" x="52" y="844"><tspan>◆</tspan> role_id uuid</text>
+<text class="pkfk" x="52" y="862"><tspan>◆</tspan> permission_id uuid</text>
+<text class="col" x="52" y="880"><tspan>◇</tspan> created_at timestamptz</text>
+<rect class="idx" x="40" y="888" width="320" height="18" rx="0"/>
+<text class="col" x="52" y="901">Indexes / constraints documented in database-design.md</text>
+</g>
+<g>
+<rect class="table" x="40" y="930" width="320" height="198"/>
+<rect class="thead" x="40" y="930" width="320" height="28" rx="6"/>
+<text class="tname" x="52" y="949">▦ email_otps</text>
+<text class="pk" x="52" y="976"><tspan>🔑</tspan> id uuid</text>
+<text class="fk" x="52" y="994"><tspan>◆</tspan> user_id uuid</text>
+<text class="col" x="52" y="1012"><tspan>◇</tspan> purpose varchar(40)</text>
+<text class="col" x="52" y="1030"><tspan>◇</tspan> otp_hash varchar(255)</text>
+<text class="col" x="52" y="1048"><tspan>◇</tspan> expires_at timestamptz</text>
+<text class="col" x="52" y="1066"><tspan>◇</tspan> consumed_at timestamptz</text>
+<text class="col" x="52" y="1084"><tspan>◇</tspan> attempt_count int</text>
+<text class="col" x="52" y="1102"><tspan>◇</tspan> created_at timestamptz</text>
+<rect class="idx" x="40" y="1110" width="320" height="18" rx="0"/>
+<text class="col" x="52" y="1123">Indexes / constraints documented in database-design.md</text>
+</g>
+<g>
+<rect class="table" x="40" y="1152" width="320" height="180"/>
+<rect class="thead" x="40" y="1152" width="320" height="28" rx="6"/>
+<text class="tname" x="52" y="1171">▦ refresh_tokens</text>
+<text class="pk" x="52" y="1198"><tspan>🔑</tspan> id uuid</text>
+<text class="fk" x="52" y="1216"><tspan>◆</tspan> user_id uuid</text>
+<text class="uk" x="52" y="1234"><tspan>◇</tspan> token_hash varchar(255)</text>
+<text class="col" x="52" y="1252"><tspan>◇</tspan> device_name varchar(160)</text>
+<text class="col" x="52" y="1270"><tspan>◇</tspan> expires_at timestamptz</text>
+<text class="col" x="52" y="1288"><tspan>◇</tspan> revoked_at timestamptz</text>
+<text class="col" x="52" y="1306"><tspan>◇</tspan> created_at timestamptz</text>
+<rect class="idx" x="40" y="1314" width="320" height="18" rx="0"/>
+<text class="col" x="52" y="1327">Indexes / constraints documented in database-design.md</text>
+</g>
+<g>
+<rect class="table" x="398" y="90" width="320" height="162"/>
+<rect class="thead" x="398" y="90" width="320" height="28" rx="6"/>
+<text class="tname" x="410" y="109">▦ student_profiles</text>
+<text class="pkfk" x="410" y="136"><tspan>◆</tspan> user_id uuid</text>
+<text class="col" x="410" y="154"><tspan>◇</tspan> headline varchar(180)</text>
+<text class="col" x="410" y="172"><tspan>◇</tspan> learning_goal text</text>
+<text class="col" x="410" y="190"><tspan>◇</tspan> avatar_url varchar(500)</text>
+<text class="col" x="410" y="208"><tspan>◇</tspan> created_at timestamptz</text>
+<text class="col" x="410" y="226"><tspan>◇</tspan> updated_at timestamptz</text>
+<rect class="idx" x="398" y="234" width="320" height="18" rx="0"/>
+<text class="col" x="410" y="247">Indexes / constraints documented in database-design.md</text>
+</g>
+<g>
+<rect class="table" x="398" y="276" width="320" height="162"/>
+<rect class="thead" x="398" y="276" width="320" height="28" rx="6"/>
+<text class="tname" x="410" y="295">▦ instructor_profiles</text>
+<text class="pkfk" x="410" y="322"><tspan>◆</tspan> user_id uuid</text>
+<text class="col" x="410" y="340"><tspan>◇</tspan> bio text</text>
+<text class="col" x="410" y="358"><tspan>◇</tspan> expertise varchar(255)</text>
+<text class="col" x="410" y="376"><tspan>◇</tspan> verified_at timestamptz</text>
+<text class="col" x="410" y="394"><tspan>◇</tspan> created_at timestamptz</text>
+<text class="col" x="410" y="412"><tspan>◇</tspan> updated_at timestamptz</text>
+<rect class="idx" x="398" y="420" width="320" height="18" rx="0"/>
+<text class="col" x="410" y="433">Indexes / constraints documented in database-design.md</text>
+</g>
+<g>
+<rect class="table" x="398" y="850" width="320" height="180"/>
+<rect class="thead" x="398" y="850" width="320" height="28" rx="6"/>
+<text class="tname" x="410" y="869">▦ categories</text>
+<text class="pk" x="410" y="896"><tspan>🔑</tspan> id uuid</text>
+<text class="col" x="410" y="914"><tspan>◇</tspan> name varchar(120)</text>
+<text class="uk" x="410" y="932"><tspan>◇</tspan> slug varchar(140)</text>
+<text class="fk" x="410" y="950"><tspan>◆</tspan> parent_id uuid</text>
+<text class="col" x="410" y="968"><tspan>◇</tspan> position int</text>
+<text class="col" x="410" y="986"><tspan>◇</tspan> created_at timestamptz</text>
+<text class="col" x="410" y="1004"><tspan>◇</tspan> updated_at timestamptz</text>
+<rect class="idx" x="398" y="1012" width="320" height="18" rx="0"/>
+<text class="col" x="410" y="1025">Indexes / constraints documented in database-design.md</text>
+</g>
+<g>
+<rect class="table" x="398" y="1054" width="320" height="324"/>
+<rect class="thead" x="398" y="1054" width="320" height="28" rx="6"/>
+<text class="tname" x="410" y="1073">▦ courses</text>
+<text class="pk" x="410" y="1100"><tspan>🔑</tspan> id uuid</text>
+<text class="fk" x="410" y="1118"><tspan>◆</tspan> instructor_id uuid</text>
+<text class="col" x="410" y="1136"><tspan>◇</tspan> title varchar(255)</text>
+<text class="uk" x="410" y="1154"><tspan>◇</tspan> slug varchar(280)</text>
+<text class="col" x="410" y="1172"><tspan>◇</tspan> summary varchar(500)</text>
+<text class="col" x="410" y="1190"><tspan>◇</tspan> level varchar(40)</text>
+<text class="col" x="410" y="1208"><tspan>◇</tspan> language varchar(20)</text>
+<text class="col" x="410" y="1226"><tspan>◇</tspan> price_amount numeric(12,2)</text>
+<text class="col" x="410" y="1244"><tspan>◇</tspan> currency varchar(3)</text>
+<text class="col" x="410" y="1262"><tspan>◇</tspan> status varchar(40)</text>
+<text class="col" x="410" y="1280"><tspan>◇</tspan> thumbnail_url varchar(500)</text>
+<text class="col" x="410" y="1298"><tspan>◇</tspan> published_at timestamptz</text>
+<text class="col" x="410" y="1316"><tspan>◇</tspan> deleted_at timestamptz</text>
+<text class="col" x="410" y="1334"><tspan>◇</tspan> created_at timestamptz</text>
+<text class="col" x="410" y="1352"><tspan>◇</tspan> updated_at timestamptz</text>
+<rect class="idx" x="398" y="1360" width="320" height="18" rx="0"/>
+<text class="col" x="410" y="1373">Indexes / constraints documented in database-design.md</text>
+</g>
+<g>
+<rect class="table" x="398" y="1402" width="320" height="108"/>
+<rect class="thead" x="398" y="1402" width="320" height="28" rx="6"/>
+<text class="tname" x="410" y="1421">▦ course_categories</text>
+<text class="pkfk" x="410" y="1448"><tspan>◆</tspan> course_id uuid</text>
+<text class="pkfk" x="410" y="1466"><tspan>◆</tspan> category_id uuid</text>
+<text class="col" x="410" y="1484"><tspan>◇</tspan> created_at timestamptz</text>
+<rect class="idx" x="398" y="1492" width="320" height="18" rx="0"/>
+<text class="col" x="410" y="1505">Indexes / constraints documented in database-design.md</text>
+</g>
+<g>
+<rect class="table" x="398" y="1534" width="320" height="162"/>
+<rect class="thead" x="398" y="1534" width="320" height="28" rx="6"/>
+<text class="tname" x="410" y="1553">▦ sections</text>
+<text class="pk" x="410" y="1580"><tspan>🔑</tspan> id uuid</text>
+<text class="fk" x="410" y="1598"><tspan>◆</tspan> course_id uuid</text>
+<text class="col" x="410" y="1616"><tspan>◇</tspan> title varchar(255)</text>
+<text class="col" x="410" y="1634"><tspan>◇</tspan> position int</text>
+<text class="col" x="410" y="1652"><tspan>◇</tspan> created_at timestamptz</text>
+<text class="col" x="410" y="1670"><tspan>◇</tspan> updated_at timestamptz</text>
+<rect class="idx" x="398" y="1678" width="320" height="18" rx="0"/>
+<text class="col" x="410" y="1691">Indexes / constraints documented in database-design.md</text>
+</g>
+<g>
+<rect class="table" x="398" y="1720" width="320" height="198"/>
+<rect class="thead" x="398" y="1720" width="320" height="28" rx="6"/>
+<text class="tname" x="410" y="1739">▦ lessons</text>
+<text class="pk" x="410" y="1766"><tspan>🔑</tspan> id uuid</text>
+<text class="fk" x="410" y="1784"><tspan>◆</tspan> section_id uuid</text>
+<text class="col" x="410" y="1802"><tspan>◇</tspan> title varchar(255)</text>
+<text class="col" x="410" y="1820"><tspan>◇</tspan> type varchar(40)</text>
+<text class="col" x="410" y="1838"><tspan>◇</tspan> status varchar(40)</text>
+<text class="col" x="410" y="1856"><tspan>◇</tspan> position int</text>
+<text class="col" x="410" y="1874"><tspan>◇</tspan> created_at timestamptz</text>
+<text class="col" x="410" y="1892"><tspan>◇</tspan> updated_at timestamptz</text>
+<rect class="idx" x="398" y="1900" width="320" height="18" rx="0"/>
+<text class="col" x="410" y="1913">Indexes / constraints documented in database-design.md</text>
+</g>
+<g>
+<rect class="table" x="398" y="1942" width="320" height="180"/>
+<rect class="thead" x="398" y="1942" width="320" height="28" rx="6"/>
+<text class="tname" x="410" y="1961">▦ lesson_contents</text>
+<text class="pk" x="410" y="1988"><tspan>🔑</tspan> id uuid</text>
+<text class="fk" x="410" y="2006"><tspan>◆</tspan> lesson_id uuid</text>
+<text class="col" x="410" y="2024"><tspan>◇</tspan> content_type varchar(40)</text>
+<text class="col" x="410" y="2042"><tspan>◇</tspan> body text</text>
+<text class="col" x="410" y="2060"><tspan>◇</tspan> storage_key varchar(500)</text>
+<text class="col" x="410" y="2078"><tspan>◇</tspan> created_at timestamptz</text>
+<text class="col" x="410" y="2096"><tspan>◇</tspan> updated_at timestamptz</text>
+<rect class="idx" x="398" y="2104" width="320" height="18" rx="0"/>
+<text class="col" x="410" y="2117">Indexes / constraints documented in database-design.md</text>
+</g>
+<g>
+<rect class="table" x="756" y="90" width="320" height="198"/>
+<rect class="thead" x="756" y="90" width="320" height="28" rx="6"/>
+<text class="tname" x="768" y="109">▦ enrollments</text>
+<text class="pk" x="768" y="136"><tspan>🔑</tspan> id uuid</text>
+<text class="fk" x="768" y="154"><tspan>◆</tspan> student_id uuid</text>
+<text class="fk" x="768" y="172"><tspan>◆</tspan> course_id uuid</text>
+<text class="col" x="768" y="190"><tspan>◇</tspan> status varchar(40)</text>
+<text class="col" x="768" y="208"><tspan>◇</tspan> enrolled_at timestamptz</text>
+<text class="col" x="768" y="226"><tspan>◇</tspan> completed_at timestamptz</text>
+<text class="col" x="768" y="244"><tspan>◇</tspan> created_at timestamptz</text>
+<text class="col" x="768" y="262"><tspan>◇</tspan> updated_at timestamptz</text>
+<rect class="idx" x="756" y="270" width="320" height="18" rx="0"/>
+<text class="col" x="768" y="283">Indexes / constraints documented in database-design.md</text>
+</g>
+<g>
+<rect class="table" x="756" y="312" width="320" height="180"/>
+<rect class="thead" x="756" y="312" width="320" height="28" rx="6"/>
+<text class="tname" x="768" y="331">▦ learning_progress</text>
+<text class="pk" x="768" y="358"><tspan>🔑</tspan> id uuid</text>
+<text class="fk" x="768" y="376"><tspan>◆</tspan> enrollment_id uuid</text>
+<text class="fk" x="768" y="394"><tspan>◆</tspan> lesson_id uuid</text>
+<text class="col" x="768" y="412"><tspan>◇</tspan> progress_percent numeric(5,2)</text>
+<text class="col" x="768" y="430"><tspan>◇</tspan> completed_at timestamptz</text>
+<text class="col" x="768" y="448"><tspan>◇</tspan> created_at timestamptz</text>
+<text class="col" x="768" y="466"><tspan>◇</tspan> updated_at timestamptz</text>
+<rect class="idx" x="756" y="474" width="320" height="18" rx="0"/>
+<text class="col" x="768" y="487">Indexes / constraints documented in database-design.md</text>
+</g>
+<g>
+<rect class="table" x="756" y="516" width="320" height="198"/>
+<rect class="thead" x="756" y="516" width="320" height="28" rx="6"/>
+<text class="tname" x="768" y="535">▦ notes</text>
+<text class="pk" x="768" y="562"><tspan>🔑</tspan> id uuid</text>
+<text class="fk" x="768" y="580"><tspan>◆</tspan> user_id uuid</text>
+<text class="fk" x="768" y="598"><tspan>◆</tspan> course_id uuid</text>
+<text class="fk" x="768" y="616"><tspan>◆</tspan> lesson_id uuid</text>
+<text class="col" x="768" y="634"><tspan>◇</tspan> video_second int</text>
+<text class="col" x="768" y="652"><tspan>◇</tspan> body text</text>
+<text class="col" x="768" y="670"><tspan>◇</tspan> created_at timestamptz</text>
+<text class="col" x="768" y="688"><tspan>◇</tspan> updated_at timestamptz</text>
+<rect class="idx" x="756" y="696" width="320" height="18" rx="0"/>
+<text class="col" x="768" y="709">Indexes / constraints documented in database-design.md</text>
+</g>
+<g>
+<rect class="table" x="756" y="850" width="320" height="216"/>
+<rect class="thead" x="756" y="850" width="320" height="28" rx="6"/>
+<text class="tname" x="768" y="869">▦ quizzes</text>
+<text class="pk" x="768" y="896"><tspan>🔑</tspan> id uuid</text>
+<text class="fk" x="768" y="914"><tspan>◆</tspan> course_id uuid</text>
+<text class="fk" x="768" y="932"><tspan>◆</tspan> lesson_id uuid</text>
+<text class="col" x="768" y="950"><tspan>◇</tspan> title varchar(255)</text>
+<text class="col" x="768" y="968"><tspan>◇</tspan> max_attempts int</text>
+<text class="col" x="768" y="986"><tspan>◇</tspan> available_from timestamptz</text>
+<text class="col" x="768" y="1004"><tspan>◇</tspan> available_until timestamptz</text>
+<text class="col" x="768" y="1022"><tspan>◇</tspan> created_at timestamptz</text>
+<text class="col" x="768" y="1040"><tspan>◇</tspan> updated_at timestamptz</text>
+<rect class="idx" x="756" y="1048" width="320" height="18" rx="0"/>
+<text class="col" x="768" y="1061">Indexes / constraints documented in database-design.md</text>
+</g>
+<g>
+<rect class="table" x="756" y="1090" width="320" height="198"/>
+<rect class="thead" x="756" y="1090" width="320" height="28" rx="6"/>
+<text class="tname" x="768" y="1109">▦ questions</text>
+<text class="pk" x="768" y="1136"><tspan>🔑</tspan> id uuid</text>
+<text class="fk" x="768" y="1154"><tspan>◆</tspan> quiz_id uuid</text>
+<text class="col" x="768" y="1172"><tspan>◇</tspan> type varchar(40)</text>
+<text class="col" x="768" y="1190"><tspan>◇</tspan> prompt text</text>
+<text class="col" x="768" y="1208"><tspan>◇</tspan> points numeric(8,2)</text>
+<text class="col" x="768" y="1226"><tspan>◇</tspan> position int</text>
+<text class="col" x="768" y="1244"><tspan>◇</tspan> created_at timestamptz</text>
+<text class="col" x="768" y="1262"><tspan>◇</tspan> updated_at timestamptz</text>
+<rect class="idx" x="756" y="1270" width="320" height="18" rx="0"/>
+<text class="col" x="768" y="1283">Indexes / constraints documented in database-design.md</text>
+</g>
+<g>
+<rect class="table" x="756" y="1312" width="320" height="180"/>
+<rect class="thead" x="756" y="1312" width="320" height="28" rx="6"/>
+<text class="tname" x="768" y="1331">▦ question_options</text>
+<text class="pk" x="768" y="1358"><tspan>🔑</tspan> id uuid</text>
+<text class="fk" x="768" y="1376"><tspan>◆</tspan> question_id uuid</text>
+<text class="col" x="768" y="1394"><tspan>◇</tspan> label text</text>
+<text class="col" x="768" y="1412"><tspan>◇</tspan> is_correct boolean</text>
+<text class="col" x="768" y="1430"><tspan>◇</tspan> position int</text>
+<text class="col" x="768" y="1448"><tspan>◇</tspan> created_at timestamptz</text>
+<text class="col" x="768" y="1466"><tspan>◇</tspan> updated_at timestamptz</text>
+<rect class="idx" x="756" y="1474" width="320" height="18" rx="0"/>
+<text class="col" x="768" y="1487">Indexes / constraints documented in database-design.md</text>
+</g>
+<g>
+<rect class="table" x="756" y="1516" width="320" height="180"/>
+<rect class="thead" x="756" y="1516" width="320" height="28" rx="6"/>
+<text class="tname" x="768" y="1535">▦ quiz_attempts</text>
+<text class="pk" x="768" y="1562"><tspan>🔑</tspan> id uuid</text>
+<text class="fk" x="768" y="1580"><tspan>◆</tspan> quiz_id uuid</text>
+<text class="fk" x="768" y="1598"><tspan>◆</tspan> student_id uuid</text>
+<text class="col" x="768" y="1616"><tspan>◇</tspan> status varchar(40)</text>
+<text class="col" x="768" y="1634"><tspan>◇</tspan> score numeric(8,2)</text>
+<text class="col" x="768" y="1652"><tspan>◇</tspan> started_at timestamptz</text>
+<text class="col" x="768" y="1670"><tspan>◇</tspan> submitted_at timestamptz</text>
+<rect class="idx" x="756" y="1678" width="320" height="18" rx="0"/>
+<text class="col" x="768" y="1691">Indexes / constraints documented in database-design.md</text>
+</g>
+<g>
+<rect class="table" x="756" y="1720" width="320" height="162"/>
+<rect class="thead" x="756" y="1720" width="320" height="28" rx="6"/>
+<text class="tname" x="768" y="1739">▦ quiz_answers</text>
+<text class="pk" x="768" y="1766"><tspan>🔑</tspan> id uuid</text>
+<text class="fk" x="768" y="1784"><tspan>◆</tspan> attempt_id uuid</text>
+<text class="fk" x="768" y="1802"><tspan>◆</tspan> question_id uuid</text>
+<text class="col" x="768" y="1820"><tspan>◇</tspan> answer_text text</text>
+<text class="col" x="768" y="1838"><tspan>◇</tspan> is_correct boolean</text>
+<text class="col" x="768" y="1856"><tspan>◇</tspan> earned_points numeric(8,2)</text>
+<rect class="idx" x="756" y="1864" width="320" height="18" rx="0"/>
+<text class="col" x="768" y="1877">Indexes / constraints documented in database-design.md</text>
+</g>
+<g>
+<rect class="table" x="756" y="1906" width="320" height="198"/>
+<rect class="thead" x="756" y="1906" width="320" height="28" rx="6"/>
+<text class="tname" x="768" y="1925">▦ assignments</text>
+<text class="pk" x="768" y="1952"><tspan>🔑</tspan> id uuid</text>
+<text class="fk" x="768" y="1970"><tspan>◆</tspan> course_id uuid</text>
+<text class="fk" x="768" y="1988"><tspan>◆</tspan> lesson_id uuid</text>
+<text class="col" x="768" y="2006"><tspan>◇</tspan> title varchar(255)</text>
+<text class="col" x="768" y="2024"><tspan>◇</tspan> due_at timestamptz</text>
+<text class="col" x="768" y="2042"><tspan>◇</tspan> max_score numeric(8,2)</text>
+<text class="col" x="768" y="2060"><tspan>◇</tspan> created_at timestamptz</text>
+<text class="col" x="768" y="2078"><tspan>◇</tspan> updated_at timestamptz</text>
+<rect class="idx" x="756" y="2086" width="320" height="18" rx="0"/>
+<text class="col" x="768" y="2099">Indexes / constraints documented in database-design.md</text>
+</g>
+<g>
+<rect class="table" x="756" y="2128" width="320" height="234"/>
+<rect class="thead" x="756" y="2128" width="320" height="28" rx="6"/>
+<text class="tname" x="768" y="2147">▦ assignment_submissions</text>
+<text class="pk" x="768" y="2174"><tspan>🔑</tspan> id uuid</text>
+<text class="fk" x="768" y="2192"><tspan>◆</tspan> assignment_id uuid</text>
+<text class="fk" x="768" y="2210"><tspan>◆</tspan> student_id uuid</text>
+<text class="fk" x="768" y="2228"><tspan>◆</tspan> graded_by uuid</text>
+<text class="fk" x="768" y="2246"><tspan>◆</tspan> file_asset_id uuid</text>
+<text class="col" x="768" y="2264"><tspan>◇</tspan> status varchar(40)</text>
+<text class="col" x="768" y="2282"><tspan>◇</tspan> score numeric(8,2)</text>
+<text class="col" x="768" y="2300"><tspan>◇</tspan> feedback text</text>
+<text class="col" x="768" y="2318"><tspan>◇</tspan> submitted_at timestamptz</text>
+<text class="col" x="768" y="2336"><tspan>◇</tspan> graded_at timestamptz</text>
+<rect class="idx" x="756" y="2344" width="320" height="18" rx="0"/>
+<text class="col" x="768" y="2357">Indexes / constraints documented in database-design.md</text>
+</g>
+<g>
+<rect class="table" x="1114" y="90" width="320" height="216"/>
+<rect class="thead" x="1114" y="90" width="320" height="28" rx="6"/>
+<text class="tname" x="1126" y="109">▦ documents</text>
+<text class="pk" x="1126" y="136"><tspan>🔑</tspan> id uuid</text>
+<text class="fk" x="1126" y="154"><tspan>◆</tspan> course_id uuid</text>
+<text class="fk" x="1126" y="172"><tspan>◆</tspan> lesson_id uuid</text>
+<text class="fk" x="1126" y="190"><tspan>◆</tspan> uploaded_by uuid</text>
+<text class="col" x="1126" y="208"><tspan>◇</tspan> title varchar(255)</text>
+<text class="col" x="1126" y="226"><tspan>◇</tspan> storage_key varchar(500)</text>
+<text class="col" x="1126" y="244"><tspan>◇</tspan> content_type varchar(120)</text>
+<text class="col" x="1126" y="262"><tspan>◇</tspan> size_bytes bigint</text>
+<text class="col" x="1126" y="280"><tspan>◇</tspan> deleted_at timestamptz</text>
+<rect class="idx" x="1114" y="288" width="320" height="18" rx="0"/>
+<text class="col" x="1126" y="301">Indexes / constraints documented in database-design.md</text>
+</g>
+<g>
+<rect class="table" x="1114" y="330" width="320" height="108"/>
+<rect class="thead" x="1114" y="330" width="320" height="28" rx="6"/>
+<text class="tname" x="1126" y="349">▦ saved_documents</text>
+<text class="pkfk" x="1126" y="376"><tspan>◆</tspan> user_id uuid</text>
+<text class="pkfk" x="1126" y="394"><tspan>◆</tspan> document_id uuid</text>
+<text class="col" x="1126" y="412"><tspan>◇</tspan> created_at timestamptz</text>
+<rect class="idx" x="1114" y="420" width="320" height="18" rx="0"/>
+<text class="col" x="1126" y="433">Indexes / constraints documented in database-design.md</text>
+</g>
+<g>
+<rect class="table" x="1114" y="462" width="320" height="198"/>
+<rect class="thead" x="1114" y="462" width="320" height="28" rx="6"/>
+<text class="tname" x="1126" y="481">▦ discussions</text>
+<text class="pk" x="1126" y="508"><tspan>🔑</tspan> id uuid</text>
+<text class="fk" x="1126" y="526"><tspan>◆</tspan> course_id uuid</text>
+<text class="fk" x="1126" y="544"><tspan>◆</tspan> lesson_id uuid</text>
+<text class="fk" x="1126" y="562"><tspan>◆</tspan> author_id uuid</text>
+<text class="col" x="1126" y="580"><tspan>◇</tspan> title varchar(255)</text>
+<text class="col" x="1126" y="598"><tspan>◇</tspan> body text</text>
+<text class="col" x="1126" y="616"><tspan>◇</tspan> status varchar(40)</text>
+<text class="col" x="1126" y="634"><tspan>◇</tspan> deleted_at timestamptz</text>
+<rect class="idx" x="1114" y="642" width="320" height="18" rx="0"/>
+<text class="col" x="1126" y="655">Indexes / constraints documented in database-design.md</text>
+</g>
+<g>
+<rect class="table" x="1114" y="684" width="320" height="180"/>
+<rect class="thead" x="1114" y="684" width="320" height="28" rx="6"/>
+<text class="tname" x="1126" y="703">▦ discussion_comments</text>
+<text class="pk" x="1126" y="730"><tspan>🔑</tspan> id uuid</text>
+<text class="fk" x="1126" y="748"><tspan>◆</tspan> discussion_id uuid</text>
+<text class="fk" x="1126" y="766"><tspan>◆</tspan> author_id uuid</text>
+<text class="fk" x="1126" y="784"><tspan>◆</tspan> parent_comment_id uuid</text>
+<text class="col" x="1126" y="802"><tspan>◇</tspan> body text</text>
+<text class="col" x="1126" y="820"><tspan>◇</tspan> deleted_at timestamptz</text>
+<text class="col" x="1126" y="838"><tspan>◇</tspan> created_at timestamptz</text>
+<rect class="idx" x="1114" y="846" width="320" height="18" rx="0"/>
+<text class="col" x="1126" y="859">Indexes / constraints documented in database-design.md</text>
+</g>
+<g>
+<rect class="table" x="1114" y="850" width="320" height="126"/>
+<rect class="thead" x="1114" y="850" width="320" height="28" rx="6"/>
+<text class="tname" x="1126" y="869">▦ conversations</text>
+<text class="pk" x="1126" y="896"><tspan>🔑</tspan> id uuid</text>
+<text class="col" x="1126" y="914"><tspan>◇</tspan> type varchar(40)</text>
+<text class="fk" x="1126" y="932"><tspan>◆</tspan> course_id uuid</text>
+<text class="col" x="1126" y="950"><tspan>◇</tspan> created_at timestamptz</text>
+<rect class="idx" x="1114" y="958" width="320" height="18" rx="0"/>
+<text class="col" x="1126" y="971">Indexes / constraints documented in database-design.md</text>
+</g>
+<g>
+<rect class="table" x="1114" y="1000" width="320" height="108"/>
+<rect class="thead" x="1114" y="1000" width="320" height="28" rx="6"/>
+<text class="tname" x="1126" y="1019">▦ conversation_participants</text>
+<text class="pkfk" x="1126" y="1046"><tspan>◆</tspan> conversation_id uuid</text>
+<text class="pkfk" x="1126" y="1064"><tspan>◆</tspan> user_id uuid</text>
+<text class="col" x="1126" y="1082"><tspan>◇</tspan> last_read_at timestamptz</text>
+<rect class="idx" x="1114" y="1090" width="320" height="18" rx="0"/>
+<text class="col" x="1126" y="1103">Indexes / constraints documented in database-design.md</text>
+</g>
+<g>
+<rect class="table" x="1114" y="1132" width="320" height="180"/>
+<rect class="thead" x="1114" y="1132" width="320" height="28" rx="6"/>
+<text class="tname" x="1126" y="1151">▦ messages</text>
+<text class="pk" x="1126" y="1178"><tspan>🔑</tspan> id uuid</text>
+<text class="fk" x="1126" y="1196"><tspan>◆</tspan> conversation_id uuid</text>
+<text class="fk" x="1126" y="1214"><tspan>◆</tspan> sender_id uuid</text>
+<text class="col" x="1126" y="1232"><tspan>◇</tspan> body text</text>
+<text class="col" x="1126" y="1250"><tspan>◇</tspan> sent_at timestamptz</text>
+<text class="col" x="1126" y="1268"><tspan>◇</tspan> edited_at timestamptz</text>
+<text class="col" x="1126" y="1286"><tspan>◇</tspan> deleted_at timestamptz</text>
+<rect class="idx" x="1114" y="1294" width="320" height="18" rx="0"/>
+<text class="col" x="1126" y="1307">Indexes / constraints documented in database-design.md</text>
+</g>
+<g>
+<rect class="table" x="1114" y="1610" width="320" height="198"/>
+<rect class="thead" x="1114" y="1610" width="320" height="28" rx="6"/>
+<text class="tname" x="1126" y="1629">▦ notifications</text>
+<text class="pk" x="1126" y="1656"><tspan>🔑</tspan> id uuid</text>
+<text class="fk" x="1126" y="1674"><tspan>◆</tspan> recipient_id uuid</text>
+<text class="col" x="1126" y="1692"><tspan>◇</tspan> type varchar(80)</text>
+<text class="col" x="1126" y="1710"><tspan>◇</tspan> channel varchar(40)</text>
+<text class="col" x="1126" y="1728"><tspan>◇</tspan> status varchar(40)</text>
+<text class="col" x="1126" y="1746"><tspan>◇</tspan> payload jsonb</text>
+<text class="col" x="1126" y="1764"><tspan>◇</tspan> read_at timestamptz</text>
+<text class="col" x="1126" y="1782"><tspan>◇</tspan> created_at timestamptz</text>
+<rect class="idx" x="1114" y="1790" width="320" height="18" rx="0"/>
+<text class="col" x="1126" y="1803">Indexes / constraints documented in database-design.md</text>
+</g>
+<g>
+<rect class="table" x="1472" y="90" width="320" height="198"/>
+<rect class="thead" x="1472" y="90" width="320" height="28" rx="6"/>
+<text class="tname" x="1484" y="109">▦ file_assets</text>
+<text class="pk" x="1484" y="136"><tspan>🔑</tspan> id uuid</text>
+<text class="fk" x="1484" y="154"><tspan>◆</tspan> owner_id uuid</text>
+<text class="uk" x="1484" y="172"><tspan>◇</tspan> storage_key varchar(500)</text>
+<text class="col" x="1484" y="190"><tspan>◇</tspan> original_name varchar(255)</text>
+<text class="col" x="1484" y="208"><tspan>◇</tspan> content_type varchar(120)</text>
+<text class="col" x="1484" y="226"><tspan>◇</tspan> size_bytes bigint</text>
+<text class="col" x="1484" y="244"><tspan>◇</tspan> scan_status varchar(40)</text>
+<text class="col" x="1484" y="262"><tspan>◇</tspan> created_at timestamptz</text>
+<rect class="idx" x="1472" y="270" width="320" height="18" rx="0"/>
+<text class="col" x="1484" y="283">Indexes / constraints documented in database-design.md</text>
+</g>
+<g>
+<rect class="table" x="1472" y="312" width="320" height="180"/>
+<rect class="thead" x="1472" y="312" width="320" height="28" rx="6"/>
+<text class="tname" x="1484" y="331">▦ audit_logs</text>
+<text class="pk" x="1484" y="358"><tspan>🔑</tspan> id uuid</text>
+<text class="fk" x="1484" y="376"><tspan>◆</tspan> actor_id uuid</text>
+<text class="col" x="1484" y="394"><tspan>◇</tspan> action varchar(120)</text>
+<text class="col" x="1484" y="412"><tspan>◇</tspan> resource_type varchar(120)</text>
+<text class="col" x="1484" y="430"><tspan>◇</tspan> resource_id uuid</text>
+<text class="col" x="1484" y="448"><tspan>◇</tspan> metadata jsonb</text>
+<text class="col" x="1484" y="466"><tspan>◇</tspan> created_at timestamptz</text>
+<rect class="idx" x="1472" y="474" width="320" height="18" rx="0"/>
+<text class="col" x="1484" y="487">Indexes / constraints documented in database-design.md</text>
+</g>
+<g>
+<rect class="table" x="1472" y="516" width="320" height="180"/>
+<rect class="thead" x="1472" y="516" width="320" height="28" rx="6"/>
+<text class="tname" x="1484" y="535">▦ calendar_events</text>
+<text class="pk" x="1484" y="562"><tspan>🔑</tspan> id uuid</text>
+<text class="fk" x="1484" y="580"><tspan>◆</tspan> owner_id uuid</text>
+<text class="fk" x="1484" y="598"><tspan>◆</tspan> course_id uuid</text>
+<text class="col" x="1484" y="616"><tspan>◇</tspan> title varchar(255)</text>
+<text class="col" x="1484" y="634"><tspan>◇</tspan> start_at timestamptz</text>
+<text class="col" x="1484" y="652"><tspan>◇</tspan> end_at timestamptz</text>
+<text class="col" x="1484" y="670"><tspan>◇</tspan> status varchar(40)</text>
+<rect class="idx" x="1472" y="678" width="320" height="18" rx="0"/>
+<text class="col" x="1484" y="691">Indexes / constraints documented in database-design.md</text>
+</g>
+<g>
+<rect class="table" x="1472" y="720" width="320" height="180"/>
+<rect class="thead" x="1472" y="720" width="320" height="28" rx="6"/>
+<text class="tname" x="1484" y="739">▦ reviews</text>
+<text class="pk" x="1484" y="766"><tspan>🔑</tspan> id uuid</text>
+<text class="fk" x="1484" y="784"><tspan>◆</tspan> student_id uuid</text>
+<text class="fk" x="1484" y="802"><tspan>◆</tspan> course_id uuid</text>
+<text class="col" x="1484" y="820"><tspan>◇</tspan> rating int</text>
+<text class="col" x="1484" y="838"><tspan>◇</tspan> comment text</text>
+<text class="col" x="1484" y="856"><tspan>◇</tspan> status varchar(40)</text>
+<text class="col" x="1484" y="874"><tspan>◇</tspan> created_at timestamptz</text>
+<rect class="idx" x="1472" y="882" width="320" height="18" rx="0"/>
+<text class="col" x="1484" y="895">Indexes / constraints documented in database-design.md</text>
+</g>
+<g>
+<rect class="table" x="1472" y="924" width="320" height="144"/>
+<rect class="thead" x="1472" y="924" width="320" height="28" rx="6"/>
+<text class="tname" x="1484" y="943">▦ certificates</text>
+<text class="pk" x="1484" y="970"><tspan>🔑</tspan> id uuid</text>
+<text class="fk" x="1484" y="988"><tspan>◆</tspan> student_id uuid</text>
+<text class="fk" x="1484" y="1006"><tspan>◆</tspan> course_id uuid</text>
+<text class="uk" x="1484" y="1024"><tspan>◇</tspan> certificate_code varchar(120)</text>
+<text class="col" x="1484" y="1042"><tspan>◇</tspan> issued_at timestamptz</text>
+<rect class="idx" x="1472" y="1050" width="320" height="18" rx="0"/>
+<text class="col" x="1484" y="1063">Indexes / constraints documented in database-design.md</text>
+</g>
+<g>
+<rect class="table" x="1472" y="850" width="320" height="180"/>
+<rect class="thead" x="1472" y="850" width="320" height="28" rx="6"/>
+<text class="tname" x="1484" y="869">▦ learning_signals</text>
+<text class="pk" x="1484" y="896"><tspan>🔑</tspan> id uuid</text>
+<text class="fk" x="1484" y="914"><tspan>◆</tspan> user_id uuid</text>
+<text class="fk" x="1484" y="932"><tspan>◆</tspan> course_id uuid</text>
+<text class="fk" x="1484" y="950"><tspan>◆</tspan> lesson_id uuid</text>
+<text class="col" x="1484" y="968"><tspan>◇</tspan> signal_type varchar(80)</text>
+<text class="col" x="1484" y="986"><tspan>◇</tspan> metadata jsonb</text>
+<text class="col" x="1484" y="1004"><tspan>◇</tspan> occurred_at timestamptz</text>
+<rect class="idx" x="1472" y="1012" width="320" height="18" rx="0"/>
+<text class="col" x="1484" y="1025">Indexes / constraints documented in database-design.md</text>
+</g>
+<g>
+<rect class="table" x="1472" y="1054" width="320" height="162"/>
+<rect class="thead" x="1472" y="1054" width="320" height="28" rx="6"/>
+<text class="tname" x="1484" y="1073">▦ analytics_snapshots</text>
+<text class="pk" x="1484" y="1100"><tspan>🔑</tspan> id uuid</text>
+<text class="fk" x="1484" y="1118"><tspan>◆</tspan> user_id uuid</text>
+<text class="fk" x="1484" y="1136"><tspan>◆</tspan> course_id uuid</text>
+<text class="col" x="1484" y="1154"><tspan>◇</tspan> snapshot_type varchar(80)</text>
+<text class="col" x="1484" y="1172"><tspan>◇</tspan> payload jsonb</text>
+<text class="col" x="1484" y="1190"><tspan>◇</tspan> calculated_at timestamptz</text>
+<rect class="idx" x="1472" y="1198" width="320" height="18" rx="0"/>
+<text class="col" x="1484" y="1211">Indexes / constraints documented in database-design.md</text>
+</g>
+<g>
+<rect class="table" x="1472" y="1240" width="320" height="144"/>
+<rect class="thead" x="1472" y="1240" width="320" height="28" rx="6"/>
+<text class="tname" x="1484" y="1259">▦ ai_model_versions</text>
+<text class="pk" x="1484" y="1286"><tspan>🔑</tspan> id uuid</text>
+<text class="col" x="1484" y="1304"><tspan>◇</tspan> name varchar(120)</text>
+<text class="col" x="1484" y="1322"><tspan>◇</tspan> version varchar(80)</text>
+<text class="col" x="1484" y="1340"><tspan>◇</tspan> status varchar(40)</text>
+<text class="col" x="1484" y="1358"><tspan>◇</tspan> activated_at timestamptz</text>
+<rect class="idx" x="1472" y="1366" width="320" height="18" rx="0"/>
+<text class="col" x="1484" y="1379">Indexes / constraints documented in database-design.md</text>
+</g>
+<g>
+<rect class="table" x="1472" y="1408" width="320" height="144"/>
+<rect class="thead" x="1472" y="1408" width="320" height="28" rx="6"/>
+<text class="tname" x="1484" y="1427">▦ recommendations</text>
+<text class="pk" x="1484" y="1454"><tspan>🔑</tspan> id uuid</text>
+<text class="fk" x="1484" y="1472"><tspan>◆</tspan> user_id uuid</text>
+<text class="fk" x="1484" y="1490"><tspan>◆</tspan> model_version_id uuid</text>
+<text class="col" x="1484" y="1508"><tspan>◇</tspan> status varchar(40)</text>
+<text class="col" x="1484" y="1526"><tspan>◇</tspan> generated_at timestamptz</text>
+<rect class="idx" x="1472" y="1534" width="320" height="18" rx="0"/>
+<text class="col" x="1484" y="1547">Indexes / constraints documented in database-design.md</text>
+</g>
+<g>
+<rect class="table" x="1472" y="1576" width="320" height="162"/>
+<rect class="thead" x="1472" y="1576" width="320" height="28" rx="6"/>
+<text class="tname" x="1484" y="1595">▦ recommendation_items</text>
+<text class="pk" x="1484" y="1622"><tspan>🔑</tspan> id uuid</text>
+<text class="fk" x="1484" y="1640"><tspan>◆</tspan> recommendation_id uuid</text>
+<text class="col" x="1484" y="1658"><tspan>◇</tspan> item_type varchar(80)</text>
+<text class="col" x="1484" y="1676"><tspan>◇</tspan> item_id uuid</text>
+<text class="col" x="1484" y="1694"><tspan>◇</tspan> rank int</text>
+<text class="col" x="1484" y="1712"><tspan>◇</tspan> score numeric(8,4)</text>
+<rect class="idx" x="1472" y="1720" width="320" height="18" rx="0"/>
+<text class="col" x="1484" y="1733">Indexes / constraints documented in database-design.md</text>
+</g>
+<g>
+<rect class="table" x="1472" y="1762" width="320" height="126"/>
+<rect class="thead" x="1472" y="1762" width="320" height="28" rx="6"/>
+<text class="tname" x="1484" y="1781">▦ recommendation_reasons</text>
+<text class="pk" x="1484" y="1808"><tspan>🔑</tspan> id uuid</text>
+<text class="fk" x="1484" y="1826"><tspan>◆</tspan> recommendation_item_id uuid</text>
+<text class="col" x="1484" y="1844"><tspan>◇</tspan> reason_code varchar(120)</text>
+<text class="col" x="1484" y="1862"><tspan>◇</tspan> reason_text text</text>
+<rect class="idx" x="1472" y="1870" width="320" height="18" rx="0"/>
+<text class="col" x="1484" y="1883">Indexes / constraints documented in database-design.md</text>
+</g>
+</svg>

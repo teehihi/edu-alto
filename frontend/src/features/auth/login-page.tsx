@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { AlertMessage, FormField, PasswordField } from "@/features/auth/form-field";
 import { getFriendlyError, isEmail, type FieldErrors } from "@/features/auth/form-utils";
 import { useAuth } from "./auth-client";
-import { AuthShell } from "./auth-shell";
+import { AuthDivider, AuthShell, AuthSubmitLabel, SocialLoginButtons } from "./auth-shell";
 
 type LoginFields = "email" | "password";
 
@@ -54,18 +54,19 @@ export function LoginPage() {
 
   return (
     <AuthShell
-      eyebrow="Đăng nhập"
-      title="Chào mừng bạn quay lại"
-      description="Đăng nhập để tiếp tục khóa học, bài tập và tiến độ học tập của bạn trên EduAlto."
+      activeAction="register"
+      panelAlt="Khuôn viên trường đại học trong ngày nắng"
+      panelImage="/images/auth/login-panel.png"
+      title="Đăng nhập tài khoản"
     >
-      <form className="space-y-5" noValidate onSubmit={handleSubmit}>
+      <form className="space-y-6" noValidate onSubmit={handleSubmit}>
         {status ? <AlertMessage tone={status.tone}>{status.message}</AlertMessage> : null}
         <FormField
           id="email"
-          label="Email"
+          label="Email/Tên đăng nhập"
           type="email"
           autoComplete="email"
-          placeholder="ban@example.com"
+          placeholder="teehihi@vng.com.vn"
           value={email}
           error={errors.email}
           onChange={(event) => setEmail(event.target.value)}
@@ -90,10 +91,12 @@ export function LoginPage() {
             Quên mật khẩu?
           </Link>
         </div>
-        <Button className="w-full" loading={submitting} size="lg" type="submit">
-          Đăng nhập
+        <Button className="h-12 w-fit min-w-[124px] px-6 text-base" loading={submitting} type="submit" aria-label="Đăng nhập">
+          <AuthSubmitLabel>Sign In</AuthSubmitLabel>
         </Button>
-        <p className="text-center text-sm text-muted">
+        <AuthDivider />
+        <SocialLoginButtons />
+        <p className="text-center text-sm text-muted lg:hidden">
           Chưa có tài khoản?{" "}
           <Link className="focus-ring rounded-lg font-semibold text-primary hover:text-primary-dark" href="/register">
             Tạo tài khoản

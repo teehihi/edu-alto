@@ -1,16 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { type FormEvent, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { type FormEvent, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { AlertMessage, FormField, PasswordField } from "@/features/auth/form-field";
 import { getFriendlyError, isEmail, isOtp, sanitizeOtp, type FieldErrors } from "@/features/auth/form-utils";
 import { resetPassword, verifyResetOtp } from "./auth-client";
-import { AuthShell } from "./auth-shell";
+import { AuthShell, AuthSubmitLabel, OtpInput } from "./auth-shell";
 
 type ResetPasswordFields = "email" | "otp" | "password" | "confirmPassword";
 
 export function ResetPasswordPage() {
+  const searchParams = useSearchParams();
+  const initialEmail = searchParams.get("email")?.trim() ?? "";
+  const sent = searchParams.get("sent") === "1";
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [password, setPassword] = useState("");
@@ -20,6 +24,19 @@ export function ResetPasswordPage() {
   const [status, setStatus] = useState<{ tone: "success" | "error" | "info"; message: string } | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [resetComplete, setResetComplete] = useState(false);
+
+  useEffect(() => {
+    if (initialEmail && !email) {
+      setEmail(initialEmail);
+    }
+  }, [email, initialEmail]);
+
+  useEffect(() => {
+    if (sent) {
+      setStatus({ tone: "info", message: "Mã đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra email của bạn." });
+    }
+  }, [sent]);
 
   function validateOtp() {
     const nextErrors: FieldErrors<ResetPasswordFields> = {};
@@ -66,12 +83,20 @@ export function ResetPasswordPage() {
       return;
     }
 
+    const requestEmail = email.trim();
+    const requestOtp = otp;
     setVerifying(true);
     try {
-      await verifyResetOtp({ email: email.trim(), otp });
+      await verifyResetOtp({ email: requestEmail, otp: requestOtp });
+      if (email.trim() !== requestEmail || otp !== requestOtp) {
+        return;
+      }
       setOtpVerified(true);
       setStatus({ tone: "success", message: "Mã hợp lệ. Bạn có thể đặt mật khẩu mới." });
     } catch (error) {
+      if (email.trim() !== requestEmail || otp !== requestOtp) {
+        return;
+      }
       setOtpVerified(false);
       setStatus({ tone: "error", message: getFriendlyError(error, "Mã đặt lại mật khẩu chưa đúng hoặc đã hết hạn.") });
     } finally {
@@ -81,6 +106,9 @@ export function ResetPasswordPage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (resetComplete) {
+      return;
+    }
     setStatus(null);
 
     if (!validatePassword()) {
@@ -90,6 +118,7 @@ export function ResetPasswordPage() {
     setSubmitting(true);
     try {
       await resetPassword({ email: email.trim(), otp, newPassword: password, confirmPassword });
+      setResetComplete(true);
       setStatus({ tone: "success", message: "Đặt lại mật khẩu thành công. Bạn có thể đăng nhập bằng mật khẩu mới." });
     } catch (error) {
       setStatus({ tone: "error", message: getFriendlyError(error, "Không thể đặt lại mật khẩu. Vui lòng thử lại.") });
@@ -100,18 +129,23 @@ export function ResetPasswordPage() {
 
   return (
     <AuthShell
-      eyebrow="Đặt lại mật khẩu"
+      activeAction="login"
+      panelAlt="Logo EduAlto và chồng sách học tập"
+      panelImage="/images/auth/register-panel.png"
+      panelSide="right"
       title="Tạo mật khẩu mới"
-      description="Nhập email, mã xác minh và mật khẩu mới để bảo vệ tài khoản EduAlto của bạn."
     >
-      <form className="space-y-5" noValidate onSubmit={handleSubmit}>
+      <form className="space-y-6" noValidate onSubmit={handleSubmit}>
         {status ? <AlertMessage tone={status.tone}>{status.message}</AlertMessage> : null}
+        <p className="text-center text-base leading-7 text-muted">
+          Nhập email, mã xác minh và mật khẩu mới để bảo vệ tài khoản EduAlto.
+        </p>
         <FormField
           id="email"
           label="Email"
           type="email"
           autoComplete="email"
-          placeholder="ban@example.com"
+          placeholder="teehihi@vng.com.vn"
           value={email}
           error={errors.email}
           onChange={(event) => {
@@ -120,15 +154,9 @@ export function ResetPasswordPage() {
           }}
           disabled={submitting}
         />
-        <FormField
-          id="otp"
-          label="Mã đặt lại mật khẩu"
-          inputMode="numeric"
-          autoComplete="one-time-code"
-          placeholder="Nhập 6 chữ số"
-          value={otp}
-          error={errors.otp}
-          action={
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-3">
+            <label className="text-sm font-semibold text-heading" htmlFor="otp-0">Mã đặt lại mật khẩu</label>
             <button
               className="focus-ring rounded-lg text-sm font-semibold text-primary hover:text-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
               type="button"
@@ -137,13 +165,17 @@ export function ResetPasswordPage() {
             >
               {verifying ? "Đang kiểm tra..." : otpVerified ? "Đã xác minh" : "Kiểm tra mã"}
             </button>
-          }
-          onChange={(event) => {
-            setOtp(sanitizeOtp(event.target.value));
-            setOtpVerified(false);
-          }}
-          disabled={submitting}
-        />
+          </div>
+          <OtpInput
+            value={otp}
+            error={errors.otp}
+            disabled={verifying || submitting}
+            onChange={(value) => {
+              setOtp(sanitizeOtp(value));
+              setOtpVerified(false);
+            }}
+          />
+        </div>
         <PasswordField
           id="password"
           label="Mật khẩu mới"
@@ -164,13 +196,13 @@ export function ResetPasswordPage() {
           onChange={(event) => setConfirmPassword(event.target.value)}
           disabled={submitting}
         />
-        <Button className="w-full" loading={submitting} size="lg" type="submit">
-          Cập nhật mật khẩu
+        <Button className="h-12 w-fit min-w-[190px] px-6 text-base" disabled={resetComplete} loading={submitting} type="submit">
+          <AuthSubmitLabel>Cập nhật mật khẩu</AuthSubmitLabel>
         </Button>
         <p className="text-center text-sm text-muted">
-          Cần mã mới?{" "}
-          <Link className="focus-ring rounded-lg font-semibold text-primary hover:text-primary-dark" href="/forgot-password">
-            Gửi lại yêu cầu
+          {resetComplete ? "Mật khẩu đã được cập nhật. " : "Cần mã mới? "}
+          <Link className="focus-ring rounded-lg font-semibold text-primary hover:text-primary-dark" href={resetComplete ? "/login" : "/forgot-password"}>
+            {resetComplete ? "Đăng nhập ngay" : "Gửi lại yêu cầu"}
           </Link>
         </p>
       </form>

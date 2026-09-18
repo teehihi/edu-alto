@@ -1,21 +1,24 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { AlertMessage, FormField, PasswordField } from "@/features/auth/form-field";
 import { getFriendlyError, isEmail, type FieldErrors } from "@/features/auth/form-utils";
 import { register } from "./auth-client";
-import { AuthShell } from "./auth-shell";
+import { AuthDivider, AuthShell, AuthSubmitLabel, SocialLoginButtons } from "./auth-shell";
 
-type RegisterFields = "fullName" | "email" | "password" | "confirmPassword" | "terms";
+type RegisterFields = "familyName" | "givenName" | "email" | "password" | "confirmPassword";
 
 export function RegisterPage() {
-  const [fullName, setFullName] = useState("");
+  const router = useRouter();
+  const [familyName, setFamilyName] = useState("");
+  const [givenName, setGivenName] = useState("");
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [errors, setErrors] = useState<FieldErrors<RegisterFields>>({});
   const [status, setStatus] = useState<{ tone: "success" | "error"; message: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -23,8 +26,12 @@ export function RegisterPage() {
   function validate() {
     const nextErrors: FieldErrors<RegisterFields> = {};
 
-    if (fullName.trim().length < 2) {
-      nextErrors.fullName = "Vui lòng nhập họ và tên.";
+    if (familyName.trim().length < 2) {
+      nextErrors.familyName = "Vui lòng nhập họ và tên lót.";
+    }
+
+    if (givenName.trim().length < 1) {
+      nextErrors.givenName = "Vui lòng nhập tên.";
     }
 
     if (!isEmail(email)) {
@@ -37,10 +44,6 @@ export function RegisterPage() {
 
     if (confirmPassword !== password) {
       nextErrors.confirmPassword = "Mật khẩu nhập lại chưa khớp.";
-    }
-
-    if (!acceptedTerms) {
-      nextErrors.terms = "Bạn cần đồng ý với điều khoản sử dụng để tiếp tục.";
     }
 
     setErrors(nextErrors);
@@ -57,8 +60,8 @@ export function RegisterPage() {
 
     setSubmitting(true);
     try {
-      await register({ fullName: fullName.trim(), email: email.trim(), password, confirmPassword });
-      setStatus({ tone: "success", message: "Tạo tài khoản thành công. Vui lòng kiểm tra email để lấy mã xác thực." });
+      await register({ fullName: `${familyName.trim()} ${givenName.trim()}`.trim(), email: email.trim(), password, confirmPassword });
+      router.push(`/verify-email?email=${encodeURIComponent(email.trim())}&sent=1`);
     } catch (error) {
       setStatus({ tone: "error", message: getFriendlyError(error, "Không thể tạo tài khoản. Vui lòng thử lại sau.") });
     } finally {
@@ -68,20 +71,43 @@ export function RegisterPage() {
 
   return (
     <AuthShell
-      eyebrow="Tạo tài khoản"
-      title="Bắt đầu học trên EduAlto"
-      description="Tạo tài khoản để lưu tiến độ, tham gia khóa học và nhận thông báo quan trọng."
+      activeAction="login"
+      panelAlt="Logo EduAlto và chồng sách học tập"
+      panelImage="/images/auth/register-panel.png"
+      panelSide="right"
+      title="Tạo Tài Khoản Mới"
     >
-      <form className="space-y-5" noValidate onSubmit={handleSubmit}>
+      <form className="space-y-6" noValidate onSubmit={handleSubmit}>
         {status ? <AlertMessage tone={status.tone}>{status.message}</AlertMessage> : null}
+        <div className="grid gap-6 sm:grid-cols-2">
+          <FormField
+            id="familyName"
+            label="Họ và Tên lót"
+            autoComplete="family-name"
+            placeholder="Nguyễn Nhật"
+            value={familyName}
+            error={errors.familyName}
+            onChange={(event) => setFamilyName(event.target.value)}
+            disabled={submitting}
+          />
+          <FormField
+            id="givenName"
+            label="Tên"
+            autoComplete="given-name"
+            placeholder="Thiên"
+            value={givenName}
+            error={errors.givenName}
+            onChange={(event) => setGivenName(event.target.value)}
+            disabled={submitting}
+          />
+        </div>
         <FormField
-          id="fullName"
-          label="Họ và tên"
-          autoComplete="name"
-          placeholder="Nguyễn Minh Anh"
-          value={fullName}
-          error={errors.fullName}
-          onChange={(event) => setFullName(event.target.value)}
+          id="username"
+          label="Tên Đăng Nhập"
+          autoComplete="username"
+          placeholder="teehihi"
+          value={username}
+          onChange={(event) => setUsername(event.target.value)}
           disabled={submitting}
         />
         <FormField
@@ -89,50 +115,40 @@ export function RegisterPage() {
           label="Email"
           type="email"
           autoComplete="email"
-          placeholder="ban@example.com"
+          placeholder="teehihi@vng.com.vn"
           value={email}
           error={errors.email}
           onChange={(event) => setEmail(event.target.value)}
           disabled={submitting}
         />
-        <PasswordField
-          id="password"
-          label="Mật khẩu"
-          autoComplete="new-password"
-          placeholder="Tối thiểu 8 ký tự"
-          value={password}
-          error={errors.password}
-          hint="Nên dùng chữ hoa, chữ thường, số và ký tự đặc biệt."
-          onChange={(event) => setPassword(event.target.value)}
-          disabled={submitting}
-        />
-        <PasswordField
-          id="confirmPassword"
-          label="Nhập lại mật khẩu"
-          autoComplete="new-password"
-          placeholder="Nhập lại mật khẩu"
-          value={confirmPassword}
-          error={errors.confirmPassword}
-          onChange={(event) => setConfirmPassword(event.target.value)}
-          disabled={submitting}
-        />
-        <div className="space-y-2">
-          <label className="flex items-start gap-3 text-sm leading-6 text-muted">
-            <input
-              className="mt-1 h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
-              type="checkbox"
-              checked={acceptedTerms}
-              onChange={(event) => setAcceptedTerms(event.target.checked)}
-              disabled={submitting}
-            />
-            <span>Tôi đồng ý với điều khoản sử dụng và chính sách bảo mật của EduAlto.</span>
-          </label>
-          {errors.terms ? <p className="text-sm font-medium text-red-600">{errors.terms}</p> : null}
+        <div className="grid gap-6 sm:grid-cols-2">
+          <PasswordField
+            id="password"
+            label="Mật khẩu"
+            autoComplete="new-password"
+            placeholder="Nhập mật khẩu"
+            value={password}
+            error={errors.password}
+            onChange={(event) => setPassword(event.target.value)}
+            disabled={submitting}
+          />
+          <PasswordField
+            id="confirmPassword"
+            label="Nhập lại mật khẩu"
+            autoComplete="new-password"
+            placeholder="Nhập lại mật khẩu"
+            value={confirmPassword}
+            error={errors.confirmPassword}
+            onChange={(event) => setConfirmPassword(event.target.value)}
+            disabled={submitting}
+          />
         </div>
-        <Button className="w-full" loading={submitting} size="lg" type="submit">
-          Tạo tài khoản
+        <Button className="h-12 w-fit min-w-[183px] px-6 text-base" loading={submitting} type="submit" aria-label="Tạo tài khoản">
+          <AuthSubmitLabel>Create Account</AuthSubmitLabel>
         </Button>
-        <p className="text-center text-sm text-muted">
+        <AuthDivider />
+        <SocialLoginButtons />
+        <p className="text-center text-sm text-muted lg:hidden">
           Đã có tài khoản?{" "}
           <Link className="focus-ring rounded-lg font-semibold text-primary hover:text-primary-dark" href="/login">
             Đăng nhập

@@ -4,6 +4,7 @@ import { vi } from "vitest";
 import { LoginPage } from "./login-page";
 
 const loginMock = vi.fn();
+vi.mock("@/components/layout/app-header", () => ({ AppHeader: () => null }));
 vi.mock("./auth-client", () => ({
   useAuth: () => ({
     login: loginMock

@@ -25,12 +25,17 @@ Nguồn ERD Mermaid nằm trong `docs/database/diagrams/` và được render sa
 - `05-system-erd.mmd`: audit, file asset, calendar, review, certificate.
 - `06-ai-extension-erd.mmd`: learning signal, recommendation, model version.
 - `99-full-erd.mmd`: ERD hợp nhất ở mức foundation.
+- `99-full-standard-erd.svg`: ERD tổng hợp dạng database table box, dùng khi cần hình chuẩn để đưa vào báo cáo.
 
 ## ERD
 
 Full database ERD:
 
 ![Full ERD](./diagrams/99-full-erd.svg)
+
+Full standard database ERD:
+
+![Full Standard ERD](./diagrams/99-full-standard-erd.svg)
 
 Core identity ERD:
 

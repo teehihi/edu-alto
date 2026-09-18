@@ -40,8 +40,8 @@ export function FormField(props: TextFieldProps | TextAreaFieldProps) {
           aria-describedby={error ? `${id}-error` : hint ? `${id}-hint` : undefined}
           aria-invalid={Boolean(error)}
           className={cn(
-            "focus-ring min-h-28 w-full resize-y rounded-lg border bg-white px-4 py-3 text-sm text-ink shadow-xs transition placeholder:text-slate-400 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500",
-            error ? "border-red-400" : "border-slate-300 hover:border-primary/60",
+            "focus-ring min-h-28 w-full resize-y rounded-lg border bg-white px-4 py-3 text-base text-ink transition placeholder:text-[#8A9AB3] disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500",
+            error ? "border-red-400" : "border-[#D8E1ED] hover:border-primary/60",
             className
           )}
           {...(fieldProps as TextareaHTMLAttributes<HTMLTextAreaElement>)}
@@ -52,8 +52,8 @@ export function FormField(props: TextFieldProps | TextAreaFieldProps) {
           aria-describedby={error ? `${id}-error` : hint ? `${id}-hint` : undefined}
           aria-invalid={Boolean(error)}
           className={cn(
-            "focus-ring h-12 w-full rounded-lg border bg-white px-4 text-sm text-ink shadow-xs transition placeholder:text-slate-400 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500",
-            error ? "border-red-400" : "border-slate-300 hover:border-primary/60",
+            "focus-ring h-[58px] w-full rounded-lg border bg-white px-4 text-base text-ink transition placeholder:text-[#8A9AB3] disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500",
+            error ? "border-red-400" : "border-[#D8E1ED] hover:border-primary/60",
             className
           )}
           {...(fieldProps as InputHTMLAttributes<HTMLInputElement>)}
@@ -93,8 +93,8 @@ export function PasswordField({
           aria-describedby={error ? `${id}-error` : hint ? `${id}-hint` : undefined}
           aria-invalid={Boolean(error)}
           className={cn(
-            "focus-ring h-12 w-full rounded-lg border bg-white px-4 pr-12 text-sm text-ink shadow-xs transition placeholder:text-slate-400 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500",
-            error ? "border-red-400" : "border-slate-300 hover:border-primary/60"
+            "focus-ring h-[58px] w-full rounded-lg border bg-white px-4 pr-12 text-base text-ink transition placeholder:text-[#8A9AB3] disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500",
+            error ? "border-red-400" : "border-[#D8E1ED] hover:border-primary/60"
           )}
           {...props}
         />
