@@ -20,11 +20,35 @@ export function AuthShell({ title, children, panelAlt, panelSide = "left" }: Aut
   const isLeft = panelSide === "left";
   return (
     <div className="relative min-h-screen bg-white">
-      <aside className={cn("absolute inset-y-0 hidden w-[43.61%] overflow-hidden bg-footer lg:block", isLeft ? "left-0" : "right-0")}>
-        <Image src={isLeft ? "/images/auth/login-background.png" : "/images/auth/register-background.png"} alt={panelAlt} fill priority sizes="100vw" className={cn("object-cover", isLeft ? "object-[82.4%_center]" : "object-left")} />
+      {/* Side banner image */}
+      <aside
+        className={cn(
+          "absolute inset-y-0 hidden w-[43.61%] overflow-hidden bg-footer lg:block z-0",
+          isLeft ? "left-0" : "right-0"
+        )}
+      >
+        <Image
+          src={isLeft ? "/images/auth/login-background.png" : "/images/auth/register-background.png"}
+          alt={panelAlt}
+          fill
+          priority
+          sizes="45vw"
+          className={cn("object-cover", isLeft ? "object-[82.4%_center]" : "object-left")}
+        />
       </aside>
-      <div className="relative z-20 h-[100px]"><AppHeader transparent /></div>
-      <main className={cn("relative flex min-h-[calc(100svh-100px)] items-center px-5 py-12 sm:px-8 lg:w-[56.39%] lg:px-10 lg:pb-24 lg:pt-12", isLeft ? "lg:ml-auto" : "lg:mr-auto")}>
+
+      {/* Header bar */}
+      <div className="relative z-30 h-[100px]">
+        <AppHeader transparent />
+      </div>
+
+      {/* Main form container */}
+      <main
+        className={cn(
+          "relative z-20 flex min-h-[calc(100svh-100px)] items-center px-5 py-12 sm:px-8 lg:w-[56.39%] lg:px-10 lg:pb-24 lg:pt-12",
+          isLeft ? "lg:ml-auto" : "lg:mr-auto"
+        )}
+      >
         <div className="mx-auto w-full max-w-[690px]">
           <h1 className="mb-6 text-center text-[28px] font-semibold leading-[1.3] tracking-normal text-primary sm:text-[32px]">{title}</h1>
           {children}

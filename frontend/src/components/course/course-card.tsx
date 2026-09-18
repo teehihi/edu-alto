@@ -15,13 +15,13 @@ export function CourseCard({ course }: { course: Course }) {
 
   return (
     <article className="group flex h-full flex-col overflow-hidden rounded-xl bg-white shadow-card transition-all duration-300 hover:-translate-y-1.5 hover:shadow-cardHover">
-      <div className="relative h-[238px] overflow-hidden bg-slate-100">
+      <div className="relative h-[238px] w-full overflow-hidden bg-slate-100">
         <Image
           src={course.image}
           alt={course.title}
-          fill
-          sizes="(min-width: 1024px) 31vw, (min-width: 640px) 45vw, 90vw"
-          className="object-cover transition duration-500 ease-out group-hover:scale-105"
+          width={600}
+          height={380}
+          className="h-[238px] w-full object-cover transition duration-500 ease-out group-hover:scale-105"
         />
         <span className="absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-md bg-white/95 px-2.5 py-1 text-xs font-semibold text-[#667085] shadow-xs backdrop-blur-sm">
           <Clock3 className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
