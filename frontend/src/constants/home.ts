@@ -2,41 +2,41 @@ import type { Course } from "@/types/course";
 
 export const popularCourses: Course[] = [
   {
-    id: "figma-ui-ux",
-    title: "Figma UI UX Design..",
-    category: "Design",
-    description: "Học cách xây dựng giao diện trực quan, dễ dùng và sẵn sàng chuyển giao cho đội phát triển.",
+    id: "ui-design-foundation",
+    title: "Thiết kế giao diện cơ bản",
+    category: "Thiết kế",
+    description: "Làm quen với bố cục, màu sắc, typography và cách chuẩn bị giao diện rõ ràng cho sản phẩm học tập.",
     duration: "08 giờ 12 phút",
-    rating: 4.3,
-    reviewCount: "16,325",
-    instructor: "Phạm Văn Hậu",
-    joinedAt: "Tham gia từ 2020",
+    rating: 0,
+    reviewCount: "Chưa có đánh giá",
+    instructor: "Đội ngũ EduAlto",
+    joinedAt: "Nội dung mẫu",
     price: "500.000đ",
     accent: "design"
   },
   {
-    id: "coding-basic",
-    title: "300 Bài Code Thiếu Nhi",
-    category: "Coding Basic",
-    description: "Các bài code nhập môn từ cơ bản đến nâng cao, phù hợp cho việc bắt đầu lập trình.",
-    duration: "06 giờ 3 phút",
-    rating: 5.0,
-    reviewCount: "832",
-    instructor: "Tee",
-    joinedAt: "Tham gia từ 2005",
-    price: "1.000.000đ",
+    id: "programming-basic",
+    title: "Nhập môn lập trình",
+    category: "Lập trình",
+    description: "Xây dựng tư duy giải quyết vấn đề qua bài học ngắn, ví dụ dễ hiểu và bài luyện tập sau mỗi phần.",
+    duration: "06 giờ 30 phút",
+    rating: 0,
+    reviewCount: "Chưa có đánh giá",
+    instructor: "Đội ngũ EduAlto",
+    joinedAt: "Nội dung mẫu",
+    price: "690.000đ",
     accent: "coding"
   },
   {
-    id: "vibe-coder",
-    title: "Kỹ năng Vibe Coder",
-    category: "VibeCoding",
-    description: "Học cách làm chủ các công cụ AI Agent mới nhất, sẵn sàng bắt kịp xu hướng.",
-    duration: "01 giờ 2 phút",
-    rating: 4.2,
-    reviewCount: "125",
-    instructor: "Công Ank",
-    joinedAt: "Tham gia từ 2020",
+    id: "academic-writing",
+    title: "Kỹ năng viết học thuật",
+    category: "Học thuật",
+    description: "Rèn cách đọc tài liệu, lập dàn ý, trích dẫn và trình bày bài viết mạch lạc trong môi trường đại học.",
+    duration: "04 giờ 45 phút",
+    rating: 0,
+    reviewCount: "Chưa có đánh giá",
+    instructor: "Đội ngũ EduAlto",
+    joinedAt: "Nội dung mẫu",
     price: "360.000đ",
     accent: "ai"
   }
@@ -44,18 +44,18 @@ export const popularCourses: Course[] = [
 
 export const features = [
   {
-    title: "Khóa Học Đa Dạng",
-    description: "Khám phá nhiều khóa học phù hợp với nhu cầu học tập của bạn.",
+    title: "Khóa học đa dạng",
+    description: "Khám phá nhiều chủ đề học tập với nội dung được chia nhỏ để dễ theo dõi.",
     tone: "primary"
   },
   {
-    title: "Bài Học Trực Tuyến",
-    description: "Học mọi lúc, mọi nơi với nội dung được xây dựng trực quan và dễ tiếp cận.",
+    title: "Bài học trực tuyến",
+    description: "Học theo nhịp độ của bạn với bài học, tài liệu và hoạt động luyện tập rõ ràng.",
     tone: "blue"
   },
   {
-    title: "Kiểm Tra & Đánh Giá",
-    description: "Củng cố kiến thức thông qua các bài kiểm tra và đánh giá sau mỗi nội dung học tập.",
+    title: "Kiểm tra và đánh giá",
+    description: "Củng cố kiến thức bằng bài kiểm tra, phản hồi và trạng thái hoàn thành sau mỗi chặng.",
     tone: "rose"
   }
 ] as const;

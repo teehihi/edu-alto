@@ -4,10 +4,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { ChevronDown, Menu, Search, X } from "lucide-react";
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 
 const navItems = ["Trang chủ", "Khóa học", "Về chúng tôi", "Liên hệ"];
+const authLinkClass =
+  "focus-ring inline-flex h-10 items-center justify-center rounded-lg border border-primary bg-primary px-4 text-sm font-semibold text-white shadow-xs transition duration-200 hover:bg-primary-dark active:bg-primary-dark";
 
 export function AppHeader() {
   const [isOpen, setIsOpen] = useState(false);
@@ -58,10 +59,12 @@ export function AppHeader() {
         </nav>
 
         <div className="hidden items-center gap-4 lg:flex">
-          <Link href="#" className="focus-ring rounded-md text-sm font-medium text-ink transition hover:text-primary">
+          <Link href="/login" className="focus-ring rounded-md text-sm font-medium text-ink transition hover:text-primary">
             Đăng nhập
           </Link>
-          <Button size="sm">Tạo tài khoản</Button>
+          <Link href="/register" className={authLinkClass}>
+            Tạo tài khoản
+          </Link>
         </div>
 
         <button
@@ -89,15 +92,22 @@ export function AppHeader() {
             />
           </div>
           <nav className="mt-4 grid gap-2" aria-label="Điều hướng mobile">
-            {navItems.map((item) => (
-              <Link key={item} href="#" className="rounded-lg px-3 py-2 text-sm font-medium text-ink hover:bg-primary-soft">
+            {navItems.map((item, index) => (
+              <Link key={item} href={index === 0 ? "/" : "#"} className="rounded-lg px-3 py-2 text-sm font-medium text-ink hover:bg-primary-soft">
                 {item}
               </Link>
             ))}
           </nav>
           <div className="mt-4 grid grid-cols-2 gap-3">
-            <Button variant="outline">Đăng nhập</Button>
-            <Button>Tạo tài khoản</Button>
+            <Link
+              href="/login"
+              className="focus-ring inline-flex h-11 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-ink transition duration-200 hover:bg-slate-50 active:bg-slate-100"
+            >
+              Đăng nhập
+            </Link>
+            <Link href="/register" className="focus-ring inline-flex h-11 items-center justify-center rounded-lg border border-primary bg-primary px-4 text-sm font-semibold text-white transition duration-200 hover:bg-primary-dark active:bg-primary-dark">
+              Tạo tài khoản
+            </Link>
           </div>
         </div>
       ) : null}

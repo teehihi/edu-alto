@@ -20,6 +20,22 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    protocol: smtp
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: ${MAIL_CONNECTION_TIMEOUT_MS:5000}
+          timeout: ${MAIL_TIMEOUT_MS:5000}
+          writetimeout: ${MAIL_WRITE_TIMEOUT_MS:5000}
 
 springdoc:
   swagger-ui:
@@ -40,4 +56,6 @@ edualto:
       max-attempts: ${OTP_MAX_ATTEMPTS:5}
       fixed-code: ${OTP_FIXED_CODE:}
   mail:
+    enabled: ${MAIL_ENABLED:false}
     from: ${MAIL_FROM:no-reply@edualto.local}
+    sender-name: ${MAIL_SENDER_NAME:EduAlto}

@@ -5,7 +5,7 @@ import { cn } from "@/lib/cn";
 const accentClass: Record<Course["accent"], string> = {
   design: "from-slate-950 via-slate-800 to-primary",
   coding: "from-feature-yellow via-orange-300 to-primary",
-  ai: "from-sky-950 via-blue-800 to-cyan-500"
+  ai: "from-[#4b3b68] via-feature-rose to-primary"
 };
 
 export function CourseCard({ course }: { course: Course }) {
@@ -32,13 +32,21 @@ export function CourseCard({ course }: { course: Course }) {
         <p className="mt-3 min-h-12 text-base leading-6 text-muted">{course.description}</p>
 
         <div className="mt-4 flex items-center gap-2 text-sm">
-          <span className="font-medium text-primary">{course.rating.toFixed(1)}</span>
-          <span className="flex text-orange-400" aria-label={`${course.rating} sao`}>
-            {Array.from({ length: 5 }).map((_, index) => (
-              <Star key={index} className="h-4 w-4 fill-current" aria-hidden="true" />
-            ))}
-          </span>
-          <span className="text-slate-400">({course.reviewCount})</span>
+          {course.rating > 0 ? (
+            <>
+              <span className="font-medium text-primary">{course.rating.toFixed(1)}</span>
+              <span className="flex text-orange-400" aria-label={`${course.rating} sao`}>
+                {Array.from({ length: 5 }).map((_, index) => (
+                  <Star key={index} className="h-4 w-4 fill-current" aria-hidden="true" />
+                ))}
+              </span>
+              <span className="text-slate-400">({course.reviewCount})</span>
+            </>
+          ) : (
+            <span className="inline-flex items-center rounded bg-primary-soft px-2.5 py-1 text-xs font-semibold text-primary-dark">
+              {course.reviewCount}
+            </span>
+          )}
         </div>
 
         <div className="mt-auto flex items-end justify-between gap-4 pt-7">
