@@ -18,6 +18,9 @@ public record UpdateProfileRequest(
         @Size(max = 512, message = "Đường dẫn website không hợp lệ")
         String websiteUrl,
 
+        @Size(max = 512, message = "Đường dẫn TikTok không hợp lệ")
+        String tiktokUrl,
+
         @Size(max = 512, message = "Đường dẫn X/Twitter không hợp lệ")
         String xUrl,
 
@@ -29,6 +32,9 @@ public record UpdateProfileRequest(
 
         @Size(max = 512, message = "Đường dẫn Facebook không hợp lệ")
         String facebookUrl,
+
+        @Size(max = 60, message = "Đường dẫn cá nhân không được vượt quá 60 ký tự")
+        String customHandle,
 
         // Student fields
         String learningGoal,

@@ -303,69 +303,100 @@ export function ResetPasswordSkeleton() {
 }
 
 /**
- * Profile Page Skeleton loader
+ * Profile Page Skeleton loader matching EduAlto Profile Layout
  */
 export function ProfileSkeleton() {
   return (
-    <div className="mx-auto max-w-6xl space-y-6" aria-label="Đang tải thông tin hồ sơ">
-      {/* Header Bar Skeleton */}
-      <div className="flex flex-col justify-between gap-4 rounded-xl border border-slate-100 bg-white p-6 shadow-soft sm:flex-row sm:items-center">
-        <div className="space-y-2">
-          <Skeleton className="h-4 w-32" />
-          <Skeleton className="h-7 w-48 sm:w-64" />
-          <Skeleton className="h-4 w-72 sm:w-96" />
-        </div>
-        <div className="flex gap-2">
-          <Skeleton className="h-10 w-24 rounded-lg" />
-          <Skeleton className="h-10 w-28 rounded-lg" />
-        </div>
-      </div>
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 xl:gap-8" aria-label="Đang tải thông tin hồ sơ">
+      {/* Left Sidebar */}
+      <aside className="lg:sticky lg:top-24 lg:col-span-4 xl:col-span-3 space-y-6">
+        {/* Card 1: Avatar & Basic Info */}
+        <div className="relative overflow-hidden rounded-3xl border border-slate-100 bg-white p-6 sm:p-7 text-center shadow-sm">
+          {/* Decorative Dot Grid */}
+          <div className="pointer-events-none absolute left-6 top-6 grid grid-cols-3 gap-2 opacity-30" aria-hidden="true">
+            {Array.from({ length: 12 }).map((_, i) => (
+              <span key={i} className="h-1.5 w-1.5 rounded-full bg-slate-300" />
+            ))}
+          </div>
 
-      {/* Main Content Skeleton */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        {/* Left Sidebar */}
-        <div className="space-y-6 lg:col-span-4">
-          <div className="rounded-xl border border-slate-100 bg-white p-6 shadow-soft">
-            <div className="flex flex-col items-center text-center">
-              <Skeleton className="h-24 w-24 rounded-full" />
-              <Skeleton className="mt-4 h-6 w-40" />
-              <Skeleton className="mt-2 h-4 w-48" />
-              <Skeleton className="mt-3 h-6 w-24 rounded-full" />
+          {/* Large Avatar */}
+          <div className="relative mx-auto flex items-center justify-center pt-2">
+            <Skeleton className="h-32 w-32 rounded-full ring-4 ring-white shadow-sm" />
+          </div>
+
+          {/* Full Name */}
+          <Skeleton className="mx-auto mt-4 h-6 w-36 rounded-md" />
+
+          {/* Share Button Pill */}
+          <div className="mt-3.5 flex justify-center">
+            <Skeleton className="h-9 w-32 rounded-xl" />
+          </div>
+        </div>
+
+        {/* Card 2: Navigation Links */}
+        <div className="rounded-3xl border border-slate-100 bg-white p-2.5 shadow-sm space-y-1">
+          <Skeleton className="h-11 w-full rounded-2xl" />
+          <Skeleton className="h-11 w-full rounded-2xl" />
+          <Skeleton className="h-11 w-full rounded-2xl" />
+          <Skeleton className="h-11 w-full rounded-2xl" />
+        </div>
+      </aside>
+
+      {/* Right Content Area */}
+      <section className="lg:col-span-8 xl:col-span-9 space-y-6">
+        {/* Card 1: Profile Main Details Card */}
+        <div className="rounded-3xl border border-slate-100 bg-white p-6 sm:p-8 shadow-sm space-y-6">
+          {/* Header Row: Name/Headline + Action Buttons */}
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+            <div className="space-y-2">
+              <Skeleton className="h-7 w-52 rounded-lg" />
+              <Skeleton className="h-4 w-32 rounded-md" />
             </div>
-            <div className="mt-6 space-y-3 border-t border-slate-100 pt-5">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-5/6" />
-              <Skeleton className="h-4 w-3/4" />
+            <div className="flex items-center gap-2.5">
+              <Skeleton className="h-7 w-20 rounded-full" />
+              <Skeleton className="h-9 w-28 rounded-xl" />
+            </div>
+          </div>
+
+          {/* Bio Section */}
+          <div className="space-y-2.5">
+            <Skeleton className="h-4 w-36 rounded-md" />
+            <Skeleton className="h-4 w-3/4 rounded-md" />
+            <Skeleton className="h-4 w-1/2 rounded-md" />
+          </div>
+
+          <div className="h-px w-full bg-slate-100" />
+
+          {/* Stats Summary Row */}
+          <div className="flex flex-wrap items-center gap-6 sm:gap-8 pt-1">
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-5 w-5 rounded-md" />
+              <Skeleton className="h-4 w-36 rounded-md" />
+            </div>
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-5 w-5 rounded-md" />
+              <Skeleton className="h-4 w-36 rounded-md" />
             </div>
           </div>
         </div>
 
-        {/* Right Form Tabs */}
-        <div className="space-y-6 lg:col-span-8">
-          <div className="rounded-xl border border-slate-100 bg-white p-6 shadow-soft">
-            <div className="flex gap-3 border-b border-slate-100 pb-4">
-              <Skeleton className="h-9 w-28 rounded-lg" />
-              <Skeleton className="h-9 w-28 rounded-lg" />
-              <Skeleton className="h-9 w-28 rounded-lg" />
-            </div>
-            <div className="mt-6 space-y-5">
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-11 w-full rounded-lg" />
+        {/* Card 2: Links / Social Details Card */}
+        <div className="rounded-3xl border border-slate-100 bg-white p-6 sm:p-8 shadow-sm space-y-5">
+          <Skeleton className="h-5 w-24 rounded-md" />
+
+          <div className="space-y-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3.5 p-1">
+                <Skeleton className="h-10 w-10 rounded-full shrink-0" />
+                <div className="space-y-1.5 flex-1">
+                  <Skeleton className="h-4 w-28 rounded-md" />
+                  <Skeleton className="h-3.5 w-20 rounded-md" />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-11 w-full rounded-lg" />
-              </div>
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-32" />
-                <Skeleton className="h-24 w-full rounded-lg" />
-              </div>
-              <Skeleton className="h-11 w-36 rounded-lg" />
-            </div>
+            ))}
           </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

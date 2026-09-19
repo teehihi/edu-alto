@@ -76,6 +76,7 @@ public class R2StorageService implements StorageService {
                 .key(objectKey)
                 .contentType(contentType)
                 .contentLength(contentLength)
+                .cacheControl("public, max-age=31536000, immutable")
                 .build();
 
         PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
@@ -98,6 +99,7 @@ public class R2StorageService implements StorageService {
                 .key(objectKey)
                 .contentType(contentType)
                 .contentLength((long) data.length)
+                .cacheControl("public, max-age=31536000, immutable")
                 .build();
         s3Client.putObject(putRequest, RequestBody.fromBytes(data));
     }

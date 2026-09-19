@@ -93,6 +93,8 @@ public class ProfileService {
         instructorProfileRepository.save(instructorProfile);
     }
 
+    private static final java.util.regex.Pattern CUSTOM_HANDLE_PATTERN = java.util.regex.Pattern.compile("^[a-zA-Z0-9._-]{3,30}$");
+
     @Transactional(readOnly = true)
     public UserProfileResponse getProfile(UUID userId) {
         User user = userRepository.findById(userId)
@@ -109,6 +111,26 @@ public class ProfileService {
         return UserProfileResponse.from(user, profile, studentProfile, instructorProfile, avatarUrl);
     }
 
+    @Transactional(readOnly = true)
+    public UserProfileResponse getProfileByIdentifier(String identifier) {
+        if (identifier == null || identifier.isBlank()) {
+            throw new BusinessException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Không tìm thấy người dùng");
+        }
+
+        String trimmed = identifier.trim();
+        try {
+            UUID userId = UUID.fromString(trimmed);
+            return getProfile(userId);
+        } catch (IllegalArgumentException ignored) {
+            // Identifier is not a UUID, search by custom handle
+        }
+
+        Profile profile = profileRepository.findByCustomHandleIgnoreCase(trimmed)
+                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Không tìm thấy người dùng"));
+
+        return getProfile(profile.getUserId());
+    }
+
     @Transactional
     public UserProfileResponse updateProfile(UUID userId, UpdateProfileRequest request) {
         User user = userRepository.findById(userId)
@@ -121,15 +143,46 @@ public class ProfileService {
 
         Profile profile = profileRepository.findById(userId)
                 .orElseGet(() -> new Profile(userId));
+
+        String targetHandle = profile.getCustomHandle();
+        if (request.customHandle() != null) {
+            String trimmedHandle = request.customHandle().trim().toLowerCase();
+            if (trimmedHandle.isEmpty()) {
+                targetHandle = null;
+            } else {
+                if (!CUSTOM_HANDLE_PATTERN.matcher(trimmedHandle).matches()) {
+                    throw new BusinessException(
+                            HttpStatus.BAD_REQUEST,
+                            "INVALID_CUSTOM_HANDLE",
+                            "Đường dẫn cá nhân chỉ gồm 3-30 ký tự (chữ cái, số, dấu ., _ hoặc -)"
+                    );
+                }
+                if (profileRepository.existsByCustomHandleIgnoreCaseAndUserIdNot(trimmedHandle, userId)) {
+                    throw new BusinessException(
+                            HttpStatus.CONFLICT,
+                            "HANDLE_ALREADY_EXISTS",
+                            "Đường dẫn cá nhân này đã được sử dụng bởi người khác"
+                    );
+                }
+                targetHandle = trimmedHandle;
+            }
+        }
+
+        String resolvedTiktok = request.tiktokUrl() != null
+                ? request.tiktokUrl().trim()
+                : (request.xUrl() != null ? request.xUrl().trim() : profile.getTiktokUrl());
+
         profile.update(
                 request.headline() != null ? request.headline().trim() : profile.getHeadline(),
                 request.bio() != null ? request.bio().trim() : profile.getBio(),
                 request.language() != null ? request.language().trim() : profile.getLanguage(),
                 request.websiteUrl() != null ? request.websiteUrl().trim() : profile.getWebsiteUrl(),
-                request.xUrl() != null ? request.xUrl().trim() : profile.getXUrl(),
+                resolvedTiktok,
+                resolvedTiktok,
                 request.linkedinUrl() != null ? request.linkedinUrl().trim() : profile.getLinkedinUrl(),
                 request.youtubeUrl() != null ? request.youtubeUrl().trim() : profile.getYoutubeUrl(),
-                request.facebookUrl() != null ? request.facebookUrl().trim() : profile.getFacebookUrl()
+                request.facebookUrl() != null ? request.facebookUrl().trim() : profile.getFacebookUrl(),
+                targetHandle
         );
         profile = profileRepository.save(profile);
 

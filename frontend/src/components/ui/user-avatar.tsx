@@ -95,6 +95,8 @@ export function UserAvatar({
           key={targetSrc}
           src={targetSrc}
           alt={name || "Ảnh đại diện"}
+          loading="lazy"
+          decoding="async"
           onError={() => setImgError(true)}
           className={cn(
             "rounded-full object-cover border-2 border-primary shadow-xs",

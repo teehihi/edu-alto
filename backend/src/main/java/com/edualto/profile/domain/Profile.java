@@ -32,6 +32,9 @@ public class Profile {
     @Column(name = "website_url", length = 512)
     private String websiteUrl;
 
+    @Column(name = "tiktok_url", length = 512)
+    private String tiktokUrl;
+
     @Column(name = "x_url", length = 512)
     private String xUrl;
 
@@ -43,6 +46,9 @@ public class Profile {
 
     @Column(name = "facebook_url", length = 512)
     private String facebookUrl;
+
+    @Column(name = "custom_handle", length = 60)
+    private String customHandle;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -94,19 +100,23 @@ public class Profile {
             String bio,
             String language,
             String websiteUrl,
+            String tiktokUrl,
             String xUrl,
             String linkedinUrl,
             String youtubeUrl,
-            String facebookUrl
+            String facebookUrl,
+            String customHandle
     ) {
         this.headline = headline;
         this.bio = bio;
         this.language = (language != null && !language.isBlank()) ? language : "vi";
         this.websiteUrl = websiteUrl;
-        this.xUrl = xUrl;
+        this.tiktokUrl = (tiktokUrl != null && !tiktokUrl.isBlank()) ? tiktokUrl : xUrl;
+        this.xUrl = this.tiktokUrl;
         this.linkedinUrl = linkedinUrl;
         this.youtubeUrl = youtubeUrl;
         this.facebookUrl = facebookUrl;
+        this.customHandle = (customHandle != null && !customHandle.isBlank()) ? customHandle.trim().toLowerCase() : null;
     }
 
     public UUID getUserId() {
@@ -153,6 +163,15 @@ public class Profile {
         this.websiteUrl = websiteUrl;
     }
 
+    public String getTiktokUrl() {
+        return (tiktokUrl != null && !tiktokUrl.isBlank()) ? tiktokUrl : xUrl;
+    }
+
+    public void setTiktokUrl(String tiktokUrl) {
+        this.tiktokUrl = tiktokUrl;
+        this.xUrl = tiktokUrl;
+    }
+
     public String getXUrl() {
         return xUrl;
     }
@@ -183,6 +202,14 @@ public class Profile {
 
     public void setFacebookUrl(String facebookUrl) {
         this.facebookUrl = facebookUrl;
+    }
+
+    public String getCustomHandle() {
+        return customHandle;
+    }
+
+    public void setCustomHandle(String customHandle) {
+        this.customHandle = (customHandle != null && !customHandle.isBlank()) ? customHandle.trim().toLowerCase() : null;
     }
 
     public Instant getCreatedAt() {

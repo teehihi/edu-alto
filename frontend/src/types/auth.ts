@@ -45,10 +45,12 @@ export type UserProfile = {
   avatarUrl?: string | null;
   language: string;
   websiteUrl?: string | null;
+  tiktokUrl?: string | null;
   xUrl?: string | null;
   linkedinUrl?: string | null;
   youtubeUrl?: string | null;
   facebookUrl?: string | null;
+  customHandle?: string | null;
   studentProfile?: StudentProfile | null;
   instructorProfile?: InstructorProfile | null;
   createdAt: string;
@@ -73,10 +75,12 @@ export type UpdateProfileRequest = {
   avatarUrl?: string;
   language?: string;
   websiteUrl?: string;
+  tiktokUrl?: string;
   xUrl?: string;
   linkedinUrl?: string;
   youtubeUrl?: string;
   facebookUrl?: string;
+  customHandle?: string;
   // Student fields
   learningGoal?: string;
   occupation?: string;

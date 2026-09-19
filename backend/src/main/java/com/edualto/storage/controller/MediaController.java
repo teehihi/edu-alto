@@ -47,8 +47,22 @@ public class MediaController {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
             }
 
-            byte[] data = storageService.getObjectBytes(objectKey);
             ObjectMetadata metadata = storageService.getObjectMetadata(objectKey);
+
+            // Handle HTTP 304 Not Modified via ETag (browser cache revalidation)
+            String ifNoneMatch = request.getHeader(HttpHeaders.IF_NONE_MATCH);
+            if (ifNoneMatch != null && metadata != null && metadata.eTag() != null) {
+                String cleanEtag = metadata.eTag().replace("\"", "");
+                String cleanIfNoneMatch = ifNoneMatch.replace("\"", "");
+                if (cleanEtag.equals(cleanIfNoneMatch)) {
+                    return ResponseEntity.status(HttpStatus.NOT_MODIFIED)
+                            .cacheControl(CacheControl.maxAge(Duration.ofDays(365)).cachePublic().immutable())
+                            .eTag(metadata.eTag())
+                            .build();
+                }
+            }
+
+            byte[] data = storageService.getObjectBytes(objectKey);
 
             String contentType = (metadata != null && metadata.contentType() != null && !metadata.contentType().isBlank())
                     ? metadata.contentType()
@@ -57,7 +71,7 @@ public class MediaController {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.parseMediaType(contentType));
             headers.setContentLength(data.length);
-            headers.setCacheControl(CacheControl.maxAge(Duration.ofDays(7)).cachePublic().staleWhileRevalidate(Duration.ofDays(30)));
+            headers.setCacheControl(CacheControl.maxAge(Duration.ofDays(365)).cachePublic().immutable());
             if (metadata != null && metadata.eTag() != null) {
                 headers.setETag(metadata.eTag());
             }

@@ -140,7 +140,7 @@ export function AppHeader({
           : "border-b border-slate-100 bg-white/95 backdrop-blur-md shadow-xs"
       )}
     >
-      <div className="mx-auto flex min-h-[80px] w-full max-w-[1240px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto flex min-h-[80px] w-full max-w-[1440px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8 xl:px-12">
         {/* Logo */}
         <Link href="/" className="focus-ring rounded-lg shrink-0" aria-label="Về trang chủ EduAlto">
           <Image

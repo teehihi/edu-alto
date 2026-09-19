@@ -2,6 +2,7 @@ export {
   forgotPassword,
   getCurrentUser,
   getProfile,
+  getPublicProfile,
   login,
   logout,
   register,

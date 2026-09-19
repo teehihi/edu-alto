@@ -3,8 +3,8 @@ import Link from "next/link";
 
 const footerColumns = [
   { title: "Sản phẩm", links: [["Trang Chủ", "/"], ["Khóa Học", "/#courses"], ["Tính Năng", "/#about"], ["Giảng Viên", "/#instructors"]] },
-  { title: "Về EduAlto", links: [["Về Chúng tôi", "/#about"], ["Liên hệ", "/#contact"], ["Câu hỏi thường gặp", "/#contact"], ["Góp ý & hỗ trợ", "mailto:hello@edualto.vn"]] },
-  { title: "Kết nối", links: [["Facebook", "mailto:hello@edualto.vn"], ["LinkedIn", "mailto:hello@edualto.vn"], ["GitHub", "mailto:hello@edualto.vn"], ["Email", "mailto:hello@edualto.vn"]] },
+  { title: "Về EduAlto", links: [["Về Chúng tôi", "/#about"], ["Liên hệ", "/#contact"], ["Câu hỏi thường gặp", "/#contact"], ["Góp ý & hỗ trợ", "mailto:dacsanviethotro@gmail.com"]] },
+  { title: "Kết nối", links: [["Facebook", "https://www.facebook.com/nhatthien.nguyen.566"], ["LinkedIn", "https://www.linkedin.com/in/tee21/"], ["GitHub", "https://github.com/teehihi"], ["Email", "mailto:dacsanviethotro@gmail.com"]] },
   { title: "Chính sách", links: [["Điều khoản sử dụng", "/#contact"], ["Chính sách bảo mật", "/#contact"], ["Chính sách cookie", "/#contact"]] }
 ];
 

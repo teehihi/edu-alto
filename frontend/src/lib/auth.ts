@@ -129,6 +129,7 @@ export function useAuth() {
       getCurrentUser: session.reloadCurrentUser,
       updateCurrentUser,
       getProfile,
+      getPublicProfile: profileApi.getPublicProfile,
       updateProfile,
       uploadAvatar,
       updateUserAvatar: session.updateUserAvatar
@@ -163,6 +164,10 @@ export async function updateCurrentUser(accessToken: string, payload: UpdateCurr
 
 export async function getProfile(accessToken: string) {
   return profileApi.getProfile(accessToken);
+}
+
+export async function getPublicProfile(identifier: string) {
+  return profileApi.getPublicProfile(identifier);
 }
 
 export async function updateProfile(accessToken: string, payload: UpdateProfileRequest) {

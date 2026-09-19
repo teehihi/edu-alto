@@ -94,6 +94,11 @@ export const profileApi = {
       accessToken
     }),
 
+  getPublicProfile: (identifier: string) =>
+    apiRequest<UserProfile>(`/profiles/${encodeURIComponent(identifier)}`, {
+      method: "GET"
+    }),
+
   updateProfile: (accessToken: string, body: UpdateProfileRequest) =>
     apiRequest<UserProfile>("/me/profile", {
       method: "PUT",
