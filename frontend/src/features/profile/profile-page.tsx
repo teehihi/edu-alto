@@ -183,6 +183,9 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
   }
 
   const loadProfile = useCallback(async () => {
+    if (!targetIdentifier && !isAuthenticated) {
+      return;
+    }
     setLoadingProfile(true);
     setStatus(null);
     try {
@@ -193,20 +196,25 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
         data = await getProfile();
       }
       populateForm(data);
+      if (data.avatarUrl) {
+        updateUserAvatar(data.avatarUrl);
+      }
     } catch (err: unknown) {
       const message = getFriendlyError(err);
       setStatus({ tone: "error", message });
     } finally {
       setLoadingProfile(false);
     }
-  }, [getProfile, targetIdentifier, populateForm]);
+  }, [getProfile, targetIdentifier, isAuthenticated, populateForm, updateUserAvatar]);
 
   useEffect(() => {
-    if (!initialLoadDoneRef.current) {
-      initialLoadDoneRef.current = true;
-      loadProfile();
+    if (!authLoading && !initialLoadDoneRef.current) {
+      if (targetIdentifier || isAuthenticated) {
+        initialLoadDoneRef.current = true;
+        loadProfile();
+      }
     }
-  }, [loadProfile]);
+  }, [targetIdentifier, authLoading, isAuthenticated, loadProfile]);
 
   const combinedFullName = useMemo(() => {
     const combined = `${familyName.trim()} ${givenName.trim()}`.trim();
