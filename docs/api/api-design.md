@@ -73,10 +73,13 @@ POST /api/v1/auth/reset-password
 
 Registration flow:
 
-1. User gửi full name, email, password và confirm password.
-2. Backend validate input, hash password và gửi email OTP.
+1. User gửi `fullName`, `email`, `password`, `confirmPassword`, `role` (`STUDENT` hoặc `INSTRUCTOR`, mặc định `STUDENT`), cùng thông tin khởi tạo vai trò:
+   - `STUDENT`: `learningGoal` (tùy chọn).
+   - `INSTRUCTOR`: `expertise` (bắt buộc), `bio` (tùy chọn).
+   - Tài khoản `ADMIN` không được phép đăng ký qua public API.
+2. Backend validate input & authoritative role, hash password, khởi tạo `Profile` và profile theo vai trò (`StudentProfile` hoặc `InstructorProfile`), sau đó gửi email OTP.
 3. User verify OTP.
-4. Account chuyển sang `ACTIVE`.
+4. Account chuyển sang `ACTIVE` với vai trò tương ứng (`STUDENT` hoặc `INSTRUCTOR`).
 
 Login không yêu cầu OTP mỗi lần.
 
@@ -89,19 +92,30 @@ Password reset flow:
 
 ## Users and profile
 
-RUN #3 triển khai endpoint current user:
+Endpoint current user:
 
 ```text
 GET /api/v1/me
 PUT /api/v1/me
 ```
 
-Endpoint profile riêng thuộc implementation của profile module:
+Endpoint profile riêng thuộc profile module:
 
 ```text
-GET /api/v1/me/profile
-PUT /api/v1/me/profile
+GET  /api/v1/me/profile
+PUT  /api/v1/me/profile
+POST /api/v1/me/profile/avatar/upload-url
+POST /api/v1/me/profile/avatar/complete
 ```
+
+- `GET /api/v1/me/profile`: Trả về `UserProfileResponse` tổng hợp gồm thông tin tài khoản cơ bản (`users.full_name`, email, trạng thái, vai trò), thông tin hồ sơ chung (`headline`, `bio`, `avatarKey`, `avatarUrl`, `language`, liên kết mạng xã hội), `studentProfile` (nếu có) và `instructorProfile` (nếu có).
+- `PUT /api/v1/me/profile`: Nhận `UpdateProfileRequest` cho phép cập nhật `fullName` (cập nhật trực tiếp `users.full_name` - nguồn dữ liệu gốc duy nhất), thông tin hồ sơ chung, và các trường của học viên / giảng viên.
+- `POST /api/v1/me/profile/avatar/upload-url`: Khởi tạo luồng direct upload avatar lên Cloudflare R2 bằng presigned PUT URL. Nhận `contentType` (chỉ chấp nhận `image/jpeg`, `image/png`, `image/webp`) và `contentLength` (tối đa 5MB), trả về `uploadUrl`, `objectKey` (định dạng `avatars/{userId}/avatar.{ext}`) và `expiresAt`.
+- `POST /api/v1/me/profile/avatar/complete`: Xác nhận hoàn tất upload sau khi client gửi trực tiếp file lên Cloudflare R2. Backend kiểm tra quyền sở hữu object key, kiểm tra file tồn tại và đúng metadata trên R2 qua `HeadObject`, cập nhật `profiles.avatar_key = objectKey`, đồng thời tự động xóa avatar cũ nếu có.
+
+Sequence diagram luồng upload avatar:
+
+![Avatar Upload Sequence](../architecture/diagrams/sequences/21-avatar-upload.svg)
 
 Admin:
 

@@ -5,33 +5,59 @@ import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { AlertMessage, FormField, PasswordField } from "@/features/auth/form-field";
-import { getFriendlyError, isEmail, type FieldErrors } from "@/features/auth/form-utils";
+import { extractFieldErrors, getFriendlyError, hasLetterAndDigit, isEmail, type FieldErrors } from "@/features/auth/form-utils";
+import { cn } from "@/lib/cn";
 import { register } from "./auth-client";
 import { AuthDivider, AuthShell, AuthSubmitLabel, SocialLoginButtons } from "./auth-shell";
 
-type RegisterFields = "familyName" | "givenName" | "email" | "password" | "confirmPassword";
+type RegisterRole = "STUDENT" | "INSTRUCTOR";
+type RegisterFields = "fullName" | "email" | "password" | "confirmPassword" | "expertise" | "learningGoal" | "bio";
 
 export function RegisterPage() {
   const router = useRouter();
-  const [familyName, setFamilyName] = useState("");
-  const [givenName, setGivenName] = useState("");
-  const [username, setUsername] = useState("");
+  const [role, setRole] = useState<RegisterRole>("STUDENT");
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [learningGoal, setLearningGoal] = useState("");
+  const [expertise, setExpertise] = useState("");
+  const [bio, setBio] = useState("");
   const [errors, setErrors] = useState<FieldErrors<RegisterFields>>({});
   const [status, setStatus] = useState<{ tone: "success" | "error"; message: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  function clearError(field: RegisterFields) {
+    if (errors[field]) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    }
+  }
+
+  function handleRoleChange(newRole: RegisterRole) {
+    if (newRole === role) return;
+    setRole(newRole);
+    // Reset role-specific field values and errors to prevent stale retention
+    setLearningGoal("");
+    setExpertise("");
+    setBio("");
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next.expertise;
+      delete next.learningGoal;
+      delete next.bio;
+      return next;
+    });
+  }
+
   function validate() {
     const nextErrors: FieldErrors<RegisterFields> = {};
 
-    if (familyName.trim().length < 2) {
-      nextErrors.familyName = "Vui lòng nhập họ và tên lót.";
-    }
-
-    if (givenName.trim().length < 1) {
-      nextErrors.givenName = "Vui lòng nhập tên.";
+    if (fullName.trim().length < 2) {
+      nextErrors.fullName = "Vui lòng nhập họ và tên.";
     }
 
     if (!isEmail(email)) {
@@ -40,10 +66,16 @@ export function RegisterPage() {
 
     if (password.length < 8) {
       nextErrors.password = "Mật khẩu cần có ít nhất 8 ký tự.";
+    } else if (!hasLetterAndDigit(password)) {
+      nextErrors.password = "Mật khẩu phải bao gồm cả chữ và số.";
     }
 
     if (confirmPassword !== password) {
       nextErrors.confirmPassword = "Mật khẩu nhập lại chưa khớp.";
+    }
+
+    if (role === "INSTRUCTOR" && expertise.trim().length < 2) {
+      nextErrors.expertise = "Vui lòng nhập chuyên môn giảng dạy.";
     }
 
     setErrors(nextErrors);
@@ -60,10 +92,25 @@ export function RegisterPage() {
 
     setSubmitting(true);
     try {
-      await register({ fullName: `${familyName.trim()} ${givenName.trim()}`.trim(), email: email.trim(), password, confirmPassword });
+      await register({
+        fullName: fullName.trim(),
+        email: email.trim(),
+        password,
+        confirmPassword,
+        role,
+        ...(bio.trim() ? { bio: bio.trim() } : {}),
+        ...(role === "INSTRUCTOR" ? { expertise: expertise.trim() } : {})
+      });
       router.push(`/verify-email?email=${encodeURIComponent(email.trim())}&sent=1`);
     } catch (error) {
-      setStatus({ tone: "error", message: getFriendlyError(error, "Không thể tạo tài khoản. Vui lòng thử lại sau.") });
+      const fieldErrors = extractFieldErrors<RegisterFields>(error);
+      if (fieldErrors) {
+        setErrors((prev) => ({ ...prev, ...fieldErrors }));
+      }
+      setStatus({
+        tone: "error",
+        message: getFriendlyError(error, "Không thể tạo tài khoản. Vui lòng kiểm tra lại thông tin.")
+      });
     } finally {
       setSubmitting(false);
     }
@@ -77,39 +124,64 @@ export function RegisterPage() {
       panelSide="right"
       title="Tạo Tài Khoản Mới"
     >
-      <form className="space-y-6" noValidate onSubmit={handleSubmit}>
+      <form className="space-y-3 sm:space-y-3.5" noValidate onSubmit={handleSubmit}>
         {status ? <AlertMessage tone={status.tone}>{status.message}</AlertMessage> : null}
-        <div className="grid gap-6 sm:grid-cols-2">
-          <FormField
-            id="familyName"
-            label="Họ và Tên lót"
-            autoComplete="family-name"
-            placeholder="Nguyễn Nhật"
-            value={familyName}
-            error={errors.familyName}
-            onChange={(event) => setFamilyName(event.target.value)}
-            disabled={submitting}
-          />
-          <FormField
-            id="givenName"
-            label="Tên"
-            autoComplete="given-name"
-            placeholder="Thiên"
-            value={givenName}
-            error={errors.givenName}
-            onChange={(event) => setGivenName(event.target.value)}
-            disabled={submitting}
-          />
+
+        {/* Role Selection */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-semibold text-heading sm:text-sm">
+            Bạn muốn tham gia EduAlto với vai trò nào?
+          </label>
+          <div className="grid grid-cols-2 gap-2 rounded-lg border border-slate-200 bg-slate-50/80 p-1" role="radiogroup" aria-label="Vai trò tài khoản">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={role === "STUDENT"}
+              onClick={() => handleRoleChange("STUDENT")}
+              disabled={submitting}
+              className={cn(
+                "focus-ring flex h-10 items-center justify-center gap-2 rounded-md text-xs font-medium transition duration-150 sm:text-sm",
+                role === "STUDENT"
+                  ? "border border-slate-200 bg-white font-semibold text-primary shadow-xs"
+                  : "text-muted hover:text-heading"
+              )}
+            >
+              <span className={cn("h-2 w-2 rounded-full transition", role === "STUDENT" ? "bg-primary" : "bg-slate-300")} />
+              <span>Học viên</span>
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={role === "INSTRUCTOR"}
+              onClick={() => handleRoleChange("INSTRUCTOR")}
+              disabled={submitting}
+              className={cn(
+                "focus-ring flex h-10 items-center justify-center gap-2 rounded-md text-xs font-medium transition duration-150 sm:text-sm",
+                role === "INSTRUCTOR"
+                  ? "border border-slate-200 bg-white font-semibold text-primary shadow-xs"
+                  : "text-muted hover:text-heading"
+              )}
+            >
+              <span className={cn("h-2 w-2 rounded-full transition", role === "INSTRUCTOR" ? "bg-primary" : "bg-slate-300")} />
+              <span>Giảng viên</span>
+            </button>
+          </div>
         </div>
+
         <FormField
-          id="username"
-          label="Tên Đăng Nhập"
-          autoComplete="username"
-          placeholder="teehihi"
-          value={username}
-          onChange={(event) => setUsername(event.target.value)}
+          id="fullName"
+          label="Họ và tên"
+          autoComplete="name"
+          placeholder="Nguyễn Nhật Thiên"
+          value={fullName}
+          error={errors.fullName}
+          onChange={(event) => {
+            setFullName(event.target.value);
+            clearError("fullName");
+          }}
           disabled={submitting}
         />
+
         <FormField
           id="email"
           label="Email"
@@ -118,18 +190,69 @@ export function RegisterPage() {
           placeholder="teehihi@vng.com.vn"
           value={email}
           error={errors.email}
-          onChange={(event) => setEmail(event.target.value)}
+          onChange={(event) => {
+            setEmail(event.target.value);
+            clearError("email");
+          }}
           disabled={submitting}
         />
-        <div className="grid gap-6 sm:grid-cols-2">
+
+        {role === "STUDENT" ? (
+          <FormField
+            id="bio"
+            label="Tiểu sử"
+            placeholder="Kể cho chúng tôi và người dùng khác đôi nét về bạn..."
+            value={bio}
+            error={errors.bio}
+            onChange={(event) => {
+              setBio(event.target.value);
+              clearError("bio");
+            }}
+            hint="Không bắt buộc. Thông tin này sẽ hiển thị ở phần giới thiệu bản thân trong hồ sơ."
+            disabled={submitting}
+          />
+        ) : (
+          <div className="space-y-3 sm:space-y-3.5">
+            <FormField
+              id="expertise"
+              label="Chuyên môn giảng dạy"
+              placeholder="Ví dụ: Lập trình Web, Trí tuệ nhân tạo, Thiết kế UI/UX..."
+              value={expertise}
+              error={errors.expertise}
+              onChange={(event) => {
+                setExpertise(event.target.value);
+                clearError("expertise");
+              }}
+              disabled={submitting}
+            />
+            <FormField
+              id="bio"
+              label="Tiểu sử"
+              placeholder="Ví dụ: 5 năm kinh nghiệm phát triển phần mềm và đào tạo lập trình..."
+              value={bio}
+              error={errors.bio}
+              onChange={(event) => {
+                setBio(event.target.value);
+                clearError("bio");
+              }}
+              hint="Không bắt buộc. Thông tin này sẽ hiển thị ở phần giới thiệu bản thân trong hồ sơ."
+              disabled={submitting}
+            />
+          </div>
+        )}
+
+        <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
           <PasswordField
             id="password"
             label="Mật khẩu"
             autoComplete="new-password"
-            placeholder="Nhập mật khẩu"
+            placeholder="Tối thiểu 8 ký tự (chữ và số)"
             value={password}
             error={errors.password}
-            onChange={(event) => setPassword(event.target.value)}
+            onChange={(event) => {
+              setPassword(event.target.value);
+              clearError("password");
+            }}
             disabled={submitting}
           />
           <PasswordField
@@ -139,16 +262,20 @@ export function RegisterPage() {
             placeholder="Nhập lại mật khẩu"
             value={confirmPassword}
             error={errors.confirmPassword}
-            onChange={(event) => setConfirmPassword(event.target.value)}
+            onChange={(event) => {
+              setConfirmPassword(event.target.value);
+              clearError("confirmPassword");
+            }}
             disabled={submitting}
           />
         </div>
-        <Button className="h-12 w-fit min-w-[183px] px-6 text-base" loading={submitting} type="submit" aria-label="Tạo tài khoản">
-          <AuthSubmitLabel>Create Account</AuthSubmitLabel>
+
+        <Button className="h-11 w-full rounded-xl px-6 text-sm font-semibold sm:h-12 sm:text-base" loading={submitting} type="submit" aria-label="Đăng ký">
+          Đăng ký
         </Button>
         <AuthDivider />
         <SocialLoginButtons />
-        <p className="text-center text-sm text-muted lg:hidden">
+        <p className="pt-1 text-center text-sm text-muted">
           Đã có tài khoản?{" "}
           <Link className="focus-ring rounded-lg font-semibold text-primary hover:text-primary-dark" href="/login">
             Đăng nhập

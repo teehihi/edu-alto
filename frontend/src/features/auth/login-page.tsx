@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { AlertMessage, FormField, PasswordField } from "@/features/auth/form-field";
@@ -11,6 +12,7 @@ import { AuthDivider, AuthShell, AuthSubmitLabel, SocialLoginButtons } from "./a
 type LoginFields = "email" | "password";
 
 export function LoginPage() {
+  const router = useRouter();
   const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -45,7 +47,18 @@ export function LoginPage() {
     try {
       await login({ email: email.trim(), password });
       setStatus({ tone: "success", message: "Đăng nhập thành công. EduAlto đang chuẩn bị không gian học tập cho bạn." });
+      router.push("/");
+      router.refresh();
     } catch (error) {
+      if (
+        error &&
+        typeof error === "object" &&
+        "code" in error &&
+        (error as { code: string }).code === "ACCOUNT_NOT_VERIFIED"
+      ) {
+        router.push(`/verify-email?email=${encodeURIComponent(email.trim())}&sent=1`);
+        return;
+      }
       setStatus({ tone: "error", message: getFriendlyError(error, "Không thể đăng nhập. Vui lòng kiểm tra email và mật khẩu.") });
     } finally {
       setSubmitting(false);
@@ -59,7 +72,7 @@ export function LoginPage() {
       panelImage="/images/auth/login-panel.png"
       title="Đăng nhập tài khoản"
     >
-      <form className="space-y-6" noValidate onSubmit={handleSubmit}>
+      <form className="space-y-4 sm:space-y-4.5" noValidate onSubmit={handleSubmit}>
         {status ? <AlertMessage tone={status.tone}>{status.message}</AlertMessage> : null}
         <FormField
           id="email"
@@ -82,8 +95,8 @@ export function LoginPage() {
           onChange={(event) => setPassword(event.target.value)}
           disabled={submitting}
         />
-        <div className="flex items-center justify-between gap-3 text-sm">
-          <label className="flex items-center gap-2 text-muted">
+        <div className="flex items-center justify-between gap-3 text-xs sm:text-sm">
+          <label className="flex items-center gap-2 text-muted cursor-pointer">
             <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" disabled={submitting} />
             Ghi nhớ đăng nhập
           </label>
@@ -91,12 +104,12 @@ export function LoginPage() {
             Quên mật khẩu?
           </Link>
         </div>
-        <Button className="h-12 w-fit min-w-[124px] px-6 text-base" loading={submitting} type="submit" aria-label="Đăng nhập">
-          <AuthSubmitLabel>Sign In</AuthSubmitLabel>
+        <Button className="h-11 w-full rounded-xl px-6 text-sm font-semibold sm:h-12 sm:text-base" loading={submitting} type="submit" aria-label="Đăng nhập">
+          Đăng nhập
         </Button>
         <AuthDivider />
         <SocialLoginButtons />
-        <p className="text-center text-sm text-muted lg:hidden">
+        <p className="pt-1 text-center text-sm text-muted">
           Chưa có tài khoản?{" "}
           <Link className="focus-ring rounded-lg font-semibold text-primary hover:text-primary-dark" href="/register">
             Tạo tài khoản

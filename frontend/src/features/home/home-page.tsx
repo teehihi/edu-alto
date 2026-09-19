@@ -40,9 +40,10 @@ export function HomePage() {
   const activeTestimonial = testimonials[activeTestimonialIndex] ?? testimonials[0];
 
   return (
-    <main className="overflow-hidden bg-white">
+    <div className="min-h-screen bg-white">
       <AppHeader />
-      <section className="relative overflow-hidden bg-[#fbfffd] pt-8 lg:pt-12">
+      <main>
+        <section className="relative overflow-hidden bg-[#fbfffd] pt-8 lg:pt-12">
         <HeroBackgroundPatterns />
         <div className="container-page grid min-h-[620px] items-center gap-10 pb-16 lg:grid-cols-[1.05fr_0.95fr]">
           <div className="relative z-10">
@@ -280,8 +281,9 @@ export function HomePage() {
           ))}
         </div>
       </section>
+      </main>
       <div id="contact" className="scroll-mt-24"><Footer /></div>
-    </main>
+    </div>
   );
 }
 

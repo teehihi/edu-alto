@@ -8,7 +8,49 @@ export type CurrentUser = {
   email: string;
   status: UserStatus;
   roles: RoleName[];
+  avatarUrl?: string | null;
   emailVerifiedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type StudentProfile = {
+  learningGoal?: string | null;
+  occupation?: string | null;
+  educationLevel?: string | null;
+  interests?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type InstructorProfile = {
+  expertise: string;
+  experienceYears?: number | null;
+  teachingExperience?: string | null;
+  qualificationSummary?: string | null;
+  specialties?: string | null;
+  verifiedAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type UserProfile = {
+  id: string;
+  fullName: string;
+  email: string;
+  status: UserStatus;
+  roles: RoleName[];
+  headline?: string | null;
+  bio?: string | null;
+  avatarUrl?: string | null;
+  language: string;
+  websiteUrl?: string | null;
+  xUrl?: string | null;
+  linkedinUrl?: string | null;
+  youtubeUrl?: string | null;
+  facebookUrl?: string | null;
+  studentProfile?: StudentProfile | null;
+  instructorProfile?: InstructorProfile | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -18,6 +60,34 @@ export type RegisterRequest = {
   email: string;
   password: string;
   confirmPassword: string;
+  role?: "STUDENT" | "INSTRUCTOR";
+  learningGoal?: string;
+  expertise?: string;
+  bio?: string;
+};
+
+export type UpdateProfileRequest = {
+  fullName?: string;
+  headline?: string;
+  bio?: string;
+  avatarUrl?: string;
+  language?: string;
+  websiteUrl?: string;
+  xUrl?: string;
+  linkedinUrl?: string;
+  youtubeUrl?: string;
+  facebookUrl?: string;
+  // Student fields
+  learningGoal?: string;
+  occupation?: string;
+  educationLevel?: string;
+  interests?: string;
+  // Instructor fields
+  expertise?: string;
+  experienceYears?: number | null;
+  teachingExperience?: string;
+  qualificationSummary?: string;
+  specialties?: string;
 };
 
 export type LoginRequest = {
@@ -66,4 +136,19 @@ export type ApiErrorBody = {
   code: string;
   message: string;
   details: ApiErrorDetail[];
+};
+
+export type AvatarUploadUrlRequest = {
+  contentType: string;
+  contentLength: number;
+};
+
+export type AvatarUploadUrlResponse = {
+  uploadUrl: string;
+  objectKey: string;
+  expiresAt: string;
+};
+
+export type AvatarCompleteRequest = {
+  objectKey: string;
 };

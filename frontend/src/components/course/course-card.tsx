@@ -1,3 +1,5 @@
+"use client";
+ 
 import Image from "next/image";
 import { ArrowUpRight, Clock3, Star } from "lucide-react";
 import { useState } from "react";

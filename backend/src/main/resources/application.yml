@@ -5,10 +5,10 @@ spring:
   application:
     name: edualto-backend
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:h2:mem:edualto;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1}
-    username: ${SPRING_DATASOURCE_USERNAME:sa}
-    password: ${SPRING_DATASOURCE_PASSWORD:}
-    driver-class-name: ${SPRING_DATASOURCE_DRIVER:org.h2.Driver}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/edualto}
+    username: ${SPRING_DATASOURCE_USERNAME:edualto}
+    password: ${SPRING_DATASOURCE_PASSWORD:hvd23110_2105}
+    driver-class-name: ${SPRING_DATASOURCE_DRIVER:org.postgresql.Driver}
   jpa:
     hibernate:
       ddl-auto: none
@@ -43,7 +43,7 @@ springdoc:
 
 edualto:
   cors:
-    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:3003,http://127.0.0.1:3000,http://127.0.0.1:3002,https://edualto.vercel.app}
   auth:
     jwt:
       secret: ${JWT_SECRET:dev-only-change-this-jwt-secret-with-at-least-32-characters}
@@ -59,3 +59,11 @@ edualto:
     enabled: ${MAIL_ENABLED:false}
     from: ${MAIL_FROM:no-reply@edualto.local}
     sender-name: ${MAIL_SENDER_NAME:EduAlto}
+  storage:
+    r2:
+      account-id: ${R2_ACCOUNT_ID:}
+      access-key-id: ${R2_ACCESS_KEY_ID:}
+      secret-access-key: ${R2_SECRET_ACCESS_KEY:}
+      bucket-name: ${R2_BUCKET_NAME:edualto-media}
+      endpoint: ${R2_ENDPOINT:}
+      public-url-prefix: ${R2_PUBLIC_URL_PREFIX:}

@@ -40,11 +40,16 @@ const config: Config = {
         floatSlow: {
           "0%, 100%": { transform: "translateY(0px)" },
           "50%": { transform: "translateY(6px)" }
+        },
+        caretBlink: {
+          "0%, 49%": { opacity: "1" },
+          "50%, 100%": { opacity: "0" }
         }
       },
       animation: {
         float: "float 4s ease-in-out infinite",
-        floatSlow: "floatSlow 5s ease-in-out infinite"
+        floatSlow: "floatSlow 5s ease-in-out infinite",
+        caretBlink: "caretBlink 1s infinite"
       }
     }
   },

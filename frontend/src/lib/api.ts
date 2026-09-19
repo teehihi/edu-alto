@@ -37,10 +37,11 @@ const API_BASE_URL = normalizeBaseUrl(process.env.NEXT_PUBLIC_API_BASE_URL ?? "h
 
 export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
   const { accessToken, body, headers, ...init } = options;
+  const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
-    headers: buildHeaders(headers, body, accessToken),
-    body: body === undefined ? undefined : JSON.stringify(body)
+    headers: buildHeaders(headers, body, accessToken, isFormData),
+    body: body === undefined ? undefined : isFormData ? body : JSON.stringify(body)
   });
 
   const payload = await parseJson(response);
@@ -51,13 +52,21 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   return unwrapData<T>(payload);
 }
 
-function buildHeaders(headers: HeadersInit | undefined, body: unknown, accessToken: string | null | undefined): Headers {
+function buildHeaders(
+  headers: HeadersInit | undefined,
+  body: unknown,
+  accessToken: string | null | undefined,
+  isFormData: boolean
+): Headers {
   const nextHeaders = new Headers(headers);
-  if (body !== undefined && !nextHeaders.has("Content-Type")) {
+  if (body !== undefined && !isFormData && !nextHeaders.has("Content-Type")) {
     nextHeaders.set("Content-Type", "application/json");
   }
   if (accessToken && !nextHeaders.has("Authorization")) {
     nextHeaders.set("Authorization", `Bearer ${accessToken}`);
+  }
+  if (API_BASE_URL.includes("ngrok")) {
+    nextHeaders.set("ngrok-skip-browser-warning", "true");
   }
   return nextHeaders;
 }

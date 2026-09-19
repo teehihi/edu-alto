@@ -31,6 +31,7 @@ type AuthSessionState = {
   refreshSession: () => Promise<CurrentUser | null>;
   getAccessToken: () => Promise<string | null>;
   reloadCurrentUser: () => Promise<CurrentUser | null>;
+  updateUserAvatar: (avatarUrl: string | null) => void;
 };
 
 const STORAGE_KEY = "edualto.auth.session";
@@ -65,7 +66,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refreshStoredSession = useCallback(
-    async (refreshToken?: string) => {
+    async (refreshToken?: string): Promise<StoredSession | null> => {
       const token = refreshToken ?? session?.refreshToken;
       if (!token) {
         clearSession();
@@ -76,9 +77,9 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
         refreshPromiseRef.current = authApi
           .refresh(token)
           .then(saveSession)
-          .catch((error: unknown) => {
+          .catch(() => {
             clearSession();
-            throw error;
+            return null;
           })
           .finally(() => {
             refreshPromiseRef.current = null;
@@ -135,11 +136,15 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
         if (!refreshed) {
           return null;
         }
-        const user = await currentUserApi.getCurrentUser(refreshed.accessToken);
-        setSession((current) => persistUser(current, user));
-        return user;
+        try {
+          const user = await currentUserApi.getCurrentUser(refreshed.accessToken);
+          setSession((current) => persistUser(current, user));
+          return user;
+        } catch {
+          return null;
+        }
       }
-      throw error;
+      return null;
     }
   }, [getAccessToken, refreshStoredSession]);
 
@@ -168,6 +173,18 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
     return refreshed?.user ?? null;
   }, [refreshStoredSession]);
 
+  const updateUserAvatar = useCallback((avatarUrl: string | null) => {
+    setSession((current) => {
+      if (!current) return null;
+      const updatedUser: CurrentUser = { ...current.user, avatarUrl };
+      const nextSession: StoredSession = { ...current, user: updatedUser };
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextSession));
+      }
+      return nextSession;
+    });
+  }, []);
+
   const value = useMemo<AuthSessionState>(
     () => ({
       user: session?.user ?? null,
@@ -178,9 +195,10 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
       logout,
       refreshSession,
       getAccessToken,
-      reloadCurrentUser
+      reloadCurrentUser,
+      updateUserAvatar
     }),
-    [getAccessToken, isLoading, login, logout, refreshSession, reloadCurrentUser, session]
+    [getAccessToken, isLoading, login, logout, refreshSession, reloadCurrentUser, session, updateUserAvatar]
   );
 
   return <AuthSessionContext.Provider value={value}>{children}</AuthSessionContext.Provider>;

@@ -36,7 +36,7 @@ export function Button({
   return (
     <button
       className={cn(
-        "focus-ring inline-flex items-center justify-center gap-2 rounded-lg border font-semibold transition duration-200 disabled:cursor-not-allowed disabled:opacity-60",
+        "focus-ring inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl border font-semibold transition duration-200 disabled:cursor-not-allowed disabled:opacity-60",
         variantClass[variant],
         sizeClass[size],
         className
@@ -44,8 +44,8 @@ export function Button({
       disabled={disabled || loading}
       {...props}
     >
-      {loading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
-      <span>{children}</span>
+      {loading ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" /> : null}
+      {children}
     </button>
   );
 }

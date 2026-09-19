@@ -46,9 +46,9 @@ export function ForgotPasswordPage() {
       panelImage="/images/auth/login-panel.png"
       title="Lấy lại mật khẩu"
     >
-      <form className="space-y-6" noValidate onSubmit={handleSubmit}>
+      <form className="space-y-4 sm:space-y-5" noValidate onSubmit={handleSubmit}>
         {status ? <AlertMessage tone={status.tone}>{status.message}</AlertMessage> : null}
-        <p className="text-center text-base leading-7 text-muted">
+        <p className="text-center text-sm leading-6 text-muted sm:text-base sm:leading-7">
           Nhập email tài khoản để nhận mã xác minh đặt lại mật khẩu.
         </p>
         <FormField
@@ -62,8 +62,8 @@ export function ForgotPasswordPage() {
           onChange={(event) => setEmail(event.target.value)}
           disabled={submitting}
         />
-        <Button className="h-12 w-fit min-w-[190px] px-6 text-base" loading={submitting} type="submit">
-          <AuthSubmitLabel>Gửi mã</AuthSubmitLabel>
+        <Button className="h-11 w-full rounded-xl px-6 text-sm font-semibold sm:h-12 sm:text-base" loading={submitting} type="submit">
+          Gửi mã
         </Button>
         <p className="text-center text-sm text-muted">
           Nhớ mật khẩu?{" "}

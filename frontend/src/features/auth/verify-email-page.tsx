@@ -117,48 +117,86 @@ export function VerifyEmailPage() {
   }
 
   return (
-    <main className="min-h-screen bg-white px-5 py-10">
+    <main className="relative flex min-h-[100dvh] h-[100dvh] w-full flex-col items-center justify-center overflow-y-auto bg-white px-4 py-4 sm:px-6 sm:py-6">
       <OtpSuccessModal open={showSuccessModal} seconds={seconds} />
-      <form className="mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-[720px] flex-col items-center justify-center text-center" noValidate onSubmit={handleSubmit}>
+      <form
+        className="mx-auto flex w-full max-w-[520px] flex-col items-center justify-center text-center my-auto animate-page"
+        noValidate
+        onSubmit={handleSubmit}
+      >
         <Image
-          className="mb-8 h-[210px] w-[200px] object-contain sm:mb-11 sm:h-[295px] sm:w-[281px]"
+          className="mb-3 h-[130px] w-[180px] object-contain sm:mb-4 sm:h-[160px] sm:w-[220px]"
           src="/images/auth/otp-illustration.svg"
           alt=""
-          width={300}
-          height={300}
+          width={280}
+          height={200}
           priority
           aria-hidden="true"
         />
-        <h1 className="text-[28px] font-semibold leading-tight tracking-normal text-primary sm:text-[32px]">Xác thực email của bạn</h1>
-        <p className="mt-6 break-words text-base font-semibold leading-7 text-heading sm:text-lg">
+        <h1 className="text-xl font-semibold leading-tight tracking-normal text-primary sm:text-2xl md:text-[28px]">
+          Xác thực email của bạn
+        </h1>
+        <p className="mt-2 text-xs font-medium leading-relaxed text-heading sm:mt-2.5 sm:text-sm md:text-base">
           Nhập mã OTP gồm 6 chữ số được gửi đến{" "}
-          <span className="text-primary">{isEmail(email) ? email.trim() : "email của bạn"}</span>!
+          <span className="font-semibold text-primary">{isEmail(email) ? email.trim() : "email của bạn"}</span>!
         </p>
 
-        {status ? <div className="mt-6 w-full max-w-md"><AlertMessage tone={status.tone}>{status.message}</AlertMessage></div> : null}
+        {status ? (
+          <div className="mt-2.5 w-full max-w-md">
+            <AlertMessage tone={status.tone}>{status.message}</AlertMessage>
+          </div>
+        ) : null}
 
-        {editingEmail ? <div className="mt-6 w-full max-w-md text-left">
-          <FormField
-            id="email"
-            label="Email"
-            type="email"
-            autoComplete="email"
-            placeholder="ban@example.com"
-            value={email}
-            error={errors.email}
-            onChange={(event) => { setEmail(event.target.value); setOtp(""); setStatus(null); }}
+        {editingEmail ? (
+          <div className="mt-2.5 w-full max-w-md text-left">
+            <FormField
+              id="email"
+              label="Email"
+              type="email"
+              autoComplete="email"
+              placeholder="ban@example.com"
+              value={email}
+              error={errors.email}
+              onChange={(event) => {
+                setEmail(event.target.value);
+                setOtp("");
+                setStatus(null);
+              }}
+              disabled={submitting || resending || showSuccessModal}
+            />
+          </div>
+        ) : (
+          <button
+            type="button"
+            className="focus-ring mt-1.5 rounded-lg text-xs font-medium text-primary hover:underline disabled:opacity-60 sm:text-sm"
             disabled={submitting || resending || showSuccessModal}
-          />
-        </div> : <button type="button" className="focus-ring mt-2 rounded-lg text-sm text-primary hover:underline disabled:opacity-60" disabled={submitting || resending || showSuccessModal} onClick={() => { setEditingEmail(true); setOtp(""); setStatus(null); }}>Thay đổi email</button>}
+            onClick={() => {
+              setEditingEmail(true);
+              setOtp("");
+              setStatus(null);
+            }}
+          >
+            Thay đổi email
+          </button>
+        )}
 
-        <div className="mt-10 w-full max-w-[440px]">
-          <OtpInput value={otp} error={errors.otp} disabled={submitting || resending || showSuccessModal} onChange={(value) => { setOtp(sanitizeOtp(value)); setErrors((current) => ({ ...current, otp: undefined })); }} />
+        <div className="my-3 w-full max-w-[420px] sm:my-4">
+          <OtpInput
+            autoFocus
+            value={otp}
+            error={errors.otp}
+            disabled={submitting || resending || showSuccessModal}
+            onChange={(value) => {
+              setOtp(sanitizeOtp(value));
+              setErrors((current) => ({ ...current, otp: undefined }));
+            }}
+          />
         </div>
 
-        <div className="mt-10 text-base text-muted sm:text-xl">
+        <div className="text-xs text-muted sm:text-sm">
           Chưa nhận được mã?{" "}
           <button
-            className="focus-ring rounded-lg font-medium text-primary transition hover:text-primary-dark disabled:cursor-not-allowed disabled:text-[#B5B5B5]"
+            className="focus-ring rounded-lg font-semibold text-primary transition hover:text-primary-dark disabled:cursor-not-allowed disabled:text-[#B5B5B5]"
             disabled={cooldown > 0 || submitting || resending || showSuccessModal}
             type="button"
             onClick={handleResend}
@@ -167,11 +205,20 @@ export function VerifyEmailPage() {
           </button>
         </div>
 
-        <Button className="mt-14 h-12 min-w-[240px] rounded-lg px-8 text-base" loading={submitting} disabled={resending || showSuccessModal} type="submit" aria-label="Xác nhận">
-          <AuthSubmitLabel>Xác nhận</AuthSubmitLabel>
+        <Button
+          className="mt-4 h-11 w-fit min-w-[180px] rounded-xl px-8 text-sm font-semibold sm:mt-5 sm:h-12 sm:min-w-[200px] sm:text-base"
+          loading={submitting}
+          disabled={resending || showSuccessModal}
+          type="submit"
+          aria-label="Xác nhận"
+        >
+          Xác nhận
         </Button>
 
-        <Link className="focus-ring mt-7 rounded-lg text-sm font-semibold text-primary hover:text-primary-dark" href="/login">
+        <Link
+          className="focus-ring mt-3 text-xs font-semibold text-primary hover:text-primary-dark sm:text-sm"
+          href="/login"
+        >
           Quay lại đăng nhập
         </Link>
       </form>

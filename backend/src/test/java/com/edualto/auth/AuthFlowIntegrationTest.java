@@ -28,6 +28,10 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 @SpringBootTest(properties = {
+        "spring.datasource.url=jdbc:h2:mem:edualto;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1",
+        "spring.datasource.username=sa",
+        "spring.datasource.password=",
+        "spring.datasource.driver-class-name=org.h2.Driver",
         "edualto.auth.jwt.secret=test-jwt-secret-with-at-least-32-characters",
         "edualto.auth.otp.fixed-code=123456",
         "edualto.auth.otp.resend-cooldown-seconds=0",
@@ -69,6 +73,83 @@ class AuthFlowIntegrationTest {
         assertThat(user.getPasswordHash()).isNotEqualTo("Password1");
         assertThat(passwordEncoder.matches("Password1", user.getPasswordHash())).isTrue();
         assertThat(user.getRoles()).extracting(role -> role.getName().name()).containsExactly("STUDENT");
+    }
+
+    @Test
+    void registrationSupportsStudentAndInstructorRolesAndRejectsAdmin() throws Exception {
+        // 1. Explicit STUDENT role
+        postJson("/api/v1/auth/register", Map.of(
+                "fullName", "Hoc Vien A",
+                "email", "student-explicit@example.com",
+                "password", "Password1",
+                "confirmPassword", "Password1",
+                "role", "STUDENT"
+        )).andExpect(status().isOk());
+
+        User student = userRepository.findByEmail("student-explicit@example.com").orElseThrow();
+        assertThat(student.getRoles()).extracting(role -> role.getName().name()).containsExactly("STUDENT");
+
+        // 2. Explicit INSTRUCTOR role requires expertise
+        postJson("/api/v1/auth/register", Map.of(
+                "fullName", "Giang Vien B",
+                "email", "instructor-noexp@example.com",
+                "password", "Password1",
+                "confirmPassword", "Password1",
+                "role", "INSTRUCTOR"
+        )).andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.error.code").value("MISSING_EXPERTISE"));
+
+        postJson("/api/v1/auth/register", Map.of(
+                "fullName", "Giang Vien B",
+                "email", "instructor@example.com",
+                "password", "Password1",
+                "confirmPassword", "Password1",
+                "role", "INSTRUCTOR",
+                "expertise", "Lập trình Java Spring Boot"
+        )).andExpect(status().isOk());
+
+        User instructor = userRepository.findByEmail("instructor@example.com").orElseThrow();
+        assertThat(instructor.getRoles()).extracting(role -> role.getName().name()).containsExactly("INSTRUCTOR");
+
+        // 3. ADMIN role must be rejected
+        postJson("/api/v1/auth/register", Map.of(
+                "fullName", "Admin Hacker",
+                "email", "admin-attempt@example.com",
+                "password", "Password1",
+                "confirmPassword", "Password1",
+                "role", "ADMIN"
+        )).andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.error.code").value("INVALID_ROLE"));
+
+        // 4. Invalid unknown role must be rejected
+        postJson("/api/v1/auth/register", Map.of(
+                "fullName", "Fake User",
+                "email", "fake@example.com",
+                "password", "Password1",
+                "confirmPassword", "Password1",
+                "role", "SUPERUSER"
+        )).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void instructorCanVerifyAndLoginToViewInstructorRole() throws Exception {
+        postJson("/api/v1/auth/register", Map.of(
+                "fullName", "Giang Vien Master",
+                "email", "teacher@example.com",
+                "password", "Password1",
+                "confirmPassword", "Password1",
+                "role", "INSTRUCTOR",
+                "expertise", "Chuyên gia AI và Cloud"
+        )).andExpect(status().isOk());
+
+        verifyEmail("teacher@example.com");
+
+        String token = login("teacher@example.com", "Password1").get("data").get("accessToken").asText();
+
+        mockMvc.perform(get("/api/v1/me").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.email").value("teacher@example.com"))
+                .andExpect(jsonPath("$.data.roles[0]").value("INSTRUCTOR"));
     }
 
     @Test

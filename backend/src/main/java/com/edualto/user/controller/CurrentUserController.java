@@ -25,7 +25,7 @@ public class CurrentUserController {
 
     @GetMapping
     public ApiResponse<UserResponse> currentUser(@AuthenticationPrincipal AuthenticatedUser principal) {
-        return ApiResponse.ok(UserResponse.from(userService.requireById(principal.id())));
+        return ApiResponse.ok(userService.getUserResponse(principal.id()));
     }
 
     @PutMapping
@@ -33,6 +33,6 @@ public class CurrentUserController {
             @AuthenticationPrincipal AuthenticatedUser principal,
             @Valid @RequestBody UpdateCurrentUserRequest request
     ) {
-        return ApiResponse.ok(UserResponse.from(userService.updateCurrentUser(principal.id(), request)));
+        return ApiResponse.ok(userService.updateCurrentUserResponse(principal.id(), request));
     }
 }

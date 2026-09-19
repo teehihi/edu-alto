@@ -1,0 +1,23 @@
+sequenceDiagram
+    autonumber
+    actor User as Client / Browser
+    participant API as EduAlto Backend
+    participant DB as PostgreSQL
+    participant R2 as Cloudflare R2
+
+    User->>API: POST /api/v1/me/profile/avatar/upload-url (contentType, contentLength)
+    API->>API: Validate MIME (jpeg/png/webp) & Size (<= 5MB)
+    API->>R2: Generate Presigned PUT URL (key: avatars/{userId}/avatar.ext, TTL: 15m)
+    API-->>User: 200 OK (uploadUrl, objectKey, expiresAt)
+
+    User->>R2: HTTP PUT [uploadUrl] (binary file body)
+    R2-->>User: 200 OK
+
+    User->>API: POST /api/v1/me/profile/avatar/complete (objectKey)
+    API->>API: Check userId ownership in objectKey
+    API->>R2: HeadObject (verify exists, contentType, size <= 5MB)
+    API->>DB: Update profiles.avatar_key = objectKey
+    opt Has previous avatarKey != newKey
+        API->>R2: DeleteObject(previousKey)
+    end
+    API-->>User: 200 OK (avatarKey, avatarUrl)

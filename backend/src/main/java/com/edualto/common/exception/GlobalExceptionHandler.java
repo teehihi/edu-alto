@@ -30,6 +30,17 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleNotReadable(org.springframework.http.converter.HttpMessageNotReadableException exception, HttpServletRequest request) {
+        ErrorResponse response = ErrorResponse.of(
+                "INVALID_PAYLOAD",
+                "Dữ liệu yêu cầu không hợp lệ hoặc sai định dạng",
+                List.of(),
+                request.getRequestURI()
+        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ErrorResponse> handleBusiness(BusinessException exception, HttpServletRequest request) {
         ErrorResponse response = ErrorResponse.of(

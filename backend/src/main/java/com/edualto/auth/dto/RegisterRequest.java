@@ -1,5 +1,6 @@
 package com.edualto.auth.dto;
 
+import com.edualto.user.domain.RoleName;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -20,6 +21,15 @@ public record RegisterRequest(
         String password,
 
         @NotBlank(message = "Vui lòng xác nhận mật khẩu")
-        String confirmPassword
+        String confirmPassword,
+
+        RoleName role,
+
+        String learningGoal,
+
+        @Size(max = 255, message = "Chuyên môn không được vượt quá 255 ký tự")
+        String expertise,
+
+        String bio
 ) {
 }

@@ -96,21 +96,42 @@ Constraints and indexes:
 
 ### Profile
 
-`student_profiles`
+`profiles` (Thông tin hồ sơ chung, 1-1 với users)
 
-- `user_id uuid primary key references users(id)`
-- `headline varchar(180) null`
-- `learning_goal text null`
-- `avatar_url varchar(500) null`
-- `created_at`, `updated_at`
-
-`instructor_profiles`
-
-- `user_id uuid primary key references users(id)`
+- `user_id uuid primary key references users(id) on delete cascade`
+- `headline varchar(255) null`
 - `bio text null`
-- `expertise varchar(255) null`
+- `avatar_url varchar(1024) null`
+- `language varchar(20) not null default 'vi'`
+- `website_url varchar(1024) null`
+- `x_url varchar(1024) null`
+- `linkedin_url varchar(1024) null`
+- `youtube_url varchar(1024) null`
+- `facebook_url varchar(1024) null`
+- `created_at timestamptz not null default current_timestamp`
+- `updated_at timestamptz not null`
+
+`student_profiles` (Hồ sơ người học, 1-1 với users)
+
+- `user_id uuid primary key references users(id) on delete cascade`
+- `learning_goal text null`
+- `occupation varchar(120) null`
+- `education_level varchar(120) null`
+- `interests text null`
+- `created_at timestamptz not null default current_timestamp`
+- `updated_at timestamptz not null`
+
+`instructor_profiles` (Hồ sơ giảng viên, 1-1 với users)
+
+- `user_id uuid primary key references users(id) on delete cascade`
+- `expertise varchar(255) not null`
+- `experience_years integer null`
+- `teaching_experience text null`
+- `qualification_summary text null`
+- `specialties text null`
 - `verified_at timestamptz null`
-- `created_at`, `updated_at`
+- `created_at timestamptz not null default current_timestamp`
+- `updated_at timestamptz not null`
 
 ### Course catalog
 

@@ -8,6 +8,8 @@ import com.edualto.auth.dto.RegisterRequest;
 import com.edualto.auth.dto.ResetPasswordRequest;
 import com.edualto.auth.dto.VerifyOtpRequest;
 import com.edualto.common.exception.BusinessException;
+import com.edualto.profile.service.ProfileService;
+import com.edualto.user.domain.RoleName;
 import com.edualto.user.domain.User;
 import com.edualto.user.domain.UserStatus;
 import com.edualto.user.dto.UserResponse;
@@ -25,6 +27,7 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final UserService userService;
+    private final ProfileService profileService;
     private final PasswordEncoder passwordEncoder;
     private final OtpService otpService;
     private final JwtTokenService jwtTokenService;
@@ -33,6 +36,7 @@ public class AuthService {
     public AuthService(
             UserRepository userRepository,
             UserService userService,
+            ProfileService profileService,
             PasswordEncoder passwordEncoder,
             OtpService otpService,
             JwtTokenService jwtTokenService,
@@ -40,6 +44,7 @@ public class AuthService {
     ) {
         this.userRepository = userRepository;
         this.userService = userService;
+        this.profileService = profileService;
         this.passwordEncoder = passwordEncoder;
         this.otpService = otpService;
         this.jwtTokenService = jwtTokenService;
@@ -49,16 +54,37 @@ public class AuthService {
     @Transactional
     public AuthMessageResponse register(RegisterRequest request) {
         ensurePasswordsMatch(request.password(), request.confirmPassword());
+        RoleName targetRole = request.role() != null ? request.role() : RoleName.STUDENT;
+
+        if (targetRole == RoleName.ADMIN) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "INVALID_ROLE", "Không thể đăng ký tài khoản Quản trị viên");
+        }
+        if (targetRole != RoleName.STUDENT && targetRole != RoleName.INSTRUCTOR) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "INVALID_ROLE", "Vai trò đăng ký không hợp lệ");
+        }
+
+        if (targetRole == RoleName.INSTRUCTOR && (request.expertise() == null || request.expertise().isBlank())) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "MISSING_EXPERTISE", "Vui lòng nhập chuyên môn giảng dạy");
+        }
+
         String email = normalizeEmail(request.email());
         if (userRepository.existsByEmail(email)) {
             throw new BusinessException(HttpStatus.CONFLICT, "EMAIL_ALREADY_EXISTS", "Email đã được sử dụng");
         }
 
-        User user = userService.createPendingStudent(
+        User user = userService.createPendingUser(
                 request.fullName().trim(),
                 email,
-                passwordEncoder.encode(request.password())
+                passwordEncoder.encode(request.password()),
+                targetRole
         );
+
+        if (targetRole == RoleName.INSTRUCTOR) {
+            profileService.createInstructorProfile(user.getId(), request.expertise(), request.bio());
+        } else {
+            profileService.createStudentProfile(user.getId(), request.learningGoal(), request.bio());
+        }
+
         otpService.issue(user, OtpPurpose.EMAIL_VERIFICATION, false);
         return new AuthMessageResponse("Đăng ký thành công. Vui lòng kiểm tra email để xác thực tài khoản.");
     }
@@ -86,7 +112,7 @@ public class AuthService {
         return new AuthMessageResponse("Mã OTP mới đã được gửi đến email của bạn.");
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = BusinessException.class)
     public AuthTokenResponse login(LoginRequest request, String deviceName) {
         User user = userRepository.findByEmail(normalizeEmail(request.email()))
                 .orElseThrow(this::invalidCredentials);
@@ -94,7 +120,12 @@ public class AuthService {
             throw invalidCredentials();
         }
         if (user.getStatus() == UserStatus.PENDING_VERIFICATION) {
-            throw new BusinessException(HttpStatus.FORBIDDEN, "ACCOUNT_NOT_VERIFIED", "Vui lòng xác thực email trước khi đăng nhập");
+            try {
+                otpService.issue(user, OtpPurpose.EMAIL_VERIFICATION, false);
+            } catch (Exception ignored) {
+                // If email sending or cooldown fails, still enforce verification
+            }
+            throw new BusinessException(HttpStatus.FORBIDDEN, "ACCOUNT_NOT_VERIFIED", "Tài khoản chưa được xác thực. Mã OTP mới đã được gửi đến email của bạn.");
         }
         if (user.getStatus() != UserStatus.ACTIVE) {
             throw invalidCredentials();
@@ -161,7 +192,7 @@ public class AuthService {
                 jwtTokenService.createAccessToken(user),
                 jwtTokenService.accessTokenTtlSeconds(),
                 refreshToken,
-                UserResponse.from(user)
+                userService.getUserResponse(user.getId())
         );
     }
 

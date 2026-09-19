@@ -1,6 +1,11 @@
 import { HomePage } from "@/features/home/home-page";
+import { HomeSkeleton } from "@/components/ui/skeleton";
 import { Suspense } from "react";
 
 export default function Page() {
-  return <Suspense fallback={<p className="p-8 text-muted" role="status">Đang tải trang chủ...</p>}><HomePage /></Suspense>;
+  return (
+    <Suspense fallback={<HomeSkeleton />}>
+      <HomePage />
+    </Suspense>
+  );
 }

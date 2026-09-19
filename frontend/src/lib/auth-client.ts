@@ -2,12 +2,17 @@ import { apiRequest } from "@/lib/api";
 import type {
   AuthMessageResponse,
   AuthTokenResponse,
+  AvatarCompleteRequest,
+  AvatarUploadUrlRequest,
+  AvatarUploadUrlResponse,
   CurrentUser,
   EmailRequest,
   LoginRequest,
   RegisterRequest,
   ResetPasswordRequest,
   UpdateCurrentUserRequest,
+  UpdateProfileRequest,
+  UserProfile,
   VerifyOtpRequest
 } from "@/types/auth";
 
@@ -81,3 +86,56 @@ export const currentUserApi = {
       body
     })
 };
+
+export const profileApi = {
+  getProfile: (accessToken: string) =>
+    apiRequest<UserProfile>("/me/profile", {
+      method: "GET",
+      accessToken
+    }),
+
+  updateProfile: (accessToken: string, body: UpdateProfileRequest) =>
+    apiRequest<UserProfile>("/me/profile", {
+      method: "PUT",
+      accessToken,
+      body
+    }),
+
+  getAvatarUploadUrl: (accessToken: string, body: AvatarUploadUrlRequest) =>
+    apiRequest<AvatarUploadUrlResponse>("/me/profile/avatar/upload-url", {
+      method: "POST",
+      accessToken,
+      body
+    }),
+
+  completeAvatarUpload: (accessToken: string, body: AvatarCompleteRequest) =>
+    apiRequest<UserProfile>("/me/profile/avatar/complete", {
+      method: "POST",
+      accessToken,
+      body
+    }),
+
+  uploadAvatarMultipart: (accessToken: string, file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return apiRequest<UserProfile>("/me/profile/avatar", {
+      method: "POST",
+      accessToken,
+      body: formData
+    });
+  }
+};
+
+export async function uploadAvatarFile(uploadUrl: string, file: File): Promise<void> {
+  const response = await fetch(uploadUrl, {
+    method: "PUT",
+    headers: {
+      "Content-Type": file.type
+    },
+    body: file
+  });
+
+  if (!response.ok) {
+    throw new Error("Không thể tải ảnh trực tiếp lên hệ thống lưu trữ Cloudflare R2.");
+  }
+}
