@@ -57,6 +57,10 @@ class AuthFlowIntegrationTest {
 
     @BeforeEach
     void cleanDatabase() {
+        jdbcTemplate.update("delete from courses");
+        jdbcTemplate.update("delete from profiles");
+        jdbcTemplate.update("delete from student_profiles");
+        jdbcTemplate.update("delete from instructor_profiles");
         jdbcTemplate.update("delete from refresh_tokens");
         jdbcTemplate.update("delete from email_otps");
         jdbcTemplate.update("delete from user_roles");

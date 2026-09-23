@@ -73,6 +73,9 @@ class AvatarUploadIntegrationTest {
     private EmailOtpRepository emailOtpRepository;
 
     @Autowired
+    private com.edualto.course.repository.CourseRepository courseRepository;
+
+    @Autowired
     private RefreshTokenRepository refreshTokenRepository;
 
     @MockitoBean
@@ -80,6 +83,7 @@ class AvatarUploadIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        courseRepository.deleteAll();
         refreshTokenRepository.deleteAll();
         emailOtpRepository.deleteAll();
         profileRepository.deleteAll();

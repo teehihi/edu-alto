@@ -502,3 +502,367 @@ export function HomeSkeleton() {
     </div>
   );
 }
+
+/**
+ * Course Catalog Skeleton matching /courses layout
+ */
+export function CourseCatalogSkeleton() {
+  return (
+    <div className="min-h-screen bg-[#F9FBFA]" aria-label="Đang tải danh mục khóa học">
+      {/* Header Skeleton */}
+      <div className="border-b border-slate-100 bg-white">
+        <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+          <Skeleton className="h-10 w-36 rounded-lg" />
+          <div className="hidden items-center gap-6 lg:flex">
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-4 w-24" />
+          </div>
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-10 w-28 rounded-xl" />
+          </div>
+        </div>
+      </div>
+
+      {/* Hero / Filter Header */}
+      <section className="border-b border-slate-200/80 bg-white py-10">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-2 text-xs">
+            <Skeleton className="h-3.5 w-16" />
+            <span className="text-slate-300">/</span>
+            <Skeleton className="h-3.5 w-28" />
+          </div>
+          <div className="mt-4 flex flex-col justify-between gap-6 md:flex-row md:items-end">
+            <div className="space-y-2">
+              <Skeleton className="h-8 w-72 rounded-lg sm:h-9" />
+              <Skeleton className="h-4 w-96 max-w-full" />
+            </div>
+            {/* Search Input Box */}
+            <Skeleton className="h-12 w-full rounded-2xl md:w-80" />
+          </div>
+        </div>
+      </section>
+
+      {/* Main Catalog Grid & Filters */}
+      <section className="py-10">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
+            {/* Left Filter Sidebar */}
+            <aside className="hidden space-y-6 lg:col-span-3 lg:block">
+              <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs space-y-5">
+                <div className="flex items-center justify-between">
+                  <Skeleton className="h-5 w-28" />
+                  <Skeleton className="h-4 w-12" />
+                </div>
+                <div className="space-y-3">
+                  <Skeleton className="h-4 w-20" />
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-5/6" />
+                    <Skeleton className="h-4 w-4/5" />
+                  </div>
+                </div>
+                <div className="h-px bg-slate-100" />
+                <div className="space-y-3">
+                  <Skeleton className="h-4 w-20" />
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-4 w-2/3" />
+                  </div>
+                </div>
+                <div className="h-px bg-slate-100" />
+                <div className="space-y-3">
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-6 w-full rounded-lg" />
+                </div>
+              </div>
+            </aside>
+
+            {/* Right Course Cards Grid */}
+            <main className="space-y-6 lg:col-span-9">
+              {/* Toolbar */}
+              <div className="flex items-center justify-between rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+                <Skeleton className="h-5 w-40" />
+                <Skeleton className="h-10 w-48 rounded-xl" />
+              </div>
+
+              {/* Grid of 6 Course Cards */}
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
+                {Array.from({ length: 6 }, (_, i) => (
+                  <div
+                    key={i}
+                    className="flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs"
+                  >
+                    <Skeleton className="aspect-video w-full rounded-xl" />
+                    <div className="mt-4 flex-1 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Skeleton className="h-4 w-16 rounded-md" />
+                        <Skeleton className="h-4 w-14" />
+                      </div>
+                      <Skeleton className="h-5 w-full rounded-md" />
+                      <Skeleton className="h-5 w-4/5 rounded-md" />
+                      <div className="flex items-center gap-2 pt-1">
+                        <Skeleton className="h-6 w-6 rounded-full" />
+                        <Skeleton className="h-4 w-28" />
+                      </div>
+                      <div className="flex items-center justify-between border-t border-slate-100 pt-3">
+                        <Skeleton className="h-6 w-24" />
+                        <Skeleton className="h-8 w-20 rounded-xl" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Pagination */}
+              <div className="flex justify-center gap-2 pt-6">
+                <Skeleton className="h-10 w-10 rounded-xl" />
+                <Skeleton className="h-10 w-10 rounded-xl" />
+                <Skeleton className="h-10 w-10 rounded-xl" />
+                <Skeleton className="h-10 w-10 rounded-xl" />
+              </div>
+            </main>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+/**
+ * Course Curriculum Skeleton for /instructor/courses/[id]/curriculum
+ */
+export function CourseCurriculumSkeleton() {
+  return (
+    <div className="min-h-screen bg-[#F9FBFA]" aria-label="Đang tải chương trình học">
+      {/* Top Header Placeholder */}
+      <div className="border-b border-slate-100 bg-white">
+        <div className="mx-auto flex h-20 max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
+          <Skeleton className="h-10 w-36 rounded-lg" />
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-9 w-9 rounded-full" />
+          </div>
+        </div>
+      </div>
+
+      <main className="pb-24 pt-8">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+          {/* Breadcrumb & Navigation */}
+          <div className="mb-6 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-4 w-28" />
+              <span className="text-slate-300">/</span>
+              <Skeleton className="h-4 w-32" />
+            </div>
+            <Skeleton className="h-9 w-36 rounded-xl" />
+          </div>
+
+          {/* Hero / Header Card */}
+          <div className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-6 shadow-xs sm:p-8">
+            <div className="flex flex-col justify-between gap-6 md:flex-row md:items-center">
+              <div className="space-y-2">
+                <Skeleton className="h-5 w-36 rounded-full" />
+                <Skeleton className="h-8 w-80 rounded-lg sm:h-9" />
+                <Skeleton className="h-4 w-96 max-w-full" />
+              </div>
+              <Skeleton className="h-11 w-44 rounded-xl" />
+            </div>
+
+            {/* Quick Metrics Bar */}
+            <div className="mt-6 grid grid-cols-2 gap-4 border-t border-slate-100 pt-6 sm:grid-cols-3">
+              <div className="flex items-center gap-3 rounded-2xl bg-[#F5FBF9] p-3.5">
+                <Skeleton className="h-10 w-10 rounded-xl" />
+                <div className="space-y-1.5 flex-1">
+                  <Skeleton className="h-3 w-20" />
+                  <Skeleton className="h-5 w-16" />
+                </div>
+              </div>
+              <div className="flex items-center gap-3 rounded-2xl bg-sky-50/60 p-3.5">
+                <Skeleton className="h-10 w-10 rounded-xl" />
+                <div className="space-y-1.5 flex-1">
+                  <Skeleton className="h-3 w-20" />
+                  <Skeleton className="h-5 w-16" />
+                </div>
+              </div>
+              <div className="col-span-2 flex items-center gap-3 rounded-2xl bg-amber-50/60 p-3.5 sm:col-span-1">
+                <Skeleton className="h-10 w-10 rounded-xl" />
+                <div className="space-y-1.5 flex-1">
+                  <Skeleton className="h-3 w-24" />
+                  <Skeleton className="h-5 w-20" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Section Accordions Skeleton */}
+          <div className="mt-8 space-y-4">
+            {Array.from({ length: 3 }, (_, sIdx) => (
+              <div
+                key={sIdx}
+                className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs"
+              >
+                {/* Section Header */}
+                <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+                  <div className="flex items-start gap-3.5 flex-1">
+                    <Skeleton className="h-7 w-7 rounded-lg shrink-0" />
+                    <div className="space-y-2 flex-1">
+                      <div className="flex items-center gap-2">
+                        <Skeleton className="h-3.5 w-16" />
+                        <span className="text-slate-300">•</span>
+                        <Skeleton className="h-3.5 w-16" />
+                        <span className="text-slate-300">•</span>
+                        <Skeleton className="h-3.5 w-14" />
+                      </div>
+                      <Skeleton className="h-5 w-64 rounded-md" />
+                      <Skeleton className="h-3.5 w-96 max-w-full" />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-8 w-8 rounded-lg" />
+                    <Skeleton className="h-8 w-8 rounded-lg" />
+                    <Skeleton className="h-8 w-8 rounded-lg" />
+                    <Skeleton className="h-8 w-8 rounded-lg" />
+                    <Skeleton className="h-8 w-28 rounded-xl" />
+                  </div>
+                </div>
+
+                {/* Section Lessons Body */}
+                <div className="border-t border-slate-100 bg-[#FAFBFB] p-4 sm:p-5 space-y-2">
+                  {Array.from({ length: 2 }, (_, lIdx) => (
+                    <div
+                      key={lIdx}
+                      className="flex flex-col gap-2 rounded-xl border border-slate-200/90 bg-white p-3 shadow-2xs sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="h-8 w-8 rounded-lg shrink-0" />
+                        <div className="space-y-1.5">
+                          <div className="flex items-center gap-2">
+                            <Skeleton className="h-3.5 w-6" />
+                            <Skeleton className="h-4 w-48 rounded-md" />
+                            <Skeleton className="h-4 w-14 rounded-md" />
+                          </div>
+                          <Skeleton className="h-3 w-28" />
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Skeleton className="h-7 w-7 rounded" />
+                        <Skeleton className="h-7 w-7 rounded" />
+                        <Skeleton className="h-7 w-7 rounded" />
+                        <Skeleton className="h-7 w-7 rounded" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+/**
+ * About Page Skeleton
+ */
+export function AboutSkeleton() {
+  return (
+    <div className="min-h-screen bg-white" aria-label="Đang tải trang về chúng tôi">
+      {/* Header Skeleton */}
+      <div className="border-b border-slate-100 bg-white">
+        <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+          <Skeleton className="h-10 w-36 rounded-lg" />
+          <div className="hidden items-center gap-6 lg:flex">
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-4 w-24" />
+          </div>
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-10 w-28 rounded-xl" />
+          </div>
+        </div>
+      </div>
+
+      <main className="py-12 lg:py-20">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          {/* Hero Row */}
+          <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-12">
+            <div className="space-y-6 lg:col-span-6">
+              <Skeleton className="h-12 w-64 rounded-xl" />
+              <Skeleton className="h-6 w-80 rounded-lg" />
+              <Skeleton className="h-32 w-full rounded-2xl" />
+              <Skeleton className="h-12 w-44 rounded-xl" />
+            </div>
+            <div className="space-y-4 lg:col-span-6">
+              <Skeleton className="h-56 w-full rounded-3xl" />
+              <Skeleton className="h-48 w-4/5 rounded-3xl" />
+            </div>
+          </div>
+
+          {/* Features Row */}
+          <div className="mt-24 grid grid-cols-1 items-center gap-12 lg:grid-cols-12">
+            <div className="lg:col-span-6">
+              <Skeleton className="aspect-4/3 w-full rounded-3xl" />
+            </div>
+            <div className="space-y-5 lg:col-span-6">
+              <Skeleton className="h-4 w-32 rounded-md" />
+              <Skeleton className="h-10 w-full rounded-xl" />
+              <Skeleton className="h-24 w-full rounded-lg" />
+              <Skeleton className="h-12 w-40 rounded-xl" />
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+/**
+ * Contact Page Skeleton
+ */
+export function ContactSkeleton() {
+  return (
+    <div className="min-h-screen bg-[#F5FBF9]" aria-label="Đang tải trang liên hệ">
+      {/* Header Skeleton */}
+      <div className="border-b border-slate-100 bg-white">
+        <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+          <Skeleton className="h-10 w-36 rounded-lg" />
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-10 w-28 rounded-xl" />
+          </div>
+        </div>
+      </div>
+
+      <main className="py-12 lg:py-20">
+        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+          <div className="rounded-3xl border border-slate-200/90 bg-white p-8 sm:p-12 shadow-xl space-y-8">
+            <div className="text-center space-y-2">
+              <Skeleton className="mx-auto h-9 w-64 rounded-xl" />
+              <Skeleton className="mx-auto h-4 w-96 max-w-full rounded-md" />
+            </div>
+
+            <div className="grid grid-cols-1 gap-10 lg:grid-cols-12">
+              <div className="space-y-4 lg:col-span-7">
+                <Skeleton className="h-5 w-48 rounded-md" />
+                <Skeleton className="h-11 w-full rounded-xl" />
+                <Skeleton className="h-11 w-full rounded-xl" />
+                <Skeleton className="h-28 w-full rounded-xl" />
+                <Skeleton className="h-12 w-full rounded-xl" />
+              </div>
+
+              <div className="space-y-4 lg:col-span-5 border-t lg:border-t-0 lg:border-l border-slate-100 pt-6 lg:pt-0 lg:pl-8">
+                <Skeleton className="h-5 w-32 rounded-md" />
+                <Skeleton className="h-16 w-full rounded-xl" />
+                <Skeleton className="h-6 w-40 rounded-md" />
+                <Skeleton className="h-6 w-48 rounded-md" />
+                <Skeleton className="h-44 w-full rounded-2xl" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+

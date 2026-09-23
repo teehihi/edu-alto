@@ -66,6 +66,9 @@ class ProfileIntegrationTest {
     private EmailOtpRepository emailOtpRepository;
 
     @Autowired
+    private com.edualto.course.repository.CourseRepository courseRepository;
+
+    @Autowired
     private RefreshTokenRepository refreshTokenRepository;
 
     @MockitoBean
@@ -73,6 +76,7 @@ class ProfileIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        courseRepository.deleteAll();
         refreshTokenRepository.deleteAll();
         emailOtpRepository.deleteAll();
         studentProfileRepository.deleteAll();

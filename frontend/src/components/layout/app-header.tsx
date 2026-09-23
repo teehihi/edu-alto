@@ -23,9 +23,9 @@ import { UserAvatar } from "@/components/ui/user-avatar";
 
 const navItems = [
   { label: "Trang chủ", href: "/" },
-  { label: "Khóa học", href: "/#courses" },
-  { label: "Về chúng tôi", href: "/#about" },
-  { label: "Liên hệ", href: "/#contact" }
+  { label: "Khóa học", href: "/courses" },
+  { label: "Về chúng tôi", href: "/about" },
+  { label: "Liên hệ", href: "/contact" }
 ];
 
 const authLinkClass =
@@ -156,7 +156,7 @@ export function AppHeader({
         {/* Search Bar */}
         <div className="hidden min-w-[280px] max-w-[340px] flex-1 items-center rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-1.5 shadow-xs transition focus-within:border-primary focus-within:bg-white focus-within:ring-2 focus-within:ring-primary/20 xl:flex">
           <Search className="h-4 w-4 text-slate-400 shrink-0" aria-hidden="true" />
-          <form className="flex min-w-0 flex-1 items-center" action="/" method="get">
+          <form className="flex min-w-0 flex-1 items-center" action="/courses" method="get">
             <label className="sr-only" htmlFor="desktop-search">
               Tìm kiếm khóa học
             </label>
@@ -166,20 +166,23 @@ export function AppHeader({
               placeholder="Bạn muốn học gì?"
               className="min-w-0 flex-1 border-0 bg-transparent px-2 text-xs text-ink outline-none placeholder:text-muted"
             />
-            <button
-              type="button"
+            <Link
+              href="/courses"
               className="focus-ring inline-flex items-center gap-1 rounded-lg bg-primary-soft px-2.5 py-1 text-xs font-semibold text-primary transition hover:bg-[#d9fff3]"
             >
               Khám phá
               <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
-            </button>
+            </Link>
           </form>
         </div>
 
         {/* Navigation Links */}
         <nav className="hidden items-center gap-6 text-sm font-semibold text-ink lg:flex" aria-label="Điều hướng chính">
-          {navItems.map((item, index) => {
-            const isActive = index === 0 && pathname === "/";
+          {navItems.map((item) => {
+            const isActive =
+              item.href === "/"
+                ? pathname === "/"
+                : pathname.startsWith(item.href) && !item.href.includes("#");
             return (
               <Link
                 key={item.label}
@@ -367,7 +370,7 @@ export function AppHeader({
       {isOpen ? (
         <div className="border-t border-slate-100 bg-white px-4 pb-6 pt-4 lg:hidden animate-page">
           {/* Mobile Search */}
-          <form className="flex items-center rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 shadow-xs" action="/" method="get">
+          <form className="flex items-center rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 shadow-xs" action="/courses" method="get">
             <Search className="h-4 w-4 text-slate-400" aria-hidden="true" />
             <label className="sr-only" htmlFor="mobile-search">
               Tìm kiếm khóa học

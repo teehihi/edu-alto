@@ -138,4 +138,50 @@ input {
     border-radius: 0.5rem;
     animation: shimmer 1.5s infinite linear;
   }
+
+  /* Instructor Interactive Card (Corner expansion animation on hover only with clean EduAlto primary) */
+  .instructor-hover-card {
+    position: relative;
+    overflow: hidden;
+    border-radius: 1.25rem;
+    background-color: #ffffff;
+    transition: transform 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease;
+    cursor: pointer;
+  }
+
+  .instructor-hover-card::before,
+  .instructor-hover-card::after {
+    position: absolute;
+    content: "";
+    width: 0;
+    height: 0;
+    opacity: 0;
+    transition: all 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 10;
+    pointer-events: none;
+    background-color: #20B486;
+  }
+
+  .instructor-hover-card::before {
+    top: 0;
+    right: 0;
+    border-radius: 0 1.25rem 0 100%;
+  }
+
+  .instructor-hover-card::after {
+    bottom: 0;
+    left: 0;
+    border-radius: 0 100% 0 1.25rem;
+  }
+
+  .instructor-hover-card:hover::before,
+  .instructor-hover-card:hover::after {
+    width: 100%;
+    height: 100%;
+    border-radius: 1.25rem;
+    opacity: 1;
+    background-color: #20B486;
+  }
 }
+
+
