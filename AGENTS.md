@@ -1,18 +1,6 @@
-# EduAlto Agent Guide
+# EduAlto
 
-Tất cả agent phải đọc file này trước khi code.
-
-## Project overview
-
-EduAlto là nền tảng học tập trực tuyến dành cho người dùng Việt Nam. UI, UX copy, thông báo lỗi, empty state, loading text, tooltip, course demo content và validation message phải dùng tiếng Việt. Source code, file name, class name, function name, API path, database table/column name phải dùng tiếng Anh.
-
-## Tech stack
-
-- Frontend: Next.js, React, TypeScript, Tailwind CSS.
-- Backend: Java 25 LTS, Spring Boot, REST API, OpenAPI, Spring Security, WebSocket.
-- Database: PostgreSQL.
-- Cache/realtime support: Redis.
-- Testing: Vitest/Testing Library, JUnit 5/Spring Boot Test.
+EduAlto là nền tảng học tập trực tuyến (LMS) dành cho người dùng Việt Nam, cung cấp hệ thống học tập toàn diện cho học viên, công cụ giảng dạy và quản lý nội dung cho giảng viên, cùng hệ thống quản trị chuyên sâu. Nền tảng hỗ trợ quản lý khóa học, bài học đa phương tiện (video, tài liệu, presigned upload Cloudflare R2), theo dõi tiến độ học tập, kiểm tra đánh giá (quiz, assignment) và tương tác học tập trực tuyến.
 
 ## Architecture
 
@@ -53,17 +41,28 @@ Module chính:
 
 Nếu cần module mới, cập nhật tài liệu kiến trúc trước.
 
-## Naming conventions
+## Conventions
+
+### Language conventions
+
+- UI, UX copy, thông báo lỗi, empty state, loading text, tooltip, course demo content và validation message phải dùng tiếng Việt.
+- Source code, file name, class name, function name, API path, database table/column name, commit message và technical comments phải dùng tiếng Anh.
+
+### Naming conventions
 
 - Source code: English.
 - API: English, RESTful, `/api/v1/...`.
 - Database: English, snake_case.
-- UI copy: Vietnamese.
 - React component: PascalCase.
 - Java class: PascalCase.
 - Java package: lowercase.
 - DTO suffix: `Request`, `Response`, `Dto`.
 - Test suffix: `Test`.
+
+### Code & Import conventions
+
+- Tuyệt đối không dùng wildcard import (`.*`) trong bất kỳ file nào.
+- Toàn bộ import phải khai báo tường minh ở phần đầu file, bên ngoài thân class. Không dùng inline fully qualified names (FQN) trong mã nguồn.
 
 ## UI and Figma rules
 
@@ -123,18 +122,34 @@ Không biến EduAlto thành website AI/neon/futuristic. AI là extension tươn
 - Search/filter không over-fetch.
 - OpenAPI phải phản ánh endpoint thật.
 
-## Testing rules
+## Development workflow & Tooling
 
-- Frontend: component test cho UI state quan trọng.
-- Backend: service test cho business rule, controller test cho request/validation/error mapping.
-- Không merge code làm vỡ lint/typecheck/build/test.
+### Package manager & Execution
 
-## Git rules
+- **Bắt buộc dùng `pnpm`**: Toàn bộ thao tác cài đặt thư viện và chạy scripts frontend/monorepo phải dùng `pnpm` (`pnpm install`, `pnpm --dir frontend ...`, `pnpm <script>`). Tuyệt đối không dùng `npm` hoặc `yarn`.
+- **Backend Maven Wrapper**: Luôn dùng `./backend/mvnw` (hoặc root script `pnpm backend:...`), không phụ thuộc vào Maven cài đặt toàn cục trên máy.
+- **Đồng bộ dependencies sau khi Git pull/fetch**: Khi `git pull`, `git fetch`, checkout chuyển nhánh hoặc clone mới repository, bắt buộc phải chạy `pnpm install` trước khi bắt đầu viết code để đảm bảo `node_modules` và lockfile đồng bộ hoàn toàn.
 
-- Kiểm tra status trước/sau.
-- Không commit `.env`, secrets, build artifacts, `node_modules`, `target`, IDE junk.
-- Commit message rõ ràng, ví dụ `chore: initialize EduAlto project foundation`.
-- Chỉ push khi xác thực GitHub thực sự thành công.
+### Verification workflow (Trước khi có ý định commit)
+
+Sau khi chỉnh sửa mã nguồn, trước khi có ý định commit code, bắt buộc phải chạy đầy đủ bộ kiểm tra sau và đảm bảo 100% vượt qua:
+
+1. **Kiểm tra lint siêu tốc**: `pnpm frontend:lint:fast` (Oxlint. Bắt buộc 0 error, 0 warning).
+2. **Kiểm tra định dạng code**: `pnpm frontend:fmt:check` (dùng `pnpm frontend:fmt` để tự động sửa bằng Oxfmt).
+3. **Kiểm tra kiểu dữ liệu TypeScript**: `pnpm frontend:typecheck` (`tsc --noEmit`).
+4. **Chạy Unit & Component tests frontend**: `pnpm --dir frontend test` (Vitest).
+5. **Chạy Integration tests backend**: `./backend/mvnw test` (hoặc `pnpm backend:test`. Chạy Testcontainers PostgreSQL 16 cô lập).
+
+Tuyệt đối không commit hay merge code nếu bất kỳ bước kiểm tra nào bị thất bại.
+
+### Git & Commit conventions
+
+- **Chuẩn commit**: Tuân thủ định dạng Conventional Commits: `<type>(<scope>): <mô tả ngắn gọn bằng tiếng Anh>`.
+  - Các type thông dụng: `feat`, `fix`, `refactor`, `chore`, `docs`, `test`, `style`.
+  - Ví dụ: `feat(auth): support httponly cookie for refresh token`, `fix(profile): validate bio length`, `chore(deps): bump next to 16.3.1`, `refactor(course): clean explicit imports`.
+- **Atomic commit**: Mỗi commit giải quyết một mục đích cụ thể, tách biệt giữa logic tính năng, sửa lỗi và format code.
+- **Bảo mật & Vệ sinh repository**: Tuyệt đối không commit file `.env`, file cấu hình chứa secrets/credentials, artifacts build (`target/`, `.next/`, `dist/`), thư mục `node_modules/` hay cấu hình IDE cá nhân (`.idea/`, `.vscode/`, `.DS_Store`).
+- **Quy tắc cho Agent**: Agent chỉ thực hiện commit khi người dùng đưa ra chỉ thị hoặc xác nhận đồng ý rõ ràng. Mọi thay đổi phải được giữ ở trạng thái unstaged để người dùng chủ động review trước.
 
 ## Agent workflow
 
