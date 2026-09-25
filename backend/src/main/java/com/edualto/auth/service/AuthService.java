@@ -113,7 +113,7 @@ public class AuthService {
     }
 
     @Transactional(noRollbackFor = BusinessException.class)
-    public AuthTokenResponse login(LoginRequest request, String deviceName) {
+    public AuthResult login(LoginRequest request, String deviceName) {
         User user = userRepository.findByEmail(normalizeEmail(request.email()))
                 .orElseThrow(this::invalidCredentials);
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
@@ -133,18 +133,18 @@ public class AuthService {
 
         user.recordLogin();
         String refreshToken = refreshTokenService.issue(user, deviceName);
-        return tokenResponse(user, refreshToken);
+        return new AuthResult(tokenResponse(user), refreshToken);
     }
 
     @Transactional
-    public AuthTokenResponse refresh(String rawRefreshToken) {
+    public AuthResult refresh(String rawRefreshToken) {
         User user = refreshTokenService.rotate(rawRefreshToken);
         if (user.getStatus() != UserStatus.ACTIVE) {
             refreshTokenService.revokeAll(user);
             throw new BusinessException(HttpStatus.UNAUTHORIZED, "INVALID_REFRESH_TOKEN", "Phiên đăng nhập không hợp lệ hoặc đã hết hạn");
         }
         String nextRefreshToken = refreshTokenService.issue(user, null);
-        return tokenResponse(user, nextRefreshToken);
+        return new AuthResult(tokenResponse(user), nextRefreshToken);
     }
 
     @Transactional
@@ -152,6 +152,7 @@ public class AuthService {
         refreshTokenService.revoke(rawRefreshToken);
         return new AuthMessageResponse("Đăng xuất thành công.");
     }
+
 
     @Transactional
     public AuthMessageResponse forgotPassword(String emailValue) {
@@ -186,14 +187,16 @@ public class AuthService {
         return new AuthMessageResponse("Đặt lại mật khẩu thành công.");
     }
 
-    private AuthTokenResponse tokenResponse(User user, String refreshToken) {
+    private AuthTokenResponse tokenResponse(User user) {
         return new AuthTokenResponse(
                 "Bearer",
                 jwtTokenService.createAccessToken(user),
                 jwtTokenService.accessTokenTtlSeconds(),
-                refreshToken,
                 userService.getUserResponse(user.getId())
         );
+    }
+
+    public record AuthResult(AuthTokenResponse response, String refreshToken) {
     }
 
     private void ensurePasswordsMatch(String password, String confirmPassword) {

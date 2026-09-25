@@ -1,16 +1,21 @@
 package com.edualto.auth.controller;
 
 import com.edualto.common.api.ApiResponse;
+import com.edualto.common.security.CookieHelper;
 import com.edualto.auth.dto.AuthMessageResponse;
 import com.edualto.auth.dto.AuthTokenResponse;
 import com.edualto.auth.dto.EmailRequest;
 import com.edualto.auth.dto.LoginRequest;
-import com.edualto.auth.dto.RefreshTokenRequest;
 import com.edualto.auth.dto.RegisterRequest;
 import com.edualto.auth.dto.ResetPasswordRequest;
 import com.edualto.auth.dto.VerifyOtpRequest;
 import com.edualto.auth.service.AuthService;
+import com.edualto.auth.service.AuthService.AuthResult;
+import com.edualto.common.exception.BusinessException;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -22,9 +27,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+    private final CookieHelper cookieHelper;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, CookieHelper cookieHelper) {
         this.authService = authService;
+        this.cookieHelper = cookieHelper;
     }
 
     @PostMapping("/register")
@@ -45,19 +52,37 @@ public class AuthController {
     @PostMapping("/login")
     public ApiResponse<AuthTokenResponse> login(
             @Valid @RequestBody LoginRequest request,
-            @RequestHeader(value = "User-Agent", required = false) String userAgent
+            @RequestHeader(value = "User-Agent", required = false) String userAgent,
+            HttpServletResponse response
     ) {
-        return ApiResponse.ok(authService.login(request, userAgent));
+        AuthResult result = authService.login(request, userAgent);
+        cookieHelper.setRefreshTokenCookie(response, result.refreshToken());
+        return ApiResponse.ok(result.response());
     }
 
     @PostMapping("/refresh")
-    public ApiResponse<AuthTokenResponse> refresh(@Valid @RequestBody RefreshTokenRequest request) {
-        return ApiResponse.ok(authService.refresh(request.refreshToken()));
+    public ApiResponse<AuthTokenResponse> refresh(
+            @CookieValue(name = "edualto.refresh", required = false) String refreshToken,
+            HttpServletResponse response
+    ) {
+        if (refreshToken == null || refreshToken.isBlank()) {
+            throw new BusinessException(HttpStatus.UNAUTHORIZED, "INVALID_REFRESH_TOKEN", "Phiên đăng nhập không hợp lệ hoặc đã hết hạn");
+        }
+        AuthResult result = authService.refresh(refreshToken);
+        cookieHelper.setRefreshTokenCookie(response, result.refreshToken());
+        return ApiResponse.ok(result.response());
     }
 
     @PostMapping("/logout")
-    public ApiResponse<AuthMessageResponse> logout(@Valid @RequestBody RefreshTokenRequest request) {
-        return ApiResponse.ok(authService.logout(request.refreshToken()));
+    public ApiResponse<AuthMessageResponse> logout(
+            @CookieValue(name = "edualto.refresh", required = false) String refreshToken,
+            HttpServletResponse response
+    ) {
+        if (refreshToken != null && !refreshToken.isBlank()) {
+            authService.logout(refreshToken);
+        }
+        cookieHelper.clearRefreshTokenCookie(response);
+        return ApiResponse.ok(new AuthMessageResponse("Đăng xuất thành công."));
     }
 
     @PostMapping("/forgot-password")

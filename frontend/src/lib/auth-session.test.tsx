@@ -29,37 +29,39 @@ function Probe() {
 
 describe("AuthSessionProvider", () => {
   beforeEach(() => {
-    window.localStorage.clear();
     vi.restoreAllMocks();
   });
 
-  it("refreshes once on a 401 current-user response and keeps the new session", async () => {
-    window.localStorage.setItem(
-      "edualto.auth.session",
-      JSON.stringify({
-        accessToken: "old-access-token",
-        refreshToken: "old-refresh-token",
-        expiresAt: Date.now() + 60_000,
-        user: activeUser
-      })
-    );
-
+  it("restores session via refresh cookie on mount, then handles 401 + retry on reloadCurrentUser", async () => {
     const fetchMock = vi.fn()
+      // 1st call: POST /auth/refresh on mount (cookie sent automatically by browser)
+      .mockResolvedValueOnce(jsonResponse(200, {
+        success: true,
+        data: {
+          tokenType: "Bearer",
+          accessToken: "restored-access-token",
+          expiresInSeconds: 900,
+          user: activeUser
+        },
+        meta: null
+      }))
+      // 2nd call: GET /me — returns 401 (access token expired)
       .mockResolvedValueOnce(jsonResponse(401, {
         success: false,
         error: { code: "UNAUTHORIZED", message: "Phiên đăng nhập không hợp lệ", details: [] }
       }))
+      // 3rd call: POST /auth/refresh — rotation via cookie
       .mockResolvedValueOnce(jsonResponse(200, {
         success: true,
         data: {
           tokenType: "Bearer",
           accessToken: "new-access-token",
           expiresInSeconds: 900,
-          refreshToken: "new-refresh-token",
           user: activeUser
         },
         meta: null
       }))
+      // 4th call: GET /me — success with new name
       .mockResolvedValueOnce(jsonResponse(200, {
         success: true,
         data: { ...activeUser, fullName: "Nguyen Van B" },
@@ -73,22 +75,42 @@ describe("AuthSessionProvider", () => {
       </AuthSessionProvider>
     );
 
+    // Wait for mount refresh to complete
     await waitFor(() => expect(screen.getByTestId("loading")).toHaveTextContent("false"));
+    expect(screen.getByTestId("name")).toHaveTextContent("Nguyen Van A");
+
+    // Click reload — triggers 401 → refresh → retry
     await userEvent.click(screen.getByRole("button", { name: "Tải lại" }));
 
     await waitFor(() => expect(screen.getByTestId("name")).toHaveTextContent("Nguyen Van B"));
-    expect(fetchMock).toHaveBeenNthCalledWith(1, "http://localhost:8080/api/v1/me", expect.objectContaining({
-      headers: expect.any(Headers)
-    }));
-    expect(fetchMock).toHaveBeenNthCalledWith(2, "http://localhost:8080/api/v1/auth/refresh", expect.objectContaining({
-      body: JSON.stringify({ refreshToken: "old-refresh-token" })
-    }));
-    expect(fetchMock).toHaveBeenNthCalledWith(3, "http://localhost:8080/api/v1/me", expect.objectContaining({
-      headers: expect.any(Headers)
+
+    // Verify: mount refresh call has no body (cookie-based)
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "http://localhost:8080/api/v1/auth/refresh", expect.objectContaining({
+      method: "POST",
+      credentials: "include"
     }));
 
-    const stored = JSON.parse(window.localStorage.getItem("edualto.auth.session") ?? "{}") as { refreshToken?: string };
-    expect(stored.refreshToken).toBe("new-refresh-token");
+    // Verify: no localStorage was used
+    expect(window.localStorage.getItem("edualto.auth.session")).toBeNull();
+  });
+
+  it("shows unauthenticated state when refresh cookie is missing (no session)", async () => {
+    const fetchMock = vi.fn()
+      // POST /auth/refresh fails — no cookie
+      .mockResolvedValueOnce(jsonResponse(401, {
+        success: false,
+        error: { code: "UNAUTHORIZED", message: "Phiên đăng nhập không hợp lệ", details: [] }
+      }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <AuthSessionProvider>
+        <Probe />
+      </AuthSessionProvider>
+    );
+
+    await waitFor(() => expect(screen.getByTestId("loading")).toHaveTextContent("false"));
+    expect(screen.getByTestId("name")).toHaveTextContent("Chưa đăng nhập");
   });
 });
 

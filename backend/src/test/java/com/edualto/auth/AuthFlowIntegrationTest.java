@@ -11,34 +11,25 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.edualto.user.domain.User;
 import com.edualto.user.domain.UserStatus;
 import com.edualto.user.repository.UserRepository;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.Cookie;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import com.edualto.AbstractIntegrationTest;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.ResultActions;
 
-@SpringBootTest(properties = {
-        "spring.datasource.url=jdbc:h2:mem:edualto;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1",
-        "spring.datasource.username=sa",
-        "spring.datasource.password=",
-        "spring.datasource.driver-class-name=org.h2.Driver",
-        "edualto.auth.jwt.secret=test-jwt-secret-with-at-least-32-characters",
-        "edualto.auth.otp.fixed-code=123456",
-        "edualto.auth.otp.resend-cooldown-seconds=0",
-        "edualto.auth.otp.max-attempts=2"
-})
-@AutoConfigureMockMvc
-class AuthFlowIntegrationTest {
+class AuthFlowIntegrationTest extends AbstractIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -249,33 +240,41 @@ class AuthFlowIntegrationTest {
     @Test
     void refreshTokenRotatesAndLogoutRevokesRefreshToken() throws Exception {
         registerAndVerify("refresh@example.com", "Password1");
-        JsonNode login = login("refresh@example.com", "Password1");
-        String refreshToken = login.get("data").get("refreshToken").asText();
+        MvcResult loginResult = loginResult("refresh@example.com", "Password1");
+        String refreshToken = extractRefreshToken(loginResult);
 
-        MvcResult refreshResult = postJson("/api/v1/auth/refresh", Map.of("refreshToken", refreshToken))
+        MvcResult refreshResult = mockMvc.perform(post("/api/v1/auth/refresh")
+                        .cookie(new Cookie("edualto.refresh", refreshToken)))
                 .andExpect(status().isOk())
                 .andReturn();
-        String nextRefreshToken = objectMapper.readTree(refreshResult.getResponse().getContentAsString())
-                .get("data").get("refreshToken").asText();
+        String nextRefreshToken = extractRefreshToken(refreshResult);
 
-        postJson("/api/v1/auth/refresh", Map.of("refreshToken", refreshToken))
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                        .cookie(new Cookie("edualto.refresh", refreshToken)))
                 .andExpect(status().isUnauthorized());
 
-        postJson("/api/v1/auth/logout", Map.of("refreshToken", nextRefreshToken))
-                .andExpect(status().isOk());
-        postJson("/api/v1/auth/refresh", Map.of("refreshToken", nextRefreshToken))
+        MvcResult logoutResult = mockMvc.perform(post("/api/v1/auth/logout")
+                        .cookie(new Cookie("edualto.refresh", nextRefreshToken)))
+                .andExpect(status().isOk())
+                .andReturn();
+        String clearedCookie = logoutResult.getResponse().getHeader("Set-Cookie");
+        assertThat(clearedCookie).contains("Max-Age=0");
+
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                        .cookie(new Cookie("edualto.refresh", nextRefreshToken)))
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
     void refreshTokenIsRejectedWhenAccountIsNoLongerActive() throws Exception {
         registerAndVerify("disabled-refresh@example.com", "Password1");
-        JsonNode login = login("disabled-refresh@example.com", "Password1");
-        String refreshToken = login.get("data").get("refreshToken").asText();
+        MvcResult loginResult = loginResult("disabled-refresh@example.com", "Password1");
+        String refreshToken = extractRefreshToken(loginResult);
 
         jdbcTemplate.update("update users set status = 'DISABLED' where email = ?", "disabled-refresh@example.com");
 
-        postJson("/api/v1/auth/refresh", Map.of("refreshToken", refreshToken))
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                        .cookie(new Cookie("edualto.refresh", refreshToken)))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.error.code").value("INVALID_REFRESH_TOKEN"));
     }
@@ -373,14 +372,30 @@ class AuthFlowIntegrationTest {
                 .andExpect(status().isOk());
     }
 
-    private JsonNode login(String email, String password) throws Exception {
-        MvcResult result = postJson("/api/v1/auth/login", Map.of("email", email, "password", password))
+    private MvcResult loginResult(String email, String password) throws Exception {
+        return postJson("/api/v1/auth/login", Map.of("email", email, "password", password))
                 .andExpect(status().isOk())
                 .andReturn();
+    }
+
+    private JsonNode login(String email, String password) throws Exception {
+        MvcResult result = loginResult(email, password);
         return objectMapper.readTree(result.getResponse().getContentAsString());
     }
 
-    private org.springframework.test.web.servlet.ResultActions postJson(String path, Object body) throws Exception {
+    private String extractRefreshToken(MvcResult result) {
+        String setCookie = result.getResponse().getHeader("Set-Cookie");
+        assertThat(setCookie).isNotNull();
+        for (String part : setCookie.split(";")) {
+            String trimmed = part.trim();
+            if (trimmed.startsWith("edualto.refresh=")) {
+                return trimmed.substring("edualto.refresh=".length());
+            }
+        }
+        throw new IllegalStateException("RefreshToken cookie not found in Set-Cookie: " + setCookie);
+    }
+
+    private ResultActions postJson(String path, Object body) throws Exception {
         return mockMvc.perform(post(path)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(body)));

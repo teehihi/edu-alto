@@ -127,7 +127,6 @@ export type AuthTokenResponse = {
   tokenType: "Bearer";
   accessToken: string;
   expiresInSeconds: number;
-  refreshToken: string;
   user: CurrentUser;
 };
 

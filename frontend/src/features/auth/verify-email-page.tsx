@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { AlertMessage, FormField } from "@/features/auth/form-field";
 import { getFriendlyError, isEmail, isOtp, sanitizeOtp, type FieldErrors } from "@/features/auth/form-utils";
 import { resendVerification, verifyEmail } from "./auth-client";
-import { AuthSubmitLabel, OtpInput, OtpSuccessModal } from "./auth-shell";
+import { OtpInput, OtpSuccessModal } from "./auth-shell";
 
 type VerifyEmailFields = "email" | "otp";
 

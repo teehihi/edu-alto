@@ -8,10 +8,10 @@ import { AlertMessage, FormField, PasswordField } from "@/features/auth/form-fie
 import { extractFieldErrors, getFriendlyError, hasLetterAndDigit, isEmail, type FieldErrors } from "@/features/auth/form-utils";
 import { cn } from "@/lib/cn";
 import { register } from "./auth-client";
-import { AuthDivider, AuthShell, AuthSubmitLabel, SocialLoginButtons } from "./auth-shell";
+import { AuthDivider, AuthShell, SocialLoginButtons } from "./auth-shell";
 
 type RegisterRole = "STUDENT" | "INSTRUCTOR";
-type RegisterFields = "fullName" | "email" | "password" | "confirmPassword" | "expertise" | "learningGoal" | "bio";
+type RegisterFields = "fullName" | "email" | "password" | "confirmPassword" | "expertise" | "bio";
 
 export function RegisterPage() {
   const router = useRouter();
@@ -20,7 +20,6 @@ export function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [learningGoal, setLearningGoal] = useState("");
   const [expertise, setExpertise] = useState("");
   const [bio, setBio] = useState("");
   const [errors, setErrors] = useState<FieldErrors<RegisterFields>>({});
@@ -41,13 +40,11 @@ export function RegisterPage() {
     if (newRole === role) return;
     setRole(newRole);
     // Reset role-specific field values and errors to prevent stale retention
-    setLearningGoal("");
     setExpertise("");
     setBio("");
     setErrors((prev) => {
       const next = { ...prev };
       delete next.expertise;
-      delete next.learningGoal;
       delete next.bio;
       return next;
     });

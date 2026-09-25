@@ -40,6 +40,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
+    credentials: "include",
     headers: buildHeaders(headers, body, accessToken, isFormData),
     body: body === undefined ? undefined : isFormData ? body : JSON.stringify(body)
   });

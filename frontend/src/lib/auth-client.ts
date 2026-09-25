@@ -41,16 +41,14 @@ export const authApi = {
       body
     }),
 
-  refresh: (refreshToken: string) =>
+  refresh: () =>
     apiRequest<AuthTokenResponse>("/auth/refresh", {
-      method: "POST",
-      body: { refreshToken }
+      method: "POST"
     }),
 
-  logout: (refreshToken: string) =>
+  logout: () =>
     apiRequest<AuthMessageResponse>("/auth/logout", {
-      method: "POST",
-      body: { refreshToken }
+      method: "POST"
     }),
 
   forgotPassword: (body: EmailRequest) =>

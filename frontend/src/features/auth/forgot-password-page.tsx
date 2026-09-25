@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { AlertMessage, FormField } from "@/features/auth/form-field";
 import { getFriendlyError, isEmail, type FieldErrors } from "@/features/auth/form-utils";
 import { forgotPassword } from "./auth-client";
-import { AuthShell, AuthSubmitLabel } from "./auth-shell";
+import { AuthShell } from "./auth-shell";
 
 type ForgotPasswordFields = "email";
 

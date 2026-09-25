@@ -154,8 +154,8 @@ export function useAuth() {
   );
 }
 
-export async function logout(refreshToken: string) {
-  return authApi.logout(refreshToken);
+export async function logout() {
+  return authApi.logout();
 }
 
 export async function getCurrentUser(accessToken: string) {

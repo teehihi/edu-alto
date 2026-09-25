@@ -14,9 +14,8 @@ import { ApiClientError } from "@/lib/api";
 import { authApi, currentUserApi } from "@/lib/auth-client";
 import type { AuthTokenResponse, CurrentUser, LoginRequest } from "@/types/auth";
 
-type StoredSession = {
+type InMemorySession = {
   accessToken: string;
-  refreshToken: string;
   expiresAt: number;
   user: CurrentUser;
 };
@@ -34,48 +33,34 @@ type AuthSessionState = {
   updateUserAvatar: (avatarUrl: string | null) => void;
 };
 
-const STORAGE_KEY = "edualto.auth.session";
 const REFRESH_SKEW_MS = 30_000;
 
 const AuthSessionContext = createContext<AuthSessionState | null>(null);
 
 export function AuthSessionProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<StoredSession | null>(null);
+  const [session, setSession] = useState<InMemorySession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const refreshPromiseRef = useRef<Promise<StoredSession | null> | null>(null);
+  const refreshPromiseRef = useRef<Promise<InMemorySession | null> | null>(null);
 
   const clearSession = useCallback(() => {
     setSession(null);
-    if (typeof window !== "undefined") {
-      window.localStorage.removeItem(STORAGE_KEY);
-    }
   }, []);
 
-  const saveSession = useCallback((response: AuthTokenResponse) => {
-    const nextSession: StoredSession = {
+  const saveSession = useCallback((response: AuthTokenResponse): InMemorySession => {
+    const nextSession: InMemorySession = {
       accessToken: response.accessToken,
-      refreshToken: response.refreshToken,
       expiresAt: Date.now() + response.expiresInSeconds * 1000,
       user: response.user
     };
     setSession(nextSession);
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextSession));
-    }
     return nextSession;
   }, []);
 
   const refreshStoredSession = useCallback(
-    async (refreshToken?: string): Promise<StoredSession | null> => {
-      const token = refreshToken ?? session?.refreshToken;
-      if (!token) {
-        clearSession();
-        return null;
-      }
-
+    async (): Promise<InMemorySession | null> => {
       if (!refreshPromiseRef.current) {
         refreshPromiseRef.current = authApi
-          .refresh(token)
+          .refresh()
           .then(saveSession)
           .catch(() => {
             clearSession();
@@ -88,26 +73,18 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
 
       return refreshPromiseRef.current;
     },
-    [clearSession, saveSession, session?.refreshToken]
+    [clearSession, saveSession]
   );
 
+  // On mount, attempt to restore session via refresh token cookie
   useEffect(() => {
-    const storedSession = readStoredSession();
-    if (!storedSession) {
-      setIsLoading(false);
-      return;
-    }
-
-    setSession(storedSession);
-    const shouldRefresh = storedSession.expiresAt <= Date.now() + REFRESH_SKEW_MS;
-    const bootstrap = shouldRefresh ? refreshStoredSession(storedSession.refreshToken) : Promise.resolve(storedSession);
-
-    bootstrap
+    refreshStoredSession()
       .catch(() => null)
       .finally(() => {
         setIsLoading(false);
       });
-  }, [refreshStoredSession]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const getAccessToken = useCallback(async () => {
     if (!session) {
@@ -128,7 +105,10 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
 
     try {
       const user = await currentUserApi.getCurrentUser(token);
-      setSession((current) => persistUser(current, user));
+      setSession((current) => {
+        if (!current) return current;
+        return { ...current, user };
+      });
       return user;
     } catch (error) {
       if (isUnauthorized(error)) {
@@ -138,7 +118,10 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
         }
         try {
           const user = await currentUserApi.getCurrentUser(refreshed.accessToken);
-          setSession((current) => persistUser(current, user));
+          setSession((current) => {
+            if (!current) return current;
+            return { ...current, user };
+          });
           return user;
         } catch {
           return null;
@@ -157,16 +140,13 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
   );
 
   const logout = useCallback(async () => {
-    const refreshToken = session?.refreshToken;
     clearSession();
-    if (refreshToken) {
-      try {
-        await authApi.logout(refreshToken);
-      } catch {
-        // Local cleanup is complete; logout must not expose token state through errors.
-      }
+    try {
+      await authApi.logout();
+    } catch {
+      // Local cleanup is complete; logout must not expose token state through errors.
     }
-  }, [clearSession, session?.refreshToken]);
+  }, [clearSession]);
 
   const refreshSession = useCallback(async () => {
     const refreshed = await refreshStoredSession();
@@ -176,12 +156,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
   const updateUserAvatar = useCallback((avatarUrl: string | null) => {
     setSession((current) => {
       if (!current) return null;
-      const updatedUser: CurrentUser = { ...current.user, avatarUrl };
-      const nextSession: StoredSession = { ...current, user: updatedUser };
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextSession));
-      }
-      return nextSession;
+      return { ...current, user: { ...current.user, avatarUrl } };
     });
   }, []);
 
@@ -210,45 +185,6 @@ export function useAuthSession() {
     throw new Error("useAuthSession must be used inside AuthSessionProvider");
   }
   return context;
-}
-
-function readStoredSession(): StoredSession | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  const raw = window.localStorage.getItem(STORAGE_KEY);
-  if (!raw) {
-    return null;
-  }
-
-  try {
-    const parsed = JSON.parse(raw) as Partial<StoredSession>;
-    if (
-      typeof parsed.accessToken === "string" &&
-      typeof parsed.refreshToken === "string" &&
-      typeof parsed.expiresAt === "number" &&
-      parsed.user
-    ) {
-      return parsed as StoredSession;
-    }
-  } catch {
-    window.localStorage.removeItem(STORAGE_KEY);
-  }
-
-  return null;
-}
-
-function persistUser(current: StoredSession | null, user: CurrentUser): StoredSession | null {
-  if (!current) {
-    return current;
-  }
-
-  const nextSession = { ...current, user };
-  if (typeof window !== "undefined") {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextSession));
-  }
-  return nextSession;
 }
 
 function isUnauthorized(error: unknown): boolean {
