@@ -4,17 +4,14 @@ import Link from "next/link";
 import {
   BookOpen,
   CheckCircle2,
-  ChevronDown,
   ExternalLink,
   Facebook,
   Globe,
-  ImageIcon,
   Linkedin,
   Mail,
   Pencil,
   Search,
   Share2,
-  ShieldCheck,
   SlidersHorizontal,
   Star,
   UploadCloud,
@@ -39,7 +36,7 @@ import { Footer } from "@/components/layout/footer";
 import { CustomSelect } from "@/components/ui/custom-select";
 import { FeedbackModal, type FeedbackTone } from "@/components/ui/feedback-modal";
 import { ProfileSkeleton } from "@/components/ui/skeleton";
-import { resolveAvatarUrl, UserAvatar } from "@/components/ui/user-avatar";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { getPublicProfile, useAuth, type UserProfile } from "@/features/auth/auth-client";
 import { AlertMessage, FormField } from "@/features/auth/form-field";
 import { getFriendlyError } from "@/features/auth/form-utils";
@@ -52,6 +49,34 @@ export interface ProfilePageProps {
   targetIdentifier?: string;
   defaultEditing?: boolean;
 }
+
+const TEACHER_DATA_LIST = [
+  { id: "1", name: "Thầy Hoàng Văn Dũng", role: "Phó trưởng khoa CNTT", image: "/images/home/instructor-dung.png" },
+  { id: "2", name: "Thầy Hoàng Văn Dũng", role: "Phó trưởng khoa CNTT", image: "/images/home/instructor-dung.png" },
+  { id: "3", name: "Thầy Hoàng Văn Dũng", role: "Phó trưởng khoa CNTT", image: "/images/home/instructor-dung.png" },
+  { id: "4", name: "Thầy Hoàng Văn Dũng", role: "Phó trưởng khoa CNTT", image: "/images/home/instructor-dung.png" },
+  { id: "5", name: "Thầy Hoàng Văn Dũng", role: "Phó trưởng khoa CNTT", image: "/images/home/instructor-dung.png" },
+  { id: "6", name: "Thầy Hoàng Văn Dũng", role: "Phó trưởng khoa CNTT", image: "/images/home/instructor-dung.png" },
+  { id: "7", name: "Thầy Hoàng Văn Dũng", role: "Phó trưởng khoa CNTT", image: "/images/home/instructor-dung.png" },
+  { id: "8", name: "Thầy Hoàng Văn Dũng", role: "Phó trưởng khoa CNTT", image: "/images/home/instructor-dung.png" },
+  { id: "9", name: "TS. Nguyễn Thành Sơn", role: "Trưởng bộ môn CSDL", image: "/images/home/instructor-son.png" },
+  { id: "10", name: "ThS. Trần Mạnh Hùng", role: "Giảng viên Cao cấp", image: "/images/home/instructor-hung.png" },
+  { id: "11", name: "TS. Đặng Thị Minh Tuấn", role: "Trưởng bộ môn Lý Luận", image: "/images/home/instructor-tuan.png" },
+  { id: "12", name: "PSG. TS. Hoàng Văn Dũng", role: "Phó Trưởng khoa CNTT", image: "/images/home/instructor-dung.png" }
+];
+
+const TEACHER_SORT_OPTIONS = [
+  { value: "relevance", label: "Độ liên quan" },
+  { value: "name", label: "Tên giảng viên" },
+  { value: "recent", label: "Mới tham gia" }
+];
+
+const LANGUAGE_OPTIONS = [
+  { value: "vi", label: "Tiếng Việt" },
+  { value: "en", label: "English (US)" },
+  { value: "ja", label: "日本語 (Japanese)" },
+  { value: "ko", label: "한국어 (Korean)" }
+];
 
 export function ProfilePage({ targetIdentifier, defaultEditing = false }: ProfilePageProps) {
   const { user, loading: authLoading, isAuthenticated, getProfile, updateProfile, uploadAvatar, updateUserAvatar } = useAuth();
@@ -211,7 +236,9 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
     if (!authLoading && !initialLoadDoneRef.current) {
       if (targetIdentifier || isAuthenticated) {
         initialLoadDoneRef.current = true;
-        loadProfile();
+        queueMicrotask(() => {
+          void loadProfile();
+        });
       }
     }
   }, [targetIdentifier, authLoading, isAuthenticated, loadProfile]);
@@ -249,96 +276,8 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
     setTimeout(() => setCopiedShare(false), 2500);
   }
 
-  const teacherDataList = [
-    {
-      id: "1",
-      name: "Thầy Hoàng Văn Dũng",
-      role: "Phó trưởng khoa CNTT",
-      image: "/images/home/instructor-dung.png"
-    },
-    {
-      id: "2",
-      name: "Thầy Hoàng Văn Dũng",
-      role: "Phó trưởng khoa CNTT",
-      image: "/images/home/instructor-dung.png"
-    },
-    {
-      id: "3",
-      name: "Thầy Hoàng Văn Dũng",
-      role: "Phó trưởng khoa CNTT",
-      image: "/images/home/instructor-dung.png"
-    },
-    {
-      id: "4",
-      name: "Thầy Hoàng Văn Dũng",
-      role: "Phó trưởng khoa CNTT",
-      image: "/images/home/instructor-dung.png"
-    },
-    {
-      id: "5",
-      name: "Thầy Hoàng Văn Dũng",
-      role: "Phó trưởng khoa CNTT",
-      image: "/images/home/instructor-dung.png"
-    },
-    {
-      id: "6",
-      name: "Thầy Hoàng Văn Dũng",
-      role: "Phó trưởng khoa CNTT",
-      image: "/images/home/instructor-dung.png"
-    },
-    {
-      id: "7",
-      name: "Thầy Hoàng Văn Dũng",
-      role: "Phó trưởng khoa CNTT",
-      image: "/images/home/instructor-dung.png"
-    },
-    {
-      id: "8",
-      name: "Thầy Hoàng Văn Dũng",
-      role: "Phó trưởng khoa CNTT",
-      image: "/images/home/instructor-dung.png"
-    },
-    {
-      id: "9",
-      name: "TS. Nguyễn Thành Sơn",
-      role: "Trưởng bộ môn CSDL",
-      image: "/images/home/instructor-son.png"
-    },
-    {
-      id: "10",
-      name: "ThS. Trần Mạnh Hùng",
-      role: "Giảng viên Cao cấp",
-      image: "/images/home/instructor-hung.png"
-    },
-    {
-      id: "11",
-      name: "TS. Đặng Thị Minh Tuấn",
-      role: "Trưởng bộ môn Lý Luận",
-      image: "/images/home/instructor-tuan.png"
-    },
-    {
-      id: "12",
-      name: "PSG. TS. Hoàng Văn Dũng",
-      role: "Phó Trưởng khoa CNTT",
-      image: "/images/home/instructor-dung.png"
-    }
-  ];
-
-  const teacherSortOptions = [
-    { value: "relevance", label: "Độ liên quan" },
-    { value: "name", label: "Tên giảng viên" },
-    { value: "recent", label: "Mới tham gia" }
-  ];
-
-  const languageOptions = [
-    { value: "vi", label: "Tiếng Việt" },
-    { value: "en", label: "English (US)" },
-    { value: "ja", label: "日本語 (Japanese)" },
-    { value: "ko", label: "한국어 (Korean)" }
-  ];
-
   const filteredAndSortedTeachers = useMemo(() => {
-    let list = [...teacherDataList];
+    let list = [...TEACHER_DATA_LIST];
     if (teacherSearch.trim()) {
       const q = teacherSearch.toLowerCase();
       list = list.filter((t) => t.name.toLowerCase().includes(q) || t.role.toLowerCase().includes(q));
@@ -1091,7 +1030,7 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                               id="language"
                               value={language}
                               onChange={setLanguage}
-                              options={languageOptions}
+                              options={LANGUAGE_OPTIONS}
                               disabled={saving}
                               className="w-full"
                               buttonClassName="w-full py-3 px-3.5 text-sm font-normal"
@@ -1325,7 +1264,7 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                               setTeacherSort(val);
                               setTeacherPage(1);
                             }}
-                            options={teacherSortOptions}
+                            options={TEACHER_SORT_OPTIONS}
                             align="right"
                             buttonClassName="py-2 px-3 text-xs sm:text-sm font-semibold"
                             aria-label="Sắp xếp danh sách giảng viên"
@@ -1351,9 +1290,7 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                       </div>
                     ) : (
                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 pt-1">
-                        {filteredAndSortedTeachers
-                          .slice((teacherPage - 1) * 8, teacherPage * 8)
-                          .map((teacher, idx) => (
+                        {currentTeachers.map((teacher, idx) => (
                             <div
                               key={`${teacher.id}-${idx}`}
                               className="group flex flex-col items-center rounded-2xl border border-[#E2E8F0] bg-white p-3.5 shadow-xs transition duration-200 hover:-translate-y-0.5 hover:shadow-md hover:border-primary/30"
@@ -1398,7 +1335,7 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                             &lt;
                           </button>
                           {Array.from({
-                            length: Math.ceil(filteredAndSortedTeachers.length / 8)
+                            length: teacherTotalPages
                           }).map((_, i) => {
                             const page = i + 1;
                             return (
@@ -1421,16 +1358,10 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                             type="button"
                             onClick={() =>
                               setTeacherPage((p) =>
-                                Math.min(
-                                  Math.ceil(filteredAndSortedTeachers.length / 8),
-                                  p + 1
-                                )
+                                Math.min(teacherTotalPages, p + 1)
                               )
                             }
-                            disabled={
-                              teacherPage ===
-                              Math.ceil(filteredAndSortedTeachers.length / 8)
-                            }
+                            disabled={teacherPage === teacherTotalPages}
                             aria-label="Trang sau"
                             className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-30"
                           >

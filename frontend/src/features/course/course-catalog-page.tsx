@@ -5,21 +5,14 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
   ArrowRight,
-  Bookmark,
   Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   ChevronUp,
-  Clock,
   Filter,
-  GraduationCap,
   Heart,
-  PlayCircle,
-  RefreshCw,
-  Search,
   SlidersHorizontal,
-  Sparkles,
   Star,
   Users,
   X
@@ -29,7 +22,7 @@ import { AppHeader } from "@/components/layout/app-header";
 import { Footer } from "@/components/layout/footer";
 import { CustomSelect, type CustomSelectOption } from "@/components/ui/custom-select";
 import { fetchPublicCourses } from "@/lib/course-client";
-import type { CourseLevel, CourseListItem } from "@/types/course";
+import type { CourseListItem } from "@/types/course";
 import { cn } from "@/lib/cn";
 
 const SORT_OPTIONS: CustomSelectOption[] = [
@@ -404,7 +397,7 @@ export function CourseCatalogPage() {
   const searchParams = useSearchParams();
   const queryParam = searchParams.get("q") ?? searchParams.get("keyword") ?? "";
 
-  const [keyword, setKeyword] = useState(queryParam);
+  const [keyword, _setKeyword] = useState(queryParam);
   const [selectedSort, setSelectedSort] = useState<string>("price_desc");
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
@@ -421,7 +414,7 @@ export function CourseCatalogPage() {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
   const [backendCourses, setBackendCourses] = useState<CourseListItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [_loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
 
   const loadBackendCourses = useCallback(async () => {

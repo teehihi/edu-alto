@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import React, { useState } from "react";
+import React from "react";
 import { describe, expect, it, vi } from "vitest";
 import { CustomSelect } from "./custom-select";
 

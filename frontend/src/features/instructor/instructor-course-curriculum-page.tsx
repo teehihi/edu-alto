@@ -306,7 +306,7 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
 
     try {
       await reorderSections(courseId, { items }, accessToken);
-    } catch (err) {
+    } catch {
       // Rollback on error
       await loadData();
       setFeedback({
@@ -470,7 +470,7 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
 
     try {
       await reorderLessons(courseId, sectionId, { items }, accessToken);
-    } catch (err) {
+    } catch {
       await loadData();
       setFeedback({
         isOpen: true,

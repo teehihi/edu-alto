@@ -1,14 +1,11 @@
 "use client";
 
 import {
-  Building2,
-  CheckCircle2,
   Facebook,
   Instagram,
   Mail,
   MapPin,
   Phone,
-  Send,
   Twitter,
   Youtube
 } from "lucide-react";
