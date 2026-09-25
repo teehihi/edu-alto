@@ -58,7 +58,7 @@ public record UserProfileResponse(
                 profile != null ? profile.getLanguage() : "vi",
                 profile != null ? profile.getWebsiteUrl() : null,
                 profile != null ? profile.getTiktokUrl() : null,
-                profile != null ? profile.getTiktokUrl() : null,
+                profile != null ? profile.getXUrl() : null,
                 profile != null ? profile.getLinkedinUrl() : null,
                 profile != null ? profile.getYoutubeUrl() : null,
                 profile != null ? profile.getFacebookUrl() : null,

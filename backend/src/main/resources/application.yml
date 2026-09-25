@@ -50,6 +50,9 @@ edualto:
       access-token-ttl-minutes: ${JWT_ACCESS_TOKEN_TTL_MINUTES:15}
       issuer: ${JWT_ISSUER:edualto}
     refresh-token-ttl-days: ${REFRESH_TOKEN_TTL_DAYS:14}
+    cookie:
+      secure: ${AUTH_COOKIE_SECURE:false}
+      domain: ${AUTH_COOKIE_DOMAIN:}
     otp:
       ttl-minutes: ${OTP_TTL_MINUTES:10}
       resend-cooldown-seconds: ${OTP_RESEND_COOLDOWN_SECONDS:60}

@@ -1,12 +1,13 @@
-FROM maven:3.9.11-eclipse-temurin-25 AS builder
+FROM eclipse-temurin:25-jdk-alpine AS builder
 WORKDIR /app
-COPY backend/pom.xml ./pom.xml
-RUN mvn -q dependency:go-offline
+COPY backend/.mvn/ .mvn/
+COPY backend/mvnw backend/pom.xml ./
+RUN chmod +x mvnw && ./mvnw dependency:resolve
 COPY backend/src ./src
-RUN mvn -q package -DskipTests
+RUN ./mvnw clean package -DskipTests
 
-FROM eclipse-temurin:25-jre
+FROM eclipse-temurin:25-jre-alpine
 WORKDIR /app
-COPY --from=builder /app/target/backend-0.1.0-SNAPSHOT.jar app.jar
+COPY --from=builder /app/target/*.jar app.jar
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]

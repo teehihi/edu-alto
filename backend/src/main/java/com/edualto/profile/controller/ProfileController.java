@@ -9,13 +9,17 @@ import com.edualto.profile.dto.UpdateProfileRequest;
 import com.edualto.profile.dto.UserProfileResponse;
 import com.edualto.profile.service.ProfileService;
 import jakarta.validation.Valid;
+import java.io.IOException;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/v1/me/profile")
@@ -56,11 +60,11 @@ public class ProfileController {
         return ApiResponse.ok(profileService.completeAvatarUpload(principal.id(), request));
     }
 
-    @PostMapping(value = "/avatar", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(value = "/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponse<UserProfileResponse> uploadAvatar(
             @AuthenticationPrincipal AuthenticatedUser principal,
-            @org.springframework.web.bind.annotation.RequestParam("file") org.springframework.web.multipart.MultipartFile file
-    ) throws java.io.IOException {
+            @RequestParam("file") MultipartFile file
+    ) throws IOException {
         return ApiResponse.ok(profileService.uploadAvatarDirect(
                 principal.id(),
                 file.getContentType(),

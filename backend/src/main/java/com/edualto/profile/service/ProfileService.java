@@ -22,6 +22,7 @@ import com.edualto.user.repository.UserRepository;
 import java.time.Duration;
 import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -41,6 +42,7 @@ public class ProfileService {
 
     private static final long MAX_AVATAR_SIZE_BYTES = 5L * 1024 * 1024; // 5 MB
     private static final Duration AVATAR_UPLOAD_EXPIRATION = Duration.ofMinutes(15);
+    private static final Pattern CUSTOM_HANDLE_PATTERN = Pattern.compile("^[a-zA-Z0-9._-]{3,30}$");
 
     private final ProfileRepository profileRepository;
     private final StudentProfileRepository studentProfileRepository;
@@ -92,8 +94,6 @@ public class ProfileService {
                 .orElseGet(() -> new InstructorProfile(userId, expertise.trim()));
         instructorProfileRepository.save(instructorProfile);
     }
-
-    private static final java.util.regex.Pattern CUSTOM_HANDLE_PATTERN = java.util.regex.Pattern.compile("^[a-zA-Z0-9._-]{3,30}$");
 
     @Transactional(readOnly = true)
     public UserProfileResponse getProfile(UUID userId) {

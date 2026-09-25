@@ -111,8 +111,8 @@ public class Profile {
         this.bio = bio;
         this.language = (language != null && !language.isBlank()) ? language : "vi";
         this.websiteUrl = websiteUrl;
-        this.tiktokUrl = (tiktokUrl != null && !tiktokUrl.isBlank()) ? tiktokUrl : xUrl;
-        this.xUrl = this.tiktokUrl;
+        this.tiktokUrl = tiktokUrl;
+        this.xUrl = xUrl;
         this.linkedinUrl = linkedinUrl;
         this.youtubeUrl = youtubeUrl;
         this.facebookUrl = facebookUrl;
@@ -164,12 +164,11 @@ public class Profile {
     }
 
     public String getTiktokUrl() {
-        return (tiktokUrl != null && !tiktokUrl.isBlank()) ? tiktokUrl : xUrl;
+        return tiktokUrl;
     }
 
     public void setTiktokUrl(String tiktokUrl) {
         this.tiktokUrl = tiktokUrl;
-        this.xUrl = tiktokUrl;
     }
 
     public String getXUrl() {

@@ -4,20 +4,20 @@ import com.edualto.auth.domain.EmailOtp;
 import com.edualto.auth.domain.OtpPurpose;
 import com.edualto.auth.repository.EmailOtpRepository;
 import com.edualto.auth.repository.RefreshTokenRepository;
+import com.edualto.course.repository.CourseRepository;
 import com.edualto.profile.repository.InstructorProfileRepository;
 import com.edualto.profile.repository.ProfileRepository;
 import com.edualto.profile.repository.StudentProfileRepository;
 import com.edualto.storage.service.StorageService;
 import com.edualto.user.domain.User;
 import com.edualto.user.repository.UserRepository;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -28,21 +28,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import com.edualto.AbstractIntegrationTest;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest(properties = {
-        "spring.datasource.url=jdbc:h2:mem:edualto;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1",
-        "spring.datasource.username=sa",
-        "spring.datasource.password=",
-        "spring.datasource.driver-class-name=org.h2.Driver",
-        "edualto.auth.jwt.secret=test-jwt-secret-with-at-least-32-characters",
-        "edualto.auth.otp.fixed-code=123456",
-        "edualto.auth.otp.resend-cooldown-seconds=0",
-        "edualto.auth.otp.max-attempts=2"
-})
-@AutoConfigureMockMvc
-class ProfileIntegrationTest {
+class ProfileIntegrationTest extends AbstractIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -66,7 +56,7 @@ class ProfileIntegrationTest {
     private EmailOtpRepository emailOtpRepository;
 
     @Autowired
-    private com.edualto.course.repository.CourseRepository courseRepository;
+    private CourseRepository courseRepository;
 
     @Autowired
     private RefreshTokenRepository refreshTokenRepository;
