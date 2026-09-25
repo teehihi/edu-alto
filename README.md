@@ -38,8 +38,6 @@ EduAlto là LMS foundation dành cho học viên, giảng viên và quản trị
 | Profile & Cloudflare R2 presigned avatar slice | Hoàn thành |
 | Course catalog & Course structure curriculum slice | Hoàn thành |
 | Frontend UI (Landing, Explore, Course Detail, Profile, Auth Modal) | Hoàn thành |
-| Frontend Vercel deployment readiness (Dockerfile disabled) | Hoàn thành |
-| Oxlint & Oxfmt tooling | Hoàn thành |
 
 ## Tính Năng Đã Có
 
