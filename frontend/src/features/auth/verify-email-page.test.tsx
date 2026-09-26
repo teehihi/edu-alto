@@ -11,8 +11,12 @@ vi.mock("./auth-client", () => ({ resendVerification: vi.fn(), verifyEmail: vi.f
 beforeEach(() => {
   vi.clearAllMocks();
   window.history.replaceState({}, "", "/verify-email");
-  HTMLDialogElement.prototype.showModal = function () { this.setAttribute("open", ""); };
-  HTMLDialogElement.prototype.close = function () { this.removeAttribute("open"); };
+  HTMLDialogElement.prototype.showModal = function () {
+    this.setAttribute("open", "");
+  };
+  HTMLDialogElement.prototype.close = function () {
+    this.removeAttribute("open");
+  };
 });
 afterEach(() => vi.useRealTimers());
 
@@ -23,7 +27,9 @@ describe("VerifyEmailPage", () => {
     render(<VerifyEmailPage />);
     await user.type(screen.getByLabelText("Email"), "hocvien@example.com");
     await user.click(screen.getByRole("button", { name: "Gửi lại OTP" }));
-    await waitFor(() => expect(resendVerification).toHaveBeenCalledWith({ email: "hocvien@example.com" }));
+    await waitFor(() =>
+      expect(resendVerification).toHaveBeenCalledWith({ email: "hocvien@example.com" }),
+    );
     const resend = screen.getByRole("button", { name: /gửi lại sau 60s/i });
     expect(resend).toBeDisabled();
     await user.click(resend);
@@ -37,8 +43,12 @@ describe("VerifyEmailPage", () => {
     window.history.replaceState({}, "", "/verify-email?email=hocvien%40example.com&sent=1");
     render(<VerifyEmailPage />);
     expect(screen.queryByLabelText("Email")).not.toBeInTheDocument();
-    fireEvent.change(screen.getByRole("textbox", { name: "Mã OTP" }), { target: { value: "012345" } });
-    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Xác nhận" })); });
+    fireEvent.change(screen.getByRole("textbox", { name: "Mã OTP" }), {
+      target: { value: "012345" },
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Xác nhận" }));
+    });
     expect(verifyEmail).toHaveBeenCalledWith({ email: "hocvien@example.com", otp: "012345" });
     expect(screen.getByRole("dialog")).toBeVisible();
     act(() => vi.advanceTimersByTime(1000));

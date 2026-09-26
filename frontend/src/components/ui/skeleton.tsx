@@ -2,13 +2,7 @@ import type { HTMLAttributes } from "react";
 import { cn } from "@/lib/cn";
 
 export function Skeleton({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return (
-    <div
-      className={cn("skeleton", className)}
-      aria-hidden="true"
-      {...props}
-    />
-  );
+  return <div className={cn("skeleton", className)} aria-hidden="true" {...props} />;
 }
 
 /**
@@ -16,7 +10,12 @@ export function Skeleton({ className, ...props }: HTMLAttributes<HTMLDivElement>
  */
 export function CardSkeleton({ className }: { className?: string }) {
   return (
-    <div className={cn("w-full rounded-xl border border-slate-100 bg-white p-5 shadow-soft", className)}>
+    <div
+      className={cn(
+        "w-full rounded-xl border border-slate-100 bg-white p-5 shadow-soft",
+        className,
+      )}
+    >
       <Skeleton className="mb-3.5 h-4 w-1/3" />
       <Skeleton className="h-24 w-full" />
     </div>
@@ -28,7 +27,10 @@ export function CardSkeleton({ className }: { className?: string }) {
  */
 export function CourseCardSkeleton() {
   return (
-    <div className="rounded-xl border border-slate-100 bg-white p-5 shadow-soft" aria-label="Đang tải khóa học">
+    <div
+      className="rounded-xl border border-slate-100 bg-white p-5 shadow-soft"
+      aria-label="Đang tải khóa học"
+    >
       <Skeleton className="h-48 w-full rounded-lg sm:h-56" />
       <div className="mt-5 space-y-3">
         <Skeleton className="h-4 w-24" />
@@ -49,7 +51,10 @@ export function CourseCardSkeleton() {
  */
 export function LoginSkeleton() {
   return (
-    <div className="relative min-h-screen bg-white lg:h-screen lg:overflow-hidden" aria-label="Đang tải trang đăng nhập">
+    <div
+      className="relative min-h-screen bg-white lg:h-screen lg:overflow-hidden"
+      aria-label="Đang tải trang đăng nhập"
+    >
       {/* Left panel placeholder */}
       <aside className="absolute inset-y-0 left-0 hidden w-[43.61%] overflow-hidden bg-slate-100 lg:block z-0">
         <Skeleton className="h-full w-full rounded-none" />
@@ -119,7 +124,10 @@ export function LoginSkeleton() {
  */
 export function RegisterSkeleton() {
   return (
-    <div className="relative min-h-screen bg-white lg:h-screen lg:overflow-hidden" aria-label="Đang tải trang đăng ký">
+    <div
+      className="relative min-h-screen bg-white lg:h-screen lg:overflow-hidden"
+      aria-label="Đang tải trang đăng ký"
+    >
       {/* Right panel placeholder */}
       <aside className="absolute inset-y-0 right-0 hidden w-[43.61%] overflow-hidden bg-slate-100 lg:block z-0">
         <Skeleton className="h-full w-full rounded-none" />
@@ -204,7 +212,10 @@ export function RegisterSkeleton() {
  */
 export function ForgotPasswordSkeleton() {
   return (
-    <div className="relative min-h-screen bg-white lg:h-screen lg:overflow-hidden" aria-label="Đang tải trang quên mật khẩu">
+    <div
+      className="relative min-h-screen bg-white lg:h-screen lg:overflow-hidden"
+      aria-label="Đang tải trang quên mật khẩu"
+    >
       <aside className="absolute inset-y-0 right-0 hidden w-[43.61%] overflow-hidden bg-slate-100 lg:block z-0">
         <Skeleton className="h-full w-full rounded-none" />
       </aside>
@@ -236,7 +247,10 @@ export function ForgotPasswordSkeleton() {
  */
 export function VerifyEmailSkeleton() {
   return (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-white p-3 sm:p-4" aria-label="Đang tải trang xác thực email">
+    <div
+      className="flex min-h-[100dvh] items-center justify-center bg-white p-3 sm:p-4"
+      aria-label="Đang tải trang xác thực email"
+    >
       <div className="w-full max-w-[460px] text-center space-y-3">
         {/* Top Image Illustration */}
         <div className="flex justify-center">
@@ -273,7 +287,10 @@ export function VerifyEmailSkeleton() {
  */
 export function ResetPasswordSkeleton() {
   return (
-    <div className="relative min-h-screen bg-white lg:h-screen lg:overflow-hidden" aria-label="Đang tải trang tạo mật khẩu mới">
+    <div
+      className="relative min-h-screen bg-white lg:h-screen lg:overflow-hidden"
+      aria-label="Đang tải trang tạo mật khẩu mới"
+    >
       <aside className="absolute inset-y-0 right-0 hidden w-[43.61%] overflow-hidden bg-slate-100 lg:block z-0">
         <Skeleton className="h-full w-full rounded-none" />
       </aside>
@@ -307,13 +324,19 @@ export function ResetPasswordSkeleton() {
  */
 export function ProfileSkeleton() {
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 xl:gap-8" aria-label="Đang tải thông tin hồ sơ">
+    <div
+      className="grid grid-cols-1 gap-6 lg:grid-cols-12 xl:gap-8"
+      aria-label="Đang tải thông tin hồ sơ"
+    >
       {/* Left Sidebar */}
       <aside className="lg:sticky lg:top-24 lg:col-span-4 xl:col-span-3 space-y-6">
         {/* Card 1: Avatar & Basic Info */}
         <div className="relative overflow-hidden rounded-3xl border border-slate-100 bg-white p-6 sm:p-7 text-center shadow-sm">
           {/* Decorative Dot Grid */}
-          <div className="pointer-events-none absolute left-6 top-6 grid grid-cols-3 gap-2 opacity-30" aria-hidden="true">
+          <div
+            className="pointer-events-none absolute left-6 top-6 grid grid-cols-3 gap-2 opacity-30"
+            aria-hidden="true"
+          >
             {Array.from({ length: 12 }).map((_, i) => (
               <span key={i} className="h-1.5 w-1.5 rounded-full bg-slate-300" />
             ))}
@@ -864,5 +887,3 @@ export function ContactSkeleton() {
     </div>
   );
 }
-
-

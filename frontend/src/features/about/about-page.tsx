@@ -23,7 +23,7 @@ const BENEFIT_ITEMS: BenefitItem[] = [
     title: "Học Tập Linh Hoạt",
     shortDesc: "Học mọi lúc, mọi nơi với nền tảng trực tuyến tiện lợi, phù hợp với lịch trình ...",
     fullDesc:
-      "Học mọi lúc, mọi nơi với nền tảng trực tuyến tiện lợi, phù hợp với lịch trình cá nhân. Người học có thể chủ động sắp xếp thời gian biểu và học tập theo tiến độ phù hợp nhất."
+      "Học mọi lúc, mọi nơi với nền tảng trực tuyến tiện lợi, phù hợp với lịch trình cá nhân. Người học có thể chủ động sắp xếp thời gian biểu và học tập theo tiến độ phù hợp nhất.",
   },
   {
     id: "benefit-2",
@@ -31,7 +31,7 @@ const BENEFIT_ITEMS: BenefitItem[] = [
     title: "Tiết Kiệm Thời Gian",
     shortDesc: "Dễ dàng tiếp cận bài học và tài liệu trực tuyến, giúp bạn chủ động học ...",
     fullDesc:
-      "Dễ dàng tiếp cận bài học và tài liệu trực tuyến, giúp bạn chủ động học tập mọi lúc, tối ưu hóa thời gian thực hành và rút ngắn khoảng cách tiếp cận kiến thức mới."
+      "Dễ dàng tiếp cận bài học và tài liệu trực tuyến, giúp bạn chủ động học tập mọi lúc, tối ưu hóa thời gian thực hành và rút ngắn khoảng cách tiếp cận kiến thức mới.",
   },
   {
     id: "benefit-3",
@@ -40,7 +40,7 @@ const BENEFIT_ITEMS: BenefitItem[] = [
     shortDesc: "Lựa chọn khóa học và nội dung phù hợp với mục tiêu, nhu cầu và tốc độ ...",
     fullDesc:
       "Lựa chọn khóa học và nội dung phù hợp với mục tiêu, nhu cầu và tốc độ của bản thân. Hệ thống giúp theo dõi tiến độ và đề xuất nội dung tối ưu theo từng học viên.",
-    highlightBg: true
+    highlightBg: true,
   },
   {
     id: "benefit-4",
@@ -48,7 +48,7 @@ const BENEFIT_ITEMS: BenefitItem[] = [
     title: "Chi Phí Hợp Lý",
     shortDesc: "Tiếp cận đa dạng khóa học và tài liệu học tập với mức chi phí phù hợp ...",
     fullDesc:
-      "Tiếp cận đa dạng khóa học và tài liệu học tập với mức chi phí phù hợp và minh bạch, mở rộng cơ hội nâng cao trình độ chuyên môn cho mọi đối tượng học viên."
+      "Tiếp cận đa dạng khóa học và tài liệu học tập với mức chi phí phù hợp và minh bạch, mở rộng cơ hội nâng cao trình độ chuyên môn cho mọi đối tượng học viên.",
   },
   {
     id: "benefit-5",
@@ -56,7 +56,7 @@ const BENEFIT_ITEMS: BenefitItem[] = [
     title: "Nâng Cao Hiệu Quả Học Tập",
     shortDesc: "Củng cố kiến thức thông qua bài học, bài kiểm tra và các hoạt động ...",
     fullDesc:
-      "Củng cố kiến thức thông qua hệ thống bài học chi tiết, bài tập trắc nghiệm và đánh giá thực hành, giúp người học ghi nhớ sâu và ứng dụng hiệu quả vào thực tế."
+      "Củng cố kiến thức thông qua hệ thống bài học chi tiết, bài tập trắc nghiệm và đánh giá thực hành, giúp người học ghi nhớ sâu và ứng dụng hiệu quả vào thực tế.",
   },
   {
     id: "benefit-6",
@@ -64,8 +64,8 @@ const BENEFIT_ITEMS: BenefitItem[] = [
     title: "Tài Liệu Đa Dạng",
     shortDesc: "Kết hợp nhiều dạng nội dung học tập trực quan, giúp việc tiếp thu kiến ...",
     fullDesc:
-      "Kết hợp nhiều dạng nội dung học tập trực quan gồm văn bản chuyên sâu, slide bài giảng, code mẫu và tài liệu tham khảo phong phú, mang đến trải nghiệm học tập sinh động."
-  }
+      "Kết hợp nhiều dạng nội dung học tập trực quan gồm văn bản chuyên sâu, slide bài giảng, code mẫu và tài liệu tham khảo phong phú, mang đến trải nghiệm học tập sinh động.",
+  },
 ];
 
 export function AboutPage() {
@@ -98,10 +98,17 @@ export function AboutPage() {
                 {/* Plain Paragraph directly on white background matching Figma */}
                 <div className="space-y-3 text-sm sm:text-base leading-[1.75] text-[#475467] max-w-[560px]">
                   <p>
-                    EduAlto được xây dựng với mong muốn mang đến một môi trường học tập trực tuyến tiện dụng, nơi mọi người học có thể dễ dàng tiếp cận kiến thức, phát triển kỹ năng và chủ động trên hành trình học tập của mình. EduAlto cung cấp hệ thống khóa học, bài học và tài liệu học tập đa dạng, kết hợp cùng các bài kiểm tra và đánh giá giúp người học củng cố kiến thức. Với giao diện trực quan và trải nghiệm học tập thuận tiện, EduAlto hướng đến việc tạo ra một nền tảng học tập dễ tiếp cận, linh hoạt và hiệu quả.
+                    EduAlto được xây dựng với mong muốn mang đến một môi trường học tập trực tuyến
+                    tiện dụng, nơi mọi người học có thể dễ dàng tiếp cận kiến thức, phát triển kỹ
+                    năng và chủ động trên hành trình học tập của mình. EduAlto cung cấp hệ thống
+                    khóa học, bài học và tài liệu học tập đa dạng, kết hợp cùng các bài kiểm tra và
+                    đánh giá giúp người học củng cố kiến thức. Với giao diện trực quan và trải
+                    nghiệm học tập thuận tiện, EduAlto hướng đến việc tạo ra một nền tảng học tập dễ
+                    tiếp cận, linh hoạt và hiệu quả.
                   </p>
                   <p>
-                    Học tập không chỉ là tiếp thu kiến thức, mà còn là hành trình không ngừng phát triển bản thân.
+                    Học tập không chỉ là tiếp thu kiến thức, mà còn là hành trình không ngừng phát
+                    triển bản thân.
                   </p>
                 </div>
 
@@ -188,10 +195,13 @@ export function AboutPage() {
 
                 <div className="space-y-3.5 text-sm sm:text-base leading-[1.75] text-[#475467] max-w-[540px]">
                   <p>
-                    EduAlto hướng đến việc giúp người học xác định rõ mục tiêu, duy trì động lực và tự tin trên hành trình phát triển kiến thức, kỹ năng của mình.
+                    EduAlto hướng đến việc giúp người học xác định rõ mục tiêu, duy trì động lực và
+                    tự tin trên hành trình phát triển kiến thức, kỹ năng của mình.
                   </p>
                   <p>
-                    Ngày nay, bạn có thể dễ dàng tìm thấy vô số thông tin chỉ với một vài cú nhấp chuột. Tuy nhiên, EduAlto tin rằng kiến thức chỉ thực sự có giá trị khi được kết hợp với việc học tập, thực hành và không ngừng phát triển bản thân.
+                    Ngày nay, bạn có thể dễ dàng tìm thấy vô số thông tin chỉ với một vài cú nhấp
+                    chuột. Tuy nhiên, EduAlto tin rằng kiến thức chỉ thực sự có giá trị khi được kết
+                    hợp với việc học tập, thực hành và không ngừng phát triển bản thân.
                   </p>
                 </div>
 
@@ -216,16 +226,15 @@ export function AboutPage() {
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             {/* Centered Heading */}
             <div className="mx-auto max-w-2xl text-center space-y-2">
-              <span className="text-sm sm:text-base font-bold text-[#20B486]">
-                Lợi ích Nổi bật
-              </span>
+              <span className="text-sm sm:text-base font-bold text-[#20B486]">Lợi ích Nổi bật</span>
               <h2 className="text-3xl sm:text-4xl lg:text-[38px] font-extrabold text-[#101A2C] leading-snug">
                 Những giá trị EduAlto mang đến
                 <br className="hidden sm:inline" /> cho hành trình học tập của bạn.
               </h2>
               <p className="text-sm sm:text-base text-[#667085] leading-relaxed max-w-xl mx-auto pt-1">
                 Khám phá những lợi ích thiết thực giúp bạn học tập hiệu quả, phát triển kỹ
-                <br className="hidden sm:inline" /> năng và chủ động hơn trên hành trình chinh phục kiến thức.
+                <br className="hidden sm:inline" /> năng và chủ động hơn trên hành trình chinh phục
+                kiến thức.
               </p>
             </div>
 
@@ -285,12 +294,8 @@ export function AboutPage() {
               <X className="h-4 w-4" />
             </button>
 
-            <span className="text-2xl font-extrabold text-[#20B486]">
-              {selectedBenefit.number}
-            </span>
-            <h3 className="mt-2 text-xl font-bold text-heading">
-              {selectedBenefit.title}
-            </h3>
+            <span className="text-2xl font-extrabold text-[#20B486]">{selectedBenefit.number}</span>
+            <h3 className="mt-2 text-xl font-bold text-heading">{selectedBenefit.title}</h3>
             <p className="mt-3 text-sm leading-relaxed text-slate-600">
               {selectedBenefit.fullDesc}
             </p>

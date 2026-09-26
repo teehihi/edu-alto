@@ -6,7 +6,13 @@ import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { AlertMessage, FormField } from "@/features/auth/form-field";
-import { getFriendlyError, isEmail, isOtp, sanitizeOtp, type FieldErrors } from "@/features/auth/form-utils";
+import {
+  getFriendlyError,
+  isEmail,
+  isOtp,
+  sanitizeOtp,
+  type FieldErrors,
+} from "@/features/auth/form-utils";
 import { resendVerification, verifyEmail } from "./auth-client";
 import { OtpInput, OtpSuccessModal } from "./auth-shell";
 
@@ -18,7 +24,10 @@ export function VerifyEmailPage() {
   const [otp, setOtp] = useState("");
   const [cooldown, setCooldown] = useState(0);
   const [errors, setErrors] = useState<FieldErrors<VerifyEmailFields>>({});
-  const [status, setStatus] = useState<{ tone: "success" | "error" | "info"; message: string } | null>(null);
+  const [status, setStatus] = useState<{
+    tone: "success" | "error" | "info";
+    message: string;
+  } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [resending, setResending] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -40,7 +49,10 @@ export function VerifyEmailPage() {
       return undefined;
     }
 
-    const timer = window.setInterval(() => setCooldown((current) => Math.max(current - 1, 0)), 1000);
+    const timer = window.setInterval(
+      () => setCooldown((current) => Math.max(current - 1, 0)),
+      1000,
+    );
     return () => window.clearInterval(timer);
   }, [cooldown]);
 
@@ -86,7 +98,10 @@ export function VerifyEmailPage() {
       await verifyEmail({ email: email.trim(), otp });
       setShowSuccessModal(true);
     } catch (error) {
-      setStatus({ tone: "error", message: getFriendlyError(error, "Không thể xác thực email. Vui lòng kiểm tra lại mã.") });
+      setStatus({
+        tone: "error",
+        message: getFriendlyError(error, "Không thể xác thực email. Vui lòng kiểm tra lại mã."),
+      });
     } finally {
       setSubmitting(false);
     }
@@ -108,9 +123,15 @@ export function VerifyEmailPage() {
       setOtp("");
       setErrors({});
       setEditingEmail(false);
-      setStatus({ tone: "info", message: "Mã OTP mới đã được gửi. Vui lòng kiểm tra hộp thư của bạn." });
+      setStatus({
+        tone: "info",
+        message: "Mã OTP mới đã được gửi. Vui lòng kiểm tra hộp thư của bạn.",
+      });
     } catch (error) {
-      setStatus({ tone: "error", message: getFriendlyError(error, "Không thể gửi lại mã lúc này. Vui lòng thử lại sau.") });
+      setStatus({
+        tone: "error",
+        message: getFriendlyError(error, "Không thể gửi lại mã lúc này. Vui lòng thử lại sau."),
+      });
     } finally {
       setResending(false);
     }
@@ -138,7 +159,10 @@ export function VerifyEmailPage() {
         </h1>
         <p className="mt-2 text-xs font-medium leading-relaxed text-heading sm:mt-2.5 sm:text-sm md:text-base">
           Nhập mã OTP gồm 6 chữ số được gửi đến{" "}
-          <span className="font-semibold text-primary">{isEmail(email) ? email.trim() : "email của bạn"}</span>!
+          <span className="font-semibold text-primary">
+            {isEmail(email) ? email.trim() : "email của bạn"}
+          </span>
+          !
         </p>
 
         {status ? (

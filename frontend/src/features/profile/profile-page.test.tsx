@@ -11,7 +11,7 @@ const currentUser = {
   roles: ["STUDENT"],
   emailVerifiedAt: "2026-09-18T00:00:00Z",
   createdAt: "2026-09-18T00:00:00Z",
-  updatedAt: "2026-09-18T00:00:00Z"
+  updatedAt: "2026-09-18T00:00:00Z",
 };
 
 const userProfile = {
@@ -31,9 +31,9 @@ const userProfile = {
     learningGoal: "Làm chủ Spring Boot & Next.js",
     occupation: "Sinh viên",
     educationLevel: "Đại học",
-    interests: "Java, TypeScript"
+    interests: "Java, TypeScript",
   },
-  instructorProfile: null
+  instructorProfile: null,
 };
 
 const otherUserProfile = {
@@ -57,7 +57,7 @@ const otherUserProfile = {
   instructorProfile: null,
   emailVerifiedAt: "2026-09-18T00:00:00Z",
   createdAt: "2026-09-18T00:00:00Z",
-  updatedAt: "2026-09-18T00:00:00Z"
+  updatedAt: "2026-09-18T00:00:00Z",
 };
 
 const getProfileMock = vi.fn().mockResolvedValue(userProfile);
@@ -66,21 +66,21 @@ const updateProfileMock = vi.fn().mockResolvedValue({
   ...userProfile,
   fullName: "Nguyễn Minh Anh Updated",
   headline: "Senior Software Engineer",
-  customHandle: "minhanh21"
+  customHandle: "minhanh21",
 });
 const logoutMock = vi.fn().mockResolvedValue({});
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/profile",
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() })
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 
 vi.mock("@/components/layout/app-header", () => ({
-  AppHeader: () => null
+  AppHeader: () => null,
 }));
 
 vi.mock("@/components/layout/footer", () => ({
-  Footer: () => null
+  Footer: () => null,
 }));
 
 vi.mock("@/features/auth/auth-client", () => ({
@@ -96,9 +96,9 @@ vi.mock("@/features/auth/auth-client", () => ({
     uploadAvatar: vi.fn().mockResolvedValue({ avatarUrl: "https://example.com/new-avatar.png" }),
     updateUserAvatar: vi.fn(),
     getCurrentUser: vi.fn(),
-    updateCurrentUser: vi.fn()
+    updateCurrentUser: vi.fn(),
   }),
-  getPublicProfile: (id: string) => getPublicProfileMock(id)
+  getPublicProfile: (id: string) => getPublicProfileMock(id),
 }));
 
 describe("ProfilePage", () => {
@@ -111,7 +111,9 @@ describe("ProfilePage", () => {
     render(<ProfilePage />);
 
     // In View mode, user info is rendered
-    expect(await screen.findByRole("heading", { name: "Nguyễn Minh Anh", level: 1 })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Nguyễn Minh Anh", level: 1 }),
+    ).toBeInTheDocument();
     expect(screen.getAllByText("Học viên xuất sắc").length).toBeGreaterThan(0);
     expect(screen.getByText("Tiếng Việt")).toBeInTheDocument();
 
@@ -139,19 +141,25 @@ describe("ProfilePage", () => {
       expect(updateProfileMock).toHaveBeenCalledWith(
         expect.objectContaining({
           fullName: "Nguyễn Minh Anh Updated",
-          headline: "Senior Software Engineer"
-        })
-      )
+          headline: "Senior Software Engineer",
+        }),
+      ),
     );
 
-    expect((await screen.findAllByText(/cập nhật thông tin hồ sơ thành công/i)).length).toBeGreaterThan(0);
-    expect(await screen.findByRole("heading", { name: "Nguyễn Minh Anh Updated", level: 1 })).toBeInTheDocument();
+    expect(
+      (await screen.findAllByText(/cập nhật thông tin hồ sơ thành công/i)).length,
+    ).toBeGreaterThan(0);
+    expect(
+      await screen.findByRole("heading", { name: "Nguyễn Minh Anh Updated", level: 1 }),
+    ).toBeInTheDocument();
   });
 
   it("renders navigation link to learning management page for owner", async () => {
     render(<ProfilePage />);
 
-    expect(await screen.findByRole("heading", { name: "Nguyễn Minh Anh", level: 1 })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Nguyễn Minh Anh", level: 1 }),
+    ).toBeInTheDocument();
 
     const learningLink = screen.getByRole("link", { name: /quản lý học tập/i });
     expect(learningLink).toHaveAttribute("href", "/learning");
@@ -161,7 +169,9 @@ describe("ProfilePage", () => {
     const user = userEvent.setup();
     render(<ProfilePage />);
 
-    expect(await screen.findByRole("heading", { name: "Nguyễn Minh Anh", level: 1 })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Nguyễn Minh Anh", level: 1 }),
+    ).toBeInTheDocument();
 
     const instructorTab = screen.getByRole("button", { name: /^giảng viên$/i });
     await user.click(instructorTab);
@@ -175,7 +185,9 @@ describe("ProfilePage", () => {
   it("hides edit button and personal navigation tabs when viewing another user profile", async () => {
     render(<ProfilePage targetIdentifier="user-2" />);
 
-    expect(await screen.findByRole("heading", { name: "Trần Văn Bình", level: 1 })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Trần Văn Bình", level: 1 }),
+    ).toBeInTheDocument();
     expect(screen.getAllByText("Chuyên gia AI").length).toBeGreaterThan(0);
 
     // Edit button should not exist for visitor
@@ -186,4 +198,3 @@ describe("ProfilePage", () => {
     expect(screen.queryByRole("button", { name: /đánh giá của tôi/i })).not.toBeInTheDocument();
   });
 });
-

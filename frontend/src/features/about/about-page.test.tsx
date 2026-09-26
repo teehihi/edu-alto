@@ -5,15 +5,15 @@ import { AboutPage } from "./about-page";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/about",
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() })
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 
 vi.mock("@/components/layout/app-header", () => ({
-  AppHeader: () => <div data-testid="app-header" />
+  AppHeader: () => <div data-testid="app-header" />,
 }));
 
 vi.mock("@/components/layout/footer", () => ({
-  Footer: () => <div data-testid="footer" />
+  Footer: () => <div data-testid="footer" />,
 }));
 
 describe("AboutPage", () => {
@@ -23,7 +23,9 @@ describe("AboutPage", () => {
     expect(screen.getByRole("heading", { name: /về chúng tôi/i, level: 1 })).toBeInTheDocument();
     expect(screen.getAllByRole("heading", { level: 2 }).length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText(/Mang đến trải nghiệm/i)).toBeInTheDocument();
-    expect(screen.getByText(/Những giá trị EduAlto mang đến cho hành trình học tập của bạn/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Những giá trị EduAlto mang đến cho hành trình học tập của bạn/i),
+    ).toBeInTheDocument();
 
     expect(screen.getByText("Học Tập Linh Hoạt")).toBeInTheDocument();
     expect(screen.getByText("Tiết Kiệm Thời Gian")).toBeInTheDocument();

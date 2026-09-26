@@ -46,7 +46,10 @@ export function LoginPage() {
     setSubmitting(true);
     try {
       await login({ email: email.trim(), password });
-      setStatus({ tone: "success", message: "Đăng nhập thành công. EduAlto đang chuẩn bị không gian học tập cho bạn." });
+      setStatus({
+        tone: "success",
+        message: "Đăng nhập thành công. EduAlto đang chuẩn bị không gian học tập cho bạn.",
+      });
       router.push("/");
       router.refresh();
     } catch (error) {
@@ -59,7 +62,13 @@ export function LoginPage() {
         router.push(`/verify-email?email=${encodeURIComponent(email.trim())}&sent=1`);
         return;
       }
-      setStatus({ tone: "error", message: getFriendlyError(error, "Không thể đăng nhập. Vui lòng kiểm tra email và mật khẩu.") });
+      setStatus({
+        tone: "error",
+        message: getFriendlyError(
+          error,
+          "Không thể đăng nhập. Vui lòng kiểm tra email và mật khẩu.",
+        ),
+      });
     } finally {
       setSubmitting(false);
     }
@@ -97,21 +106,36 @@ export function LoginPage() {
         />
         <div className="flex items-center justify-between gap-3 text-xs sm:text-sm">
           <label className="flex items-center gap-2 text-muted cursor-pointer">
-            <input className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" disabled={submitting} />
+            <input
+              className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
+              type="checkbox"
+              disabled={submitting}
+            />
             Ghi nhớ đăng nhập
           </label>
-          <Link className="focus-ring rounded-lg font-semibold text-primary hover:text-primary-dark" href="/forgot-password">
+          <Link
+            className="focus-ring rounded-lg font-semibold text-primary hover:text-primary-dark"
+            href="/forgot-password"
+          >
             Quên mật khẩu?
           </Link>
         </div>
-        <Button className="h-11 w-full rounded-xl px-6 text-sm font-semibold sm:h-12 sm:text-base" loading={submitting} type="submit" aria-label="Đăng nhập">
+        <Button
+          className="h-11 w-full rounded-xl px-6 text-sm font-semibold sm:h-12 sm:text-base"
+          loading={submitting}
+          type="submit"
+          aria-label="Đăng nhập"
+        >
           Đăng nhập
         </Button>
         <AuthDivider />
         <SocialLoginButtons />
         <p className="pt-1 text-center text-sm text-muted">
           Chưa có tài khoản?{" "}
-          <Link className="focus-ring rounded-lg font-semibold text-primary hover:text-primary-dark" href="/register">
+          <Link
+            className="focus-ring rounded-lg font-semibold text-primary hover:text-primary-dark"
+            href="/register"
+          >
             Tạo tài khoản
           </Link>
         </p>

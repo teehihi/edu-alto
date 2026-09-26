@@ -5,7 +5,15 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { AlertMessage, FormField, PasswordField } from "@/features/auth/form-field";
-import { extractFieldErrors, getFriendlyError, hasLetterAndDigit, isEmail, isOtp, sanitizeOtp, type FieldErrors } from "@/features/auth/form-utils";
+import {
+  extractFieldErrors,
+  getFriendlyError,
+  hasLetterAndDigit,
+  isEmail,
+  isOtp,
+  sanitizeOtp,
+  type FieldErrors,
+} from "@/features/auth/form-utils";
 import { forgotPassword, resetPassword, verifyResetOtp } from "./auth-client";
 import { AuthShell, OtpInput } from "./auth-shell";
 
@@ -25,7 +33,10 @@ export function ResetPasswordPage() {
   const [cooldown, setCooldown] = useState(sent ? 60 : 0);
   const [resending, setResending] = useState(false);
   const [errors, setErrors] = useState<FieldErrors<ResetPasswordFields>>({});
-  const [status, setStatus] = useState<{ tone: "success" | "error" | "info"; message: string } | null>(null);
+  const [status, setStatus] = useState<{
+    tone: "success" | "error" | "info";
+    message: string;
+  } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [resetComplete, setResetComplete] = useState(false);
 
@@ -37,13 +48,19 @@ export function ResetPasswordPage() {
 
   useEffect(() => {
     if (sent && step === "otp") {
-      setStatus({ tone: "info", message: "Mã xác minh đặt lại mật khẩu đã được gửi đến email của bạn." });
+      setStatus({
+        tone: "info",
+        message: "Mã xác minh đặt lại mật khẩu đã được gửi đến email của bạn.",
+      });
     }
   }, [sent, step]);
 
   useEffect(() => {
     if (cooldown <= 0) return undefined;
-    const timer = window.setInterval(() => setCooldown((current) => Math.max(current - 1, 0)), 1000);
+    const timer = window.setInterval(
+      () => setCooldown((current) => Math.max(current - 1, 0)),
+      1000,
+    );
     return () => window.clearInterval(timer);
   }, [cooldown]);
 
@@ -101,14 +118,20 @@ export function ResetPasswordPage() {
     try {
       await verifyResetOtp({ email: email.trim(), otp });
       setStep("password");
-      setStatus({ tone: "success", message: "Xác minh mã thành công! Vui lòng tạo mật khẩu mới cho tài khoản." });
+      setStatus({
+        tone: "success",
+        message: "Xác minh mã thành công! Vui lòng tạo mật khẩu mới cho tài khoản.",
+      });
       setErrors({});
     } catch (error) {
       const fieldErrors = extractFieldErrors<ResetPasswordFields>(error);
       if (fieldErrors) {
         setErrors((prev) => ({ ...prev, ...fieldErrors }));
       }
-      setStatus({ tone: "error", message: getFriendlyError(error, "Mã đặt lại mật khẩu chưa đúng hoặc đã hết hạn.") });
+      setStatus({
+        tone: "error",
+        message: getFriendlyError(error, "Mã đặt lại mật khẩu chưa đúng hoặc đã hết hạn."),
+      });
     } finally {
       setSubmitting(false);
     }
@@ -131,7 +154,10 @@ export function ResetPasswordPage() {
       setErrors({});
       setStatus({ tone: "info", message: "Mã xác minh mới đã được gửi đến email của bạn." });
     } catch (error) {
-      setStatus({ tone: "error", message: getFriendlyError(error, "Không thể gửi lại mã lúc này. Vui lòng thử lại sau.") });
+      setStatus({
+        tone: "error",
+        message: getFriendlyError(error, "Không thể gửi lại mã lúc này. Vui lòng thử lại sau."),
+      });
     } finally {
       setResending(false);
     }
@@ -152,7 +178,7 @@ export function ResetPasswordPage() {
       setResetComplete(true);
       setStatus({
         tone: "success",
-        message: "Đặt lại mật khẩu thành công! Đang chuyển hướng sang trang đăng nhập..."
+        message: "Đặt lại mật khẩu thành công! Đang chuyển hướng sang trang đăng nhập...",
       });
       window.setTimeout(() => {
         router.push("/login");
@@ -162,7 +188,10 @@ export function ResetPasswordPage() {
       if (fieldErrors) {
         setErrors((prev) => ({ ...prev, ...fieldErrors }));
       }
-      setStatus({ tone: "error", message: getFriendlyError(error, "Không thể đặt lại mật khẩu. Vui lòng thử lại.") });
+      setStatus({
+        tone: "error",
+        message: getFriendlyError(error, "Không thể đặt lại mật khẩu. Vui lòng thử lại."),
+      });
     } finally {
       setSubmitting(false);
     }
@@ -181,7 +210,10 @@ export function ResetPasswordPage() {
           {status ? <AlertMessage tone={status.tone}>{status.message}</AlertMessage> : null}
           <p className="text-center text-xs leading-5 text-muted sm:text-sm">
             Nhập mã OTP gồm 6 chữ số đã gửi đến{" "}
-            <span className="font-semibold text-primary">{isEmail(email) ? email.trim() : "email của bạn"}</span> để tiếp tục.
+            <span className="font-semibold text-primary">
+              {isEmail(email) ? email.trim() : "email của bạn"}
+            </span>{" "}
+            để tiếp tục.
           </p>
 
           <FormField
@@ -223,7 +255,11 @@ export function ResetPasswordPage() {
               type="button"
               onClick={handleResendOtp}
             >
-              {cooldown > 0 ? `Gửi lại sau ${cooldown}s` : resending ? "Đang gửi..." : "Gửi lại OTP"}
+              {cooldown > 0
+                ? `Gửi lại sau ${cooldown}s`
+                : resending
+                  ? "Đang gửi..."
+                  : "Gửi lại OTP"}
             </button>
           </div>
 
@@ -241,13 +277,20 @@ export function ResetPasswordPage() {
 
           <p className="pt-1 text-center text-xs text-muted sm:text-sm">
             Nhớ lại mật khẩu?{" "}
-            <Link className="focus-ring rounded-lg font-semibold text-primary hover:text-primary-dark" href="/login">
+            <Link
+              className="focus-ring rounded-lg font-semibold text-primary hover:text-primary-dark"
+              href="/login"
+            >
               Quay lại đăng nhập
             </Link>
           </p>
         </form>
       ) : (
-        <form className="space-y-4 sm:space-y-4.5 animate-page" noValidate onSubmit={handleResetPassword}>
+        <form
+          className="space-y-4 sm:space-y-4.5 animate-page"
+          noValidate
+          onSubmit={handleResetPassword}
+        >
           {status ? <AlertMessage tone={status.tone}>{status.message}</AlertMessage> : null}
           <p className="text-center text-xs leading-5 text-muted sm:text-sm">
             Tạo mật khẩu mới an toàn cho tài khoản EduAlto của bạn.
@@ -293,7 +336,10 @@ export function ResetPasswordPage() {
 
           <p className="pt-1 text-center text-xs text-muted sm:text-sm">
             {resetComplete ? (
-              <Link className="focus-ring rounded-lg font-semibold text-primary hover:text-primary-dark" href="/login">
+              <Link
+                className="focus-ring rounded-lg font-semibold text-primary hover:text-primary-dark"
+                href="/login"
+              >
                 Đăng nhập ngay
               </Link>
             ) : (

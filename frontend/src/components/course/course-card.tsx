@@ -1,5 +1,5 @@
 "use client";
- 
+
 import Image from "next/image";
 import { ArrowUpRight, Clock3, Star } from "lucide-react";
 import { useState } from "react";
@@ -9,7 +9,7 @@ import { cn } from "@/lib/cn";
 const accentClass: Record<Course["accent"], string> = {
   design: "text-primary",
   coding: "text-primary",
-  vibe: "text-primary"
+  vibe: "text-primary",
 };
 
 export function CourseCard({ course }: { course: Course }) {
@@ -80,26 +80,60 @@ export function CourseCard({ course }: { course: Course }) {
 
           <div className="text-right">
             <p className="whitespace-nowrap text-[26px] font-bold text-[#3fc89e]">{course.price}</p>
-            <button type="button" onClick={() => setIsPreviewOpen(true)} className="focus-ring mt-1 text-xs font-semibold text-primary underline-offset-2 hover:underline">Xem chi tiết</button>
+            <button
+              type="button"
+              onClick={() => setIsPreviewOpen(true)}
+              className="focus-ring mt-1 text-xs font-semibold text-primary underline-offset-2 hover:underline"
+            >
+              Xem chi tiết
+            </button>
           </div>
         </div>
       </div>
       {isPreviewOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-5" role="presentation" onMouseDown={() => setIsPreviewOpen(false)}>
-          <section role="dialog" aria-modal="true" aria-labelledby={`${course.id}-title`} className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl" onMouseDown={(event) => event.stopPropagation()}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-5"
+          role="presentation"
+          onMouseDown={() => setIsPreviewOpen(false)}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={`${course.id}-title`}
+            className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold text-primary">{course.category}</p>
-                <h3 id={`${course.id}-title`} className="mt-2 text-xl font-bold text-ink">{course.title}</h3>
+                <h3 id={`${course.id}-title`} className="mt-2 text-xl font-bold text-ink">
+                  {course.title}
+                </h3>
               </div>
-              <button type="button" aria-label="Đóng xem trước khóa học" onClick={() => setIsPreviewOpen(false)} className="focus-ring rounded-md px-2 text-2xl leading-none text-muted hover:text-ink">×</button>
+              <button
+                type="button"
+                aria-label="Đóng xem trước khóa học"
+                onClick={() => setIsPreviewOpen(false)}
+                className="focus-ring rounded-md px-2 text-2xl leading-none text-muted hover:text-ink"
+              >
+                ×
+              </button>
             </div>
             <p className="mt-4 text-sm leading-6 text-muted">{course.description}</p>
             <dl className="mt-5 grid grid-cols-2 gap-3 text-sm">
-              <div className="rounded-lg bg-primary-soft p-3"><dt className="text-muted">Thời lượng</dt><dd className="mt-1 font-semibold text-ink">{course.duration}</dd></div>
-              <div className="rounded-lg bg-primary-soft p-3"><dt className="text-muted">Giảng viên</dt><dd className="mt-1 font-semibold text-ink">{course.instructor}</dd></div>
+              <div className="rounded-lg bg-primary-soft p-3">
+                <dt className="text-muted">Thời lượng</dt>
+                <dd className="mt-1 font-semibold text-ink">{course.duration}</dd>
+              </div>
+              <div className="rounded-lg bg-primary-soft p-3">
+                <dt className="text-muted">Giảng viên</dt>
+                <dd className="mt-1 font-semibold text-ink">{course.instructor}</dd>
+              </div>
             </dl>
-            <p className="mt-5 text-sm text-muted">Đây là bản xem trước khóa học. Tính năng đăng ký học sẽ được mở khi module khóa học hoàn thiện.</p>
+            <p className="mt-5 text-sm text-muted">
+              Đây là bản xem trước khóa học. Tính năng đăng ký học sẽ được mở khi module khóa học
+              hoàn thiện.
+            </p>
           </section>
         </div>
       ) : null}

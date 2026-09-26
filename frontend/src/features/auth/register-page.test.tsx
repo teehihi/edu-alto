@@ -64,7 +64,7 @@ describe("RegisterPage", () => {
       password: "Matkhau123",
       confirmPassword: "Matkhau123",
       role: "STUDENT",
-      bio: "Học React và Spring Boot"
+      bio: "Học React và Spring Boot",
     });
     expect(pushMock).toHaveBeenCalledWith("/verify-email?email=thien%40example.com&sent=1");
   });
@@ -78,7 +78,10 @@ describe("RegisterPage", () => {
     await user.click(instructorRadio);
 
     expect(instructorRadio).toHaveAttribute("aria-checked", "true");
-    expect(screen.getByRole("radio", { name: /học viên/i })).toHaveAttribute("aria-checked", "false");
+    expect(screen.getByRole("radio", { name: /học viên/i })).toHaveAttribute(
+      "aria-checked",
+      "false",
+    );
 
     await user.type(screen.getByLabelText("Họ và tên"), "Thầy Giáo Ba");
     await user.type(screen.getByLabelText("Email"), "teacher@example.com");
@@ -101,7 +104,7 @@ describe("RegisterPage", () => {
       confirmPassword: "Matkhau123",
       role: "INSTRUCTOR",
       expertise: "Công nghệ Web",
-      bio: "10 năm kinh nghiệm IT"
+      bio: "10 năm kinh nghiệm IT",
     });
   });
 });

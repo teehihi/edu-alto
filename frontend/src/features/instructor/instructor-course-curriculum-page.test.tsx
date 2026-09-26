@@ -33,9 +33,9 @@ const mockStructure: CourseStructure = {
           status: "PUBLISHED",
           position: 1,
           createdAt: "2026-09-23T00:00:00Z",
-          updatedAt: "2026-09-23T00:00:00Z"
-        }
-      ]
+          updatedAt: "2026-09-23T00:00:00Z",
+        },
+      ],
     },
     {
       id: "sec-2",
@@ -57,33 +57,38 @@ const mockStructure: CourseStructure = {
           status: "PUBLISHED",
           position: 1,
           createdAt: "2026-09-23T00:00:00Z",
-          updatedAt: "2026-09-23T00:00:00Z"
-        }
-      ]
-    }
-  ]
+          updatedAt: "2026-09-23T00:00:00Z",
+        },
+      ],
+    },
+  ],
 };
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/instructor/courses/c1111111-1111-1111-1111-111111111111/curriculum",
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() })
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 
 vi.mock("@/components/layout/app-header", () => ({
-  AppHeader: () => <div data-testid="app-header" />
+  AppHeader: () => <div data-testid="app-header" />,
 }));
 
 vi.mock("@/components/layout/footer", () => ({
-  Footer: () => <div data-testid="footer" />
+  Footer: () => <div data-testid="footer" />,
 }));
 
 vi.mock("@/features/auth/auth-client", () => ({
   useAuth: () => ({
-    user: { id: "u-1", fullName: "Giảng viên A", email: "teacher@edualto.com", roles: ["INSTRUCTOR"] },
+    user: {
+      id: "u-1",
+      fullName: "Giảng viên A",
+      email: "teacher@edualto.com",
+      roles: ["INSTRUCTOR"],
+    },
     accessToken: "mock-token",
     loading: false,
-    isAuthenticated: true
-  })
+    isAuthenticated: true,
+  }),
 }));
 
 describe("InstructorCourseCurriculumPage", () => {
@@ -117,7 +122,7 @@ describe("InstructorCourseCurriculumPage", () => {
       description: "Mô tả chương 3",
       position: 3,
       createdAt: "2026-09-23T00:00:00Z",
-      updatedAt: "2026-09-23T00:00:00Z"
+      updatedAt: "2026-09-23T00:00:00Z",
     });
 
     render(<InstructorCourseCurriculumPage courseId={mockStructure.courseId} />);
@@ -136,7 +141,7 @@ describe("InstructorCourseCurriculumPage", () => {
       expect(createSectionSpy).toHaveBeenCalledWith(
         mockStructure.courseId,
         expect.objectContaining({ title: "Chương 3: State Management" }),
-        "mock-token"
+        "mock-token",
       );
     });
   });
@@ -156,7 +161,7 @@ describe("InstructorCourseCurriculumPage", () => {
       status: "PUBLISHED",
       position: 2,
       createdAt: "2026-09-23T00:00:00Z",
-      updatedAt: "2026-09-23T00:00:00Z"
+      updatedAt: "2026-09-23T00:00:00Z",
     });
 
     render(<InstructorCourseCurriculumPage courseId={mockStructure.courseId} />);
@@ -177,7 +182,7 @@ describe("InstructorCourseCurriculumPage", () => {
         mockStructure.courseId,
         "sec-1",
         expect.objectContaining({ title: "Bài mới: TypeScript Generics" }),
-        "mock-token"
+        "mock-token",
       );
     });
   });
@@ -201,10 +206,10 @@ describe("InstructorCourseCurriculumPage", () => {
         {
           items: [
             { id: "sec-2", position: 1 },
-            { id: "sec-1", position: 2 }
-          ]
+            { id: "sec-1", position: 2 },
+          ],
         },
-        "mock-token"
+        "mock-token",
       );
     });
   });
@@ -227,11 +232,7 @@ describe("InstructorCourseCurriculumPage", () => {
     await user.click(confirmDeleteBtn);
 
     await waitFor(() => {
-      expect(deleteSectionSpy).toHaveBeenCalledWith(
-        mockStructure.courseId,
-        "sec-1",
-        "mock-token"
-      );
+      expect(deleteSectionSpy).toHaveBeenCalledWith(mockStructure.courseId, "sec-1", "mock-token");
     });
   });
 });

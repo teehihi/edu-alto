@@ -14,7 +14,7 @@ import {
   Settings,
   ShoppingCart,
   User as UserIcon,
-  X
+  X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
@@ -25,7 +25,7 @@ const navItems = [
   { label: "Trang chủ", href: "/" },
   { label: "Khóa học", href: "/courses" },
   { label: "Về chúng tôi", href: "/about" },
-  { label: "Liên hệ", href: "/contact" }
+  { label: "Liên hệ", href: "/contact" },
 ];
 
 const authLinkClass =
@@ -33,7 +33,7 @@ const authLinkClass =
 
 export function AppHeader({
   transparent = false,
-  sticky = true
+  sticky = true,
 }: {
   transparent?: boolean;
   sticky?: boolean;
@@ -133,11 +133,14 @@ export function AppHeader({
       className={cn(
         "z-40 transition-all duration-300 ease-in-out",
         isSticky
-          ? cn("sticky top-0", isVisible ? "translate-y-0" : "-translate-y-full pointer-events-none")
+          ? cn(
+              "sticky top-0",
+              isVisible ? "translate-y-0" : "-translate-y-full pointer-events-none",
+            )
           : "relative",
         transparent && !isScrolled
           ? "bg-transparent border-transparent"
-          : "border-b border-slate-100 bg-white/95 backdrop-blur-md shadow-xs"
+          : "border-b border-slate-100 bg-white/95 backdrop-blur-md shadow-xs",
       )}
     >
       <div className="mx-auto flex min-h-[80px] w-full max-w-[1440px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8 xl:px-12">
@@ -177,7 +180,10 @@ export function AppHeader({
         </div>
 
         {/* Navigation Links */}
-        <nav className="hidden items-center gap-6 text-sm font-semibold text-ink lg:flex" aria-label="Điều hướng chính">
+        <nav
+          className="hidden items-center gap-6 text-sm font-semibold text-ink lg:flex"
+          aria-label="Điều hướng chính"
+        >
           {navItems.map((item) => {
             const isActive =
               item.href === "/"
@@ -189,9 +195,7 @@ export function AppHeader({
                 href={item.href}
                 className={cn(
                   "focus-ring rounded-md py-1 transition",
-                  isActive
-                    ? "font-bold text-primary"
-                    : "text-slate-700 hover:text-primary"
+                  isActive ? "font-bold text-primary" : "text-slate-700 hover:text-primary",
                 )}
               >
                 {item.label}
@@ -252,7 +256,7 @@ export function AppHeader({
                   <ChevronDown
                     className={cn(
                       "h-4 w-4 text-primary transition-transform duration-200",
-                      isUserMenuOpen && "rotate-180"
+                      isUserMenuOpen && "rotate-180",
                     )}
                     aria-hidden="true"
                   />
@@ -292,13 +296,15 @@ export function AppHeader({
                       onClick={() => setIsUserMenuOpen(false)}
                       className={cn(
                         "group flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold transition hover:bg-slate-50 hover:text-primary",
-                        pathname === "/profile" ? "text-primary bg-primary-soft/50" : "text-slate-700"
+                        pathname === "/profile"
+                          ? "text-primary bg-primary-soft/50"
+                          : "text-slate-700",
                       )}
                     >
                       <UserIcon
                         className={cn(
                           "h-4 w-4 transition-colors group-hover:text-primary",
-                          pathname === "/profile" ? "text-primary" : "text-slate-400"
+                          pathname === "/profile" ? "text-primary" : "text-slate-400",
                         )}
                       />
                       <span>Trang cá nhân</span>
@@ -370,7 +376,11 @@ export function AppHeader({
       {isOpen ? (
         <div className="border-t border-slate-100 bg-white px-4 pb-6 pt-4 lg:hidden animate-page">
           {/* Mobile Search */}
-          <form className="flex items-center rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 shadow-xs" action="/courses" method="get">
+          <form
+            className="flex items-center rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 shadow-xs"
+            action="/courses"
+            method="get"
+          >
             <Search className="h-4 w-4 text-slate-400" aria-hidden="true" />
             <label className="sr-only" htmlFor="mobile-search">
               Tìm kiếm khóa học
@@ -387,9 +397,16 @@ export function AppHeader({
           {isAuthed && user ? (
             <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50/80 p-3">
               <div className="flex items-center gap-3">
-                <UserAvatar name={user.fullName} email={user.email} avatarUrl={user.avatarUrl} size="md" />
+                <UserAvatar
+                  name={user.fullName}
+                  email={user.email}
+                  avatarUrl={user.avatarUrl}
+                  size="md"
+                />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-bold text-heading">{user.fullName || "Tài khoản"}</p>
+                  <p className="truncate text-sm font-bold text-heading">
+                    {user.fullName || "Tài khoản"}
+                  </p>
                   <p className="truncate text-xs text-muted">{user.email}</p>
                 </div>
                 <span className="rounded-md bg-primary-soft px-2 py-0.5 text-xs font-semibold text-primary">
@@ -424,13 +441,13 @@ export function AppHeader({
                     "group focus-ring flex items-center gap-2.5 rounded-xl border px-4 py-2.5 text-sm font-semibold transition hover:bg-slate-50 hover:text-primary",
                     pathname === "/profile"
                       ? "border-primary/30 bg-primary-soft/40 text-primary"
-                      : "border-slate-200 bg-white text-ink"
+                      : "border-slate-200 bg-white text-ink",
                   )}
                 >
                   <UserIcon
                     className={cn(
                       "h-4 w-4 transition-colors group-hover:text-primary",
-                      pathname === "/profile" ? "text-primary" : "text-slate-400"
+                      pathname === "/profile" ? "text-primary" : "text-slate-400",
                     )}
                   />
                   <span>Trang cá nhân</span>

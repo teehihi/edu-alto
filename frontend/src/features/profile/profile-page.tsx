@@ -15,18 +15,21 @@ import {
   SlidersHorizontal,
   Star,
   UploadCloud,
-  Youtube
+  Youtube,
 } from "lucide-react";
-import { type ChangeEvent, type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type ChangeEvent,
+  type FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 function TikTokIcon({ className }: { className?: string }) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      className={className}
-      aria-hidden="true"
-    >
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
       <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1.04-.1z" />
     </svg>
   );
@@ -51,35 +54,103 @@ export interface ProfilePageProps {
 }
 
 const TEACHER_DATA_LIST = [
-  { id: "1", name: "Thầy Hoàng Văn Dũng", role: "Phó trưởng khoa CNTT", image: "/images/home/instructor-dung.png" },
-  { id: "2", name: "Thầy Hoàng Văn Dũng", role: "Phó trưởng khoa CNTT", image: "/images/home/instructor-dung.png" },
-  { id: "3", name: "Thầy Hoàng Văn Dũng", role: "Phó trưởng khoa CNTT", image: "/images/home/instructor-dung.png" },
-  { id: "4", name: "Thầy Hoàng Văn Dũng", role: "Phó trưởng khoa CNTT", image: "/images/home/instructor-dung.png" },
-  { id: "5", name: "Thầy Hoàng Văn Dũng", role: "Phó trưởng khoa CNTT", image: "/images/home/instructor-dung.png" },
-  { id: "6", name: "Thầy Hoàng Văn Dũng", role: "Phó trưởng khoa CNTT", image: "/images/home/instructor-dung.png" },
-  { id: "7", name: "Thầy Hoàng Văn Dũng", role: "Phó trưởng khoa CNTT", image: "/images/home/instructor-dung.png" },
-  { id: "8", name: "Thầy Hoàng Văn Dũng", role: "Phó trưởng khoa CNTT", image: "/images/home/instructor-dung.png" },
-  { id: "9", name: "TS. Nguyễn Thành Sơn", role: "Trưởng bộ môn CSDL", image: "/images/home/instructor-son.png" },
-  { id: "10", name: "ThS. Trần Mạnh Hùng", role: "Giảng viên Cao cấp", image: "/images/home/instructor-hung.png" },
-  { id: "11", name: "TS. Đặng Thị Minh Tuấn", role: "Trưởng bộ môn Lý Luận", image: "/images/home/instructor-tuan.png" },
-  { id: "12", name: "PSG. TS. Hoàng Văn Dũng", role: "Phó Trưởng khoa CNTT", image: "/images/home/instructor-dung.png" }
+  {
+    id: "1",
+    name: "Thầy Hoàng Văn Dũng",
+    role: "Phó trưởng khoa CNTT",
+    image: "/images/home/instructor-dung.png",
+  },
+  {
+    id: "2",
+    name: "Thầy Hoàng Văn Dũng",
+    role: "Phó trưởng khoa CNTT",
+    image: "/images/home/instructor-dung.png",
+  },
+  {
+    id: "3",
+    name: "Thầy Hoàng Văn Dũng",
+    role: "Phó trưởng khoa CNTT",
+    image: "/images/home/instructor-dung.png",
+  },
+  {
+    id: "4",
+    name: "Thầy Hoàng Văn Dũng",
+    role: "Phó trưởng khoa CNTT",
+    image: "/images/home/instructor-dung.png",
+  },
+  {
+    id: "5",
+    name: "Thầy Hoàng Văn Dũng",
+    role: "Phó trưởng khoa CNTT",
+    image: "/images/home/instructor-dung.png",
+  },
+  {
+    id: "6",
+    name: "Thầy Hoàng Văn Dũng",
+    role: "Phó trưởng khoa CNTT",
+    image: "/images/home/instructor-dung.png",
+  },
+  {
+    id: "7",
+    name: "Thầy Hoàng Văn Dũng",
+    role: "Phó trưởng khoa CNTT",
+    image: "/images/home/instructor-dung.png",
+  },
+  {
+    id: "8",
+    name: "Thầy Hoàng Văn Dũng",
+    role: "Phó trưởng khoa CNTT",
+    image: "/images/home/instructor-dung.png",
+  },
+  {
+    id: "9",
+    name: "TS. Nguyễn Thành Sơn",
+    role: "Trưởng bộ môn CSDL",
+    image: "/images/home/instructor-son.png",
+  },
+  {
+    id: "10",
+    name: "ThS. Trần Mạnh Hùng",
+    role: "Giảng viên Cao cấp",
+    image: "/images/home/instructor-hung.png",
+  },
+  {
+    id: "11",
+    name: "TS. Đặng Thị Minh Tuấn",
+    role: "Trưởng bộ môn Lý Luận",
+    image: "/images/home/instructor-tuan.png",
+  },
+  {
+    id: "12",
+    name: "PSG. TS. Hoàng Văn Dũng",
+    role: "Phó Trưởng khoa CNTT",
+    image: "/images/home/instructor-dung.png",
+  },
 ];
 
 const TEACHER_SORT_OPTIONS = [
   { value: "relevance", label: "Độ liên quan" },
   { value: "name", label: "Tên giảng viên" },
-  { value: "recent", label: "Mới tham gia" }
+  { value: "recent", label: "Mới tham gia" },
 ];
 
 const LANGUAGE_OPTIONS = [
   { value: "vi", label: "Tiếng Việt" },
   { value: "en", label: "English (US)" },
   { value: "ja", label: "日本語 (Japanese)" },
-  { value: "ko", label: "한국어 (Korean)" }
+  { value: "ko", label: "한국어 (Korean)" },
 ];
 
 export function ProfilePage({ targetIdentifier, defaultEditing = false }: ProfilePageProps) {
-  const { user, loading: authLoading, isAuthenticated, getProfile, updateProfile, uploadAvatar, updateUserAvatar } = useAuth();
+  const {
+    user,
+    loading: authLoading,
+    isAuthenticated,
+    getProfile,
+    updateProfile,
+    uploadAvatar,
+    updateUserAvatar,
+  } = useAuth();
   const [activeTab, setActiveTab] = useState<ActiveTab>("personal");
   const [profileData, setProfileData] = useState<UserProfile | null>(null);
   const [isEditing, setIsEditing] = useState(defaultEditing);
@@ -113,7 +184,10 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
   const [specialties, setSpecialties] = useState("");
 
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [status, setStatus] = useState<{ tone: "success" | "error" | "info"; message: string } | null>(null);
+  const [status, setStatus] = useState<{
+    tone: "success" | "error" | "info";
+    message: string;
+  } | null>(null);
   const [modalConfig, setModalConfig] = useState<{
     isOpen: boolean;
     title: string;
@@ -125,7 +199,7 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
     title: "",
     description: "",
     tone: "success",
-    confirmText: "Đã hiểu"
+    confirmText: "Đã hiểu",
   });
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -191,7 +265,11 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
 
     if (data.instructorProfile) {
       setExpertise(data.instructorProfile.expertise || "");
-      setExperienceYears(data.instructorProfile.experienceYears != null ? String(data.instructorProfile.experienceYears) : "");
+      setExperienceYears(
+        data.instructorProfile.experienceYears != null
+          ? String(data.instructorProfile.experienceYears)
+          : "",
+      );
       setTeachingExperience(data.instructorProfile.teachingExperience || "");
       setQualificationSummary(data.instructorProfile.qualificationSummary || "");
       setSpecialties(data.instructorProfile.specialties || "");
@@ -261,7 +339,7 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
       vi: "Tiếng Việt",
       en: "English (US)",
       ja: "日本語",
-      ko: "한국어"
+      ko: "한국어",
     };
     return map[language] || "Tiếng Việt";
   }, [language]);
@@ -280,7 +358,9 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
     let list = [...TEACHER_DATA_LIST];
     if (teacherSearch.trim()) {
       const q = teacherSearch.toLowerCase();
-      list = list.filter((t) => t.name.toLowerCase().includes(q) || t.role.toLowerCase().includes(q));
+      list = list.filter(
+        (t) => t.name.toLowerCase().includes(q) || t.role.toLowerCase().includes(q),
+      );
     }
     if (teacherSort === "name") {
       list.sort((a, b) => a.name.localeCompare(b.name, "vi"));
@@ -303,7 +383,7 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
         title: "Định dạng không hỗ trợ",
         description: errMsg,
         tone: "error",
-        confirmText: "Đã hiểu"
+        confirmText: "Đã hiểu",
       });
       setStatus({ tone: "error", message: errMsg });
       return;
@@ -316,7 +396,7 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
         title: "Tệp quá lớn",
         description: errMsg,
         tone: "error",
-        confirmText: "Đã hiểu"
+        confirmText: "Đã hiểu",
       });
       setStatus({ tone: "error", message: errMsg });
       return;
@@ -359,7 +439,7 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
       "experienceYears",
       "teachingExperience",
       "qualificationSummary",
-      "specialties"
+      "specialties",
     ];
 
     const firstKey = fieldOrder.find((k) => errors[k]) || errorKeys[0];
@@ -382,7 +462,8 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
     if (customHandle.trim()) {
       const handle = customHandle.trim().toLowerCase();
       if (!/^[a-z0-9._-]{3,30}$/.test(handle)) {
-        errors.customHandle = "Đường dẫn chỉ được chứa chữ thường không dấu (a-z), số (0-9) và dấu ., _ hoặc - (từ 3-30 ký tự)";
+        errors.customHandle =
+          "Đường dẫn chỉ được chứa chữ thường không dấu (a-z), số (0-9) và dấu ., _ hoặc - (từ 3-30 ký tự)";
       }
     }
 
@@ -457,7 +538,7 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
         experienceYears: isInstructor && experienceYears ? Number(experienceYears) : undefined,
         teachingExperience: isInstructor ? teachingExperience.trim() || undefined : undefined,
         qualificationSummary: isInstructor ? qualificationSummary.trim() || undefined : undefined,
-        specialties: isInstructor ? specialties.trim() || undefined : undefined
+        specialties: isInstructor ? specialties.trim() || undefined : undefined,
       };
 
       const updated = await updateProfile(payload);
@@ -471,16 +552,21 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
         title: "Thành công!",
         description: successMsg,
         tone: "success",
-        confirmText: "Tuyệt vời"
+        confirmText: "Tuyệt vời",
       });
     } catch (err) {
       if (err instanceof ApiClientError) {
         if (err.code === "HANDLE_ALREADY_EXISTS") {
-          const handleErr = { customHandle: "Đường dẫn cá nhân này đã được sử dụng bởi người khác" };
+          const handleErr = {
+            customHandle: "Đường dẫn cá nhân này đã được sử dụng bởi người khác",
+          };
           setFieldErrors(handleErr);
           setTimeout(() => scrollToFirstError(handleErr), 50);
         } else if (err.code === "INVALID_CUSTOM_HANDLE") {
-          const handleErr = { customHandle: "Đường dẫn chỉ được chứa chữ thường không dấu (a-z), số (0-9) và dấu ., _ hoặc - (từ 3-30 ký tự)" };
+          const handleErr = {
+            customHandle:
+              "Đường dẫn chỉ được chứa chữ thường không dấu (a-z), số (0-9) và dấu ., _ hoặc - (từ 3-30 ký tự)",
+          };
           setFieldErrors(handleErr);
           setTimeout(() => scrollToFirstError(handleErr), 50);
         }
@@ -492,7 +578,7 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
         title: "Đã xảy ra lỗi",
         description: errorMsg,
         tone: "error",
-        confirmText: "Đã hiểu"
+        confirmText: "Đã hiểu",
       });
     } finally {
       setSaving(false);
@@ -503,9 +589,10 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
     setModalConfig({
       isOpen: true,
       title: `Gửi tin nhắn đến ${teacherName}`,
-      description: "Tính năng trò chuyện trực tiếp với giảng viên sẽ sớm ra mắt trong phiên bản tiếp theo!",
+      description:
+        "Tính năng trò chuyện trực tiếp với giảng viên sẽ sớm ra mắt trong phiên bản tiếp theo!",
       tone: "info",
-      confirmText: "Đã hiểu"
+      confirmText: "Đã hiểu",
     });
   }
 
@@ -513,7 +600,10 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
     return (
       <div
         className="flex min-h-screen flex-col justify-between"
-        style={{ background: "linear-gradient(180deg, #E6F7F2 0%, #F2FAF7 320px, #FFFFFF 680px, #FFFFFF 100%)" }}
+        style={{
+          background:
+            "linear-gradient(180deg, #E6F7F2 0%, #F2FAF7 320px, #FFFFFF 680px, #FFFFFF 100%)",
+        }}
       >
         <AppHeader transparent />
         <main className="flex-1 min-h-[calc(100vh-72px)] py-6 sm:py-8 flex flex-col justify-start">
@@ -529,7 +619,10 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
   return (
     <div
       className="flex min-h-screen flex-col justify-between animate-page"
-      style={{ background: "linear-gradient(180deg, #E6F7F2 0%, #F2FAF7 320px, #FFFFFF 680px, #FFFFFF 100%)" }}
+      style={{
+        background:
+          "linear-gradient(180deg, #E6F7F2 0%, #F2FAF7 320px, #FFFFFF 680px, #FFFFFF 100%)",
+      }}
     >
       <AppHeader transparent />
 
@@ -542,7 +635,8 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
               </div>
               <h2 className="mt-4 text-xl font-bold text-heading">Bạn chưa đăng nhập</h2>
               <p className="mx-auto mt-2 max-w-md text-sm text-muted">
-                Đăng nhập hoặc đăng ký tài khoản để khám phá khóa học và quản lý hồ sơ của bạn trên EduAlto.
+                Đăng nhập hoặc đăng ký tài khoản để khám phá khóa học và quản lý hồ sơ của bạn trên
+                EduAlto.
               </p>
               <div className="mt-6 flex justify-center gap-3">
                 <Link
@@ -600,14 +694,14 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                           "focus-ring relative inline-flex h-9 min-w-[130px] items-center justify-center overflow-hidden rounded-xl border text-xs font-semibold shadow-xs transition-all duration-300 active:scale-95",
                           copiedShare
                             ? "border-primary bg-primary text-white shadow-primary/20"
-                            : "border-slate-200/90 bg-white text-slate-700 hover:border-primary hover:text-primary hover:bg-[#F2FAF7]"
+                            : "border-slate-200/90 bg-white text-slate-700 hover:border-primary hover:text-primary hover:bg-[#F2FAF7]",
                         )}
                       >
                         {/* State 1: Chia sẻ hồ sơ + Share2 icon */}
                         <span
                           className={cn(
                             "inline-flex items-center gap-1.5 transition-all duration-300",
-                            copiedShare ? "-translate-y-8 opacity-0" : "translate-y-0 opacity-100"
+                            copiedShare ? "-translate-y-8 opacity-0" : "translate-y-0 opacity-100",
                           )}
                         >
                           <span>Chia sẻ hồ sơ</span>
@@ -618,7 +712,7 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                         <span
                           className={cn(
                             "absolute inline-flex items-center gap-1 font-semibold text-white transition-all duration-300",
-                            copiedShare ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"
+                            copiedShare ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0",
                           )}
                         >
                           <CheckCircle2 className="h-3.5 w-3.5 stroke-[2.5]" />
@@ -639,7 +733,7 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                             "focus-ring flex w-full items-center justify-between rounded-2xl px-4 py-3.5 text-left text-sm font-semibold transition",
                             activeTab === "personal"
                               ? "bg-primary text-white shadow-xs"
-                              : "text-slate-700 hover:bg-slate-50"
+                              : "text-slate-700 hover:bg-slate-50",
                           )}
                         >
                           <span>Trang cá nhân</span>
@@ -664,7 +758,7 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                               "focus-ring flex w-full items-center justify-between rounded-2xl px-4 py-3.5 text-left text-sm font-medium transition",
                               activeTab === "instructor"
                                 ? "bg-primary text-white font-semibold shadow-xs"
-                                : "text-slate-700 hover:bg-slate-50"
+                                : "text-slate-700 hover:bg-slate-50",
                             )}
                           >
                             <span>Giảng viên</span>
@@ -684,7 +778,7 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                               "focus-ring flex w-full items-center justify-between rounded-2xl px-4 py-3.5 text-left text-sm font-medium transition",
                               activeTab === "reviews"
                                 ? "bg-primary text-white font-semibold shadow-xs"
-                                : "text-slate-700 hover:bg-slate-50"
+                                : "text-slate-700 hover:bg-slate-50",
                             )}
                           >
                             <span>Đánh giá của tôi</span>
@@ -715,9 +809,15 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                           {/* Header: Name, Headline & Edit button / Language badge */}
                           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                             <div>
-                              <h1 className="text-xl sm:text-2xl font-bold text-heading">{combinedFullName}</h1>
+                              <h1 className="text-xl sm:text-2xl font-bold text-heading">
+                                {combinedFullName}
+                              </h1>
                               <p className="mt-1 text-sm text-muted font-medium">
-                                {headline || profileData?.headline || (isInstructor ? "Giảng viên tại EduAlto" : "Học viên tại EduAlto")}
+                                {headline ||
+                                  profileData?.headline ||
+                                  (isInstructor
+                                    ? "Giảng viên tại EduAlto"
+                                    : "Học viên tại EduAlto")}
                               </p>
                             </div>
 
@@ -756,7 +856,9 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                             <div className="flex items-center gap-6 pt-4 border-t border-slate-100 text-sm">
                               <div className="flex items-center gap-2">
                                 <span className="text-base font-bold text-heading">12</span>
-                                <span className="text-xs text-muted font-medium">Khoá học đã tạo</span>
+                                <span className="text-xs text-muted font-medium">
+                                  Khoá học đã tạo
+                                </span>
                               </div>
                               <div className="flex items-center gap-2">
                                 <span className="text-base font-bold text-heading">2.4K</span>
@@ -772,11 +874,15 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                             <div className="flex items-center gap-6 pt-4 border-t border-slate-100 text-sm">
                               <div className="flex items-center gap-2">
                                 <span className="text-base font-bold text-heading">4</span>
-                                <span className="text-xs text-muted font-medium">Khoá học đã tham gia</span>
+                                <span className="text-xs text-muted font-medium">
+                                  Khoá học đã tham gia
+                                </span>
                               </div>
                               <div className="flex items-center gap-2">
                                 <span className="text-base font-bold text-heading">12</span>
-                                <span className="text-xs text-muted font-medium">Bài học đã hoàn thành</span>
+                                <span className="text-xs text-muted font-medium">
+                                  Bài học đã hoàn thành
+                                </span>
                               </div>
                             </div>
                           )}
@@ -804,7 +910,9 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                                     {websiteUrl}
                                   </a>
                                 ) : (
-                                  <span className="text-xs sm:text-sm text-slate-400">Chưa cập nhật</span>
+                                  <span className="text-xs sm:text-sm text-slate-400">
+                                    Chưa cập nhật
+                                  </span>
                                 )}
                               </div>
                             </div>
@@ -826,7 +934,9 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                                     {tiktokUrl}
                                   </a>
                                 ) : (
-                                  <span className="text-xs sm:text-sm text-slate-400">Chưa cập nhật</span>
+                                  <span className="text-xs sm:text-sm text-slate-400">
+                                    Chưa cập nhật
+                                  </span>
                                 )}
                               </div>
                             </div>
@@ -848,7 +958,9 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                                     {linkedinUrl}
                                   </a>
                                 ) : (
-                                  <span className="text-xs sm:text-sm text-slate-400">Chưa cập nhật</span>
+                                  <span className="text-xs sm:text-sm text-slate-400">
+                                    Chưa cập nhật
+                                  </span>
                                 )}
                               </div>
                             </div>
@@ -901,7 +1013,9 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                         {/* Card 1: Main Form Fields Card */}
                         <div className="rounded-3xl border border-slate-100 bg-white p-6 sm:p-8 shadow-sm space-y-5">
                           <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                            <h3 className="text-base font-bold text-heading">Chỉnh sửa thông tin</h3>
+                            <h3 className="text-base font-bold text-heading">
+                              Chỉnh sửa thông tin
+                            </h3>
                             <button
                               type="button"
                               onClick={handleCancelEdit}
@@ -936,7 +1050,10 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                               }}
                               onBlur={() => {
                                 if (!givenName.trim()) {
-                                  setFieldErrors((prev) => ({ ...prev, givenName: "Vui lòng nhập tên của bạn" }));
+                                  setFieldErrors((prev) => ({
+                                    ...prev,
+                                    givenName: "Vui lòng nhập tên của bạn",
+                                  }));
                                 }
                               }}
                               error={fieldErrors.givenName}
@@ -957,7 +1074,10 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
 
                           {/* Custom Handle (URL Slug) Field like Facebook */}
                           <div className="space-y-1.5">
-                            <label htmlFor="customHandle" className="text-xs font-semibold text-heading sm:text-sm">
+                            <label
+                              htmlFor="customHandle"
+                              className="text-xs font-semibold text-heading sm:text-sm"
+                            >
                               Đường dẫn trang cá nhân (URL tùy chỉnh)
                             </label>
                             <div
@@ -965,7 +1085,7 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                                 "flex items-center rounded-xl border bg-white overflow-hidden transition focus-within:ring-1",
                                 fieldErrors.customHandle
                                   ? "border-rose-500 ring-1 ring-rose-500 focus-within:border-rose-500 focus-within:ring-rose-500"
-                                  : "border-[#D8E1ED] focus-within:border-primary focus-within:ring-primary"
+                                  : "border-[#D8E1ED] focus-within:border-primary focus-within:ring-primary",
                               )}
                             >
                               <span className="bg-slate-50 px-3.5 py-2.5 text-xs font-medium text-slate-500 border-r border-[#D8E1ED] select-none shrink-0">
@@ -988,7 +1108,8 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                                     if (!/^[a-z0-9._-]{3,30}$/.test(handle)) {
                                       setFieldErrors((prev) => ({
                                         ...prev,
-                                        customHandle: "Đường dẫn chỉ được chứa chữ thường không dấu (a-z), số (0-9) và dấu ., _ hoặc - (từ 3-30 ký tự)"
+                                        customHandle:
+                                          "Đường dẫn chỉ được chứa chữ thường không dấu (a-z), số (0-9) và dấu ., _ hoặc - (từ 3-30 ký tự)",
                                       }));
                                     }
                                   }
@@ -999,16 +1120,22 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                               />
                             </div>
                             {fieldErrors.customHandle ? (
-                              <p className="text-xs font-medium text-rose-600">{fieldErrors.customHandle}</p>
+                              <p className="text-xs font-medium text-rose-600">
+                                {fieldErrors.customHandle}
+                              </p>
                             ) : (
                               <p className="text-[11px] text-muted">
-                                Tùy chỉnh link hồ sơ cá nhân (3-30 ký tự, chữ thường không dấu, số, dấu ., _ hoặc -).
+                                Tùy chỉnh link hồ sơ cá nhân (3-30 ký tự, chữ thường không dấu, số,
+                                dấu ., _ hoặc -).
                               </p>
                             )}
                           </div>
 
                           <div className="space-y-1.5">
-                            <label htmlFor="bio" className="text-xs font-semibold text-heading sm:text-sm">
+                            <label
+                              htmlFor="bio"
+                              className="text-xs font-semibold text-heading sm:text-sm"
+                            >
                               Giới thiệu bản thân
                             </label>
                             <textarea
@@ -1023,7 +1150,10 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                           </div>
 
                           <div className="space-y-1.5">
-                            <label htmlFor="language" className="text-xs font-semibold text-heading sm:text-sm">
+                            <label
+                              htmlFor="language"
+                              className="text-xs font-semibold text-heading sm:text-sm"
+                            >
                               Ngôn ngữ
                             </label>
                             <CustomSelect
@@ -1061,7 +1191,7 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                               "group relative flex h-52 w-full cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed transition",
                               isDragging
                                 ? "border-primary bg-primary-soft/50"
-                                : "border-slate-200 bg-[#EEF2F6] hover:border-primary hover:bg-[#EBF7F2]/40"
+                                : "border-slate-200 bg-[#EEF2F6] hover:border-primary hover:bg-[#EBF7F2]/40",
                             )}
                             role="button"
                             tabIndex={0}
@@ -1088,9 +1218,15 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                               </div>
                             ) : (
                               <div className="flex flex-col items-center justify-center p-6 text-center">
-                                <UploadCloud className="mb-2 h-10 w-10 text-slate-400 transition group-hover:text-primary" aria-hidden="true" />
+                                <UploadCloud
+                                  className="mb-2 h-10 w-10 text-slate-400 transition group-hover:text-primary"
+                                  aria-hidden="true"
+                                />
                                 <p className="text-sm font-medium text-slate-600">
-                                  Kéo thả vào đây hoặc <span className="font-semibold text-primary underline underline-offset-2">Chọn tệp</span>
+                                  Kéo thả vào đây hoặc{" "}
+                                  <span className="font-semibold text-primary underline underline-offset-2">
+                                    Chọn tệp
+                                  </span>
                                 </p>
                                 <p className="mt-1 text-xs text-slate-400">PNG, JPG hoặc WebP</p>
                               </div>
@@ -1108,7 +1244,10 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
 
                           {/* File name display input */}
                           <div className="space-y-1.5 pt-1">
-                            <label htmlFor="avatarFileName" className="text-xs font-semibold text-heading sm:text-sm">
+                            <label
+                              htmlFor="avatarFileName"
+                              className="text-xs font-semibold text-heading sm:text-sm"
+                            >
                               Thêm/Chỉnh sửa ảnh đại diện
                             </label>
                             <input
@@ -1126,7 +1265,9 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
 
                         {/* Card 3: Social Links Card */}
                         <div className="rounded-3xl border border-slate-100 bg-white p-6 sm:p-8 shadow-sm space-y-4">
-                          <h3 className="text-base font-bold text-heading">Mạng xã hội & Liên kết</h3>
+                          <h3 className="text-base font-bold text-heading">
+                            Mạng xã hội & Liên kết
+                          </h3>
 
                           <div className="space-y-4">
                             <FormField
@@ -1145,7 +1286,8 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                                 if (websiteUrl.trim() && !/^https?:\/\//i.test(websiteUrl.trim())) {
                                   setFieldErrors((prev) => ({
                                     ...prev,
-                                    websiteUrl: "Đường dẫn website phải bắt đầu bằng http:// hoặc https://"
+                                    websiteUrl:
+                                      "Đường dẫn website phải bắt đầu bằng http:// hoặc https://",
                                   }));
                                 }
                               }}
@@ -1167,7 +1309,8 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                                 if (tiktokUrl.trim() && !/^https?:\/\//i.test(tiktokUrl.trim())) {
                                   setFieldErrors((prev) => ({
                                     ...prev,
-                                    tiktokUrl: "Đường dẫn TikTok phải bắt đầu bằng http:// hoặc https://"
+                                    tiktokUrl:
+                                      "Đường dẫn TikTok phải bắt đầu bằng http:// hoặc https://",
                                   }));
                                 }
                               }}
@@ -1233,7 +1376,10 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                     {/* Header: Title */}
                     <div>
                       <h2 className="text-xl font-bold text-primary">
-                        Giảng Viên <span className="text-sm font-semibold">({filteredAndSortedTeachers.length})</span>
+                        Giảng Viên{" "}
+                        <span className="text-sm font-semibold">
+                          ({filteredAndSortedTeachers.length})
+                        </span>
                       </h2>
                     </div>
 
@@ -1285,39 +1431,40 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                     {filteredAndSortedTeachers.length === 0 ? (
                       <div className="py-12 text-center">
                         <p className="text-sm font-medium text-slate-500">
-                          Không tìm thấy giảng viên phù hợp với từ khóa &ldquo;{teacherSearch}&rdquo;.
+                          Không tìm thấy giảng viên phù hợp với từ khóa &ldquo;{teacherSearch}
+                          &rdquo;.
                         </p>
                       </div>
                     ) : (
                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 pt-1">
                         {currentTeachers.map((teacher, idx) => (
-                            <div
-                              key={`${teacher.id}-${idx}`}
-                              className="group flex flex-col items-center rounded-2xl border border-[#E2E8F0] bg-white p-3.5 shadow-xs transition duration-200 hover:-translate-y-0.5 hover:shadow-md hover:border-primary/30"
-                            >
-                              <div className="relative h-[150px] w-full overflow-hidden rounded-xl bg-slate-100">
-                                <img
-                                  src={teacher.image}
-                                  alt={teacher.name}
-                                  className="h-full w-full object-cover object-top transition duration-300 group-hover:scale-105"
-                                />
-                              </div>
-                              <h3 className="mt-3.5 text-center text-sm font-bold text-heading line-clamp-1">
-                                {teacher.name}
-                              </h3>
-                              <p className="mt-1 text-center text-xs text-muted line-clamp-1 font-medium">
-                                {teacher.role}
-                              </p>
-                              <button
-                                type="button"
-                                onClick={() => handleMessageTeacher(teacher.name)}
-                                className="focus-ring mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-2.5 px-3 text-xs font-semibold text-white shadow-xs transition hover:bg-primary-dark active:scale-[0.98]"
-                              >
-                                <span>Gửi Tin Nhắn</span>
-                                <Mail className="h-4 w-4 stroke-[2]" />
-                              </button>
+                          <div
+                            key={`${teacher.id}-${idx}`}
+                            className="group flex flex-col items-center rounded-2xl border border-[#E2E8F0] bg-white p-3.5 shadow-xs transition duration-200 hover:-translate-y-0.5 hover:shadow-md hover:border-primary/30"
+                          >
+                            <div className="relative h-[150px] w-full overflow-hidden rounded-xl bg-slate-100">
+                              <img
+                                src={teacher.image}
+                                alt={teacher.name}
+                                className="h-full w-full object-cover object-top transition duration-300 group-hover:scale-105"
+                              />
                             </div>
-                          ))}
+                            <h3 className="mt-3.5 text-center text-sm font-bold text-heading line-clamp-1">
+                              {teacher.name}
+                            </h3>
+                            <p className="mt-1 text-center text-xs text-muted line-clamp-1 font-medium">
+                              {teacher.role}
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => handleMessageTeacher(teacher.name)}
+                              className="focus-ring mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-2.5 px-3 text-xs font-semibold text-white shadow-xs transition hover:bg-primary-dark active:scale-[0.98]"
+                            >
+                              <span>Gửi Tin Nhắn</span>
+                              <Mail className="h-4 w-4 stroke-[2]" />
+                            </button>
+                          </div>
+                        ))}
                       </div>
                     )}
 
@@ -1335,7 +1482,7 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                             &lt;
                           </button>
                           {Array.from({
-                            length: teacherTotalPages
+                            length: teacherTotalPages,
                           }).map((_, i) => {
                             const page = i + 1;
                             return (
@@ -1347,7 +1494,7 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                                   "flex h-8 w-8 items-center justify-center rounded-lg text-xs font-semibold transition",
                                   teacherPage === page
                                     ? "bg-primary text-white font-bold shadow-xs"
-                                    : "border border-slate-200 text-slate-700 hover:bg-slate-50"
+                                    : "border border-slate-200 text-slate-700 hover:bg-slate-50",
                                 )}
                               >
                                 {page}
@@ -1357,9 +1504,7 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                           <button
                             type="button"
                             onClick={() =>
-                              setTeacherPage((p) =>
-                                Math.min(teacherTotalPages, p + 1)
-                              )
+                              setTeacherPage((p) => Math.min(teacherTotalPages, p + 1))
                             }
                             disabled={teacherPage === teacherTotalPages}
                             aria-label="Trang sau"
@@ -1375,10 +1520,7 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                           aria-hidden="true"
                         >
                           {Array.from({ length: 18 }).map((_, i) => (
-                            <span
-                              key={i}
-                              className="h-1.5 w-1.5 rounded-full bg-slate-400"
-                            />
+                            <span key={i} className="h-1.5 w-1.5 rounded-full bg-slate-400" />
                           ))}
                         </div>
                       </div>
@@ -1390,16 +1532,21 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                 {activeTab === "reviews" && (
                   <div className="rounded-3xl border border-slate-100 bg-white p-8 shadow-sm space-y-4">
                     <div>
-                      <h2 className="text-lg font-bold text-heading">Đánh giá & Nhận xét của tôi</h2>
+                      <h2 className="text-lg font-bold text-heading">
+                        Đánh giá & Nhận xét của tôi
+                      </h2>
                       <p className="mt-1 text-xs text-muted sm:text-sm">
                         Xem lại các đánh giá bạn đã viết cho các khóa học trên nền tảng EduAlto.
                       </p>
                     </div>
                     <div className="rounded-2xl border border-dashed border-slate-300 p-8 text-center">
                       <BookOpen className="mx-auto h-10 w-10 text-slate-300" />
-                      <p className="mt-3 text-sm font-semibold text-heading">Chưa có đánh giá nào</p>
+                      <p className="mt-3 text-sm font-semibold text-heading">
+                        Chưa có đánh giá nào
+                      </p>
                       <p className="mt-1 text-xs text-muted">
-                        Sau khi hoàn thành các bài học, bạn có thể gửi phản hồi và chấm điểm khóa học tại đây.
+                        Sau khi hoàn thành các bài học, bạn có thể gửi phản hồi và chấm điểm khóa
+                        học tại đây.
                       </p>
                     </div>
                   </div>

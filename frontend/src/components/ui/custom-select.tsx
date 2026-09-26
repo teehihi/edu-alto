@@ -95,14 +95,14 @@ export function CustomSelect({
           "focus-ring inline-flex items-center justify-between gap-2 rounded-xl border border-[#D8E1ED] bg-white px-3 py-2 text-xs font-semibold text-heading shadow-xs transition duration-150 hover:border-slate-300 sm:text-sm",
           isOpen && "border-primary ring-1 ring-primary/20",
           disabled && "cursor-not-allowed opacity-50",
-          buttonClassName
+          buttonClassName,
         )}
       >
         <span className="truncate">{selectedOption ? selectedOption.label : placeholder}</span>
         <ChevronDown
           className={cn(
             "h-3.5 w-3.5 text-slate-400 transition-transform duration-200",
-            isOpen && "rotate-180 text-primary"
+            isOpen && "rotate-180 text-primary",
           )}
           aria-hidden="true"
         />
@@ -115,7 +115,7 @@ export function CustomSelect({
           className={cn(
             "absolute top-full mt-1.5 z-50 min-w-[160px] overflow-hidden rounded-xl border border-slate-100 bg-white p-1.5 shadow-lg shadow-slate-200/50 ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-100",
             align === "right" ? "right-0" : "left-0",
-            menuClassName
+            menuClassName,
           )}
         >
           {options.map((option) => {
@@ -137,12 +137,15 @@ export function CustomSelect({
                   "group flex cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-xs font-medium transition duration-150 sm:text-sm",
                   isSelected
                     ? "bg-[#EBF7F2] text-primary font-semibold"
-                    : "text-heading hover:bg-slate-50 hover:text-primary"
+                    : "text-heading hover:bg-slate-50 hover:text-primary",
                 )}
               >
                 <span className="truncate">{option.label}</span>
                 {isSelected && (
-                  <Check className="h-3.5 w-3.5 shrink-0 text-primary stroke-[2.5]" aria-hidden="true" />
+                  <Check
+                    className="h-3.5 w-3.5 shrink-0 text-primary stroke-[2.5]"
+                    aria-hidden="true"
+                  />
                 )}
               </div>
             );

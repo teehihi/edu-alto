@@ -20,7 +20,7 @@ const sizeClasses = {
   md: "h-10 w-10 text-sm",
   lg: "h-12 w-12 text-base font-semibold",
   xl: "h-16 w-16 text-xl font-bold",
-  "2xl": "h-28 w-28 text-3xl font-bold sm:h-32 sm:w-32"
+  "2xl": "h-28 w-28 text-3xl font-bold sm:h-32 sm:w-32",
 };
 
 export function resolveAvatarUrl(url?: string | null): string | null {
@@ -75,7 +75,7 @@ export function UserAvatar({
   avatarUrl,
   size = "md",
   className,
-  showBadge = false
+  showBadge = false,
 }: UserAvatarProps) {
   const [imgError, setImgError] = useState(false);
 
@@ -100,14 +100,14 @@ export function UserAvatar({
           onError={() => setImgError(true)}
           className={cn(
             "rounded-full object-cover border-2 border-primary shadow-xs",
-            sizeClasses[size]
+            sizeClasses[size],
           )}
         />
       ) : (
         <div
           className={cn(
             "flex items-center justify-center rounded-full border-2 border-primary bg-[#EAF7F3] font-bold text-primary tracking-wide select-none shadow-xs transition-all duration-200",
-            sizeClasses[size]
+            sizeClasses[size],
           )}
           aria-label={name || "Ảnh đại diện"}
         >
@@ -119,7 +119,7 @@ export function UserAvatar({
         <span
           className={cn(
             "absolute bottom-0 right-0 block rounded-full bg-emerald-500 ring-2 ring-white",
-            size === "xs" || size === "sm" ? "h-2 w-2" : "h-2.5 w-2.5"
+            size === "xs" || size === "sm" ? "h-2 w-2" : "h-2.5 w-2.5",
           )}
           aria-hidden="true"
         />

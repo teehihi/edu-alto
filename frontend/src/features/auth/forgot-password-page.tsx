@@ -33,7 +33,13 @@ export function ForgotPasswordPage() {
       await forgotPassword({ email: email.trim() });
       router.push(`/reset-password?email=${encodeURIComponent(email.trim())}&sent=1`);
     } catch (error) {
-      setStatus({ tone: "error", message: getFriendlyError(error, "Không thể gửi yêu cầu đặt lại mật khẩu. Vui lòng thử lại.") });
+      setStatus({
+        tone: "error",
+        message: getFriendlyError(
+          error,
+          "Không thể gửi yêu cầu đặt lại mật khẩu. Vui lòng thử lại.",
+        ),
+      });
     } finally {
       setSubmitting(false);
     }
@@ -62,12 +68,19 @@ export function ForgotPasswordPage() {
           onChange={(event) => setEmail(event.target.value)}
           disabled={submitting}
         />
-        <Button className="h-11 w-full rounded-xl px-6 text-sm font-semibold sm:h-12 sm:text-base" loading={submitting} type="submit">
+        <Button
+          className="h-11 w-full rounded-xl px-6 text-sm font-semibold sm:h-12 sm:text-base"
+          loading={submitting}
+          type="submit"
+        >
           Gửi mã
         </Button>
         <p className="text-center text-sm text-muted">
           Nhớ mật khẩu?{" "}
-          <Link className="focus-ring rounded-lg font-semibold text-primary hover:text-primary-dark" href="/login">
+          <Link
+            className="focus-ring rounded-lg font-semibold text-primary hover:text-primary-dark"
+            href="/login"
+          >
             Quay lại đăng nhập
           </Link>
         </p>

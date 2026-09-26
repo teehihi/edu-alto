@@ -19,7 +19,7 @@ import {
   Pencil,
   Plus,
   Trash2,
-  Video
+  Video,
 } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 import { AppHeader } from "@/components/layout/app-header";
@@ -38,7 +38,7 @@ import {
   reorderLessons,
   reorderSections,
   updateLesson,
-  updateSection
+  updateSection,
 } from "@/lib/course-structure-client";
 import type {
   CourseStructure,
@@ -49,7 +49,7 @@ import type {
   LessonStatus,
   LessonType,
   UpdateLessonPayload,
-  UpdateSectionPayload
+  UpdateSectionPayload,
 } from "@/types/course-structure";
 
 function formatDuration(seconds: number): string {
@@ -134,7 +134,9 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
   const [lessonFormError, setLessonFormError] = useState<string | null>(null);
 
   // Delete Section Modal state
-  const [deleteSectionTarget, setDeleteSectionTarget] = useState<CourseStructureSection | null>(null);
+  const [deleteSectionTarget, setDeleteSectionTarget] = useState<CourseStructureSection | null>(
+    null,
+  );
   const [deleteSectionLoading, setDeleteSectionLoading] = useState(false);
 
   // Delete Lesson Modal state
@@ -153,7 +155,7 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
   }>({
     isOpen: false,
     title: "",
-    tone: "success"
+    tone: "success",
   });
 
   const loadData = useCallback(async () => {
@@ -190,7 +192,7 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
   const toggleSection = (secId: string) => {
     setExpandedSections((prev) => ({
       ...prev,
-      [secId]: !prev[secId]
+      [secId]: !prev[secId],
     }));
   };
 
@@ -227,14 +229,14 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
         // Update
         const payload: UpdateSectionPayload = {
           title: sectionTitle.trim(),
-          description: sectionDescription.trim() || null
+          description: sectionDescription.trim() || null,
         };
         await updateSection(courseId, editingSection.id, payload, accessToken);
       } else {
         // Create
         const payload: CreateSectionPayload = {
           title: sectionTitle.trim(),
-          description: sectionDescription.trim() || null
+          description: sectionDescription.trim() || null,
         };
         await createSection(courseId, payload, accessToken);
       }
@@ -243,7 +245,7 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
       setFeedback({
         isOpen: true,
         title: editingSection ? "Đã cập nhật chương học" : "Đã tạo chương học mới",
-        tone: "success"
+        tone: "success",
       });
       await loadData();
     } catch (err) {
@@ -266,7 +268,7 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
       setFeedback({
         isOpen: true,
         title: "Đã xóa chương học thành công",
-        tone: "success"
+        tone: "success",
       });
       await loadData();
     } catch (err) {
@@ -274,7 +276,7 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
         isOpen: true,
         title: "Xóa chương học thất bại",
         description: err instanceof ApiClientError ? err.message : "Vui lòng thử lại sau.",
-        tone: "error"
+        tone: "error",
       });
     } finally {
       setDeleteSectionLoading(false);
@@ -295,13 +297,13 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
     // Update positions
     const items = newSections.map((sec, idx) => ({
       id: sec.id,
-      position: idx + 1
+      position: idx + 1,
     }));
 
     // Optimistic state
     setStructure({
       ...structure,
-      sections: newSections
+      sections: newSections,
     });
 
     try {
@@ -313,7 +315,7 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
         isOpen: true,
         title: "Thay đổi thứ tự thất bại",
         description: "Không thể lưu thứ tự chương học mới. Đã hoàn tác.",
-        tone: "error"
+        tone: "error",
       });
     }
   };
@@ -343,7 +345,7 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
     setLessonType(lesson.type);
     setLessonTextContent(lesson.textContent || "");
     setLessonDurationMinutes(
-      lesson.videoDurationSeconds ? String(Math.round(lesson.videoDurationSeconds / 60)) : "0"
+      lesson.videoDurationSeconds ? String(Math.round(lesson.videoDurationSeconds / 60)) : "0",
     );
     setLessonIsPreview(lesson.isPreview);
     setLessonStatus(lesson.status);
@@ -359,7 +361,8 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
       return;
     }
 
-    const durationSeconds = Number(lessonDurationMinutes) > 0 ? Number(lessonDurationMinutes) * 60 : 0;
+    const durationSeconds =
+      Number(lessonDurationMinutes) > 0 ? Number(lessonDurationMinutes) * 60 : 0;
 
     setLessonFormLoading(true);
     setLessonFormError(null);
@@ -372,7 +375,7 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
           textContent: lessonTextContent.trim() || null,
           videoDurationSeconds: durationSeconds,
           isPreview: lessonIsPreview,
-          status: lessonStatus
+          status: lessonStatus,
         };
         await updateLesson(courseId, targetSectionId, editingLesson.id, payload, accessToken);
       } else {
@@ -383,7 +386,7 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
           textContent: lessonTextContent.trim() || null,
           videoDurationSeconds: durationSeconds,
           isPreview: lessonIsPreview,
-          status: lessonStatus
+          status: lessonStatus,
         };
         await createLesson(courseId, targetSectionId, payload, accessToken);
       }
@@ -392,7 +395,7 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
       setFeedback({
         isOpen: true,
         title: editingLesson ? "Đã cập nhật bài học" : "Đã tạo bài học mới",
-        tone: "success"
+        tone: "success",
       });
       await loadData();
     } catch (err) {
@@ -414,13 +417,13 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
         courseId,
         deleteLessonTarget.sectionId,
         deleteLessonTarget.lesson.id,
-        accessToken
+        accessToken,
       );
       setDeleteLessonTarget(null);
       setFeedback({
         isOpen: true,
         title: "Đã xóa bài học thành công",
-        tone: "success"
+        tone: "success",
       });
       await loadData();
     } catch (err) {
@@ -428,7 +431,7 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
         isOpen: true,
         title: "Xóa bài học thất bại",
         description: err instanceof ApiClientError ? err.message : "Vui lòng thử lại sau.",
-        tone: "error"
+        tone: "error",
       });
     } finally {
       setDeleteLessonLoading(false);
@@ -438,7 +441,7 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
   const handleMoveLesson = async (
     sectionId: string,
     lessonIndex: number,
-    direction: "up" | "down"
+    direction: "up" | "down",
   ) => {
     if (!structure) return;
     const targetSection = structure.sections.find((s) => s.id === sectionId);
@@ -456,16 +459,16 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
     // Update positions
     const items = newLessons.map((les, idx) => ({
       id: les.id,
-      position: idx + 1
+      position: idx + 1,
     }));
 
     // Optimistic update
     const updatedSections = structure.sections.map((s) =>
-      s.id === sectionId ? { ...s, lessons: newLessons } : s
+      s.id === sectionId ? { ...s, lessons: newLessons } : s,
     );
     setStructure({
       ...structure,
-      sections: updatedSections
+      sections: updatedSections,
     });
 
     try {
@@ -476,7 +479,7 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
         isOpen: true,
         title: "Thay đổi thứ tự bài học thất bại",
         description: "Không thể lưu thứ tự bài học mới. Đã hoàn tác.",
-        tone: "error"
+        tone: "error",
       });
     }
   };
@@ -533,7 +536,8 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
                   )}
                 </h1>
                 <p className="mt-1 text-sm text-muted">
-                  Thiết kế cấu trúc chương học, bài giảng và sắp xếp thứ tự phân phối nội dung cho học viên.
+                  Thiết kế cấu trúc chương học, bài giảng và sắp xếp thứ tự phân phối nội dung cho
+                  học viên.
                 </p>
               </div>
 
@@ -624,7 +628,8 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
                 </div>
                 <h3 className="mt-4 text-lg font-bold text-heading">Chưa có chương học nào</h3>
                 <p className="mx-auto mt-1 max-w-md text-sm text-muted">
-                  Hãy bắt đầu xây dựng khóa học bằng cách tạo chương đầu tiên, sau đó thêm các bài học vào giáo trình.
+                  Hãy bắt đầu xây dựng khóa học bằng cách tạo chương đầu tiên, sau đó thêm các bài
+                  học vào giáo trình.
                 </p>
                 <div className="mt-6">
                   <Button onClick={handleOpenCreateSection} className="rounded-xl shadow-xs">
@@ -684,9 +689,7 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
                                 </>
                               )}
                             </div>
-                            <h3 className="mt-1 text-base font-bold text-heading">
-                              {sec.title}
-                            </h3>
+                            <h3 className="mt-1 text-base font-bold text-heading">{sec.title}</h3>
                             {sec.description && (
                               <p className="mt-0.5 line-clamp-1 text-xs text-muted">
                                 {sec.description}
@@ -811,7 +814,8 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
                                         </div>
 
                                         <div className="mt-0.5 flex items-center gap-3 text-xs text-muted">
-                                          {lesson.videoDurationSeconds && lesson.videoDurationSeconds > 0 ? (
+                                          {lesson.videoDurationSeconds &&
+                                          lesson.videoDurationSeconds > 0 ? (
                                             <span className="flex items-center gap-1">
                                               <Clock className="h-3 w-3" />
                                               {Math.round(lesson.videoDurationSeconds / 60)} phút
@@ -831,9 +835,7 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
                                       <button
                                         type="button"
                                         disabled={isLessonFirst}
-                                        onClick={() =>
-                                          handleMoveLesson(sec.id, lessonIndex, "up")
-                                        }
+                                        onClick={() => handleMoveLesson(sec.id, lessonIndex, "up")}
                                         title="Di chuyển lên"
                                         className="flex h-7 w-7 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-600 disabled:opacity-30 disabled:hover:bg-transparent transition"
                                       >
@@ -867,7 +869,7 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
                                         onClick={() =>
                                           setDeleteLessonTarget({
                                             sectionId: sec.id,
-                                            lesson
+                                            lesson,
                                           })
                                         }
                                         title="Xóa bài học"
@@ -1051,9 +1053,7 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
                     Nội dung bài học
                   </label>
-                  <span className="text-xs text-muted">
-                    {lessonTextContent.length} ký tự
-                  </span>
+                  <span className="text-xs text-muted">{lessonTextContent.length} ký tự</span>
                 </div>
                 <textarea
                   rows={6}
@@ -1074,9 +1074,7 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
                     className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
                   />
                   <div>
-                    <span className="text-sm font-semibold text-heading">
-                      Cho phép học thử
-                    </span>
+                    <span className="text-sm font-semibold text-heading">Cho phép học thử</span>
                     <p className="text-xs text-muted">
                       Học viên chưa mua khóa học vẫn xem được bài này
                     </p>

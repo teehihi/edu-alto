@@ -14,7 +14,9 @@ export type CourseQueryParams = {
   size?: number;
 };
 
-export async function fetchPublicCourses(params: CourseQueryParams = {}): Promise<CourseListItem[]> {
+export async function fetchPublicCourses(
+  params: CourseQueryParams = {},
+): Promise<CourseListItem[]> {
   const query = new URLSearchParams();
   if (params.keyword) query.set("keyword", params.keyword);
   if (params.level) query.set("level", params.level);

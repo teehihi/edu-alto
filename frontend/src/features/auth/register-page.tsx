@@ -5,7 +5,13 @@ import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { AlertMessage, FormField, PasswordField } from "@/features/auth/form-field";
-import { extractFieldErrors, getFriendlyError, hasLetterAndDigit, isEmail, type FieldErrors } from "@/features/auth/form-utils";
+import {
+  extractFieldErrors,
+  getFriendlyError,
+  hasLetterAndDigit,
+  isEmail,
+  type FieldErrors,
+} from "@/features/auth/form-utils";
 import { cn } from "@/lib/cn";
 import { register } from "./auth-client";
 import { AuthDivider, AuthShell, SocialLoginButtons } from "./auth-shell";
@@ -96,7 +102,7 @@ export function RegisterPage() {
         confirmPassword,
         role,
         ...(bio.trim() ? { bio: bio.trim() } : {}),
-        ...(role === "INSTRUCTOR" ? { expertise: expertise.trim() } : {})
+        ...(role === "INSTRUCTOR" ? { expertise: expertise.trim() } : {}),
       });
       router.push(`/verify-email?email=${encodeURIComponent(email.trim())}&sent=1`);
     } catch (error) {
@@ -106,7 +112,10 @@ export function RegisterPage() {
       }
       setStatus({
         tone: "error",
-        message: getFriendlyError(error, "Không thể tạo tài khoản. Vui lòng kiểm tra lại thông tin.")
+        message: getFriendlyError(
+          error,
+          "Không thể tạo tài khoản. Vui lòng kiểm tra lại thông tin.",
+        ),
       });
     } finally {
       setSubmitting(false);
@@ -129,7 +138,11 @@ export function RegisterPage() {
           <label className="text-xs font-semibold text-heading sm:text-sm">
             Bạn muốn tham gia EduAlto với vai trò nào?
           </label>
-          <div className="grid grid-cols-2 gap-2 rounded-lg border border-slate-200 bg-slate-50/80 p-1" role="radiogroup" aria-label="Vai trò tài khoản">
+          <div
+            className="grid grid-cols-2 gap-2 rounded-lg border border-slate-200 bg-slate-50/80 p-1"
+            role="radiogroup"
+            aria-label="Vai trò tài khoản"
+          >
             <button
               type="button"
               role="radio"
@@ -140,10 +153,15 @@ export function RegisterPage() {
                 "focus-ring flex h-10 items-center justify-center gap-2 rounded-md text-xs font-medium transition duration-150 sm:text-sm",
                 role === "STUDENT"
                   ? "border border-slate-200 bg-white font-semibold text-primary shadow-xs"
-                  : "text-muted hover:text-heading"
+                  : "text-muted hover:text-heading",
               )}
             >
-              <span className={cn("h-2 w-2 rounded-full transition", role === "STUDENT" ? "bg-primary" : "bg-slate-300")} />
+              <span
+                className={cn(
+                  "h-2 w-2 rounded-full transition",
+                  role === "STUDENT" ? "bg-primary" : "bg-slate-300",
+                )}
+              />
               <span>Học viên</span>
             </button>
             <button
@@ -156,10 +174,15 @@ export function RegisterPage() {
                 "focus-ring flex h-10 items-center justify-center gap-2 rounded-md text-xs font-medium transition duration-150 sm:text-sm",
                 role === "INSTRUCTOR"
                   ? "border border-slate-200 bg-white font-semibold text-primary shadow-xs"
-                  : "text-muted hover:text-heading"
+                  : "text-muted hover:text-heading",
               )}
             >
-              <span className={cn("h-2 w-2 rounded-full transition", role === "INSTRUCTOR" ? "bg-primary" : "bg-slate-300")} />
+              <span
+                className={cn(
+                  "h-2 w-2 rounded-full transition",
+                  role === "INSTRUCTOR" ? "bg-primary" : "bg-slate-300",
+                )}
+              />
               <span>Giảng viên</span>
             </button>
           </div>
@@ -267,14 +290,22 @@ export function RegisterPage() {
           />
         </div>
 
-        <Button className="h-11 w-full rounded-xl px-6 text-sm font-semibold sm:h-12 sm:text-base" loading={submitting} type="submit" aria-label="Đăng ký">
+        <Button
+          className="h-11 w-full rounded-xl px-6 text-sm font-semibold sm:h-12 sm:text-base"
+          loading={submitting}
+          type="submit"
+          aria-label="Đăng ký"
+        >
           Đăng ký
         </Button>
         <AuthDivider />
         <SocialLoginButtons />
         <p className="pt-1 text-center text-sm text-muted">
           Đã có tài khoản?{" "}
-          <Link className="focus-ring rounded-lg font-semibold text-primary hover:text-primary-dark" href="/login">
+          <Link
+            className="focus-ring rounded-lg font-semibold text-primary hover:text-primary-dark"
+            href="/login"
+          >
             Đăng nhập
           </Link>
         </p>

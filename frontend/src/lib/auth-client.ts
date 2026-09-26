@@ -13,109 +13,109 @@ import type {
   UpdateCurrentUserRequest,
   UpdateProfileRequest,
   UserProfile,
-  VerifyOtpRequest
+  VerifyOtpRequest,
 } from "@/types/auth";
 
 export const authApi = {
   register: (body: RegisterRequest) =>
     apiRequest<AuthMessageResponse>("/auth/register", {
       method: "POST",
-      body
+      body,
     }),
 
   verifyEmail: (body: VerifyOtpRequest) =>
     apiRequest<AuthMessageResponse>("/auth/verify-email", {
       method: "POST",
-      body
+      body,
     }),
 
   resendVerification: (body: EmailRequest) =>
     apiRequest<AuthMessageResponse>("/auth/resend-verification", {
       method: "POST",
-      body
+      body,
     }),
 
   login: (body: LoginRequest) =>
     apiRequest<AuthTokenResponse>("/auth/login", {
       method: "POST",
-      body
+      body,
     }),
 
   refresh: () =>
     apiRequest<AuthTokenResponse>("/auth/refresh", {
-      method: "POST"
+      method: "POST",
     }),
 
   logout: () =>
     apiRequest<AuthMessageResponse>("/auth/logout", {
-      method: "POST"
+      method: "POST",
     }),
 
   forgotPassword: (body: EmailRequest) =>
     apiRequest<AuthMessageResponse>("/auth/forgot-password", {
       method: "POST",
-      body
+      body,
     }),
 
   verifyResetOtp: (body: VerifyOtpRequest) =>
     apiRequest<AuthMessageResponse>("/auth/verify-reset-otp", {
       method: "POST",
-      body
+      body,
     }),
 
   resetPassword: (body: ResetPasswordRequest) =>
     apiRequest<AuthMessageResponse>("/auth/reset-password", {
       method: "POST",
-      body
-    })
+      body,
+    }),
 };
 
 export const currentUserApi = {
   getCurrentUser: (accessToken: string) =>
     apiRequest<CurrentUser>("/me", {
       method: "GET",
-      accessToken
+      accessToken,
     }),
 
   updateCurrentUser: (accessToken: string, body: UpdateCurrentUserRequest) =>
     apiRequest<CurrentUser>("/me", {
       method: "PUT",
       accessToken,
-      body
-    })
+      body,
+    }),
 };
 
 export const profileApi = {
   getProfile: (accessToken: string) =>
     apiRequest<UserProfile>("/me/profile", {
       method: "GET",
-      accessToken
+      accessToken,
     }),
 
   getPublicProfile: (identifier: string) =>
     apiRequest<UserProfile>(`/profiles/${encodeURIComponent(identifier)}`, {
-      method: "GET"
+      method: "GET",
     }),
 
   updateProfile: (accessToken: string, body: UpdateProfileRequest) =>
     apiRequest<UserProfile>("/me/profile", {
       method: "PUT",
       accessToken,
-      body
+      body,
     }),
 
   getAvatarUploadUrl: (accessToken: string, body: AvatarUploadUrlRequest) =>
     apiRequest<AvatarUploadUrlResponse>("/me/profile/avatar/upload-url", {
       method: "POST",
       accessToken,
-      body
+      body,
     }),
 
   completeAvatarUpload: (accessToken: string, body: AvatarCompleteRequest) =>
     apiRequest<UserProfile>("/me/profile/avatar/complete", {
       method: "POST",
       accessToken,
-      body
+      body,
     }),
 
   uploadAvatarMultipart: (accessToken: string, file: File) => {
@@ -124,18 +124,18 @@ export const profileApi = {
     return apiRequest<UserProfile>("/me/profile/avatar", {
       method: "POST",
       accessToken,
-      body: formData
+      body: formData,
     });
-  }
+  },
 };
 
 export async function uploadAvatarFile(uploadUrl: string, file: File): Promise<void> {
   const response = await fetch(uploadUrl, {
     method: "PUT",
     headers: {
-      "Content-Type": file.type
+      "Content-Type": file.type,
     },
-    body: file
+    body: file,
   });
 
   if (!response.ok) {

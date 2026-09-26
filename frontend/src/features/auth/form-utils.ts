@@ -9,7 +9,12 @@ export function isOtp(value: string) {
 }
 
 export function getFriendlyError(error: unknown, fallback = "Đã có lỗi xảy ra. Vui lòng thử lại.") {
-  if (error && typeof error === "object" && "message" in error && typeof error.message === "string") {
+  if (
+    error &&
+    typeof error === "object" &&
+    "message" in error &&
+    typeof error.message === "string"
+  ) {
     if (/failed to fetch|networkerror|load failed/i.test(error.message)) {
       return "Không thể kết nối đến máy chủ. Vui lòng kiểm tra lại kết nối mạng hoặc thử lại sau.";
     }

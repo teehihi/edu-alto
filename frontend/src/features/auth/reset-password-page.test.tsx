@@ -6,18 +6,18 @@ import { ResetPasswordPage } from "./reset-password-page";
 const { resetPasswordMock, verifyResetOtpMock, pushMock } = vi.hoisted(() => ({
   resetPasswordMock: vi.fn(),
   verifyResetOtpMock: vi.fn(),
-  pushMock: vi.fn()
+  pushMock: vi.fn(),
 }));
 let query = new URLSearchParams("email=student%40example.com&sent=1");
 
 vi.mock("./auth-client", () => ({
   resetPassword: resetPasswordMock,
   verifyResetOtp: verifyResetOtpMock,
-  forgotPassword: vi.fn()
+  forgotPassword: vi.fn(),
 }));
 vi.mock("next/navigation", () => ({
   useSearchParams: () => query,
-  useRouter: () => ({ push: pushMock })
+  useRouter: () => ({ push: pushMock }),
 }));
 vi.mock("@/components/layout/app-header", () => ({ AppHeader: () => <header /> }));
 
@@ -49,7 +49,10 @@ describe("ResetPasswordPage", () => {
     await user.type(screen.getByRole("textbox", { name: "Mã OTP" }), "123456");
     await user.click(screen.getByRole("button", { name: "Xác nhận mã" }));
 
-    expect(verifyResetOtpMock).toHaveBeenCalledWith({ email: "student@example.com", otp: "123456" });
+    expect(verifyResetOtpMock).toHaveBeenCalledWith({
+      email: "student@example.com",
+      otp: "123456",
+    });
 
     // Step 2 should be displayed now
     expect(await screen.findByLabelText("Mật khẩu mới")).toBeInTheDocument();
@@ -63,7 +66,7 @@ describe("ResetPasswordPage", () => {
       email: "student@example.com",
       otp: "123456",
       newPassword: "Matkhau123",
-      confirmPassword: "Matkhau123"
+      confirmPassword: "Matkhau123",
     });
   });
 });

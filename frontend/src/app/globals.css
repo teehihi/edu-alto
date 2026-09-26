@@ -26,8 +26,12 @@ html {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  html { scroll-behavior: auto; }
-  *, *::before, *::after {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
@@ -129,9 +133,9 @@ input {
   .skeleton {
     background-image: linear-gradient(
       90deg,
-      #E2E8F0 0px,
+      #e2e8f0 0px,
       rgba(241, 245, 249, 0.95) 40px,
-      #E2E8F0 80px
+      #e2e8f0 80px
     );
     background-size: 300%;
     background-position: 100% 0;
@@ -145,7 +149,10 @@ input {
     overflow: hidden;
     border-radius: 1.25rem;
     background-color: #ffffff;
-    transition: transform 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease;
+    transition:
+      transform 0.35s ease,
+      box-shadow 0.35s ease,
+      border-color 0.35s ease;
     cursor: pointer;
   }
 
@@ -159,7 +166,7 @@ input {
     transition: all 0.45s cubic-bezier(0.4, 0, 0.2, 1);
     z-index: 10;
     pointer-events: none;
-    background-color: #20B486;
+    background-color: #20b486;
   }
 
   .instructor-hover-card::before {
@@ -180,8 +187,6 @@ input {
     height: 100%;
     border-radius: 1.25rem;
     opacity: 1;
-    background-color: #20B486;
+    background-color: #20b486;
   }
 }
-
-

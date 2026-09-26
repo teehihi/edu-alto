@@ -33,7 +33,9 @@ export type ApiRequestOptions = Omit<RequestInit, "body" | "headers"> & {
   headers?: HeadersInit;
 };
 
-const API_BASE_URL = normalizeBaseUrl(process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080/api/v1");
+const API_BASE_URL = normalizeBaseUrl(
+  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080/api/v1",
+);
 
 export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
   const { accessToken, body, headers, ...init } = options;
@@ -42,7 +44,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     ...init,
     credentials: "include",
     headers: buildHeaders(headers, body, accessToken, isFormData),
-    body: body === undefined ? undefined : isFormData ? body : JSON.stringify(body)
+    body: body === undefined ? undefined : isFormData ? body : JSON.stringify(body),
   });
 
   const payload = await parseJson(response);
@@ -57,7 +59,7 @@ function buildHeaders(
   headers: HeadersInit | undefined,
   body: unknown,
   accessToken: string | null | undefined,
-  isFormData: boolean
+  isFormData: boolean,
 ): Headers {
   const nextHeaders = new Headers(headers);
   if (body !== undefined && !isFormData && !nextHeaders.has("Content-Type")) {
@@ -104,21 +106,23 @@ function toApiError(status: number, payload: unknown): ApiClientError {
   return new ApiClientError(status, {
     code: "REQUEST_FAILED",
     message: "Không thể xử lý yêu cầu. Vui lòng thử lại.",
-    details: []
+    details: [],
   });
 }
 
 function isApiResponse<T>(payload: unknown): payload is ApiResponse<T> {
-  return Boolean(payload && typeof payload === "object" && "success" in payload && "data" in payload);
+  return Boolean(
+    payload && typeof payload === "object" && "success" in payload && "data" in payload,
+  );
 }
 
 function isErrorResponse(payload: unknown): payload is ErrorResponse {
   return Boolean(
     payload &&
-      typeof payload === "object" &&
-      "error" in payload &&
-      typeof (payload as ErrorResponse).error?.message === "string" &&
-      typeof (payload as ErrorResponse).error?.code === "string"
+    typeof payload === "object" &&
+    "error" in payload &&
+    typeof (payload as ErrorResponse).error?.message === "string" &&
+    typeof (payload as ErrorResponse).error?.code === "string",
   );
 }
 

@@ -7,13 +7,13 @@ const loginMock = vi.fn();
 const pushMock = vi.fn();
 const refreshMock = vi.fn();
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: pushMock, refresh: refreshMock })
+  useRouter: () => ({ push: pushMock, refresh: refreshMock }),
 }));
 vi.mock("@/components/layout/app-header", () => ({ AppHeader: () => null }));
 vi.mock("./auth-client", () => ({
   useAuth: () => ({
-    login: loginMock
-  })
+    login: loginMock,
+  }),
 }));
 
 describe("LoginPage", () => {
@@ -48,7 +48,7 @@ describe("LoginPage", () => {
     loginMock.mockResolvedValueOnce({
       id: "test-user-id",
       fullName: "Nguyễn Nhật Thiên",
-      email: "test@example.com"
+      email: "test@example.com",
     });
     const user = userEvent.setup();
     render(<LoginPage />);
@@ -59,7 +59,7 @@ describe("LoginPage", () => {
 
     expect(loginMock).toHaveBeenCalledWith({
       email: "test@example.com",
-      password: "Matkhau123"
+      password: "Matkhau123",
     });
     expect(pushMock).toHaveBeenCalledWith("/");
   });

@@ -1,14 +1,6 @@
 "use client";
 
-import {
-  Facebook,
-  Instagram,
-  Mail,
-  MapPin,
-  Phone,
-  Twitter,
-  Youtube
-} from "lucide-react";
+import { Facebook, Instagram, Mail, MapPin, Phone, Twitter, Youtube } from "lucide-react";
 import React, { useState } from "react";
 import { AppHeader } from "@/components/layout/app-header";
 import { Footer } from "@/components/layout/footer";
@@ -108,16 +100,15 @@ export function ContactPage() {
                 Kết Nối Với EduAlto
               </h1>
               <p className="mt-2 text-sm text-muted">
-                Chúng tôi luôn sẵn sàng lắng nghe câu hỏi, đóng góp ý kiến và hỗ trợ bạn trong suốt hành trình học tập.
+                Chúng tôi luôn sẵn sàng lắng nghe câu hỏi, đóng góp ý kiến và hỗ trợ bạn trong suốt
+                hành trình học tập.
               </p>
             </div>
 
             <div className="mt-10 grid grid-cols-1 gap-10 lg:grid-cols-12 lg:gap-12">
               {/* Left Column: Form */}
               <div className="lg:col-span-7">
-                <h2 className="text-base font-bold text-heading">
-                  Để lại lời nhắn cho chúng tôi
-                </h2>
+                <h2 className="text-base font-bold text-heading">Để lại lời nhắn cho chúng tôi</h2>
 
                 <form onSubmit={handleSubmit} className="mt-5 space-y-4">
                   {/* Name */}
@@ -192,7 +183,8 @@ export function ContactPage() {
                     <div className="mt-2.5 flex items-start gap-2.5 text-muted">
                       <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                       <span>
-                        HCM-UTE, 01 Võ Văn Ngân, phường Linh Chiểu, thành phố Thủ Đức, TP. Hồ Chí Minh
+                        HCM-UTE, 01 Võ Văn Ngân, phường Linh Chiểu, thành phố Thủ Đức, TP. Hồ Chí
+                        Minh
                       </span>
                     </div>
                   </div>

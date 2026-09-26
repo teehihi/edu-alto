@@ -4,7 +4,7 @@ import { CourseCatalogSkeleton } from "@/components/ui/skeleton";
 
 export const metadata = {
   title: "Danh mục Khóa học | EduAlto",
-  description: "Khám phá các khóa học chất lượng cao tại EduAlto với đa dạng chủ đề và cấp độ."
+  description: "Khám phá các khóa học chất lượng cao tại EduAlto với đa dạng chủ đề và cấp độ.",
 };
 
 export default function Page() {

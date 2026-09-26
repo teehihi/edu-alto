@@ -13,7 +13,7 @@ import type {
   UpdateCurrentUserRequest,
   UpdateProfileRequest,
   UserProfile,
-  VerifyOtpRequest
+  VerifyOtpRequest,
 } from "@/types/auth";
 
 export type AuthUser = CurrentUser;
@@ -71,7 +71,7 @@ export function useAuth() {
         return await apiCall(token);
       }
     },
-    [getValidToken, session]
+    [getValidToken, session],
   );
 
   const getProfile = useCallback(async (): Promise<UserProfile> => {
@@ -80,12 +80,14 @@ export function useAuth() {
 
   const updateProfile = useCallback(
     async (payload: UpdateProfileRequest): Promise<UserProfile> => {
-      const updatedProfile = await callWithRefresh((token) => profileApi.updateProfile(token, payload));
+      const updatedProfile = await callWithRefresh((token) =>
+        profileApi.updateProfile(token, payload),
+      );
       session.updateUserAvatar(updatedProfile.avatarUrl ?? null);
       await session.reloadCurrentUser();
       return updatedProfile;
     },
-    [callWithRefresh, session]
+    [callWithRefresh, session],
   );
 
   const uploadAvatar = useCallback(
@@ -94,7 +96,7 @@ export function useAuth() {
         try {
           const { uploadUrl, objectKey } = await profileApi.getAvatarUploadUrl(token, {
             contentType: file.type,
-            contentLength: file.size
+            contentLength: file.size,
           });
           await uploadAvatarFile(uploadUrl, file);
           return await profileApi.completeAvatarUpload(token, { objectKey });
@@ -107,16 +109,18 @@ export function useAuth() {
       await session.reloadCurrentUser();
       return updatedProfile;
     },
-    [callWithRefresh, session]
+    [callWithRefresh, session],
   );
 
   const updateCurrentUser = useCallback(
     async (payload: UpdateCurrentUserRequest) => {
-      const user = await callWithRefresh((token) => currentUserApi.updateCurrentUser(token, payload));
+      const user = await callWithRefresh((token) =>
+        currentUserApi.updateCurrentUser(token, payload),
+      );
       await session.reloadCurrentUser();
       return user;
     },
-    [callWithRefresh, session]
+    [callWithRefresh, session],
   );
 
   return useMemo(
@@ -134,7 +138,7 @@ export function useAuth() {
       getPublicProfile: profileApi.getPublicProfile,
       updateProfile,
       uploadAvatar,
-      updateUserAvatar: session.updateUserAvatar
+      updateUserAvatar: session.updateUserAvatar,
     }),
     [
       session.user,
@@ -149,8 +153,8 @@ export function useAuth() {
       getProfile,
       updateProfile,
       uploadAvatar,
-      session.updateUserAvatar
-    ]
+      session.updateUserAvatar,
+    ],
   );
 }
 

@@ -2,10 +2,41 @@ import Image from "next/image";
 import Link from "next/link";
 
 const footerColumns = [
-  { title: "Sản phẩm", links: [["Trang Chủ", "/"], ["Khóa Học", "/#courses"], ["Tính Năng", "/#about"], ["Giảng Viên", "/#instructors"]] },
-  { title: "Về EduAlto", links: [["Về Chúng tôi", "/#about"], ["Liên hệ", "/#contact"], ["Câu hỏi thường gặp", "/#contact"], ["Góp ý & hỗ trợ", "mailto:dacsanviethotro@gmail.com"]] },
-  { title: "Kết nối", links: [["Facebook", "https://www.facebook.com/nhatthien.nguyen.566"], ["LinkedIn", "https://www.linkedin.com/in/tee21/"], ["GitHub", "https://github.com/teehihi"], ["Email", "mailto:dacsanviethotro@gmail.com"]] },
-  { title: "Chính sách", links: [["Điều khoản sử dụng", "/#contact"], ["Chính sách bảo mật", "/#contact"], ["Chính sách cookie", "/#contact"]] }
+  {
+    title: "Sản phẩm",
+    links: [
+      ["Trang Chủ", "/"],
+      ["Khóa Học", "/#courses"],
+      ["Tính Năng", "/#about"],
+      ["Giảng Viên", "/#instructors"],
+    ],
+  },
+  {
+    title: "Về EduAlto",
+    links: [
+      ["Về Chúng tôi", "/#about"],
+      ["Liên hệ", "/#contact"],
+      ["Câu hỏi thường gặp", "/#contact"],
+      ["Góp ý & hỗ trợ", "mailto:dacsanviethotro@gmail.com"],
+    ],
+  },
+  {
+    title: "Kết nối",
+    links: [
+      ["Facebook", "https://www.facebook.com/nhatthien.nguyen.566"],
+      ["LinkedIn", "https://www.linkedin.com/in/tee21/"],
+      ["GitHub", "https://github.com/teehihi"],
+      ["Email", "mailto:dacsanviethotro@gmail.com"],
+    ],
+  },
+  {
+    title: "Chính sách",
+    links: [
+      ["Điều khoản sử dụng", "/#contact"],
+      ["Chính sách bảo mật", "/#contact"],
+      ["Chính sách cookie", "/#contact"],
+    ],
+  },
 ];
 
 export function Footer() {
@@ -31,7 +62,10 @@ export function Footer() {
               <ul className="mt-4 space-y-3">
                 {column.links.map(([label, href]) => (
                   <li key={label}>
-                    <Link href={href} className="text-sm text-slate-400 transition hover:text-primary">
+                    <Link
+                      href={href}
+                      className="text-sm text-slate-400 transition hover:text-primary"
+                    >
                       {label}
                     </Link>
                   </li>
@@ -50,4 +84,3 @@ export function Footer() {
     </footer>
   );
 }
-

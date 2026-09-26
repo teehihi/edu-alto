@@ -20,12 +20,7 @@ describe("UserAvatar and getInitials", () => {
   });
 
   it("renders custom image when avatarUrl is provided", () => {
-    render(
-      <UserAvatar
-        name="Nguyễn Nhật Thiên"
-        avatarUrl="https://example.com/avatar.jpg"
-      />
-    );
+    render(<UserAvatar name="Nguyễn Nhật Thiên" avatarUrl="https://example.com/avatar.jpg" />);
     const img = screen.getByRole("img");
     expect(img).toHaveAttribute("src", "https://example.com/avatar.jpg");
     expect(img).toHaveAttribute("alt", "Nguyễn Nhật Thiên");

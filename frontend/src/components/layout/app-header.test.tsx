@@ -9,16 +9,16 @@ const pushMock = vi.fn();
 let mockSessionState = {
   user: null as null | { fullName: string; email: string; roles: string[] },
   isAuthenticated: false,
-  logout: logoutMock
+  logout: logoutMock,
 };
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/",
-  useRouter: () => ({ push: pushMock, refresh: vi.fn() })
+  useRouter: () => ({ push: pushMock, refresh: vi.fn() }),
 }));
 
 vi.mock("@/lib/auth-session", () => ({
-  useAuthSession: () => mockSessionState
+  useAuthSession: () => mockSessionState,
 }));
 
 describe("AppHeader", () => {
@@ -27,7 +27,7 @@ describe("AppHeader", () => {
     mockSessionState = {
       user: null,
       isAuthenticated: false,
-      logout: logoutMock
+      logout: logoutMock,
     };
   });
 
@@ -42,10 +42,10 @@ describe("AppHeader", () => {
       user: {
         fullName: "Nguyễn Nhật Thiên",
         email: "teehihi@edualto.vn",
-        roles: ["STUDENT"]
+        roles: ["STUDENT"],
       },
       isAuthenticated: true,
-      logout: logoutMock
+      logout: logoutMock,
     };
 
     const user = userEvent.setup();

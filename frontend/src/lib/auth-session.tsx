@@ -8,7 +8,7 @@ import {
   useMemo,
   useRef,
   useState,
-  type ReactNode
+  type ReactNode,
 } from "react";
 import { ApiClientError } from "@/lib/api";
 import { authApi, currentUserApi } from "@/lib/auth-client";
@@ -50,31 +50,28 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
     const nextSession: InMemorySession = {
       accessToken: response.accessToken,
       expiresAt: Date.now() + response.expiresInSeconds * 1000,
-      user: response.user
+      user: response.user,
     };
     setSession(nextSession);
     return nextSession;
   }, []);
 
-  const refreshStoredSession = useCallback(
-    async (): Promise<InMemorySession | null> => {
-      if (!refreshPromiseRef.current) {
-        refreshPromiseRef.current = authApi
-          .refresh()
-          .then(saveSession)
-          .catch(() => {
-            clearSession();
-            return null;
-          })
-          .finally(() => {
-            refreshPromiseRef.current = null;
-          });
-      }
+  const refreshStoredSession = useCallback(async (): Promise<InMemorySession | null> => {
+    if (!refreshPromiseRef.current) {
+      refreshPromiseRef.current = authApi
+        .refresh()
+        .then(saveSession)
+        .catch(() => {
+          clearSession();
+          return null;
+        })
+        .finally(() => {
+          refreshPromiseRef.current = null;
+        });
+    }
 
-      return refreshPromiseRef.current;
-    },
-    [clearSession, saveSession]
-  );
+    return refreshPromiseRef.current;
+  }, [clearSession, saveSession]);
 
   // On mount, attempt to restore session via refresh token cookie
   useEffect(() => {
@@ -136,7 +133,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
       const response = await authApi.login(request);
       return saveSession(response).user;
     },
-    [saveSession]
+    [saveSession],
   );
 
   const logout = useCallback(async () => {
@@ -171,9 +168,18 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
       refreshSession,
       getAccessToken,
       reloadCurrentUser,
-      updateUserAvatar
+      updateUserAvatar,
     }),
-    [getAccessToken, isLoading, login, logout, refreshSession, reloadCurrentUser, session, updateUserAvatar]
+    [
+      getAccessToken,
+      isLoading,
+      login,
+      logout,
+      refreshSession,
+      reloadCurrentUser,
+      session,
+      updateUserAvatar,
+    ],
   );
 
   return <AuthSessionContext.Provider value={value}>{children}</AuthSessionContext.Provider>;

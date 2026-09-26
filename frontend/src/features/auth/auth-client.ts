@@ -12,7 +12,12 @@ export {
   updateProfile,
   verifyEmail,
   verifyResetOtp,
-  useAuth
+  useAuth,
 } from "@/lib/auth";
 export type { AuthUser } from "@/lib/auth";
-export type { UserProfile, StudentProfile, InstructorProfile, UpdateProfileRequest } from "@/types/auth";
+export type {
+  UserProfile,
+  StudentProfile,
+  InstructorProfile,
+  UpdateProfileRequest,
+} from "@/types/auth";

@@ -44,7 +44,7 @@ export function FormField(props: TextFieldProps | TextAreaFieldProps) {
             error
               ? "border-red-400 focus:border-red-500 focus:ring-1 focus:ring-red-500"
               : "border-[#D8E1ED] hover:border-slate-300 focus:border-primary focus:ring-1 focus:ring-primary",
-            className
+            className,
           )}
           {...(fieldProps as TextareaHTMLAttributes<HTMLTextAreaElement>)}
         />
@@ -58,7 +58,7 @@ export function FormField(props: TextFieldProps | TextAreaFieldProps) {
             error
               ? "border-red-400 focus:border-red-500 focus:ring-1 focus:ring-red-500"
               : "border-[#D8E1ED] hover:border-slate-300 focus:border-primary focus:ring-1 focus:ring-primary",
-            className
+            className,
           )}
           {...(fieldProps as InputHTMLAttributes<HTMLInputElement>)}
         />
@@ -100,7 +100,7 @@ export function PasswordField({
             "h-11 w-full rounded-lg border bg-white px-3.5 pr-11 text-sm text-ink outline-none transition duration-150 placeholder:text-[#8A9AB3] disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500 sm:h-12 sm:text-base",
             error
               ? "border-red-400 focus:border-red-500 focus:ring-1 focus:ring-red-500"
-              : "border-[#D8E1ED] hover:border-slate-300 focus:border-primary focus:ring-1 focus:ring-primary"
+              : "border-[#D8E1ED] hover:border-slate-300 focus:border-primary focus:ring-1 focus:ring-primary",
           )}
           {...props}
         />
@@ -110,7 +110,11 @@ export function PasswordField({
           type="button"
           onClick={() => setVisible((current) => !current)}
         >
-          {visible ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
+          {visible ? (
+            <EyeOff className="h-4 w-4" aria-hidden="true" />
+          ) : (
+            <Eye className="h-4 w-4" aria-hidden="true" />
+          )}
         </button>
       </div>
       {error ? (
@@ -126,15 +130,24 @@ export function PasswordField({
   );
 }
 
-export function AlertMessage({ tone, children }: { tone: "success" | "error" | "info"; children: ReactNode }) {
+export function AlertMessage({
+  tone,
+  children,
+}: {
+  tone: "success" | "error" | "info";
+  children: ReactNode;
+}) {
   const toneClass = {
     success: "border-primary/30 bg-primary-soft text-[#12684f]",
     error: "border-red-200 bg-red-50 text-red-700",
-    info: "border-footer-divider bg-footer text-muted"
+    info: "border-footer-divider bg-footer text-muted",
   };
 
   return (
-    <div className={cn("rounded-lg border px-4 py-3 text-sm font-medium leading-6", toneClass[tone])} role="status">
+    <div
+      className={cn("rounded-lg border px-4 py-3 text-sm font-medium leading-6", toneClass[tone])}
+      role="status"
+    >
       {children}
     </div>
   );

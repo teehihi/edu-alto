@@ -6,13 +6,7 @@ import { FeedbackModal } from "./feedback-modal";
 
 describe("FeedbackModal", () => {
   it("does not render when isOpen is false", () => {
-    render(
-      <FeedbackModal
-        isOpen={false}
-        onClose={vi.fn()}
-        title="Cập nhật thành công!"
-      />
-    );
+    render(<FeedbackModal isOpen={false} onClose={vi.fn()} title="Cập nhật thành công!" />);
     expect(screen.queryByText("Cập nhật thành công!")).not.toBeInTheDocument();
   });
 
@@ -27,11 +21,13 @@ describe("FeedbackModal", () => {
         title="Cập nhật thông tin hồ sơ thành công!"
         description="Dữ liệu cá nhân của bạn đã được cập nhật thành công."
         confirmText="Xác nhận"
-      />
+      />,
     );
 
     expect(screen.getByText("Cập nhật thông tin hồ sơ thành công!")).toBeInTheDocument();
-    expect(screen.getByText("Dữ liệu cá nhân của bạn đã được cập nhật thành công.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Dữ liệu cá nhân của bạn đã được cập nhật thành công."),
+    ).toBeInTheDocument();
 
     const confirmButton = screen.getByRole("button", { name: "Xác nhận" });
     await user.click(confirmButton);
@@ -43,13 +39,7 @@ describe("FeedbackModal", () => {
     const user = userEvent.setup();
     const handleClose = vi.fn();
 
-    render(
-      <FeedbackModal
-        isOpen={true}
-        onClose={handleClose}
-        title="Thông báo"
-      />
-    );
+    render(<FeedbackModal isOpen={true} onClose={handleClose} title="Thông báo" />);
 
     await user.keyboard("{Escape}");
     expect(handleClose).toHaveBeenCalledTimes(1);

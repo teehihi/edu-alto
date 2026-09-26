@@ -7,19 +7,13 @@ describe("CustomSelect", () => {
   const options = [
     { value: "relevance", label: "Độ liên quan" },
     { value: "name", label: "Tên giảng viên" },
-    { value: "recent", label: "Mới tham gia" }
+    { value: "recent", label: "Mới tham gia" },
   ];
 
   it("renders selected option label and opens dropdown on click", () => {
     const handleChange = vi.fn();
 
-    render(
-      <CustomSelect
-        value="relevance"
-        onChange={handleChange}
-        options={options}
-      />
-    );
+    render(<CustomSelect value="relevance" onChange={handleChange} options={options} />);
 
     const trigger = screen.getByRole("button", { name: "Độ liên quan" });
     expect(trigger).toBeInTheDocument();
@@ -42,12 +36,8 @@ describe("CustomSelect", () => {
     render(
       <div>
         <span data-testid="outside">Outside area</span>
-        <CustomSelect
-          value="relevance"
-          onChange={() => {}}
-          options={options}
-        />
-      </div>
+        <CustomSelect value="relevance" onChange={() => {}} options={options} />
+      </div>,
     );
 
     const trigger = screen.getByRole("button", { name: "Độ liên quan" });

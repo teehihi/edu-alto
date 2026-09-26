@@ -32,7 +32,7 @@ export function FeedbackModal({
   cancelText,
   onCancel,
   children,
-  autoCloseMs
+  autoCloseMs,
 }: FeedbackModalProps) {
   const [mounted, setMounted] = useState(false);
   const confirmBtnRef = useRef<HTMLButtonElement>(null);
@@ -85,29 +85,29 @@ export function FeedbackModal({
       haloBg: "bg-emerald-50 text-primary ring-8 ring-emerald-50/80",
       pulseClass: "animate-icon-pulse",
       icon: <Check className="h-7 w-7 stroke-[2.5]" />,
-      buttonVariant: "bg-primary hover:bg-primary-dark text-white shadow-xs focus-ring"
+      buttonVariant: "bg-primary hover:bg-primary-dark text-white shadow-xs focus-ring",
     },
     error: {
       badgeBg: "bg-rose-600 text-white",
       haloBg: "bg-rose-50 text-rose-600 ring-8 ring-rose-50/80",
       pulseClass: "",
       icon: <AlertCircle className="h-7 w-7 stroke-[2.5]" />,
-      buttonVariant: "bg-rose-600 hover:bg-rose-700 text-white shadow-xs focus-ring"
+      buttonVariant: "bg-rose-600 hover:bg-rose-700 text-white shadow-xs focus-ring",
     },
     warning: {
       badgeBg: "bg-amber-500 text-white",
       haloBg: "bg-amber-50 text-amber-600 ring-8 ring-amber-50/80",
       pulseClass: "",
       icon: <AlertTriangle className="h-7 w-7 stroke-[2.5]" />,
-      buttonVariant: "bg-amber-500 hover:bg-amber-600 text-white shadow-xs focus-ring"
+      buttonVariant: "bg-amber-500 hover:bg-amber-600 text-white shadow-xs focus-ring",
     },
     info: {
       badgeBg: "bg-sky-600 text-white",
       haloBg: "bg-sky-50 text-sky-600 ring-8 ring-sky-50/80",
       pulseClass: "",
       icon: <Info className="h-7 w-7 stroke-[2.5]" />,
-      buttonVariant: "bg-sky-600 hover:bg-sky-700 text-white shadow-xs focus-ring"
-    }
+      buttonVariant: "bg-sky-600 hover:bg-sky-700 text-white shadow-xs focus-ring",
+    },
   }[tone];
 
   function handleConfirmClick() {
@@ -143,7 +143,7 @@ export function FeedbackModal({
       {/* Modal Surface */}
       <div
         className={cn(
-          "relative z-10 w-full max-w-[420px] transform overflow-hidden rounded-3xl bg-white p-6 sm:p-8 text-center shadow-[0_20px_60px_-15px_rgba(16,26,44,0.2),0_10px_25px_-5px_rgba(16,26,44,0.08)] border border-slate-100 animate-modal-content"
+          "relative z-10 w-full max-w-[420px] transform overflow-hidden rounded-3xl bg-white p-6 sm:p-8 text-center shadow-[0_20px_60px_-15px_rgba(16,26,44,0.2),0_10px_25px_-5px_rgba(16,26,44,0.08)] border border-slate-100 animate-modal-content",
         )}
       >
         {/* Close Button */}
@@ -163,7 +163,7 @@ export function FeedbackModal({
             tone === "success" && "bg-primary/30",
             tone === "error" && "bg-rose-500/25",
             tone === "warning" && "bg-amber-500/25",
-            tone === "info" && "bg-sky-500/25"
+            tone === "info" && "bg-sky-500/25",
           )}
           aria-hidden="true"
         />
@@ -174,13 +174,13 @@ export function FeedbackModal({
             className={cn(
               "flex h-16 w-16 items-center justify-center rounded-full transition-transform duration-300",
               toneConfig.haloBg,
-              toneConfig.pulseClass
+              toneConfig.pulseClass,
             )}
           >
             <div
               className={cn(
                 "flex h-11 w-11 items-center justify-center rounded-full shadow-xs",
-                toneConfig.badgeBg
+                toneConfig.badgeBg,
               )}
             >
               {toneConfig.icon}
@@ -189,10 +189,7 @@ export function FeedbackModal({
         </div>
 
         {/* Title */}
-        <h3
-          id="feedback-modal-title"
-          className="text-xl font-bold tracking-tight text-heading"
-        >
+        <h3 id="feedback-modal-title" className="text-xl font-bold tracking-tight text-heading">
           {title}
         </h3>
 
@@ -224,7 +221,7 @@ export function FeedbackModal({
             onClick={handleConfirmClick}
             className={cn(
               "focus-ring inline-flex h-11 w-full items-center justify-center rounded-xl px-6 text-sm font-semibold transition active:scale-[0.98] sm:w-auto sm:min-w-[140px]",
-              toneConfig.buttonVariant
+              toneConfig.buttonVariant,
             )}
           >
             {confirmText}

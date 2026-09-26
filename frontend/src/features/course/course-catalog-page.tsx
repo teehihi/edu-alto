@@ -15,7 +15,7 @@ import {
   SlidersHorizontal,
   Star,
   Users,
-  X
+  X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppHeader } from "@/components/layout/app-header";
@@ -29,7 +29,7 @@ const SORT_OPTIONS: CustomSelectOption[] = [
   { value: "price_desc", label: "Giá từ cao đến thấp" },
   { value: "price_asc", label: "Giá từ thấp đến cao" },
   { value: "newest", label: "Mới nhất" },
-  { value: "rating_desc", label: "Đánh giá cao nhất" }
+  { value: "rating_desc", label: "Đánh giá cao nhất" },
 ];
 
 // Helper for formatting Vietnamese currency
@@ -38,8 +38,10 @@ function formatVND(amount: number): string {
   return new Intl.NumberFormat("vi-VN", {
     style: "currency",
     currency: "VND",
-    maximumFractionDigits: 0
-  }).format(amount).replace("₫", "đ");
+    maximumFractionDigits: 0,
+  })
+    .format(amount)
+    .replace("₫", "đ");
 }
 
 // 9 Default Catalog Courses matching Figma layout
@@ -57,7 +59,7 @@ const DEFAULT_CATALOG_COURSES: CourseCatalogCardData[] = [
     level: "Cơ bản",
     price: 499000,
     originalPrice: 899000,
-    image: "/images/home/course-figma.png"
+    image: "/images/home/course-figma.png",
   },
   {
     id: "course-2",
@@ -72,7 +74,7 @@ const DEFAULT_CATALOG_COURSES: CourseCatalogCardData[] = [
     level: "Cơ bản",
     price: 799000,
     originalPrice: 1299000,
-    image: "/images/home/course-code.png"
+    image: "/images/home/course-code.png",
   },
   {
     id: "course-3",
@@ -87,7 +89,7 @@ const DEFAULT_CATALOG_COURSES: CourseCatalogCardData[] = [
     level: "Nâng cao",
     price: 599000,
     originalPrice: 990000,
-    image: "/images/home/course-vibe.png"
+    image: "/images/home/course-vibe.png",
   },
   {
     id: "course-4",
@@ -102,7 +104,7 @@ const DEFAULT_CATALOG_COURSES: CourseCatalogCardData[] = [
     level: "Nâng cao",
     price: 899000,
     originalPrice: 1500000,
-    image: "/images/home/blog-workspace.png"
+    image: "/images/home/blog-workspace.png",
   },
   {
     id: "course-5",
@@ -117,7 +119,7 @@ const DEFAULT_CATALOG_COURSES: CourseCatalogCardData[] = [
     level: "Trung cấp",
     price: 650000,
     originalPrice: 990000,
-    image: "/images/home/course-figma.png"
+    image: "/images/home/course-figma.png",
   },
   {
     id: "course-6",
@@ -132,7 +134,7 @@ const DEFAULT_CATALOG_COURSES: CourseCatalogCardData[] = [
     level: "Trung cấp",
     price: 1199000,
     originalPrice: 1899000,
-    image: "/images/home/course-code.png"
+    image: "/images/home/course-code.png",
   },
   {
     id: "course-7",
@@ -147,7 +149,7 @@ const DEFAULT_CATALOG_COURSES: CourseCatalogCardData[] = [
     level: "Cơ bản",
     price: 399000,
     originalPrice: 650000,
-    image: "/images/home/blog-delight.png"
+    image: "/images/home/blog-delight.png",
   },
   {
     id: "course-8",
@@ -162,7 +164,7 @@ const DEFAULT_CATALOG_COURSES: CourseCatalogCardData[] = [
     level: "Mọi cấp độ",
     price: 750000,
     originalPrice: 1200000,
-    image: "/images/home/course-vibe.png"
+    image: "/images/home/course-vibe.png",
   },
   {
     id: "course-9",
@@ -177,8 +179,8 @@ const DEFAULT_CATALOG_COURSES: CourseCatalogCardData[] = [
     level: "Nâng cao",
     price: 850000,
     originalPrice: 1400000,
-    image: "/images/home/blog-featured.png"
-  }
+    image: "/images/home/blog-featured.png",
+  },
 ];
 
 // 8 Famous Instructors with rich info for interactive card
@@ -194,7 +196,7 @@ const FAMOUS_INSTRUCTORS = [
     students: "3.400 Học viên",
     coursesCount: 12,
     image: "/images/home/instructor-dung.png",
-    badge: "Giảng viên xuất sắc"
+    badge: "Giảng viên xuất sắc",
   },
   {
     id: "inst-2",
@@ -207,7 +209,7 @@ const FAMOUS_INSTRUCTORS = [
     students: "3.400 Học viên",
     coursesCount: 8,
     image: "/images/home/instructor-son.png",
-    badge: "Chuyên gia CSDL"
+    badge: "Chuyên gia CSDL",
   },
   {
     id: "inst-3",
@@ -220,7 +222,7 @@ const FAMOUS_INSTRUCTORS = [
     students: "2.900 Học viên",
     coursesCount: 15,
     image: "/images/home/instructor-hung.png",
-    badge: "Được yêu thích nhất"
+    badge: "Được yêu thích nhất",
   },
   {
     id: "inst-4",
@@ -233,7 +235,7 @@ const FAMOUS_INSTRUCTORS = [
     students: "3.100 Học viên",
     coursesCount: 10,
     image: "/images/home/instructor-tuan.png",
-    badge: "Giảng viên ưu tú"
+    badge: "Giảng viên ưu tú",
   },
   {
     id: "inst-5",
@@ -246,7 +248,7 @@ const FAMOUS_INSTRUCTORS = [
     students: "4.200 Học viên",
     coursesCount: 9,
     image: "/images/home/author-hau.png",
-    badge: "Top Rated UI/UX"
+    badge: "Top Rated UI/UX",
   },
   {
     id: "inst-6",
@@ -259,7 +261,7 @@ const FAMOUS_INSTRUCTORS = [
     students: "5.800 Học viên",
     coursesCount: 14,
     image: "/images/home/author-tee.png",
-    badge: "Senior Architect"
+    badge: "Senior Architect",
   },
   {
     id: "inst-7",
@@ -272,7 +274,7 @@ const FAMOUS_INSTRUCTORS = [
     students: "2.600 Học viên",
     coursesCount: 6,
     image: "/images/home/author-ank.png",
-    badge: "AI Innovator"
+    badge: "AI Innovator",
   },
   {
     id: "inst-8",
@@ -285,8 +287,8 @@ const FAMOUS_INSTRUCTORS = [
     students: "2.100 Học viên",
     coursesCount: 7,
     image: "/images/home/testimonial-khanh.png",
-    badge: "UX Mentor"
-  }
+    badge: "UX Mentor",
+  },
 ];
 
 // 8 Related Courses for Carousel
@@ -303,7 +305,7 @@ const RELATED_COURSES: CourseCatalogCardData[] = [
     level: "Nâng cao",
     price: 499000,
     originalPrice: 890000,
-    image: "/images/home/course-figma.png"
+    image: "/images/home/course-figma.png",
   },
   {
     id: "rel-2",
@@ -317,7 +319,7 @@ const RELATED_COURSES: CourseCatalogCardData[] = [
     level: "Cơ bản",
     price: 799000,
     originalPrice: 1200000,
-    image: "/images/home/course-code.png"
+    image: "/images/home/course-code.png",
   },
   {
     id: "rel-3",
@@ -331,7 +333,7 @@ const RELATED_COURSES: CourseCatalogCardData[] = [
     level: "Mọi cấp độ",
     price: 360000,
     originalPrice: 600000,
-    image: "/images/home/course-vibe.png"
+    image: "/images/home/course-vibe.png",
   },
   {
     id: "rel-4",
@@ -345,7 +347,7 @@ const RELATED_COURSES: CourseCatalogCardData[] = [
     level: "Trung cấp",
     price: 450000,
     originalPrice: 750000,
-    image: "/images/home/blog-workspace.png"
+    image: "/images/home/blog-workspace.png",
   },
   {
     id: "rel-5",
@@ -359,7 +361,7 @@ const RELATED_COURSES: CourseCatalogCardData[] = [
     level: "Nâng cao",
     price: 890000,
     originalPrice: 1600000,
-    image: "/images/home/blog-featured.png"
+    image: "/images/home/blog-featured.png",
   },
   {
     id: "rel-6",
@@ -373,8 +375,8 @@ const RELATED_COURSES: CourseCatalogCardData[] = [
     level: "Cơ bản",
     price: 390000,
     originalPrice: 590000,
-    image: "/images/home/blog-delight.png"
-  }
+    image: "/images/home/blog-delight.png",
+  },
 ];
 
 type CourseCatalogCardData = {
@@ -422,9 +424,14 @@ export function CourseCatalogPage() {
       setLoading(true);
       const data = await fetchPublicCourses({
         keyword: keyword.trim() || undefined,
-        sort: selectedSort === "price_desc" ? "price_desc" : selectedSort === "price_asc" ? "price_asc" : "newest",
+        sort:
+          selectedSort === "price_desc"
+            ? "price_desc"
+            : selectedSort === "price_asc"
+              ? "price_asc"
+              : "newest",
         page: 0,
-        size: 24
+        size: 24,
       });
       setBackendCourses(data);
     } catch {
@@ -451,10 +458,11 @@ export function CourseCatalogPage() {
         reviewCount: 1200 + i * 15,
         totalHours: 22,
         lecturesCount: 155,
-        level: c.level === "BEGINNER" ? "Cơ bản" : c.level === "INTERMEDIATE" ? "Trung cấp" : "Nâng cao",
+        level:
+          c.level === "BEGINNER" ? "Cơ bản" : c.level === "INTERMEDIATE" ? "Trung cấp" : "Nâng cao",
         price: c.price,
         originalPrice: c.originalPrice || undefined,
-        image: c.thumbnailUrl || DEFAULT_CATALOG_COURSES[i % DEFAULT_CATALOG_COURSES.length].image
+        image: c.thumbnailUrl || DEFAULT_CATALOG_COURSES[i % DEFAULT_CATALOG_COURSES.length].image,
       }));
     }
     return DEFAULT_CATALOG_COURSES;
@@ -462,20 +470,23 @@ export function CourseCatalogPage() {
 
   function toggleChapterFilter(val: string) {
     setSelectedChapters((prev) =>
-      prev.includes(val) ? prev.filter((item) => item !== val) : [...prev, val]
+      prev.includes(val) ? prev.filter((item) => item !== val) : [...prev, val],
     );
   }
 
   function toggleCategoryFilter(cat: string) {
     setSelectedCategories((prev) =>
-      prev.includes(cat) ? prev.filter((item) => item !== cat) : [...prev, cat]
+      prev.includes(cat) ? prev.filter((item) => item !== cat) : [...prev, cat],
     );
   }
 
   return (
     <div
       className="min-h-screen flex flex-col justify-between animate-page"
-      style={{ background: "linear-gradient(180deg, #E6F7F2 0%, #F2FAF7 320px, #FFFFFF 680px, #FFFFFF 100%)" }}
+      style={{
+        background:
+          "linear-gradient(180deg, #E6F7F2 0%, #F2FAF7 320px, #FFFFFF 680px, #FFFFFF 100%)",
+      }}
     >
       <AppHeader transparent />
 
@@ -485,7 +496,14 @@ export function CourseCatalogPage() {
           {/* Subtle Grid Dot Pattern Top-Right (from Figma) */}
           <div className="pointer-events-none absolute right-6 top-4 hidden md:block opacity-40">
             <svg width="120" height="120" viewBox="0 0 120 120" fill="none">
-              <pattern id="dot-pattern" x="0" y="0" width="16" height="16" patternUnits="userSpaceOnUse">
+              <pattern
+                id="dot-pattern"
+                x="0"
+                y="0"
+                width="16"
+                height="16"
+                patternUnits="userSpaceOnUse"
+              >
                 <circle cx="2" cy="2" r="1.5" fill="#20B486" />
               </pattern>
               <rect width="120" height="120" fill="url(#dot-pattern)" />
@@ -496,9 +514,7 @@ export function CourseCatalogPage() {
             <h1 className="text-2xl sm:text-3xl font-extrabold text-[#20B486]">
               Danh Sách Khóa Học
             </h1>
-            <p className="mt-1 text-sm font-bold text-[#101A2C]">
-              Tất Cả Khóa Học
-            </p>
+            <p className="mt-1 text-sm font-bold text-[#101A2C]">Tất Cả Khóa Học</p>
 
             {/* Filter Button & Sort Row */}
             <div className="relative z-30 mt-6 flex flex-wrap items-center justify-between gap-4">
@@ -538,7 +554,7 @@ export function CourseCatalogPage() {
                 "lg:block",
                 isMobileFilterOpen
                   ? "fixed inset-0 z-50 overflow-y-auto bg-white p-6 shadow-2xl lg:static lg:p-0 lg:shadow-none"
-                  : "hidden"
+                  : "hidden",
               )}
             >
               {/* Mobile Header for Filter Drawer */}
@@ -581,7 +597,7 @@ export function CourseCatalogPage() {
                           onClick={() => setSelectedRating(selectedRating === stars ? null : stars)}
                           className={cn(
                             "flex w-full items-center gap-2.5 rounded-lg px-2 py-1 text-xs transition",
-                            selectedRating === stars ? "bg-primary-soft/60" : "hover:bg-slate-50"
+                            selectedRating === stars ? "bg-primary-soft/60" : "hover:bg-slate-50",
                           )}
                         >
                           <div className="flex items-center gap-1 text-[#F5C34D]">
@@ -590,7 +606,7 @@ export function CourseCatalogPage() {
                                 key={i}
                                 className={cn(
                                   "h-3.5 w-3.5",
-                                  i < stars ? "fill-current text-[#F5C34D]" : "text-slate-200"
+                                  i < stars ? "fill-current text-[#F5C34D]" : "text-slate-200",
                                 )}
                               />
                             ))}
@@ -637,7 +653,7 @@ export function CourseCatalogPage() {
                                   "flex h-4 w-4 shrink-0 items-center justify-center rounded-md border transition-all duration-150 shadow-2xs",
                                   isChecked
                                     ? "border-primary bg-primary text-white shadow-xs"
-                                    : "border-slate-300 bg-white group-hover:border-primary/60"
+                                    : "border-slate-300 bg-white group-hover:border-primary/60",
                                 )}
                               >
                                 {isChecked && <Check className="h-3 w-3 text-white stroke-[3]" />}
@@ -646,7 +662,9 @@ export function CourseCatalogPage() {
                             <span
                               className={cn(
                                 "transition-colors",
-                                isChecked ? "font-bold text-[#101A2C]" : "text-slate-600 group-hover:text-slate-900"
+                                isChecked
+                                  ? "font-bold text-[#101A2C]"
+                                  : "text-slate-600 group-hover:text-slate-900",
                               )}
                             >
                               {range}
@@ -687,7 +705,7 @@ export function CourseCatalogPage() {
                         { label: "Miễn phí", val: "FREE" },
                         { label: "Dưới 500.000đ", val: "<500" },
                         { label: "500.000đ - 1.000.000đ", val: "500-1000" },
-                        { label: "Trên 1.000.000đ", val: ">1000" }
+                        { label: "Trên 1.000.000đ", val: ">1000" },
                       ].map((item) => {
                         const isSelected = selectedPriceRange === item.val;
                         return (
@@ -708,18 +726,18 @@ export function CourseCatalogPage() {
                                   "flex h-4 w-4 shrink-0 items-center justify-center rounded-full border transition-all duration-150",
                                   isSelected
                                     ? "border-primary bg-white ring-2 ring-primary/20"
-                                    : "border-slate-300 bg-white group-hover:border-primary/60"
+                                    : "border-slate-300 bg-white group-hover:border-primary/60",
                                 )}
                               >
-                                {isSelected && (
-                                  <span className="h-2 w-2 rounded-full bg-primary" />
-                                )}
+                                {isSelected && <span className="h-2 w-2 rounded-full bg-primary" />}
                               </div>
                             </div>
                             <span
                               className={cn(
                                 "transition-colors",
-                                isSelected ? "font-bold text-[#101A2C]" : "text-slate-600 group-hover:text-slate-900"
+                                isSelected
+                                  ? "font-bold text-[#101A2C]"
+                                  : "text-slate-600 group-hover:text-slate-900",
                               )}
                             >
                               {item.label}
@@ -753,7 +771,7 @@ export function CourseCatalogPage() {
                         "Lập trình Web & Backend",
                         "Khoa học Dữ liệu & AI",
                         "Phát triển Mobile",
-                        "Marketing & Kinh doanh"
+                        "Marketing & Kinh doanh",
                       ].map((cat) => {
                         const isChecked = selectedCategories.includes(cat);
                         return (
@@ -773,7 +791,7 @@ export function CourseCatalogPage() {
                                   "flex h-4 w-4 shrink-0 items-center justify-center rounded-md border transition-all duration-150 shadow-2xs",
                                   isChecked
                                     ? "border-primary bg-primary text-white shadow-xs"
-                                    : "border-slate-300 bg-white group-hover:border-primary/60"
+                                    : "border-slate-300 bg-white group-hover:border-primary/60",
                                 )}
                               >
                                 {isChecked && <Check className="h-3 w-3 text-white stroke-[3]" />}
@@ -782,7 +800,9 @@ export function CourseCatalogPage() {
                             <span
                               className={cn(
                                 "transition-colors",
-                                isChecked ? "font-bold text-[#101A2C]" : "text-slate-600 group-hover:text-slate-900"
+                                isChecked
+                                  ? "font-bold text-[#101A2C]"
+                                  : "text-slate-600 group-hover:text-slate-900",
                               )}
                             >
                               {cat}
@@ -835,7 +855,7 @@ export function CourseCatalogPage() {
                       "flex h-9 w-9 items-center justify-center rounded-xl text-xs font-bold transition shadow-xs",
                       currentPage === page
                         ? "bg-primary text-white"
-                        : "border border-slate-200 bg-white text-slate-700 hover:border-primary hover:text-primary"
+                        : "border border-slate-200 bg-white text-slate-700 hover:border-primary hover:text-primary",
                     )}
                   >
                     {page}
@@ -914,9 +934,7 @@ function FigmaCourseCard({ course }: { course: CourseCatalogCardData }) {
       {/* Content */}
       <div className="flex flex-1 flex-col pt-3.5">
         <h3 className="line-clamp-2 text-sm font-bold text-ink transition group-hover:text-primary">
-          <Link href={`/courses/${course.slug}`}>
-            {course.title}
-          </Link>
+          <Link href={`/courses/${course.slug}`}>{course.title}</Link>
         </h3>
         <p className="mt-1 text-xs text-muted">
           Bởi <span className="font-semibold text-slate-700">{course.instructor}</span>
@@ -966,11 +984,7 @@ function FigmaCourseCard({ course }: { course: CourseCatalogCardData }) {
 // ==========================================
 // Luxury Interactive Instructors Carousel with Auto-Scroll & Corner Expansion Hover Card
 // ==========================================
-function InstructorsCarousel({
-  instructors
-}: {
-  instructors: typeof FAMOUS_INSTRUCTORS;
-}) {
+function InstructorsCarousel({ instructors }: { instructors: typeof FAMOUS_INSTRUCTORS }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
@@ -1016,16 +1030,15 @@ function InstructorsCarousel({
   }
 
   return (
-    <div
-      onMouseEnter={() => setIsPaused(true)}
-      onMouseLeave={() => setIsPaused(false)}
-    >
+    <div onMouseEnter={() => setIsPaused(true)} onMouseLeave={() => setIsPaused(false)}>
       {/* Header with Title & Navigation Controls */}
       <div className="flex items-center justify-between gap-4 mb-6">
         <div>
           <div className="flex items-center gap-2">
             <span className="flex h-2 w-2 rounded-full bg-primary animate-pulse" />
-            <span className="text-xs font-bold uppercase tracking-wider text-primary">Đội ngũ chuyên gia hàng đầu</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-primary">
+              Đội ngũ chuyên gia hàng đầu
+            </span>
           </div>
           <h2 className="text-xl sm:text-2xl font-extrabold text-[#101A2C] mt-1">
             Các Giảng viên Nổi tiếng
@@ -1043,7 +1056,7 @@ function InstructorsCarousel({
               "focus-ring flex h-10 w-10 items-center justify-center rounded-2xl border transition-all duration-200 shadow-xs",
               canScrollLeft
                 ? "border-slate-200 bg-white text-slate-800 hover:border-primary hover:bg-primary-soft/50 hover:text-primary hover:scale-105 active:scale-95"
-                : "border-slate-100 bg-slate-50 text-slate-300 cursor-not-allowed"
+                : "border-slate-100 bg-slate-50 text-slate-300 cursor-not-allowed",
             )}
           >
             <ChevronLeft className="h-5 w-5" />
@@ -1057,7 +1070,7 @@ function InstructorsCarousel({
               "focus-ring flex h-10 w-10 items-center justify-center rounded-2xl border transition-all duration-200 shadow-xs",
               canScrollRight
                 ? "border-slate-200 bg-white text-slate-800 hover:border-primary hover:bg-primary-soft/50 hover:text-primary hover:scale-105 active:scale-95"
-                : "border-slate-100 bg-slate-50 text-slate-300 cursor-not-allowed"
+                : "border-slate-100 bg-slate-50 text-slate-300 cursor-not-allowed",
             )}
           >
             <ChevronRight className="h-5 w-5" />
@@ -1101,9 +1114,7 @@ function InstructorsCarousel({
                 <h3 className="line-clamp-1 text-sm font-bold text-ink transition group-hover:text-primary">
                   {inst.name}
                 </h3>
-                <p className="mt-0.5 line-clamp-1 text-xs text-muted font-medium">
-                  {inst.role}
-                </p>
+                <p className="mt-0.5 line-clamp-1 text-xs text-muted font-medium">{inst.role}</p>
 
                 {/* Bottom Rating & Students */}
                 <div className="mt-auto flex items-center justify-between border-t border-slate-100 pt-3 text-xs font-semibold text-slate-700">
@@ -1125,20 +1136,13 @@ function InstructorsCarousel({
               <div>
                 <div className="flex items-center gap-3">
                   <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full ring-2 ring-white/80">
-                    <Image
-                      src={inst.image}
-                      alt={inst.name}
-                      fill
-                      className="object-cover"
-                    />
+                    <Image src={inst.image} alt={inst.name} fill className="object-cover" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <h4 className="truncate text-sm font-bold text-white leading-tight">
                       {inst.name}
                     </h4>
-                    <p className="truncate text-[11px] font-medium text-emerald-100">
-                      {inst.role}
-                    </p>
+                    <p className="truncate text-[11px] font-medium text-emerald-100">{inst.role}</p>
                   </div>
                 </div>
 
@@ -1171,7 +1175,9 @@ function InstructorsCarousel({
                     <div className="text-[9px] text-emerald-100">Khóa học</div>
                   </div>
                   <div className="rounded-lg bg-white/20 py-1.5">
-                    <div className="text-xs font-bold text-white">{inst.students.split(" ")[0]}</div>
+                    <div className="text-xs font-bold text-white">
+                      {inst.students.split(" ")[0]}
+                    </div>
                     <div className="text-[9px] text-emerald-100">Học viên</div>
                   </div>
                   <div className="rounded-lg bg-white/20 py-1.5">
@@ -1201,11 +1207,7 @@ function InstructorsCarousel({
 // ==========================================
 // Luxury Interactive Related Courses Carousel with Auto-Scroll
 // ==========================================
-function RelatedCoursesCarousel({
-  courses
-}: {
-  courses: typeof RELATED_COURSES;
-}) {
+function RelatedCoursesCarousel({ courses }: { courses: typeof RELATED_COURSES }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
@@ -1251,16 +1253,15 @@ function RelatedCoursesCarousel({
   }
 
   return (
-    <div
-      onMouseEnter={() => setIsPaused(true)}
-      onMouseLeave={() => setIsPaused(false)}
-    >
+    <div onMouseEnter={() => setIsPaused(true)} onMouseLeave={() => setIsPaused(false)}>
       {/* Header with Title & Navigation Controls */}
       <div className="flex items-center justify-between gap-4 mb-6">
         <div>
           <div className="flex items-center gap-2">
             <span className="flex h-2 w-2 rounded-full bg-primary animate-pulse" />
-            <span className="text-xs font-bold uppercase tracking-wider text-primary">Gợi ý cho bạn</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-primary">
+              Gợi ý cho bạn
+            </span>
           </div>
           <h2 className="text-xl sm:text-2xl font-extrabold text-[#101A2C] mt-1">
             Các Khóa học liên quan
@@ -1278,7 +1279,7 @@ function RelatedCoursesCarousel({
               "focus-ring flex h-10 w-10 items-center justify-center rounded-2xl border transition-all duration-200 shadow-xs",
               canScrollLeft
                 ? "border-slate-200 bg-white text-slate-800 hover:border-primary hover:bg-primary-soft/50 hover:text-primary hover:scale-105 active:scale-95"
-                : "border-slate-100 bg-slate-50 text-slate-300 cursor-not-allowed"
+                : "border-slate-100 bg-slate-50 text-slate-300 cursor-not-allowed",
             )}
           >
             <ChevronLeft className="h-5 w-5" />
@@ -1292,7 +1293,7 @@ function RelatedCoursesCarousel({
               "focus-ring flex h-10 w-10 items-center justify-center rounded-2xl border transition-all duration-200 shadow-xs",
               canScrollRight
                 ? "border-slate-200 bg-white text-slate-800 hover:border-primary hover:bg-primary-soft/50 hover:text-primary hover:scale-105 active:scale-95"
-                : "border-slate-100 bg-slate-50 text-slate-300 cursor-not-allowed"
+                : "border-slate-100 bg-slate-50 text-slate-300 cursor-not-allowed",
             )}
           >
             <ChevronRight className="h-5 w-5" />
@@ -1308,10 +1309,7 @@ function RelatedCoursesCarousel({
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
       >
         {courses.map((course) => (
-          <div
-            key={course.id}
-            className="w-[280px] sm:w-[310px] shrink-0 snap-start"
-          >
+          <div key={course.id} className="w-[280px] sm:w-[310px] shrink-0 snap-start">
             <FigmaCourseCard course={course} />
           </div>
         ))}
@@ -1319,4 +1317,3 @@ function RelatedCoursesCarousel({
     </div>
   );
 }
-
