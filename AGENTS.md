@@ -135,10 +135,11 @@ Không biến EduAlto thành website AI/neon/futuristic. AI là extension tươn
 Sau khi chỉnh sửa mã nguồn, trước khi có ý định commit code, bắt buộc phải chạy đầy đủ bộ kiểm tra sau và đảm bảo 100% vượt qua:
 
 1. **Kiểm tra lint siêu tốc**: `pnpm frontend:lint:fast` (Oxlint. Bắt buộc 0 error, 0 warning).
-2. **Kiểm tra định dạng code**: `pnpm frontend:fmt:check` (dùng `pnpm frontend:fmt` để tự động sửa bằng Oxfmt).
-3. **Kiểm tra kiểu dữ liệu TypeScript**: `pnpm frontend:typecheck` (`tsc --noEmit`).
-4. **Chạy Unit & Component tests frontend**: `pnpm --dir frontend test` (Vitest).
-5. **Chạy Integration tests backend**: `./backend/mvnw test` (hoặc `pnpm backend:test`. Chạy Testcontainers PostgreSQL 16 cô lập).
+2. **Kiểm tra lint chi tiết**: `pnpm frontend:lint` (ESLint 9).
+3. **Kiểm tra định dạng code**: `pnpm frontend:fmt:check` (dùng `pnpm frontend:fmt` để tự động sửa bằng Oxfmt).
+4. **Kiểm tra kiểu dữ liệu TypeScript**: `pnpm frontend:typecheck` (`tsc --noEmit`).
+5. **Chạy Unit & Component tests frontend**: `pnpm --dir frontend test` (Vitest).
+6. **Chạy Integration tests backend**: `./backend/mvnw test` (hoặc `pnpm backend:test`. Chạy Testcontainers PostgreSQL 16 cô lập).
 
 Tuyệt đối không commit hay merge code nếu bất kỳ bước kiểm tra nào bị thất bại.
 

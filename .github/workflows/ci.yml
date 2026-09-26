@@ -2,42 +2,86 @@ name: CI
 
 on:
   pull_request:
+    branches: [main]
   push:
-    branches:
-      - main
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   frontend:
+    name: "Frontend: Format, Lint, Typecheck, Test & Build"
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
+    timeout-minutes: 15
+    env:
+      CI: "true"
+      NEXT_TELEMETRY_DISABLED: "1"
+      NEXT_PUBLIC_API_URL: http://localhost:8080/api/v1
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
         with:
           version: 11.9.0
-      - uses: actions/setup-node@v4
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
-        working-directory: .
-      - run: pnpm --dir frontend typecheck
-        working-directory: .
-      - run: pnpm --dir frontend build
-        working-directory: .
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check code formatting (Oxfmt)
+        run: pnpm frontend:fmt:check
+
+      - name: Fast Lint (Oxlint)
+        run: pnpm frontend:lint:fast
+
+      - name: Full Lint (ESLint)
+        run: pnpm frontend:lint
+
+      - name: Type check (tsc --noEmit)
+        run: pnpm frontend:typecheck
+
+      - name: Unit & Component tests (Vitest)
+        run: pnpm --dir frontend test
+
+      - name: Production build (Next.js)
+        run: pnpm frontend:build
 
   backend:
+    name: "Backend: Integration Tests (Testcontainers) & Package"
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java 25
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 25
+          java-version: "25"
           cache: maven
-      - run: mvn test
+
+      - name: Make Maven wrapper executable
+        run: chmod +x backend/mvnw
+
+      - name: Build and test with Testcontainers
+        run: ./backend/mvnw --batch-mode --no-transfer-progress -f backend/pom.xml clean verify
+
+      - name: Print failed test logs for Agent
+        if: failure()
+        run: grep -l "FAILURE\|ERROR" backend/target/surefire-reports/*.txt 2>/dev/null | xargs -r cat
