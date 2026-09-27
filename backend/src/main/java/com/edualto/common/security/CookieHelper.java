@@ -2,6 +2,7 @@ package com.edualto.common.security;
 
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -12,15 +13,18 @@ public class CookieHelper {
 
     private final boolean secure;
     private final String domain;
+    private final String sameSite;
     private final long maxAgeSeconds;
 
     public CookieHelper(
             @Value("${edualto.auth.cookie.secure:false}") boolean secure,
             @Value("${edualto.auth.cookie.domain:}") String domain,
+            @Value("${edualto.auth.cookie.same-site:Lax}") String sameSite,
             @Value("${edualto.auth.refresh-token-ttl-days}") long refreshTokenTtlDays
     ) {
         this.secure = secure;
         this.domain = domain == null || domain.isBlank() ? null : domain.trim();
+        this.sameSite = normalizeSameSite(sameSite, secure);
         this.maxAgeSeconds = refreshTokenTtlDays * 24 * 60 * 60;
     }
 
@@ -37,18 +41,35 @@ public class CookieHelper {
     }
 
     private String buildCookieHeader(String value, long maxAge) {
-        StringBuilder sb = new StringBuilder();
-        sb.append(REFRESH_TOKEN_COOKIE).append("=").append(value);
-        sb.append("; Path=").append(COOKIE_PATH);
-        sb.append("; Max-Age=").append(maxAge);
-        sb.append("; HttpOnly");
-        sb.append("; SameSite=None");
-        if (secure) {
-            sb.append("; Secure");
-        }
+        ResponseCookie.ResponseCookieBuilder builder = ResponseCookie.from(REFRESH_TOKEN_COOKIE, value)
+                .path(COOKIE_PATH)
+                .maxAge(maxAge)
+                .httpOnly(true)
+                .secure(secure)
+                .sameSite(sameSite);
         if (domain != null) {
-            sb.append("; Domain=").append(domain);
+            builder.domain(domain);
         }
-        return sb.toString();
+        return builder.build().toString();
+    }
+
+    private static String normalizeSameSite(String sameSite, boolean secure) {
+        if (sameSite == null) {
+            throw new IllegalArgumentException("Auth cookie SameSite must be Lax, Strict, or None");
+        }
+        String normalized = sameSite.trim();
+        if ("lax".equalsIgnoreCase(normalized)) {
+            return "Lax";
+        }
+        if ("strict".equalsIgnoreCase(normalized)) {
+            return "Strict";
+        }
+        if ("none".equalsIgnoreCase(normalized)) {
+            if (!secure) {
+                throw new IllegalArgumentException("Auth cookie SameSite=None requires AUTH_COOKIE_SECURE=true");
+            }
+            return "None";
+        }
+        throw new IllegalArgumentException("Auth cookie SameSite must be Lax, Strict, or None");
     }
 }

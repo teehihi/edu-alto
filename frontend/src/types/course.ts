@@ -59,3 +59,26 @@ export type Course = {
   price: string;
   accent: "design" | "coding" | "vibe";
 };
+
+export type CourseCurriculum = {
+  courseId: string;
+  slug: string;
+  sections: {
+    id: string;
+    title: string;
+    lessons: {
+      id: string;
+      title: string;
+      lessonType: string;
+      durationSeconds: number | null;
+      preview: boolean;
+    }[];
+  }[];
+};
+
+export type LessonPreview = {
+  id: string;
+  title: string;
+  lessonType: string;
+  textContent: string | null;
+};

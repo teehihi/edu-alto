@@ -21,7 +21,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppHeader } from "@/components/layout/app-header";
 import { Footer } from "@/components/layout/footer";
 import { CustomSelect, type CustomSelectOption } from "@/components/ui/custom-select";
-import { fetchPublicCourses } from "@/lib/course-client";
+import { fetchPublicCoursePage } from "@/lib/course-client";
 import type { CourseListItem } from "@/types/course";
 import { cn } from "@/lib/cn";
 
@@ -29,7 +29,6 @@ const SORT_OPTIONS: CustomSelectOption[] = [
   { value: "price_desc", label: "Giá từ cao đến thấp" },
   { value: "price_asc", label: "Giá từ thấp đến cao" },
   { value: "newest", label: "Mới nhất" },
-  { value: "rating_desc", label: "Đánh giá cao nhất" },
 ];
 
 // Helper for formatting Vietnamese currency
@@ -44,146 +43,6 @@ function formatVND(amount: number): string {
     .replace("₫", "đ");
 }
 
-// 9 Default Catalog Courses matching Figma layout
-const DEFAULT_CATALOG_COURSES: CourseCatalogCardData[] = [
-  {
-    id: "course-1",
-    slug: "nhap-mon-thiet-ke-ui-ux-chuyen-nghiep",
-    title: "Nhập môn Thiết kế UI/UX Chuyên Nghiệp",
-    instructor: "ThS. Phạm Văn Hậu",
-    instructorRole: "Senior Product Designer",
-    rating: 5.0,
-    reviewCount: 1200,
-    totalHours: 22,
-    lecturesCount: 155,
-    level: "Cơ bản",
-    price: 499000,
-    originalPrice: 899000,
-    image: "/images/home/course-figma.png",
-  },
-  {
-    id: "course-2",
-    slug: "300-bai-code-thieu-nhi-lap-trinh-backend",
-    title: "300 Bài Code Thiếu Nhi - Lập Trình Backend",
-    instructor: "Kỹ sư Nguyễn Nhật Thiên",
-    instructorRole: "Tech Lead EduAlto",
-    rating: 5.0,
-    reviewCount: 1450,
-    totalHours: 26,
-    lecturesCount: 180,
-    level: "Cơ bản",
-    price: 799000,
-    originalPrice: 1299000,
-    image: "/images/home/course-code.png",
-  },
-  {
-    id: "course-3",
-    slug: "lam-chu-ai-agent-vibe-coding-2026",
-    title: "Làm Chủ AI Agent & Vibe Coding 2026",
-    instructor: "Công Ank",
-    instructorRole: "AI Specialist",
-    rating: 4.9,
-    reviewCount: 890,
-    totalHours: 18,
-    lecturesCount: 120,
-    level: "Nâng cao",
-    price: 599000,
-    originalPrice: 990000,
-    image: "/images/home/course-vibe.png",
-  },
-  {
-    id: "course-4",
-    slug: "kien-truc-microservices-voi-spring-boot-3",
-    title: "Kiến trúc Microservices với Spring Boot 3",
-    instructor: "TS. Nguyễn Thành Sơn",
-    instructorRole: "Trưởng bộ môn Hệ thống",
-    rating: 5.0,
-    reviewCount: 1120,
-    totalHours: 32,
-    lecturesCount: 210,
-    level: "Nâng cao",
-    price: 899000,
-    originalPrice: 1500000,
-    image: "/images/home/blog-workspace.png",
-  },
-  {
-    id: "course-5",
-    slug: "thiet-ke-design-system-toan-dien-figma",
-    title: "Thiết Kế Design System Toàn Diện Trên Figma",
-    instructor: "ThS. Phạm Văn Hậu",
-    instructorRole: "Senior Product Designer",
-    rating: 4.9,
-    reviewCount: 960,
-    totalHours: 20,
-    lecturesCount: 140,
-    level: "Trung cấp",
-    price: 650000,
-    originalPrice: 990000,
-    image: "/images/home/course-figma.png",
-  },
-  {
-    id: "course-6",
-    slug: "lap-trinh-fullstack-nextjs-spring-boot",
-    title: "Lập trình Fullstack Next.js & Spring Boot",
-    instructor: "Kỹ sư Nguyễn Nhật Thiên",
-    instructorRole: "Tech Lead EduAlto",
-    rating: 5.0,
-    reviewCount: 1850,
-    totalHours: 38,
-    lecturesCount: 260,
-    level: "Trung cấp",
-    price: 1199000,
-    originalPrice: 1899000,
-    image: "/images/home/course-code.png",
-  },
-  {
-    id: "course-7",
-    slug: "toi-uu-trai-nghiem-nguoi-dung-ux-research",
-    title: "Tối Ưu Trải Nghiệm Người Dùng (UX Research)",
-    instructor: "Lê Quốc Khánh",
-    instructorRole: "UX Lead",
-    rating: 4.8,
-    reviewCount: 740,
-    totalHours: 16,
-    lecturesCount: 110,
-    level: "Cơ bản",
-    price: 399000,
-    originalPrice: 650000,
-    image: "/images/home/blog-delight.png",
-  },
-  {
-    id: "course-8",
-    slug: "ung-dung-generative-ai-trong-lap-trinh",
-    title: "Ứng Dụng Generative AI Trong Lập Trình Hiện Đại",
-    instructor: "Công Ank",
-    instructorRole: "AI Specialist",
-    rating: 5.0,
-    reviewCount: 1320,
-    totalHours: 24,
-    lecturesCount: 165,
-    level: "Mọi cấp độ",
-    price: 750000,
-    originalPrice: 1200000,
-    image: "/images/home/course-vibe.png",
-  },
-  {
-    id: "course-9",
-    slug: "xay-dung-ung-dung-thoi-gian-thuc-websocket",
-    title: "Xây Dựng Ứng Dụng Thời Gian Thực với WebSocket",
-    instructor: "TS. Hoàng Văn Dũng",
-    instructorRole: "Phó Trưởng khoa CNTT",
-    rating: 5.0,
-    reviewCount: 1600,
-    totalHours: 28,
-    lecturesCount: 190,
-    level: "Nâng cao",
-    price: 850000,
-    originalPrice: 1400000,
-    image: "/images/home/blog-featured.png",
-  },
-];
-
-// 8 Famous Instructors with rich info for interactive card
 const FAMOUS_INSTRUCTORS = [
   {
     id: "inst-1",
@@ -399,7 +258,7 @@ export function CourseCatalogPage() {
   const searchParams = useSearchParams();
   const queryParam = searchParams.get("q") ?? searchParams.get("keyword") ?? "";
 
-  const [keyword, _setKeyword] = useState(queryParam);
+  const keyword = queryParam;
   const [selectedSort, setSelectedSort] = useState<string>("price_desc");
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
@@ -415,58 +274,73 @@ export function CourseCatalogPage() {
   const [selectedPriceRange, setSelectedPriceRange] = useState<string>("ALL");
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
-  const [backendCourses, setBackendCourses] = useState<CourseListItem[]>([]);
-  const [_loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-
-  const loadBackendCourses = useCallback(async () => {
-    try {
-      setLoading(true);
-      const data = await fetchPublicCourses({
-        keyword: keyword.trim() || undefined,
-        sort:
-          selectedSort === "price_desc"
-            ? "price_desc"
-            : selectedSort === "price_asc"
-              ? "price_asc"
-              : "newest",
-        page: 0,
-        size: 24,
-      });
-      setBackendCourses(data);
-    } catch {
-      // Fallback gracefully
-    } finally {
-      setLoading(false);
-    }
-  }, [keyword, selectedSort]);
+  const [retry, setRetry] = useState(0);
+  const requestKey = `${keyword}:${selectedSort}:${currentPage}:${retry}`;
+  const [catalog, setCatalog] = useState<{
+    key: string;
+    courses: CourseListItem[];
+    totalPages: number;
+    error: boolean;
+  } | null>(null);
+  const loading = catalog?.key !== requestKey;
 
   useEffect(() => {
-    loadBackendCourses();
-  }, [loadBackendCourses]);
+    let active = true;
+    fetchPublicCoursePage({
+      keyword: keyword.trim() || undefined,
+      sort:
+        selectedSort === "price_desc"
+          ? "price_desc"
+          : selectedSort === "price_asc"
+            ? "price_asc"
+            : "newest",
+      page: currentPage - 1,
+      size: 12,
+    })
+      .then((data) => {
+        if (active)
+          setCatalog({
+            key: requestKey,
+            courses: data.data,
+            totalPages: data.meta.totalPages,
+            error: false,
+          });
+      })
+      .catch(() => {
+        if (active) setCatalog({ key: requestKey, courses: [], totalPages: 0, error: true });
+      });
+    return () => {
+      active = false;
+    };
+  }, [keyword, selectedSort, currentPage, requestKey]);
 
-  // Merge backend data or fallback to Figma catalog items
-  const displayCourses: CourseCatalogCardData[] = useMemo(() => {
-    if (backendCourses && backendCourses.length > 0) {
-      return backendCourses.map((c, i) => ({
+  const displayCourses: CourseCatalogCardData[] = useMemo(
+    () =>
+      (catalog?.courses ?? []).map((c) => ({
         id: c.id,
         slug: c.slug,
         title: c.title,
-        instructor: c.instructor?.fullName || "Ronald Richards",
-        instructorRole: c.instructor?.headline || "Giảng viên EduAlto",
-        rating: 5.0,
-        reviewCount: 1200 + i * 15,
-        totalHours: 22,
-        lecturesCount: 155,
+        instructor: c.instructor?.fullName || "Giảng viên EduAlto",
+        instructorRole: c.instructor?.headline || undefined,
+        rating: 0,
+        reviewCount: 0,
+        totalHours: 0,
+        lecturesCount: 0,
         level:
-          c.level === "BEGINNER" ? "Cơ bản" : c.level === "INTERMEDIATE" ? "Trung cấp" : "Nâng cao",
+          c.level === "BEGINNER"
+            ? "Cơ bản"
+            : c.level === "INTERMEDIATE"
+              ? "Trung cấp"
+              : c.level === "ADVANCED"
+                ? "Nâng cao"
+                : "Tất cả trình độ",
         price: c.price,
-        originalPrice: c.originalPrice || undefined,
-        image: c.thumbnailUrl || DEFAULT_CATALOG_COURSES[i % DEFAULT_CATALOG_COURSES.length].image,
-      }));
-    }
-    return DEFAULT_CATALOG_COURSES;
-  }, [backendCourses]);
+        originalPrice: c.originalPrice ?? undefined,
+        image: c.thumbnailUrl || "/images/logo-with-text.png",
+      })),
+    [catalog],
+  );
 
   function toggleChapterFilter(val: string) {
     setSelectedChapters((prev) =>
@@ -482,6 +356,7 @@ export function CourseCatalogPage() {
 
   return (
     <div
+      suppressHydrationWarning
       className="min-h-screen flex flex-col justify-between animate-page"
       style={{
         background:
@@ -829,41 +704,68 @@ export function CourseCatalogPage() {
 
             {/* Right Course Grid */}
             <div className="flex flex-col">
-              {/* 3-Column Course Grid from Figma with Vietnamese Currency */}
+              {loading ? (
+                <p role="status" className="py-10 text-muted">
+                  Đang tải khóa học…
+                </p>
+              ) : catalog?.error ? (
+                <div role="alert" className="rounded-lg border border-rose-200 p-6">
+                  <p>Không thể tải danh mục khóa học. Vui lòng thử lại.</p>
+                  <button
+                    className="focus-ring mt-4 rounded-lg border border-primary px-4 py-2 text-primary"
+                    onClick={() => setRetry((value) => value + 1)}
+                  >
+                    Thử lại
+                  </button>
+                </div>
+              ) : displayCourses.length === 0 ? (
+                <p className="rounded-lg border border-dashed border-slate-200 p-8 text-muted">
+                  Chưa có khóa học phù hợp. Hãy thử tìm kiếm khác.
+                </p>
+              ) : null}
+              {/* Course data is shown only after the current request completes. */}
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {displayCourses.map((course) => (
-                  <FigmaCourseCard key={course.id} course={course} />
-                ))}
+                {!loading &&
+                  displayCourses.map((course) => (
+                    <FigmaCourseCard key={course.id} course={course} />
+                  ))}
               </div>
 
               {/* Pagination Controls from Figma: < 1 2 3 > */}
-              <div className="mt-12 flex items-center justify-center gap-2">
+              <div
+                className="mt-12 flex items-center justify-center gap-2"
+                hidden={loading || !catalog || catalog.totalPages < 2}
+              >
                 <button
                   type="button"
+                  disabled={currentPage <= 1}
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-600 transition hover:border-primary hover:text-primary shadow-xs"
                   aria-label="Trang trước"
                 >
                   &lt;
                 </button>
-                {[1, 2, 3].map((page) => (
-                  <button
-                    key={page}
-                    type="button"
-                    onClick={() => setCurrentPage(page)}
-                    className={cn(
-                      "flex h-9 w-9 items-center justify-center rounded-xl text-xs font-bold transition shadow-xs",
-                      currentPage === page
-                        ? "bg-primary text-white"
-                        : "border border-slate-200 bg-white text-slate-700 hover:border-primary hover:text-primary",
-                    )}
-                  >
-                    {page}
-                  </button>
-                ))}
+                {Array.from({ length: catalog?.totalPages ?? 0 }, (_, index) => index + 1).map(
+                  (page) => (
+                    <button
+                      key={page}
+                      type="button"
+                      onClick={() => setCurrentPage(page)}
+                      className={cn(
+                        "flex h-9 w-9 items-center justify-center rounded-xl text-xs font-bold transition shadow-xs",
+                        currentPage === page
+                          ? "bg-primary text-white"
+                          : "border border-slate-200 bg-white text-slate-700 hover:border-primary hover:text-primary",
+                      )}
+                    >
+                      {page}
+                    </button>
+                  ),
+                )}
                 <button
                   type="button"
-                  onClick={() => setCurrentPage((p) => Math.min(3, p + 1))}
+                  disabled={currentPage >= (catalog?.totalPages ?? 0)}
+                  onClick={() => setCurrentPage((p) => Math.min(catalog?.totalPages ?? 1, p + 1))}
                   className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-600 transition hover:border-primary hover:text-primary shadow-xs"
                   aria-label="Trang tiếp"
                 >
@@ -906,6 +808,7 @@ function FigmaCourseCard({ course }: { course: CourseCatalogCardData }) {
       <div className="relative aspect-[16/10] w-full overflow-hidden rounded-xl bg-slate-100">
         <Image
           src={course.image}
+          unoptimized
           alt={course.title}
           fill
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
@@ -941,7 +844,7 @@ function FigmaCourseCard({ course }: { course: CourseCatalogCardData }) {
         </p>
 
         {/* Star Rating Line */}
-        <div className="mt-2.5 flex items-center gap-1.5 text-xs">
+        <div className="mt-2.5 flex items-center gap-1.5 text-xs" hidden={course.reviewCount === 0}>
           <div className="flex text-[#F5C34D]">
             {Array.from({ length: 5 }).map((_, i) => (
               <Star key={i} className="h-3.5 w-3.5 fill-current text-[#F5C34D]" />
@@ -954,7 +857,10 @@ function FigmaCourseCard({ course }: { course: CourseCatalogCardData }) {
 
         {/* Meta Info Line */}
         <p className="mt-1.5 text-[11px] font-medium text-slate-500">
-          {course.totalHours} Giờ học, {course.lecturesCount} Bài giảng, {course.level}
+          {course.totalHours > 0
+            ? `${course.totalHours} giờ học, ${course.lecturesCount} bài giảng, `
+            : ""}
+          {course.level}
         </p>
 
         {/* Price in VND */}
@@ -1136,7 +1042,13 @@ function InstructorsCarousel({ instructors }: { instructors: typeof FAMOUS_INSTR
               <div>
                 <div className="flex items-center gap-3">
                   <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full ring-2 ring-white/80">
-                    <Image src={inst.image} alt={inst.name} fill className="object-cover" />
+                    <Image
+                      src={inst.image}
+                      alt={inst.name}
+                      fill
+                      sizes="44px"
+                      className="object-cover"
+                    />
                   </div>
                   <div className="min-w-0 flex-1">
                     <h4 className="truncate text-sm font-bold text-white leading-tight">

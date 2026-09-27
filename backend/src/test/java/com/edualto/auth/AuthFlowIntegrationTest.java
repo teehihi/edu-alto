@@ -16,6 +16,7 @@ import tools.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.Cookie;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -277,6 +278,39 @@ class AuthFlowIntegrationTest extends AbstractIntegrationTest {
                         .cookie(new Cookie("edualto.refresh", refreshToken)))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.error.code").value("INVALID_REFRESH_TOKEN"));
+    }
+
+    @Test
+    void refreshAndLogoutRejectUntrustedOriginsBeforeChangingRefreshToken() throws Exception {
+        registerAndVerify("cors-refresh@example.com", "Password1");
+
+        for (String origin : List.of("https://attacker.vercel.app", "https://untrusted.example")) {
+            String refreshToken = extractRefreshToken(loginResult("cors-refresh@example.com", "Password1"));
+
+            MvcResult rejectedRefresh = mockMvc.perform(post("/api/v1/auth/refresh")
+                            .header("Origin", origin)
+                            .cookie(new Cookie("edualto.refresh", refreshToken)))
+                    .andExpect(status().isForbidden())
+                    .andReturn();
+            assertThat(rejectedRefresh.getResponse().getHeader("Set-Cookie")).isNull();
+
+            MvcResult acceptedRefresh = mockMvc.perform(post("/api/v1/auth/refresh")
+                            .cookie(new Cookie("edualto.refresh", refreshToken)))
+                    .andExpect(status().isOk())
+                    .andReturn();
+            String rotatedRefreshToken = extractRefreshToken(acceptedRefresh);
+
+            MvcResult rejectedLogout = mockMvc.perform(post("/api/v1/auth/logout")
+                            .header("Origin", origin)
+                            .cookie(new Cookie("edualto.refresh", rotatedRefreshToken)))
+                    .andExpect(status().isForbidden())
+                    .andReturn();
+            assertThat(rejectedLogout.getResponse().getHeader("Set-Cookie")).isNull();
+
+            mockMvc.perform(post("/api/v1/auth/refresh")
+                            .cookie(new Cookie("edualto.refresh", rotatedRefreshToken)))
+                    .andExpect(status().isOk());
+        }
     }
 
     @Test

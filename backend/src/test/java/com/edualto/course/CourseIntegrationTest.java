@@ -186,6 +186,9 @@ class CourseIntegrationTest extends AbstractIntegrationTest {
         mockMvc.perform(get("/api/v1/courses/" + slug))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error.code").value("COURSE_NOT_FOUND"));
+        mockMvc.perform(get("/api/v1/courses/" + slug + "/curriculum"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error.code").value("COURSE_NOT_FOUND"));
 
         // 4. Update Course Details & custom slug
         Map<String, Object> updateReq = Map.of(
@@ -211,6 +214,44 @@ class CourseIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.data.status").value("PUBLISHED"))
                 .andExpect(jsonPath("$.data.publishedAt").isNotEmpty());
 
+        String sectionResponse = postJsonAuth(
+                "/api/v1/instructor/courses/" + courseId + "/sections",
+                Map.of("title", "Bắt đầu học", "description", "Nội dung chương"),
+                instructorToken
+        ).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String sectionId = objectMapper.readTree(sectionResponse).get("data").get("id").asText();
+
+        String textLessonResponse = postJsonAuth(
+                "/api/v1/instructor/courses/" + courseId + "/sections/" + sectionId + "/lessons",
+                Map.of("title", "Giới thiệu", "content", "PRIVATE_TEXT_PREVIEW", "lessonType", "TEXT", "durationSeconds", 90, "isPreview", true),
+                instructorToken
+        ).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String textLessonId = objectMapper.readTree(textLessonResponse).get("data").get("id").asText();
+        putJsonAuth(
+                "/api/v1/instructor/courses/" + courseId + "/sections/" + sectionId + "/lessons/" + textLessonId,
+                Map.of("title", "Giới thiệu", "content", "PRIVATE_TEXT_PREVIEW", "lessonType", "TEXT", "durationSeconds", 90, "isPreview", true, "status", "PUBLISHED"),
+                instructorToken
+        ).andExpect(status().isOk());
+
+        String videoLessonResponse = postJsonAuth(
+                "/api/v1/instructor/courses/" + courseId + "/sections/" + sectionId + "/lessons",
+                Map.of("title", "Bài học video", "content", "PRIVATE_VIDEO_NOTES", "lessonType", "VIDEO", "durationSeconds", 240, "isPreview", true, "mediaKey", "private/videos/secret.mp4"),
+                instructorToken
+        ).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String videoLessonId = objectMapper.readTree(videoLessonResponse).get("data").get("id").asText();
+        putJsonAuth(
+                "/api/v1/instructor/courses/" + courseId + "/sections/" + sectionId + "/lessons/" + videoLessonId,
+                Map.of("title", "Bài học video", "content", "PRIVATE_VIDEO_NOTES", "lessonType", "VIDEO", "durationSeconds", 240, "isPreview", true, "mediaKey", "private/videos/secret.mp4", "status", "PUBLISHED"),
+                instructorToken
+        ).andExpect(status().isOk());
+
+        String draftLessonResponse = postJsonAuth(
+                "/api/v1/instructor/courses/" + courseId + "/sections/" + sectionId + "/lessons",
+                Map.of("title", "Bản nháp", "content", "PRIVATE_DRAFT", "lessonType", "TEXT", "durationSeconds", 30, "isPreview", false),
+                instructorToken
+        ).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String draftLessonId = objectMapper.readTree(draftLessonResponse).get("data").get("id").asText();
+
         // 6. Public Catalog now lists the published course
         mockMvc.perform(get("/api/v1/courses"))
                 .andExpect(status().isOk())
@@ -225,6 +266,38 @@ class CourseIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.data.title").value("Khóa Học Spring Boot 3 Chuyên Sâu Cập Nhật"))
                 .andExpect(jsonPath("$.data.description").value("Cập nhật nội dung toàn diện năm 2026."))
                 .andExpect(jsonPath("$.data.instructor.fullName").value("Thầy Giáo Ba"));
+
+        String curriculumBody = mockMvc.perform(get("/api/v1/courses/spring-boot-3-chuyen-sau-pro/curriculum"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.sections", hasSize(1)))
+                .andExpect(jsonPath("$.data.sections[0].lessons", hasSize(2)))
+                .andExpect(jsonPath("$.data.sections[0].lessons[0].title").value("Giới thiệu"))
+                .andExpect(jsonPath("$.data.sections[0].lessons[0].preview").value(true))
+                .andExpect(jsonPath("$.data.sections[0].lessons[0].textContent").doesNotExist())
+                .andExpect(jsonPath("$.data.sections[0].lessons[1].preview").value(false))
+                .andReturn().getResponse().getContentAsString();
+        assertThat(curriculumBody)
+                .doesNotContain("PRIVATE_TEXT_PREVIEW")
+                .doesNotContain("PRIVATE_VIDEO_NOTES")
+                .doesNotContain("private/videos/secret.mp4")
+                .doesNotContain("mediaKey")
+                .doesNotContain("videoUrl");
+
+        mockMvc.perform(get("/api/v1/courses/missing-course/curriculum"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error.code").value("COURSE_NOT_FOUND"));
+        mockMvc.perform(get("/api/v1/courses/spring-boot-3-chuyen-sau-pro/lessons/" + textLessonId + "/preview"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id").value(textLessonId))
+                .andExpect(jsonPath("$.data.textContent").value("PRIVATE_TEXT_PREVIEW"))
+                .andExpect(jsonPath("$.data.mediaKey").doesNotExist());
+        mockMvc.perform(get("/api/v1/courses/missing-course/lessons/" + textLessonId + "/preview"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error.code").value("COURSE_NOT_FOUND"));
+        mockMvc.perform(get("/api/v1/courses/spring-boot-3-chuyen-sau-pro/lessons/" + videoLessonId + "/preview"))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/v1/courses/spring-boot-3-chuyen-sau-pro/lessons/" + draftLessonId + "/preview"))
+                .andExpect(status().isNotFound());
 
         // 8. Public Filter tests
         // Match keyword

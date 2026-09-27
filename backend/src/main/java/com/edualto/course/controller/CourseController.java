@@ -4,8 +4,11 @@ import com.edualto.common.api.ApiResponse;
 import com.edualto.common.api.PageMeta;
 import com.edualto.course.domain.CourseLevel;
 import com.edualto.course.dto.CourseDetailResponse;
+import com.edualto.course.dto.CourseCurriculumResponse;
+import com.edualto.course.dto.CourseLessonPreviewResponse;
 import com.edualto.course.dto.CourseListItemResponse;
 import com.edualto.course.service.CourseService;
+import com.edualto.course.service.PublicCourseCurriculumService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.math.BigDecimal;
@@ -24,9 +27,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class CourseController {
 
     private final CourseService courseService;
+    private final PublicCourseCurriculumService curriculumService;
 
-    public CourseController(CourseService courseService) {
+    public CourseController(CourseService courseService, PublicCourseCurriculumService curriculumService) {
         this.courseService = courseService;
+        this.curriculumService = curriculumService;
     }
 
     @GetMapping
@@ -70,5 +75,20 @@ public class CourseController {
     @Operation(summary = "Xem thông tin chi tiết khóa học bằng slug")
     public ApiResponse<CourseDetailResponse> getCourseBySlug(@PathVariable String slug) {
         return ApiResponse.ok(courseService.getPublicCourseBySlug(slug));
+    }
+
+    @GetMapping("/{slug}/curriculum")
+    @Operation(summary = "Xem giáo trình công khai của khóa học")
+    public ApiResponse<CourseCurriculumResponse> getCurriculum(@PathVariable String slug) {
+        return ApiResponse.ok(curriculumService.getCurriculum(slug));
+    }
+
+    @GetMapping("/{slug}/lessons/{lessonId}/preview")
+    @Operation(summary = "Xem trước bài học văn bản miễn phí")
+    public ApiResponse<CourseLessonPreviewResponse> getTextPreview(
+            @PathVariable String slug,
+            @PathVariable UUID lessonId
+    ) {
+        return ApiResponse.ok(curriculumService.getTextPreview(slug, lessonId));
     }
 }

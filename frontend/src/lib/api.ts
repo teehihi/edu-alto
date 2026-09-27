@@ -37,7 +37,7 @@ const API_BASE_URL = normalizeBaseUrl(
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080/api/v1",
 );
 
-export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
+async function requestPayload(path: string, options: ApiRequestOptions = {}): Promise<unknown> {
   const { accessToken, body, headers, ...init } = options;
   const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
   const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -52,7 +52,27 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     throw toApiError(response.status, payload);
   }
 
-  return unwrapData<T>(payload);
+  return payload;
+}
+
+export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
+  return unwrapData<T>(await requestPayload(path, options));
+}
+
+export type PageResult<T> = {
+  data: T[];
+  meta: { page: number; size: number; totalElements: number; totalPages: number };
+};
+
+export async function apiPageRequest<T>(
+  path: string,
+  options: ApiRequestOptions = {},
+): Promise<PageResult<T>> {
+  const payload = await requestPayload(path, options);
+  if (!isApiResponse<T[]>(payload) || !Array.isArray(payload.data) || !payload.meta) {
+    throw new Error("Dữ liệu danh sách không hợp lệ. Vui lòng thử lại.");
+  }
+  return { data: payload.data, meta: payload.meta as PageResult<T>["meta"] };
 }
 
 function buildHeaders(

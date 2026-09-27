@@ -184,10 +184,36 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
   }, [courseId, accessToken]);
 
   useEffect(() => {
-    if (!authLoading) {
-      loadData();
-    }
-  }, [authLoading, loadData]);
+    if (authLoading || !courseId) return;
+
+    let cancelled = false;
+    fetchCourseStructure(courseId, accessToken)
+      .then((data) => {
+        if (cancelled) return;
+        setStructure(data);
+
+        const initialExpanded: Record<string, boolean> = {};
+        data.sections.forEach((section) => {
+          initialExpanded[section.id] = true;
+        });
+        setExpandedSections((previous) => ({ ...initialExpanded, ...previous }));
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        if (err instanceof ApiClientError) {
+          setError(err.message);
+        } else {
+          setError("Không thể tải cấu trúc khóa học. Vui lòng thử lại.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken, authLoading, courseId]);
 
   const toggleSection = (secId: string) => {
     setExpandedSections((prev) => ({
@@ -613,7 +639,15 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
                 <AlertCircle className="mx-auto h-8 w-8 text-rose-500" />
                 <h3 className="mt-2 text-base font-semibold text-rose-900">{error}</h3>
                 <div className="mt-4">
-                  <Button variant="outline" size="sm" onClick={loadData}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setLoading(true);
+                      setError(null);
+                      void loadData();
+                    }}
+                  >
                     Tải lại dữ liệu
                   </Button>
                 </div>

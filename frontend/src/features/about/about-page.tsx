@@ -72,7 +72,10 @@ export function AboutPage() {
   const [selectedBenefit, setSelectedBenefit] = useState<BenefitItem | null>(null);
 
   return (
-    <div className="flex min-h-screen flex-col bg-white text-[#101A2C] antialiased">
+    <div
+      suppressHydrationWarning
+      className="flex min-h-screen flex-col bg-white text-[#101A2C] antialiased"
+    >
       <AppHeader />
 
       <main className="flex-1 pb-16">

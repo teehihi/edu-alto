@@ -32,4 +32,15 @@ describe("UserAvatar and getInitials", () => {
     fireEvent.error(img);
     expect(screen.getByText("NT")).toBeInTheDocument();
   });
+
+  it("retries the image when the avatar URL changes after a failed load", () => {
+    const { rerender } = render(
+      <UserAvatar name="Nguyễn Nhật Thiên" avatarUrl="https://example.com/broken.jpg" />,
+    );
+    fireEvent.error(screen.getByRole("img"));
+    expect(screen.getByText("NT")).toBeInTheDocument();
+
+    rerender(<UserAvatar name="Nguyễn Nhật Thiên" avatarUrl="https://example.com/new.jpg" />);
+    expect(screen.getByRole("img")).toHaveAttribute("src", "https://example.com/new.jpg");
+  });
 });

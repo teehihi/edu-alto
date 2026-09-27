@@ -47,7 +47,7 @@ export function HomePage() {
   const activeTestimonial = testimonials[activeTestimonialIndex] ?? testimonials[0];
 
   return (
-    <div className="min-h-screen bg-white">
+    <div suppressHydrationWarning className="min-h-screen bg-white">
       <AppHeader />
       <main>
         <section className="relative overflow-hidden bg-[#fbfffd] pt-8 lg:pt-12">

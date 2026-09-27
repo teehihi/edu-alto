@@ -5,7 +5,10 @@ import { VerifyEmailPage } from "./verify-email-page";
 import { resendVerification, verifyEmail } from "./auth-client";
 
 const pushMock = vi.fn();
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: pushMock }) }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: pushMock }),
+  useSearchParams: () => new URLSearchParams(window.location.search),
+}));
 vi.mock("./auth-client", () => ({ resendVerification: vi.fn(), verifyEmail: vi.fn() }));
 
 beforeEach(() => {

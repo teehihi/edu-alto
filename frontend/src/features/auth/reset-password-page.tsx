@@ -25,7 +25,7 @@ export function ResetPasswordPage() {
   const initialEmail = searchParams.get("email")?.trim() ?? "";
   const sent = searchParams.get("sent") === "1";
 
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(initialEmail);
   const [otp, setOtp] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -36,24 +36,16 @@ export function ResetPasswordPage() {
   const [status, setStatus] = useState<{
     tone: "success" | "error" | "info";
     message: string;
-  } | null>(null);
+  } | null>(() =>
+    sent
+      ? {
+          tone: "info",
+          message: "Mã xác minh đặt lại mật khẩu đã được gửi đến email của bạn.",
+        }
+      : null,
+  );
   const [submitting, setSubmitting] = useState(false);
   const [resetComplete, setResetComplete] = useState(false);
-
-  useEffect(() => {
-    if (initialEmail && !email) {
-      setEmail(initialEmail);
-    }
-  }, [email, initialEmail]);
-
-  useEffect(() => {
-    if (sent && step === "otp") {
-      setStatus({
-        tone: "info",
-        message: "Mã xác minh đặt lại mật khẩu đã được gửi đến email của bạn.",
-      });
-    }
-  }, [sent, step]);
 
   useEffect(() => {
     if (cooldown <= 0) return undefined;

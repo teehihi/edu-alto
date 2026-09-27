@@ -1,11 +1,13 @@
 "use client";
 
 import { AlertCircle, AlertTriangle, Check, Info, X } from "lucide-react";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/cn";
 
 export type FeedbackTone = "success" | "error" | "info" | "warning";
+
+const subscribeToMount = () => () => {};
 
 export interface FeedbackModalProps {
   isOpen: boolean;
@@ -34,12 +36,12 @@ export function FeedbackModal({
   children,
   autoCloseMs,
 }: FeedbackModalProps) {
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(
+    subscribeToMount,
+    () => true,
+    () => false,
+  );
   const confirmBtnRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   // Auto focus confirm button when opened & escape listener
   useEffect(() => {

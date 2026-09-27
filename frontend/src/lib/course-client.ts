@@ -1,5 +1,11 @@
-import { apiRequest } from "@/lib/api";
-import type { CourseDetail, CourseLevel, CourseListItem } from "@/types/course";
+import { apiPageRequest, apiRequest } from "@/lib/api";
+import type {
+  CourseCurriculum,
+  LessonPreview,
+  CourseDetail,
+  CourseLevel,
+  CourseListItem,
+} from "@/types/course";
 
 export type CourseQueryParams = {
   keyword?: string;
@@ -14,9 +20,7 @@ export type CourseQueryParams = {
   size?: number;
 };
 
-export async function fetchPublicCourses(
-  params: CourseQueryParams = {},
-): Promise<CourseListItem[]> {
+export async function fetchPublicCoursePage(params: CourseQueryParams = {}) {
   const query = new URLSearchParams();
   if (params.keyword) query.set("keyword", params.keyword);
   if (params.level) query.set("level", params.level);
@@ -31,9 +35,25 @@ export async function fetchPublicCourses(
 
   const qs = query.toString();
   const path = `/courses${qs ? `?${qs}` : ""}`;
-  return apiRequest<CourseListItem[]>(path);
+  return apiPageRequest<CourseListItem>(path);
+}
+
+export async function fetchPublicCourses(
+  params: CourseQueryParams = {},
+): Promise<CourseListItem[]> {
+  return (await fetchPublicCoursePage(params)).data;
 }
 
 export async function fetchPublicCourseBySlug(slug: string): Promise<CourseDetail> {
   return apiRequest<CourseDetail>(`/courses/${encodeURIComponent(slug)}`);
+}
+
+export async function fetchPublicCurriculum(slug: string) {
+  return apiRequest<CourseCurriculum>(`/courses/${encodeURIComponent(slug)}/curriculum`);
+}
+
+export async function fetchLessonPreview(slug: string, lessonId: string) {
+  return apiRequest<LessonPreview>(
+    `/courses/${encodeURIComponent(slug)}/lessons/${encodeURIComponent(lessonId)}/preview`,
+  );
 }

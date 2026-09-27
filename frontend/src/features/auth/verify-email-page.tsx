@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { AlertMessage, FormField } from "@/features/auth/form-field";
@@ -20,9 +20,13 @@ type VerifyEmailFields = "email" | "otp";
 
 export function VerifyEmailPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const searchParams = useSearchParams();
+  const initialEmail = searchParams.get("email") ?? "";
+  const validInitialEmail = isEmail(initialEmail) ? initialEmail : "";
+  const sent = searchParams.get("sent") === "1";
+  const [email, setEmail] = useState(validInitialEmail);
   const [otp, setOtp] = useState("");
-  const [cooldown, setCooldown] = useState(0);
+  const [cooldown, setCooldown] = useState(validInitialEmail && sent ? 60 : 0);
   const [errors, setErrors] = useState<FieldErrors<VerifyEmailFields>>({});
   const [status, setStatus] = useState<{
     tone: "success" | "error" | "info";
@@ -31,18 +35,8 @@ export function VerifyEmailPage() {
   const [submitting, setSubmitting] = useState(false);
   const [resending, setResending] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [editingEmail, setEditingEmail] = useState(true);
+  const [editingEmail, setEditingEmail] = useState(!validInitialEmail);
   const [seconds, setSeconds] = useState(3);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const initialEmail = params.get("email") ?? "";
-    if (isEmail(initialEmail)) {
-      setEmail(initialEmail);
-      setEditingEmail(false);
-      if (params.get("sent") === "1") setCooldown(60);
-    }
-  }, []);
 
   useEffect(() => {
     if (cooldown <= 0) {

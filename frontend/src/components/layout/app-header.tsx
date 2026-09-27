@@ -16,7 +16,7 @@ import {
   User as UserIcon,
   X,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { cn } from "@/lib/cn";
 import { useAuthSession } from "@/lib/auth-session";
 import { UserAvatar } from "@/components/ui/user-avatar";
@@ -30,6 +30,7 @@ const navItems = [
 
 const authLinkClass =
   "focus-ring inline-flex h-10 items-center justify-center rounded-xl border border-primary bg-primary px-5 text-sm font-semibold text-white shadow-xs transition duration-200 hover:bg-primary-dark active:bg-primary-dark";
+const subscribeToMount = () => () => {};
 
 export function AppHeader({
   transparent = false,
@@ -40,15 +41,22 @@ export function AppHeader({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(
+    subscribeToMount,
+    () => true,
+    () => false,
+  );
   const [isOpen, setIsOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [menuPathname, setMenuPathname] = useState(pathname);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const { user, isAuthenticated, logout } = useAuthSession();
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  if (menuPathname !== pathname) {
+    setMenuPathname(pathname);
+    setIsUserMenuOpen(false);
+    setIsOpen(false);
+  }
 
   const isSticky = sticky;
   const isAuthed = mounted && isAuthenticated && Boolean(user);
@@ -76,12 +84,6 @@ export function AppHeader({
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [isUserMenuOpen]);
-
-  // Close menu on route change
-  useEffect(() => {
-    setIsUserMenuOpen(false);
-    setIsOpen(false);
-  }, [pathname]);
 
   const isInstructor = user?.roles?.includes("INSTRUCTOR");
   const roleLabel = isInstructor ? "Giảng viên" : "Học viên";

@@ -11,14 +11,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.CORSConfiguration;
-import software.amazon.awssdk.services.s3.model.CORSRule;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
-import software.amazon.awssdk.services.s3.model.PutBucketCorsRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
@@ -40,33 +37,14 @@ public class R2StorageService implements StorageService {
     }
 
     @PostConstruct
-    public void configureBucketCors() {
-        if (properties.bucketName() == null || properties.bucketName().isBlank()) {
-            return;
-        }
-        try {
-            CORSRule rule = CORSRule.builder()
-                    .allowedOrigins("*")
-                    .allowedMethods("GET", "PUT", "POST", "HEAD", "DELETE")
-                    .allowedHeaders("*")
-                    .exposeHeaders("ETag")
-                    .maxAgeSeconds(3600)
-                    .build();
-
-            CORSConfiguration corsConfig = CORSConfiguration.builder()
-                    .corsRules(rule)
-                    .build();
-
-            PutBucketCorsRequest corsRequest = PutBucketCorsRequest.builder()
-                    .bucket(properties.bucketName())
-                    .corsConfiguration(corsConfig)
-                    .build();
-
-            s3Client.putBucketCors(corsRequest);
-            log.info("Đã cấu hình CORS thành công cho Cloudflare R2 bucket: {}", properties.bucketName());
-        } catch (Exception e) {
-            log.warn("Bỏ qua cấu hình CORS tự động cho bucket {}: {}", properties.bucketName(), e.getMessage());
-        }
+    public void logConfiguration() {
+        boolean publicUrlConfigured = properties.publicUrlPrefix() != null && !properties.publicUrlPrefix().isBlank();
+        log.info(
+                "Cloudflare R2 configured: bucket={}, endpoint={}, publicUrlConfigured={}; bucket CORS must be provisioned separately",
+                properties.bucketName(),
+                properties.endpoint(),
+                publicUrlConfigured
+        );
     }
 
     @Override

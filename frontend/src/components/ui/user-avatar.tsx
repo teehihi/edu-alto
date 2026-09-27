@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { cn } from "@/lib/cn";
 
 export type UserAvatarProps = {
@@ -70,6 +70,47 @@ export function getInitials(name?: string | null): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
+function AvatarImage({
+  src,
+  alt,
+  size,
+}: {
+  src: string;
+  alt: string;
+  size: keyof typeof sizeClasses;
+}) {
+  const [imgError, setImgError] = useState(false);
+
+  if (imgError) {
+    return (
+      <div
+        className={cn(
+          "flex items-center justify-center rounded-full border-2 border-primary bg-[#EAF7F3] font-bold text-primary tracking-wide select-none shadow-xs transition-all duration-200",
+          sizeClasses[size],
+        )}
+        aria-label={alt}
+      >
+        <span>{getInitials(alt)}</span>
+      </div>
+    );
+  }
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt={alt}
+      loading="lazy"
+      decoding="async"
+      onError={() => setImgError(true)}
+      className={cn(
+        "rounded-full object-cover border-2 border-primary shadow-xs",
+        sizeClasses[size],
+      )}
+    />
+  );
+}
+
 export function UserAvatar({
   name,
   avatarUrl,
@@ -77,43 +118,12 @@ export function UserAvatar({
   className,
   showBadge = false,
 }: UserAvatarProps) {
-  const [imgError, setImgError] = useState(false);
-
-  useEffect(() => {
-    setImgError(false);
-  }, [avatarUrl]);
-
-  const initials = getInitials(name);
   const resolvedUrl = resolveAvatarUrl(avatarUrl);
   const targetSrc = resolvedUrl || DEFAULT_AVATAR;
 
   return (
     <div className={cn("relative inline-flex shrink-0 items-center justify-center", className)}>
-      {!imgError && targetSrc ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          key={targetSrc}
-          src={targetSrc}
-          alt={name || "Ảnh đại diện"}
-          loading="lazy"
-          decoding="async"
-          onError={() => setImgError(true)}
-          className={cn(
-            "rounded-full object-cover border-2 border-primary shadow-xs",
-            sizeClasses[size],
-          )}
-        />
-      ) : (
-        <div
-          className={cn(
-            "flex items-center justify-center rounded-full border-2 border-primary bg-[#EAF7F3] font-bold text-primary tracking-wide select-none shadow-xs transition-all duration-200",
-            sizeClasses[size],
-          )}
-          aria-label={name || "Ảnh đại diện"}
-        >
-          <span>{initials}</span>
-        </div>
-      )}
+      <AvatarImage key={targetSrc} src={targetSrc} alt={name || "Ảnh đại diện"} size={size} />
 
       {showBadge ? (
         <span
