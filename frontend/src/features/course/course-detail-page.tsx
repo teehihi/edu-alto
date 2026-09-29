@@ -3,12 +3,16 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { BookOpen, Copy, FileText, LockKeyhole, Play, X } from "lucide-react";
 import { AppHeader } from "@/components/layout/app-header";
 import { Footer } from "@/components/layout/footer";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { ApiClientError } from "@/lib/api";
+import { useAuthSession } from "@/lib/auth-session";
+import { enrollInCourse } from "@/lib/learning-client";
+import { addCourseToCart } from "@/lib/cart";
 import {
   fetchPublicCourseBySlug,
   fetchPublicCourses,
@@ -67,6 +71,8 @@ function CourseThumbnail({ url, title }: { url: string | null; title: string }) 
 }
 
 export function CourseDetailPage({ slug }: { slug: string }) {
+  const router = useRouter();
+  const { user, getAccessToken } = useAuthSession();
   const [attempt, setAttempt] = useState(0);
   const [result, setResult] = useState<{
     attempt: number;
@@ -79,6 +85,9 @@ export function CourseDetailPage({ slug }: { slug: string }) {
   const [related, setRelated] = useState<CourseListItem[]>([]);
   const [activeSection, setActiveSection] = useState("description");
   const [shareMessage, setShareMessage] = useState("");
+  const [enrollmentLoading, setEnrollmentLoading] = useState(false);
+  const [enrollmentMessage, setEnrollmentMessage] = useState("");
+  const [cartMessage, setCartMessage] = useState("");
   const [previewId, setPreviewId] = useState<string | null>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
 
@@ -130,6 +139,51 @@ export function CourseDetailPage({ slug }: { slug: string }) {
     } catch {
       setShareMessage("Không thể sao chép. Bạn có thể sao chép địa chỉ trên thanh trình duyệt.");
     }
+  }
+
+  async function enroll() {
+    if (!course) return;
+    if (!user) {
+      router.push(`/login?next=${encodeURIComponent(`/courses/${course.slug}`)}`);
+      return;
+    }
+    if (!user.roles.includes("STUDENT")) {
+      setEnrollmentMessage("Chức năng ghi danh dành cho tài khoản học viên.");
+      return;
+    }
+    setEnrollmentLoading(true);
+    setEnrollmentMessage("");
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+      await enrollInCourse(token, course.id);
+      router.push(`/learning/courses/${course.id}`);
+    } catch (error) {
+      setEnrollmentMessage(
+        error instanceof Error ? error.message : "Chưa thể ghi danh. Vui lòng thử lại.",
+      );
+    } finally {
+      setEnrollmentLoading(false);
+    }
+  }
+
+  function addToCart() {
+    if (!course) return;
+    addCourseToCart({
+      id: course.id,
+      slug: course.slug,
+      title: course.title,
+      price: course.price,
+      thumbnailUrl: course.thumbnailUrl,
+      instructorName: course.instructor?.fullName ?? "Giảng viên EduAlto",
+    });
+    setCartMessage("Đã thêm khóa học vào giỏ hàng.");
+  }
+
+  function buyNow() {
+    if (!course || course.price <= 0) return;
+    addToCart();
+    router.push("/checkout");
   }
 
   function openPreview(id: string) {
@@ -250,15 +304,20 @@ export function CourseDetailPage({ slug }: { slug: string }) {
                         )}
                       </div>
                       <Button
-                        disabled
+                        disabled={enrollmentLoading}
+                        onClick={course.price === 0 ? enroll : addToCart}
                         className="mt-6 w-full rounded-lg"
                         aria-describedby="enrollment-status"
                       >
-                        {course.price === 0 ? "Đăng ký học" : "Thêm vào giỏ hàng"}
+                        {enrollmentLoading
+                          ? "Đang ghi danh…"
+                          : course.price === 0
+                            ? "Đăng ký học"
+                            : "Thêm vào giỏ hàng"}
                       </Button>
                       {course.price > 0 && (
                         <Button
-                          disabled
+                          onClick={buyNow}
                           variant="outline"
                           className="mt-4 w-full rounded-lg"
                           aria-describedby="enrollment-status"
@@ -266,9 +325,16 @@ export function CourseDetailPage({ slug }: { slug: string }) {
                           Mua ngay
                         </Button>
                       )}
-                      <p id="enrollment-status" className="mt-3 text-sm leading-6 text-muted">
-                        Đăng ký học và thanh toán sẽ sớm mở. Bạn có thể xem giáo trình và các bài
-                        học thử bên dưới.
+                      <p
+                        id="enrollment-status"
+                        className="mt-3 text-sm leading-6 text-muted"
+                        role={enrollmentMessage ? "alert" : undefined}
+                      >
+                        {enrollmentMessage ||
+                          cartMessage ||
+                          (course.price === 0
+                            ? "Ghi danh miễn phí để mở giáo trình và lưu tiến độ học tập của bạn."
+                            : "Thêm khóa học vào giỏ hàng để xem thông tin thanh toán.")}
                       </p>
                     </div>
                     <div className="border-t border-slate-200 p-6">

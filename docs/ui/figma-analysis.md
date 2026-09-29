@@ -109,4 +109,16 @@ Figma is static. It does not fully describe:
 - Exact mobile layouts are not provided.
 - Some Figma generated assets are short-lived remote URLs, so committed code should use local assets or stable product assets.
 - Hero student image in Figma appears custom and is not present in repo; foundation uses existing EduAlto logo assets and CSS illustration placeholders until stable media assets are supplied.
-- Payment/order screens are not visible in the inspected node, so e-commerce behavior remains architecture-level only.
+- Payment/order screens are present in the full `User Interface` page, but the backend has no payment provider integration. The cart and checkout UI are available; submitting checkout explains that no order has been created.
+
+## Learner and commerce screens
+
+The full Figma `User Interface` page also contains the `My Learning`, `My Learning/Course`, assignment, calendar, notes, resource, message, teacher, review, cart, checkout, and order-complete frames. The learner experience is implemented at:
+
+- `/learning`: learner overview and progress summary.
+- `/learning/courses` and `/learning/courses/{courseId}`: enrolled course list and published curriculum.
+- `/learning/lessons/{lessonId}`: enrolled text lesson and explicit completion.
+- `/learning/assignments`, `/learning/calendar`, `/learning/discussion`, `/learning/resources`, `/learning/notes`, `/learning/messages`, `/learning/teachers`, and `/learning/reviews`: student workspace screens with responsive empty states; calendar selection and local notes are interactive.
+- `/cart` and `/checkout`: course cart and checkout form aligned with the Figma rows, summary panel, payment choices, and card fields. Cart items are stored in browser local storage. Paid-course `Thêm vào giỏ hàng` and `Mua ngay` actions work; `Mua ngay` opens checkout. Coupon, tax, and fees are not calculated because their APIs do not exist. Card fields stay disabled, and checkout does not claim success or create an order until order and payment APIs are implemented.
+
+Course enrollment and text progress use the authenticated APIs. Quiz, assignment, messaging, scheduling, review and payment endpoints are not part of the current backend foundation, so those screens show truthful empty states or an unavailable-payment message instead of fabricated server data.

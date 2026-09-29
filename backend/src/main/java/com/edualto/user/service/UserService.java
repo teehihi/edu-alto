@@ -7,6 +7,7 @@ import com.edualto.storage.service.StorageService;
 import com.edualto.user.domain.Role;
 import com.edualto.user.domain.RoleName;
 import com.edualto.user.domain.User;
+import com.edualto.user.domain.UserStatus;
 import com.edualto.user.dto.UpdateCurrentUserRequest;
 import com.edualto.user.dto.UserResponse;
 import com.edualto.user.repository.RoleRepository;
@@ -66,6 +67,14 @@ public class UserService {
     @Transactional
     public User createPendingStudent(String fullName, String email, String passwordHash) {
         return createPendingUser(fullName, email, passwordHash, RoleName.STUDENT);
+    }
+
+    @Transactional(readOnly = true)
+    public void requireActiveStudent(UUID userId) {
+        User user = requireById(userId);
+        if (user.getStatus() != UserStatus.ACTIVE || user.getRoles().stream().noneMatch(role -> role.getName() == RoleName.STUDENT)) {
+            throw new BusinessException(HttpStatus.FORBIDDEN, "STUDENT_REQUIRED", "Chức năng này dành cho tài khoản học viên đang hoạt động");
+        }
     }
 
     @Transactional(readOnly = true)

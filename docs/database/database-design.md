@@ -294,8 +294,8 @@ Constraints:
 ## Transaction boundaries
 
 - Registration: create user, default role, OTP record in one transaction; email send happens after commit or through an outbox-style follow-up later.
-- Enrollment: verify course and duplicate enrollment, create enrollment and initial progress in one transaction.
-- Lesson completion: update progress and append learning signal in one transaction.
+- Enrollment: verify the active student and published free course, then insert enrollment idempotently in one transaction. Progress rows are created on completion.
+- Lesson completion: insert completion idempotently in one transaction. Learning signal emission is deferred until the analytics boundary is implemented.
 - Quiz submission: persist attempt/answers/score and append signal in one transaction.
 - Messaging: persist message before realtime broadcast.
 
@@ -342,3 +342,16 @@ Constraints:
 25. What analytics snapshots are required for the first dashboard?
 26. Which learning signals are enough for the first AI recommendation experiment?
 27. What retention policy applies to audit logs and AI signals?
+
+## Implemented enrollment and learning schema (V7)
+
+This section describes the implemented V7 schema; broader tables and fields above remain the target design.
+
+- `enrollments`: UUID primary key, student/course foreign keys, string enum `ACTIVE`, `enrolled_at`, `created_at`, `updated_at`. Unique `(student_id, course_id)` makes enrollment idempotent. Physical deletion of referenced users/courses is restricted; archival is supported.
+- `learning_progress`: UUID primary key, enrollment/course/section/lesson IDs, `completed_at`, `created_at`, `updated_at`. A row represents explicit completion; an absent row means not completed. No partial percentage or course `completed_at` is stored yet.
+- Unique `(enrollment_id, lesson_id)` prevents duplicate completion. Composite foreign keys tie progress to the enrollment's course, the course's section, and that section's lesson. This prevents cross-course progress even when writing SQL directly.
+- Progress is removed when its enrollment, lesson or section is deleted. Enrollment history remains intact when curriculum changes.
+- History is indexed by `(student_id, enrolled_at desc, id)`; course participation by `(course_id, status)`. Foreign-key lookup indexes cover lesson and section deletion.
+- Enrollment holds a shared row lock on the course until commit, serializing the price/publication check with catalog updates. Enrollment and completion use atomic `INSERT ... ON CONFLICT DO NOTHING`; retries retain the original ID and timestamp. Counts use one aggregate query over the current published curriculum, including assessment lessons. Empty courses return 0% and `completed=false`.
+- Current completion supports text lessons only. Publishing/archiving/deleting lessons changes the derived percentage. This percentage is informational, not certification eligibility or proof of assessment success.
+- Migration V7 extends existing tables without changing V1–V6. Run with the application Flyway lifecycle; integration tests use isolated PostgreSQL 16 through Testcontainers.

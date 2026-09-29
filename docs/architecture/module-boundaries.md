@@ -109,3 +109,11 @@ Không phải module nào cũng cần đủ mọi package ngay từ đầu. Ch�
 - Cross-module dependency có qua boundary công khai không?
 - Có business rule nào bị đặt trong controller/repository không?
 - Có AI/realtime/cache logic nào bị nhét vào core service sai chỗ không?
+
+## Enrollment and learning foundation
+
+- `course` continues to own sections/lessons in the current implementation. `CourseLearningAccessService` exposes published course/lesson DTOs to enrollment and learning without sharing JPA entities.
+- `enrollment` owns free self-enrollment and exposes the current student's enrollment ID to learning. Only active student accounts may use these flows. Paid enrollment awaits payment verification.
+- `learning` owns explicit completion of published text lessons. Video/document delivery and assessment completion remain separate follow-up work. Progress is calculated against the current published curriculum; no cached course-completion flag is persisted.
+- Repository queries may join catalog tables for bounded progress counts, but do not modify catalog data. Duplicate writes use PostgreSQL `ON CONFLICT DO NOTHING`.
+- Archived courses remain in enrollment history but their content cannot be read or completed. Deleting a lesson removes its progress; enrollment records prevent physical course deletion. Course archival remains supported.

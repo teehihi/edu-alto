@@ -261,3 +261,21 @@ Nếu chưa có recommendation, frontend hiển thị `Chưa có gợi ý học 
 - `409 Conflict` cho duplicate/trạng thái xung đột.
 - `422 Unprocessable Entity` cho domain validation fail.
 - `500 Internal Server Error` cho lỗi bất ngờ với message an toàn.
+
+## Implemented enrollment and learning foundation
+
+The following endpoints are implemented with the standard success/error wrappers. The current authenticated account must be an active student; account IDs are taken from authentication, never request bodies.
+
+| Method | Path | Behavior |
+| --- | --- | --- |
+| POST | `/api/v1/courses/{courseId}/enrollments` | UUID course ID; free published courses only. Returns `200` with the enrollment UUID in `data`. Retrying returns the same ID. |
+| GET | `/api/v1/me/enrollments` | Own enrollment history, including archived courses. `page=0`, `size=20` (1–100), `sort=enrolledAt,desc` or `enrolledAt,asc`; stable ID tie-breaker. |
+| GET | `/api/v1/lessons/{lessonId}` | Published text lesson content for enrolled students. No storage keys or assessment answers. |
+| POST | `/api/v1/lessons/{lessonId}/complete` | Idempotent explicit completion of a published text lesson. Returns updated course progress. |
+| GET | `/api/v1/me/courses/{courseId}/progress` | Own progress for a published course: `courseId`, `totalLessons`, `completedLessons`, integer `progressPercent`, `completed`. |
+
+Enrollment history items contain `id`, `courseId`, `courseTitle`, `courseSlug`, `courseStatus`, `status`, `enrolledAt`. Course detail and public curriculum continue to use slugs; enrollment/progress use UUIDs.
+
+Error cases: `401` anonymous; `403 STUDENT_REQUIRED` for an ineligible account; `403 ENROLLMENT_REQUIRED` for missing enrollment; `404` unpublished/missing content; `409 PAYMENT_REQUIRED` for new paid enrollments; `409 OWN_COURSE_ENROLLMENT` for own courses; `409 LESSON_TYPE_NOT_SUPPORTED` for video/document/quiz/assignment learning actions; `400 INVALID_PAGINATION` or `INVALID_PARAMETER` for invalid query/path parameters.
+
+Progress counts only currently published lessons, including types whose completion flows are not implemented yet. Empty courses are not complete. Existing enrollment remains valid if the price later changes; archived courses remain in history but content access is blocked. Payment, protected media delivery, assessment scoring, certificates and the student UI are follow-up work.

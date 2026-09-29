@@ -18,6 +18,12 @@ vi.mock("@/lib/course-client", () => ({
 }));
 vi.mock("@/components/layout/app-header", () => ({ AppHeader: () => null }));
 vi.mock("@/components/layout/footer", () => ({ Footer: () => null }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+}));
+vi.mock("@/lib/auth-session", () => ({
+  useAuthSession: () => ({ user: null, getAccessToken: vi.fn() }),
+}));
 const course = {
   id: "course-1",
   slug: "khoa-hoc",
@@ -85,7 +91,7 @@ it("loads real course data and fetches preview only after an explicit action", a
   const user = userEvent.setup();
   render(<CourseDetailPage slug="khoa-hoc" />);
   expect(await screen.findByRole("heading", { level: 1, name: course.title })).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "Đăng ký học" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Đăng ký học" })).toBeEnabled();
   expect(fetchLessonPreview).not.toHaveBeenCalled();
   await user.click(screen.getByText("Bắt đầu"));
   await user.click(screen.getByRole("button", { name: "Học thử" }));

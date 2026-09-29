@@ -10,6 +10,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -36,6 +37,17 @@ public class GlobalExceptionHandler {
         ErrorResponse response = ErrorResponse.of(
                 "INVALID_PAYLOAD",
                 "Dữ liệu yêu cầu không hợp lệ hoặc sai định dạng",
+                List.of(),
+                request.getRequestURI()
+        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleParameterType(MethodArgumentTypeMismatchException exception, HttpServletRequest request) {
+        ErrorResponse response = ErrorResponse.of(
+                "INVALID_PARAMETER",
+                "Tham số yêu cầu không đúng định dạng",
                 List.of(),
                 request.getRequestURI()
         );

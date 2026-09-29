@@ -81,3 +81,9 @@ npm run build
 
 Tên lệnh thực tế sẽ theo package/backend setup của phase triển khai. Nếu chưa có lệnh, task khởi tạo phải thêm script rõ ràng.
 
+
+## Enrollment and learning foundation
+
+Run `pnpm backend:test` with Docker available. `EnrollmentLearningIntegrationTest` exercises migration V7 and authenticated HTTP flows against PostgreSQL 16, including duplicate writes, ownership, unpublished/paid content, progress calculation, pagination and database constraints. No local application database is used.
+
+The foundation supports text lesson completion only. When adding payment, protected media delivery or assessments, extend the authorization and completion tests before enabling the corresponding lesson types.
