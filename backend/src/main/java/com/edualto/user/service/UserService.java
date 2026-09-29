@@ -78,6 +78,14 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
+    public void requireActiveAdmin(UUID userId) {
+        User user = requireById(userId);
+        if (user.getStatus() != UserStatus.ACTIVE || user.getRoles().stream().noneMatch(role -> role.getName() == RoleName.ADMIN)) {
+            throw new BusinessException(HttpStatus.FORBIDDEN, "ADMIN_REQUIRED", "Chức năng này dành cho quản trị viên đang hoạt động");
+        }
+    }
+
+    @Transactional(readOnly = true)
     public User requireById(UUID userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(

@@ -27,6 +27,36 @@ export type CourseProgress = {
   completed: boolean;
 };
 
+export type LearningNote = {
+  id: string;
+  title: string;
+  content: string;
+  lessonId: string | null;
+  videoSecond: number | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type LearningNoteInput = {
+  title: string;
+  content: string;
+  lessonId?: string | null;
+  videoSecond?: number | null;
+};
+
+export type SavedLesson = {
+  id: string;
+  lessonId: string;
+  courseId: string;
+  courseSlug: string;
+  courseTitle: string;
+  sectionTitle: string;
+  lessonTitle: string;
+  lessonType: string;
+  durationSeconds: number | null;
+  savedAt: string;
+};
+
 export type LearningCurriculum = {
   courseId: string;
   slug: string;
@@ -69,6 +99,51 @@ export async function fetchLearningLesson(accessToken: string, lessonId: string)
 export async function completeLearningLesson(accessToken: string, lessonId: string) {
   return apiRequest<CourseProgress>(`/lessons/${encodeURIComponent(lessonId)}/complete`, {
     method: "POST",
+    accessToken,
+  });
+}
+
+export async function fetchMyNotes(accessToken: string) {
+  return apiPageRequest<LearningNote>("/me/notes?page=0&size=100", { accessToken });
+}
+
+export async function createLearningNote(accessToken: string, note: LearningNoteInput) {
+  return apiRequest<LearningNote>("/me/notes", { method: "POST", accessToken, body: note });
+}
+
+export async function updateLearningNote(
+  accessToken: string,
+  noteId: string,
+  note: LearningNoteInput,
+) {
+  return apiRequest<LearningNote>(`/me/notes/${encodeURIComponent(noteId)}`, {
+    method: "PUT",
+    accessToken,
+    body: note,
+  });
+}
+
+export async function deleteLearningNote(accessToken: string, noteId: string) {
+  return apiRequest<void>(`/me/notes/${encodeURIComponent(noteId)}`, {
+    method: "DELETE",
+    accessToken,
+  });
+}
+
+export async function fetchSavedLessons(accessToken: string) {
+  return apiPageRequest<SavedLesson>("/me/saved-lessons?page=0&size=100", { accessToken });
+}
+
+export async function saveLearningLesson(accessToken: string, lessonId: string) {
+  return apiRequest<SavedLesson>(`/me/saved-lessons/${encodeURIComponent(lessonId)}`, {
+    method: "PUT",
+    accessToken,
+  });
+}
+
+export async function unsaveLearningLesson(accessToken: string, lessonId: string) {
+  return apiRequest<void>(`/me/saved-lessons/${encodeURIComponent(lessonId)}`, {
+    method: "DELETE",
     accessToken,
   });
 }

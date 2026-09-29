@@ -17,6 +17,29 @@
   --edualto-muted: #667085;
 }
 
+.learning-app {
+  background:
+    linear-gradient(180deg, rgba(95, 223, 183, 0.12) 0, rgba(255, 255, 255, 0.94) 240px), #fff;
+}
+
+.learning-main {
+  background: transparent;
+}
+
+.portal-card {
+  border: 1px solid #e5e9ec;
+  border-radius: 8px;
+  background: #fff;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.06);
+}
+
+@media (min-width: 768px) {
+  .portal-card {
+    padding: 16px;
+  }
+}
+
 * {
   box-sizing: border-box;
 }
@@ -105,6 +128,59 @@ input {
   }
 }
 
+@keyframes cartAddPop {
+  0% {
+    transform: scale(1);
+  }
+  38% {
+    transform: scale(1.035);
+  }
+  72% {
+    transform: scale(0.99);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes cartCountPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  65% {
+    opacity: 1;
+    transform: scale(1.18);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes assistantMessageIn {
+  from {
+    opacity: 0;
+    transform: translateY(7px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes assistantTyping {
+  0%,
+  60%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-4px);
+  }
+}
+
 @layer components {
   .focus-ring {
     @apply focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/20 focus-visible:ring-offset-2;
@@ -128,6 +204,27 @@ input {
 
   .animate-icon-pulse {
     animation: iconPulseRing 2.4s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+  }
+
+  .cart-add-pop {
+    animation: cartAddPop 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .cart-count-pop {
+    animation: cartCountPop 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .assistant-message {
+    animation: assistantMessageIn 0.24s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+
+  .assistant-typing-dot {
+    @apply h-1.5 w-1.5 rounded-full bg-primary;
+    animation: assistantTyping 0.9s ease-in-out infinite;
+  }
+
+  .assistant-launcher:not(.rotate-90) {
+    animation: iconPulseRing 2.8s ease-out 0.8s infinite;
   }
 
   .skeleton {

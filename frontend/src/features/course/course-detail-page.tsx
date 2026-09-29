@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BookOpen, Copy, FileText, LockKeyhole, Play, X } from "lucide-react";
+import { BookOpen, Check, Copy, FileText, LockKeyhole, Play, X } from "lucide-react";
 import { AppHeader } from "@/components/layout/app-header";
 import { Footer } from "@/components/layout/footer";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { ApiClientError } from "@/lib/api";
 import { useAuthSession } from "@/lib/auth-session";
 import { enrollInCourse } from "@/lib/learning-client";
 import { addCourseToCart } from "@/lib/cart";
+import { CourseReviewSection } from "@/features/course/course-review-section";
 import {
   fetchPublicCourseBySlug,
   fetchPublicCourses,
@@ -88,8 +89,10 @@ export function CourseDetailPage({ slug }: { slug: string }) {
   const [enrollmentLoading, setEnrollmentLoading] = useState(false);
   const [enrollmentMessage, setEnrollmentMessage] = useState("");
   const [cartMessage, setCartMessage] = useState("");
+  const [cartActionAnimating, setCartActionAnimating] = useState(false);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const cartAnimationTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -124,6 +127,9 @@ export function CourseDetailPage({ slug }: { slug: string }) {
       });
     return () => {
       active = false;
+      if (cartAnimationTimeoutRef.current !== null) {
+        window.clearTimeout(cartAnimationTimeoutRef.current);
+      }
     };
   }, [slug, attempt]);
 
@@ -178,6 +184,14 @@ export function CourseDetailPage({ slug }: { slug: string }) {
       instructorName: course.instructor?.fullName ?? "Giảng viên EduAlto",
     });
     setCartMessage("Đã thêm khóa học vào giỏ hàng.");
+    setCartActionAnimating(true);
+    if (cartAnimationTimeoutRef.current !== null) {
+      window.clearTimeout(cartAnimationTimeoutRef.current);
+    }
+    cartAnimationTimeoutRef.current = window.setTimeout(() => {
+      setCartActionAnimating(false);
+      cartAnimationTimeoutRef.current = null;
+    }, 550);
   }
 
   function buyNow() {
@@ -306,14 +320,21 @@ export function CourseDetailPage({ slug }: { slug: string }) {
                       <Button
                         disabled={enrollmentLoading}
                         onClick={course.price === 0 ? enroll : addToCart}
-                        className="mt-6 w-full rounded-lg"
+                        className={`mt-6 w-full rounded-lg ${cartActionAnimating && course.price > 0 ? "cart-add-pop" : ""}`}
                         aria-describedby="enrollment-status"
                       >
-                        {enrollmentLoading
-                          ? "Đang ghi danh…"
-                          : course.price === 0
-                            ? "Đăng ký học"
-                            : "Thêm vào giỏ hàng"}
+                        {enrollmentLoading ? (
+                          "Đang ghi danh…"
+                        ) : course.price === 0 ? (
+                          "Đăng ký học"
+                        ) : cartActionAnimating ? (
+                          <>
+                            <Check className="h-4 w-4" aria-hidden="true" />
+                            Đã thêm vào giỏ hàng
+                          </>
+                        ) : (
+                          "Thêm vào giỏ hàng"
+                        )}
                       </Button>
                       {course.price > 0 && (
                         <Button
@@ -490,9 +511,7 @@ export function CourseDetailPage({ slug }: { slug: string }) {
                     </section>
                     <section id="reviews" className="scroll-mt-28 py-6">
                       <h2 className="text-xl font-semibold text-primary">Đánh giá của học viên</h2>
-                      <p className="mt-4 rounded-lg border border-slate-200 p-6 text-muted">
-                        Chưa có đánh giá được công bố cho khóa học này.
-                      </p>
+                      <CourseReviewSection courseId={course.id} />
                     </section>
                   </div>
                 </div>

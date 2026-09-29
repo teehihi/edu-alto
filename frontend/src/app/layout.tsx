@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { AuthSessionProvider } from "@/lib/auth-session";
+import { LearningAssistant } from "@/components/learning-assistant";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -12,7 +13,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="vi" data-scroll-behavior="smooth" suppressHydrationWarning>
       <body className="font-sans antialiased" suppressHydrationWarning>
-        <AuthSessionProvider>{children}</AuthSessionProvider>
+        <AuthSessionProvider>
+          {children}
+          <LearningAssistant />
+        </AuthSessionProvider>
       </body>
     </html>
   );

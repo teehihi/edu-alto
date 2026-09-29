@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Bell,
   ChevronDown,
+  LayoutDashboard,
   GraduationCap,
   Heart,
   LogOut,
@@ -18,6 +19,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { cn } from "@/lib/cn";
+import { readCart } from "@/lib/cart";
 import { useAuthSession } from "@/lib/auth-session";
 import { UserAvatar } from "@/components/ui/user-avatar";
 
@@ -48,9 +50,22 @@ export function AppHeader({
   );
   const [isOpen, setIsOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [cartCount, setCartCount] = useState(0);
   const [menuPathname, setMenuPathname] = useState(pathname);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const { user, isAuthenticated, logout } = useAuthSession();
+
+  useEffect(() => {
+    const updateCartCount = () => setCartCount(readCart().length);
+    const initialUpdate = window.setTimeout(updateCartCount, 0);
+    window.addEventListener("edualto:cart-changed", updateCartCount);
+    window.addEventListener("storage", updateCartCount);
+    return () => {
+      window.clearTimeout(initialUpdate);
+      window.removeEventListener("edualto:cart-changed", updateCartCount);
+      window.removeEventListener("storage", updateCartCount);
+    };
+  }, []);
 
   if (menuPathname !== pathname) {
     setMenuPathname(pathname);
@@ -133,7 +148,7 @@ export function AppHeader({
   return (
     <header
       className={cn(
-        "z-40 transition-all duration-300 ease-in-out",
+        "z-[70] transition-all duration-300 ease-in-out",
         isSticky
           ? cn(
               "sticky top-0",
@@ -213,10 +228,19 @@ export function AppHeader({
               {/* Shopping Cart */}
               <Link
                 href="/cart"
-                className="focus-ring flex h-9 w-9 items-center justify-center rounded-lg text-slate-700 transition hover:text-primary hover:bg-slate-50"
-                aria-label="Giỏ hàng"
+                className="focus-ring relative flex h-9 w-9 items-center justify-center rounded-lg text-slate-700 transition-colors duration-200 hover:text-primary"
+                aria-label={cartCount ? `Giỏ hàng, ${cartCount} khóa học` : "Giỏ hàng"}
               >
                 <ShoppingCart className="h-[21px] w-[21px] stroke-[1.8]" />
+                {cartCount > 0 ? (
+                  <span
+                    key={cartCount}
+                    aria-hidden="true"
+                    className="cart-count-pop absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold leading-none text-white ring-2 ring-white"
+                  >
+                    {cartCount > 99 ? "99+" : cartCount}
+                  </span>
+                ) : null}
               </Link>
 
               {/* Wishlist / Favorites */}
@@ -312,6 +336,28 @@ export function AppHeader({
                       <span>Trang cá nhân</span>
                     </Link>
 
+                    {isInstructor ? (
+                      <Link
+                        href="/instructor"
+                        role="menuitem"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className={cn(
+                          "group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold transition hover:bg-slate-50 hover:text-primary",
+                          pathname.startsWith("/instructor")
+                            ? "text-primary bg-primary-soft/50"
+                            : "text-slate-700",
+                        )}
+                      >
+                        <LayoutDashboard
+                          className={cn(
+                            "h-4 w-4 transition-colors group-hover:text-primary",
+                            pathname.startsWith("/instructor") ? "text-primary" : "text-slate-400",
+                          )}
+                        />
+                        <span>Bảng điều khiển giảng viên</span>
+                      </Link>
+                    ) : null}
+
                     <Link
                       href="/learning/courses"
                       role="menuitem"
@@ -363,6 +409,22 @@ export function AppHeader({
         </div>
 
         {/* Mobile Menu Button */}
+        <Link
+          href="/cart"
+          className="focus-ring relative flex h-10 w-10 items-center justify-center rounded-xl text-slate-700 transition-colors duration-200 hover:text-primary lg:hidden"
+          aria-label={cartCount ? `Mở giỏ hàng, ${cartCount} khóa học` : "Mở giỏ hàng"}
+        >
+          <ShoppingCart className="h-5 w-5 stroke-[1.8]" aria-hidden="true" />
+          {cartCount > 0 ? (
+            <span
+              key={cartCount}
+              aria-hidden="true"
+              className="cart-count-pop absolute right-0 top-0 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold leading-none text-white ring-2 ring-white"
+            >
+              {cartCount > 99 ? "99+" : cartCount}
+            </span>
+          ) : null}
+        </Link>
         <button
           className="focus-ring inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-ink lg:hidden"
           type="button"
@@ -444,6 +506,21 @@ export function AppHeader({
                   <GraduationCap className="h-4 w-4" />
                   <span>Khu vực học tập</span>
                 </Link>
+                {isInstructor ? (
+                  <Link
+                    href="/instructor"
+                    onClick={() => setIsOpen(false)}
+                    className={cn(
+                      "focus-ring flex items-center gap-2.5 rounded-xl border px-4 py-2.5 text-sm font-semibold transition",
+                      pathname.startsWith("/instructor")
+                        ? "border-primary/30 bg-primary-soft/40 text-primary"
+                        : "border-slate-200 bg-white text-ink hover:bg-slate-50 hover:text-primary",
+                    )}
+                  >
+                    <LayoutDashboard className="h-4 w-4" />
+                    <span>Bảng điều khiển giảng viên</span>
+                  </Link>
+                ) : null}
                 <Link
                   href="/profile"
                   onClick={() => setIsOpen(false)}

@@ -75,7 +75,7 @@ public class EduAltoApplication {
                 ----------------------------------------------------------------------------------------
                 🌐  API Base URL : http://localhost:{}/api/v1
                 📚  Swagger UI   : http://localhost:{}{}
-                🗄️   Database     : PostgreSQL (Flyway Migrations V1, V2 Active)
+                🗄️   Database     : PostgreSQL (Flyway-managed schema)
                 📧  Dịch vụ Mail : {}
                 ✨  Trạng thái   : Sẵn sàng phục vụ yêu cầu từ Frontend!
                 ========================================================================================

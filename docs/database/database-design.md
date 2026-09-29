@@ -319,8 +319,8 @@ Constraints:
 2. Use PostgreSQL `gen_random_uuid()` or application-generated UUID?
 3. Should local dev require Docker PostgreSQL by default?
 4. Which tables require soft delete in the first implementation phase?
-5. Should course price be implemented now or deferred?
-6. Does payment belong to foundation or a later phase?
+5. Course prices are implemented in the catalog; checkout snapshots them into order items.
+6. Payment belongs to the commerce foundation; V13 implements orders and VNPay callback verification.
 7. Should category hierarchy be single-parent only?
 8. How many roles are seeded initially?
 9. Are permissions seeded as fixed data or code-derived data?
@@ -355,3 +355,18 @@ This section describes the implemented V7 schema; broader tables and fields abov
 - Enrollment holds a shared row lock on the course until commit, serializing the price/publication check with catalog updates. Enrollment and completion use atomic `INSERT ... ON CONFLICT DO NOTHING`; retries retain the original ID and timestamp. Counts use one aggregate query over the current published curriculum, including assessment lessons. Empty courses return 0% and `completed=false`.
 - Current completion supports text lessons only. Publishing/archiving/deleting lessons changes the derived percentage. This percentage is informational, not certification eligibility or proof of assessment success.
 - Migration V7 extends existing tables without changing V1–V6. Run with the application Flyway lifecycle; integration tests use isolated PostgreSQL 16 through Testcontainers.
+
+## Commerce schema (V13)
+
+- `orders`: UUID primary key, student FK, V13 statuses (`PENDING_PAYMENT`, `PAID`, `PAYMENT_FAILED`), VND currency, immutable subtotal/total snapshots and timestamps. V14 adds `PAYMENT_REVIEW` and a unique transfer reference for manual reconciliation.
+- `order_items`: order/course FKs, course title and unit-price snapshots. Unique `(order_id, course_id)` prevents duplicate items; the order and catalog rows are retained for audit.
+- `payments`: order FK, provider, unique transaction reference, amount in VND minor units, status and paid timestamp. Callback details are not stored because they may contain sensitive gateway metadata.
+- Checkout recalculates the current catalog price and requires published, paid, non-owned, not-yet-enrolled courses. Browser return never activates enrollment. Only a checksum-valid VNPay IPN with matching reference and amount can atomically mark a VNPay order paid and insert enrollments.
+- VNPay credentials are environment-only (`EDUALTO_PAYMENT_VNPAY_TMN_CODE`, `EDUALTO_PAYMENT_VNPAY_HASH_SECRET`, `EDUALTO_PAYMENT_VNPAY_RETURN_URL`). Without those values, only VNPay checkout is disabled; manual MoMo and VietQR methods remain available. The merchant dashboard must point its IPN setting to `/api/v1/payments/vnpay/ipn` on a publicly reachable backend.
+
+## Manual transfer payments (V14)
+
+- V14 permits `MOMO` and `VIETQR` payment providers and adds unique `orders.transfer_reference` values plus `manual_payment_confirmations` audit rows. Creation request carries `paymentMethod` (`VNPAY`, `MOMO`, or `VIETQR`); manual methods return the recipient, amount, reference and (for VietQR) a QR image URL.
+- Manual-payment orders stay `PAYMENT_REVIEW` and payments stay `PENDING` until an active admin reconciles the external wallet/bank receipt and calls `POST /api/v1/admin/orders/{id}/confirm-payment`. The confirmation records admin ID and receipt reference; order payment and enrollment are committed together.
+- `GET /api/v1/admin/orders` exposes paginated orders, provider, student, amount and transfer reference to active admins. Browser returns, user-submitted claims and VietQR scan events never mark an order paid.
+- MoMo is an offline manual transfer instruction only; no payment API/deep link is used. VietQR link encodes the fixed bank account, exact VND amount and unique transfer reference.

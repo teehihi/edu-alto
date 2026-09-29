@@ -2,13 +2,25 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, BookOpen, Check, CircleCheck, CirclePlay, LoaderCircle } from "lucide-react";
+import {
+  ArrowLeft,
+  Bookmark,
+  BookmarkCheck,
+  BookOpen,
+  Check,
+  CircleCheck,
+  CirclePlay,
+  LoaderCircle,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { AppHeader } from "@/components/layout/app-header";
 import { ApiClientError } from "@/lib/api";
 import {
   completeLearningLesson,
+  fetchSavedLessons,
   fetchLearningLesson,
+  saveLearningLesson,
+  unsaveLearningLesson,
   type CourseProgress,
   type LessonContent,
 } from "@/lib/learning-client";
@@ -23,6 +35,8 @@ export function LearningLessonPage({ lessonId }: { lessonId: string }) {
   const [progress, setProgress] = useState<CourseProgress | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [bookmarkBusy, setBookmarkBusy] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -37,9 +51,14 @@ export function LearningLessonPage({ lessonId }: { lessonId: string }) {
     void getAccessToken()
       .then((token) => {
         if (!token) throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
-        return fetchLearningLesson(token, lessonId).then((result) => {
-          if (active) setLesson(result);
-        });
+        return Promise.all([fetchLearningLesson(token, lessonId), fetchSavedLessons(token)]).then(
+          ([result, savedLessons]) => {
+            if (active) {
+              setLesson(result);
+              setSaved(savedLessons.data.some((item) => item.lessonId === lessonId));
+            }
+          },
+        );
       })
       .catch((reason: unknown) => {
         if (active)
@@ -73,6 +92,22 @@ export function LearningLessonPage({ lessonId }: { lessonId: string }) {
       setError(reason instanceof Error ? reason.message : "Chưa thể lưu tiến độ học tập.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function toggleSaved() {
+    setBookmarkBusy(true);
+    setError("");
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+      if (saved) await unsaveLearningLesson(token, lessonId);
+      else await saveLearningLesson(token, lessonId);
+      setSaved(!saved);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Chưa thể cập nhật bài học đã lưu.");
+    } finally {
+      setBookmarkBusy(false);
     }
   }
 
@@ -112,8 +147,28 @@ export function LearningLessonPage({ lessonId }: { lessonId: string }) {
           <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
             <article className="overflow-hidden rounded-2xl border border-[#e4ece8] bg-white">
               <header className="border-b border-[#edf1ef] bg-gradient-to-r from-[#e8faf4] to-white px-5 py-6 md:px-8">
-                <p className="text-xs font-semibold text-primary">BÀI HỌC · NỘI DUNG VĂN BẢN</p>
-                <h1 className="mt-2 text-2xl font-bold md:text-3xl">{lesson.title}</h1>
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-semibold text-primary">BÀI HỌC · NỘI DUNG VĂN BẢN</p>
+                    <h1 className="mt-2 text-2xl font-bold md:text-3xl">{lesson.title}</h1>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={toggleSaved}
+                    disabled={bookmarkBusy}
+                    aria-pressed={saved}
+                    className="focus-ring inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg border border-[#dfe9e4] bg-white px-3 text-sm font-semibold text-[#52605a] transition hover:border-primary hover:text-primary disabled:cursor-wait disabled:opacity-60"
+                  >
+                    {bookmarkBusy ? (
+                      <LoaderCircle className="h-4 w-4 animate-spin" />
+                    ) : saved ? (
+                      <BookmarkCheck className="h-4 w-4" />
+                    ) : (
+                      <Bookmark className="h-4 w-4" />
+                    )}
+                    <span className="hidden sm:inline">{saved ? "Đã lưu" : "Lưu bài học"}</span>
+                  </button>
+                </div>
               </header>
               <div className="prose prose-slate max-w-none px-5 py-7 text-[15px] leading-8 text-[#43514b] md:px-8 md:py-9">
                 <p className="whitespace-pre-wrap">

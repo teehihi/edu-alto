@@ -22,6 +22,7 @@ Cross-module dependency phải đi qua service/use case công khai của module 
 | `instructor` | Instructor profile, instructor verification | `user`, `profile` | Không sở hữu course content trực tiếp. |
 | `course` | Course catalog, category, publish state | `instructor`, `user` read model khi cần | Không tính learning progress. |
 | `enrollment` | Student enrollment, enrollment status | `user`, `course`, `notification` | Không mutate lesson content. |
+| `commerce` | Orders, immutable order items, payment attempts, gateway verification and manual-payment audit | `user`, `course`, `enrollment`, payment gateway infrastructure | Không tin browser return hoặc lời khai học viên để xác nhận thanh toán; không tự sửa giá catalog. |
 | `lesson` | Section, lesson, lesson content metadata | `course`, document/file infrastructure | Không chấm quiz/assignment. |
 | `learning` | Progress, learning activity, learning signal emission | `enrollment`, `lesson`, `analytics` signal boundary | Không chứa AI recommendation logic. |
 | `quiz` | Quiz, question, attempt, answer, scoring policy | `course`, `lesson`, `enrollment`, `analytics` signal boundary | Không expose correct answers ngoài policy. |
@@ -60,6 +61,7 @@ Tên interface có thể thay đổi theo implementation, nhưng trách nhiệm 
 | Participation | `enrollment`, `learning` | `enrollments`, `learning_progress`, `notes` |
 | Assessment | `quiz`, `assignment` | `quizzes`, `questions`, `question_options`, `quiz_attempts`, `quiz_answers`, `assignments`, `assignment_submissions` |
 | Collaboration | `document`, `discussion`, `messaging` | `documents`, `saved_documents`, `discussions`, `discussion_comments`, `conversations`, `conversation_participants`, `messages` |
+| Commerce | `commerce` | `orders`, `order_items`, `payments`, `manual_payment_confirmations` |
 | Engagement | `notification`, `schedule`, `review`, `certificate` | `notifications`, `calendar_events`, `reviews`, `certificates` |
 | Insight | `analytics`, `ai` | `learning_signals`, `analytics_snapshots`, `ai_model_versions`, `recommendations`, `recommendation_items`, `recommendation_reasons` |
 
@@ -67,6 +69,8 @@ Tên interface có thể thay đổi theo implementation, nhưng trách nhiệm 
 
 - `auth -> user`: tạo user, đọc user status, gán role mặc định sau verify.
 - `enrollment -> course`: kiểm tra course tồn tại và `PUBLISHED`.
+- `commerce -> course`: đọc giá và trạng thái khóa học để tạo snapshot đơn hàng; chỉ xác nhận ghi danh sau IPN hợp lệ.
+- `commerce -> enrollment`: kích hoạt ghi danh sau khi gateway xác nhận giao dịch, trong cùng transaction.
 - `lesson -> course`: đảm bảo section/lesson thuộc course hợp lệ.
 - `learning -> enrollment + lesson`: xác thực enrollment trước khi cập nhật progress.
 - `quiz/assignment -> enrollment`: xác thực quyền học trước khi nộp bài.
