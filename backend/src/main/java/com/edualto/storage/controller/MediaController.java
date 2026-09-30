@@ -42,6 +42,11 @@ public class MediaController {
             return ResponseEntity.badRequest().build();
         }
 
+        // Course videos are served only through short-lived, enrollment-checked signed URLs.
+        if (objectKey.startsWith("course-videos/")) {
+            return ResponseEntity.notFound().build();
+        }
+
         try {
             if (!storageService.objectExists(objectKey)) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).build();

@@ -22,6 +22,7 @@ import com.edualto.course.dto.UpdateSectionRequest;
 import com.edualto.course.repository.CourseRepository;
 import com.edualto.course.repository.LessonRepository;
 import com.edualto.course.repository.SectionRepository;
+import com.edualto.storage.service.StorageCleanupService;
 import com.edualto.user.domain.RoleName;
 import com.edualto.user.domain.User;
 import com.edualto.user.repository.UserRepository;
@@ -49,17 +50,20 @@ public class CourseStructureService {
     private final SectionRepository sectionRepository;
     private final LessonRepository lessonRepository;
     private final UserRepository userRepository;
+    private final StorageCleanupService storageCleanup;
 
     public CourseStructureService(
             CourseRepository courseRepository,
             SectionRepository sectionRepository,
             LessonRepository lessonRepository,
-            UserRepository userRepository
+            UserRepository userRepository,
+            StorageCleanupService storageCleanup
     ) {
         this.courseRepository = courseRepository;
         this.sectionRepository = sectionRepository;
         this.lessonRepository = lessonRepository;
         this.userRepository = userRepository;
+        this.storageCleanup = storageCleanup;
     }
 
     // ==========================================
@@ -215,8 +219,14 @@ public class CourseStructureService {
         getCourseAndCheckOwnership(instructorId, courseId);
         Section section = getSectionAndCheckCourse(courseId, sectionId);
 
+        List<String> videoKeys = lessonRepository.findAllBySectionIdOrderByPositionAsc(sectionId).stream()
+                .map(Lesson::getMediaKey)
+                .filter(this::isCourseVideoKey)
+                .toList();
+
         lessonRepository.deleteAllBySectionId(sectionId);
         sectionRepository.delete(section);
+        storageCleanup.deleteAfterCommit(videoKeys);
 
         // Re-index remaining sections to keep positions contiguous
         List<Section> remaining = sectionRepository.findAllByCourseIdOrderByPositionAsc(courseId);
@@ -335,7 +345,7 @@ public class CourseStructureService {
                 request.lessonType(),
                 request.durationSeconds(),
                 Boolean.TRUE.equals(request.isPreview()),
-                request.mediaKey(),
+                request.mediaKey() != null ? request.mediaKey() : lesson.getMediaKey(),
                 request.status()
         );
 
@@ -349,7 +359,12 @@ public class CourseStructureService {
         getSectionAndCheckCourse(courseId, sectionId);
         Lesson lesson = getLessonAndCheckSection(sectionId, lessonId);
 
+        String videoKey = lesson.getMediaKey();
+
         lessonRepository.delete(lesson);
+        if (isCourseVideoKey(videoKey)) {
+            storageCleanup.deleteAfterCommit(List.of(videoKey));
+        }
 
         // Re-index remaining lessons to keep positions contiguous
         List<Lesson> remaining = lessonRepository.findAllBySectionIdOrderByPositionAsc(sectionId);
@@ -437,6 +452,10 @@ public class CourseStructureService {
             throw new BusinessException(HttpStatus.NOT_FOUND, "LESSON_NOT_FOUND", "Bài học không thuộc chương học này");
         }
         return lesson;
+    }
+
+    private boolean isCourseVideoKey(String objectKey) {
+        return objectKey != null && objectKey.startsWith("course-videos/");
     }
 
     private SectionResponse toSectionResponse(Section section, int lessonCount, int totalDurationSeconds) {

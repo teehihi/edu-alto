@@ -147,14 +147,31 @@ GET /api/v1/courses?q=java&category=backend&level=beginner&page=0&size=12&sort=p
 
 Public course listing chỉ trả khóa học `PUBLISHED`.
 
+Giảng viên quản lý khóa học của mình qua các endpoint sau:
+
+```text
+POST   /api/v1/instructor/courses
+GET    /api/v1/instructor/courses
+GET    /api/v1/instructor/courses/{id}
+PUT    /api/v1/instructor/courses/{id}
+POST   /api/v1/instructor/courses/{id}/publish
+POST   /api/v1/instructor/courses/{id}/archive
+DELETE /api/v1/instructor/courses/{id}
+```
+
+Chỉ chủ sở hữu khóa học mới được quản lý khóa học đó. Xóa cứng chỉ áp dụng cho khóa học `DRAFT`; khóa học đã xuất bản hoặc lưu trữ không thể xóa để bảo toàn lịch sử ghi danh và giao dịch. Dùng thao tác lưu trữ để gỡ khóa học khỏi danh mục công khai.
+
 ## Learning
 
 ```text
 GET  /api/v1/courses/{courseId}/sections
 GET  /api/v1/lessons/{lessonId}
+GET  /api/v1/lessons/{lessonId}/video-access
 POST /api/v1/lessons/{lessonId}/complete
 GET  /api/v1/me/courses/{courseId}/progress
 ```
+
+Giảng viên sở hữu khóa học tải video lên R2 bằng luồng `POST /api/v1/instructor/courses/{courseId}/sections/{sectionId}/lessons/{lessonId}/video-upload-url` rồi gọi `.../video-upload-complete`. Backend chỉ cấp URL cho bài học `VIDEO`, giới hạn MP4/WebM tối đa 2 GB, sinh object key và xác minh metadata từ R2 trước khi gắn tệp vào bài học. PUT phải gửi `Content-Type` và `Cache-Control: private, no-store` đúng như chữ ký; cấu hình CORS của bucket cần cho phép hai header này. Học viên đã ghi danh đang hoạt động lấy liên kết phát có hạn 10 phút qua `GET /api/v1/lessons/{lessonId}/video-access`; endpoint media công khai không phục vụ namespace `course-videos/`. Giữ bucket R2 ở chế độ riêng tư và không cấu hình `publicUrlPrefix` cho namespace `course-videos/` để URL ký sẵn là đường truy cập duy nhất tới video.
 
 ## Quiz
 
@@ -282,6 +299,6 @@ The following endpoints are implemented with the standard success/error wrappers
 
 Enrollment history items contain `id`, `courseId`, `courseTitle`, `courseSlug`, `courseStatus`, `status`, `enrolledAt`. Course detail and public curriculum continue to use slugs; enrollment/progress use UUIDs.
 
-Error cases: `401` anonymous; `403 STUDENT_REQUIRED` for an ineligible account; `403 ENROLLMENT_REQUIRED` for missing enrollment; `404` unpublished/missing content; `409 PAYMENT_REQUIRED` for new paid enrollments; `409 OWN_COURSE_ENROLLMENT` for own courses; `409 LESSON_TYPE_NOT_SUPPORTED` for video/document/quiz/assignment learning actions; `400 INVALID_PAGINATION` or `INVALID_PARAMETER` for invalid query/path parameters.
+Error cases: `401` anonymous; `403 STUDENT_REQUIRED` for an ineligible account; `403 ENROLLMENT_REQUIRED` for missing enrollment; `404` unpublished/missing content; `409 PAYMENT_REQUIRED` for new paid enrollments; `409 OWN_COURSE_ENROLLMENT` for own courses; `409 LESSON_TYPE_NOT_SUPPORTED` when manually completing a lesson type that does not support manual completion; `400 INVALID_PAGINATION` or `INVALID_PARAMETER` for invalid query/path parameters.
 
-Progress counts only currently published lessons, including types whose completion flows are not implemented yet. Empty courses are not complete. Existing enrollment remains valid if the price later changes; archived courses remain in history but content access is blocked. Payment, protected media delivery, assessment scoring, certificates and the student UI are follow-up work.
+Progress counts currently published lessons. Manual completion is supported for text and video lessons; quiz completion comes from scored attempts. Empty courses are not complete. Existing enrollment remains valid if the price later changes; archived courses remain in history but content access is blocked. Video playback uses expiring signed URLs after enrollment checks; quiz attempts and assignment submissions are persisted through their own APIs. Certificate issuance remains a follow-up area.

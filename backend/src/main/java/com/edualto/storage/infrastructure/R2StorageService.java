@@ -2,6 +2,7 @@ package com.edualto.storage.infrastructure;
 
 import com.edualto.storage.config.R2StorageProperties;
 import com.edualto.storage.dto.ObjectMetadata;
+import com.edualto.storage.dto.PresignedDownloadUrl;
 import com.edualto.storage.dto.PresignedUploadUrl;
 import com.edualto.storage.service.StorageService;
 import jakarta.annotation.PostConstruct;
@@ -18,6 +19,8 @@ import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
@@ -49,12 +52,19 @@ public class R2StorageService implements StorageService {
 
     @Override
     public PresignedUploadUrl generatePresignedUploadUrl(String objectKey, String contentType, long contentLength, Duration expiration) {
+        return generatePresignedUploadUrl(objectKey, contentType, contentLength, expiration,
+                "public, max-age=31536000, immutable");
+    }
+
+    @Override
+    public PresignedUploadUrl generatePresignedUploadUrl(
+            String objectKey, String contentType, long contentLength, Duration expiration, String cacheControl) {
         PutObjectRequest objectRequest = PutObjectRequest.builder()
                 .bucket(properties.bucketName())
                 .key(objectKey)
                 .contentType(contentType)
                 .contentLength(contentLength)
-                .cacheControl("public, max-age=31536000, immutable")
+                .cacheControl(cacheControl)
                 .build();
 
         PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
@@ -68,6 +78,20 @@ public class R2StorageService implements StorageService {
                 objectKey,
                 presignedRequest.expiration()
         );
+    }
+
+    @Override
+    public PresignedDownloadUrl generatePresignedDownloadUrl(String objectKey, Duration expiration) {
+        GetObjectRequest getRequest = GetObjectRequest.builder()
+                .bucket(properties.bucketName())
+                .key(objectKey)
+                .build();
+        GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
+                .signatureDuration(expiration)
+                .getObjectRequest(getRequest)
+                .build();
+        PresignedGetObjectRequest presignedRequest = s3Presigner.presignGetObject(presignRequest);
+        return new PresignedDownloadUrl(presignedRequest.url().toString(), presignedRequest.expiration());
     }
 
     @Override

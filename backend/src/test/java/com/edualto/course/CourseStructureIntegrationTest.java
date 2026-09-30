@@ -6,6 +6,9 @@ import com.edualto.auth.repository.EmailOtpRepository;
 import com.edualto.auth.repository.RefreshTokenRepository;
 import com.edualto.course.domain.Course;
 import com.edualto.course.domain.CourseLevel;
+import com.edualto.course.domain.Lesson;
+import com.edualto.course.domain.LessonType;
+import com.edualto.course.domain.Section;
 import com.edualto.course.repository.CourseRepository;
 import com.edualto.course.repository.LessonRepository;
 import com.edualto.course.repository.SectionRepository;
@@ -13,12 +16,15 @@ import com.edualto.profile.repository.InstructorProfileRepository;
 import com.edualto.profile.repository.ProfileRepository;
 import com.edualto.profile.repository.StudentProfileRepository;
 import com.edualto.storage.service.StorageService;
+import com.edualto.storage.dto.ObjectMetadata;
+import com.edualto.storage.dto.PresignedUploadUrl;
 import com.edualto.user.domain.User;
 import com.edualto.user.repository.UserRepository;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +40,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -295,5 +306,68 @@ class CourseStructureIntegrationTest extends AbstractIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(secReq)))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("Giảng viên tải video qua URL ký sẵn và chỉ xác nhận được object hợp lệ của bài học")
+    void instructorVideoUploadRequiresOwnershipAndVerifiedStorageObject() throws Exception {
+        String token = registerAndLogin("video-teacher@edualto.com", "INSTRUCTOR", "Giảng viên video");
+        String otherToken = registerAndLogin("video-other@edualto.com", "INSTRUCTOR", "Giảng viên khác");
+        User teacher = userRepository.findByEmail("video-teacher@edualto.com").orElseThrow();
+        Course course = createTestCourse(teacher.getId(), "Khóa học video", "khoa-hoc-video-upload");
+        Section section = sectionRepository.save(Section.create(course.getId(), "Chương 1", null, 1));
+        String previousKey = "course-videos/" + course.getId() + "/" + UUID.randomUUID() + "/" + UUID.randomUUID() + ".mp4";
+        Lesson lesson = lessonRepository.save(Lesson.create(
+                section.getId(), "Video 1", "video-1", null, null,
+                LessonType.VIDEO, 1, 60, false, previousKey));
+        String basePath = "/api/v1/instructor/courses/" + course.getId() + "/sections/"
+                + section.getId() + "/lessons/" + lesson.getId();
+        when(storageService.generatePresignedUploadUrl(anyString(), eq("video/mp4"), eq(1024L), any(Duration.class),
+                eq("private, no-store")))
+                .thenAnswer(invocation -> new PresignedUploadUrl("https://r2.test/signed-put",
+                        invocation.getArgument(0), Instant.now().plusSeconds(900)));
+
+        mockMvc.perform(post(basePath + "/video-upload-url")
+                        .header("Authorization", "Bearer " + otherToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("contentType", "video/mp4", "contentLength", 1024))))
+                .andExpect(status().isForbidden());
+
+        ResultActions upload = mockMvc.perform(post(basePath + "/video-upload-url")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("contentType", "video/mp4", "contentLength", 1024))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.uploadUrl").value("https://r2.test/signed-put"));
+        String objectKey = objectMapper.readTree(upload.andReturn().getResponse().getContentAsString())
+                .get("data").get("objectKey").asText();
+        assertThat(objectKey).startsWith("course-videos/" + course.getId() + "/" + lesson.getId() + "/");
+
+        mockMvc.perform(post(basePath + "/video-upload-complete")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("objectKey", objectKey))))
+                .andExpect(status().isBadRequest());
+
+        when(storageService.getObjectMetadata(objectKey)).thenReturn(new ObjectMetadata("video/mp4", 1024L, "etag"));
+        mockMvc.perform(post(basePath + "/video-upload-complete")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("objectKey", objectKey))))
+                .andExpect(status().isOk());
+        assertThat(lessonRepository.findById(lesson.getId()).orElseThrow().getMediaKey()).isEqualTo(objectKey);
+        verify(storageService).deleteObject(previousKey);
+
+        mockMvc.perform(put(basePath)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("title", "Video cập nhật", "lessonType", "VIDEO"))))
+                .andExpect(status().isOk());
+        assertThat(lessonRepository.findById(lesson.getId()).orElseThrow().getMediaKey()).isEqualTo(objectKey);
+
+        mockMvc.perform(delete(basePath)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
+        verify(storageService).deleteObject(objectKey);
     }
 }

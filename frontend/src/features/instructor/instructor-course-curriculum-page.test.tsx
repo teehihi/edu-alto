@@ -4,6 +4,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { InstructorCourseCurriculumPage } from "./instructor-course-curriculum-page";
 import * as structureClient from "@/lib/course-structure-client";
 import * as quizClient from "@/lib/instructor-quiz-client";
+import * as videoClient from "@/lib/course-video-client";
 import type { CourseStructure } from "@/types/course-structure";
 
 const mockStructure: CourseStructure = {
@@ -316,6 +317,74 @@ describe("InstructorCourseCurriculumPage", () => {
     await waitFor(() => {
       expect(createLessonSpy).toHaveBeenCalledTimes(1);
       expect(createQuizSpy).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("requires an MP4 or WebM video before creating a video lesson", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(structureClient, "fetchCourseStructure").mockResolvedValue(mockStructure);
+    const createLessonSpy = vi.spyOn(structureClient, "createLesson");
+
+    render(<InstructorCourseCurriculumPage courseId={mockStructure.courseId} />);
+    const addLessonButtons = await screen.findAllByRole("button", { name: /thêm bài học/i });
+    await user.click(addLessonButtons[0]);
+    await user.type(screen.getByPlaceholderText(/giới thiệu cú pháp/i), "Video bài 1");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Loại bài học" }), "VIDEO");
+    await user.click(screen.getByRole("button", { name: "Tạo bài học" }));
+
+    expect(
+      await screen.findByText("Vui lòng chọn video MP4 hoặc WebM cho bài học."),
+    ).toBeInTheDocument();
+    expect(createLessonSpy).not.toHaveBeenCalled();
+  });
+
+  it("uploads the selected video after creating a lesson and retries without duplicating it", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(structureClient, "fetchCourseStructure").mockResolvedValue(mockStructure);
+    const createLessonSpy = vi.spyOn(structureClient, "createLesson").mockResolvedValue({
+      id: "les-video-upload",
+      sectionId: "sec-1",
+      title: "Video bài 1",
+      description: null,
+      type: "VIDEO",
+      textContent: null,
+      videoDurationSeconds: 600,
+      isPreview: false,
+      status: "PUBLISHED",
+      position: 2,
+      createdAt: "2026-09-23T00:00:00Z",
+      updatedAt: "2026-09-23T00:00:00Z",
+    });
+    const uploadSpy = vi
+      .spyOn(videoClient, "uploadLessonVideo")
+      .mockRejectedValueOnce(new Error("Kho lưu trữ tạm thời không khả dụng."))
+      .mockResolvedValueOnce();
+
+    render(<InstructorCourseCurriculumPage courseId={mockStructure.courseId} />);
+    const addLessonButtons = await screen.findAllByRole("button", { name: /thêm bài học/i });
+    await user.click(addLessonButtons[0]);
+    await user.type(screen.getByPlaceholderText(/giới thiệu cú pháp/i), "Video bài 1");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Loại bài học" }), "VIDEO");
+    await user.upload(
+      screen.getByLabelText(/video bài giảng/i),
+      new File(["sample video"], "bai-giang.mp4", { type: "video/mp4" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Tạo bài học" }));
+
+    expect(
+      await screen.findByText(/Bài học đã được tạo nhưng video chưa tải xong/),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Thử lưu video" }));
+    await waitFor(() => {
+      expect(createLessonSpy).toHaveBeenCalledTimes(1);
+      expect(uploadSpy).toHaveBeenCalledTimes(2);
+      expect(uploadSpy).toHaveBeenLastCalledWith(
+        mockStructure.courseId,
+        "sec-1",
+        "les-video-upload",
+        expect.any(File),
+        "mock-token",
+      );
     });
   });
 

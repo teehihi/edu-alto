@@ -12,7 +12,7 @@ import {
   CirclePlay,
   LoaderCircle,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type SyntheticEvent } from "react";
 import { AppHeader } from "@/components/layout/app-header";
 import { ApiClientError } from "@/lib/api";
 import {
@@ -20,6 +20,7 @@ import {
   fetchSavedLessons,
   fetchLearningLesson,
   fetchCourseProgress,
+  fetchLessonVideoAccess,
   saveLearningLesson,
   unsaveLearningLesson,
   type CourseProgress,
@@ -40,6 +41,39 @@ export function LearningLessonPage({ lessonId }: { lessonId: string }) {
   const [saved, setSaved] = useState(false);
   const [bookmarkBusy, setBookmarkBusy] = useState(false);
   const [error, setError] = useState("");
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [videoExpiresAt, setVideoExpiresAt] = useState<string | null>(null);
+  const [videoLoading, setVideoLoading] = useState(false);
+  const [videoError, setVideoError] = useState("");
+  const videoPositionRef = useRef(0);
+  const videoWasPlayingRef = useRef(false);
+  const videoAutoRetryCountRef = useRef(0);
+
+  const refreshVideoAccess = useCallback(async () => {
+    setVideoLoading(true);
+    setVideoError("");
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+      const videoAccess = await fetchLessonVideoAccess(token, lessonId);
+      setVideoUrl(videoAccess.videoUrl);
+      setVideoExpiresAt(videoAccess.expiresAt);
+      return true;
+    } catch (reason) {
+      setVideoError(
+        reason instanceof ApiClientError && reason.status === 404
+          ? "Video chưa được tải lên hoặc hiện không khả dụng."
+          : reason instanceof ApiClientError && reason.status === 403
+            ? "Bạn cần ghi danh khóa học này để xem video."
+            : reason instanceof Error
+              ? reason.message
+              : "Chưa thể mở video. Vui lòng thử lại.",
+      );
+      return false;
+    } finally {
+      setVideoLoading(false);
+    }
+  }, [getAccessToken, lessonId]);
 
   useEffect(() => {
     if (sessionLoading) return;
@@ -58,6 +92,7 @@ export function LearningLessonPage({ lessonId }: { lessonId: string }) {
             if (active) {
               setLesson(result);
               setSaved(savedLessons.data.some((item) => item.lessonId === lessonId));
+              if (result.lessonType === "VIDEO") void refreshVideoAccess();
             }
           },
         );
@@ -80,7 +115,34 @@ export function LearningLessonPage({ lessonId }: { lessonId: string }) {
     return () => {
       active = false;
     };
-  }, [courseId, getAccessToken, lessonId, router, sessionLoading, user]);
+  }, [courseId, getAccessToken, lessonId, refreshVideoAccess, router, sessionLoading, user]);
+
+  useEffect(() => {
+    if (!videoExpiresAt || !videoUrl) return;
+    const millisecondsUntilRefresh = new Date(videoExpiresAt).getTime() - Date.now() - 30_000;
+    const timeout = window.setTimeout(
+      () => void refreshVideoAccess(),
+      Math.max(millisecondsUntilRefresh, 1000),
+    );
+    return () => window.clearTimeout(timeout);
+  }, [refreshVideoAccess, videoExpiresAt, videoUrl]);
+
+  function handleVideoError() {
+    if (!videoUrl || videoAutoRetryCountRef.current >= 1) {
+      setVideoError("Video bị gián đoạn. Hãy thử làm mới liên kết để tiếp tục xem.");
+      return;
+    }
+    videoAutoRetryCountRef.current += 1;
+    void refreshVideoAccess();
+  }
+
+  function handleVideoMetadataLoaded(event: SyntheticEvent<HTMLVideoElement>) {
+    const player = event.currentTarget;
+    if (videoPositionRef.current > 0) player.currentTime = videoPositionRef.current;
+    if (videoWasPlayingRef.current) void player.play().catch(() => undefined);
+    videoAutoRetryCountRef.current = 0;
+    setVideoError("");
+  }
 
   async function markComplete() {
     setSaving(true);
@@ -162,7 +224,12 @@ export function LearningLessonPage({ lessonId }: { lessonId: string }) {
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="text-xs font-semibold text-primary">
-                      BÀI HỌC · {lesson.lessonType === "QUIZ" ? "BÀI KIỂM TRA" : "NỘI DUNG VĂN BẢN"}
+                      BÀI HỌC ·{" "}
+                      {lesson.lessonType === "QUIZ"
+                        ? "BÀI KIỂM TRA"
+                        : lesson.lessonType === "VIDEO"
+                          ? "VIDEO BÀI GIẢNG"
+                          : "NỘI DUNG VĂN BẢN"}
                     </p>
                     <h1 className="mt-2 text-2xl font-bold md:text-3xl">{lesson.title}</h1>
                   </div>
@@ -190,6 +257,108 @@ export function LearningLessonPage({ lessonId }: { lessonId: string }) {
                   getAccessToken={getAccessToken}
                   onPassed={() => void refreshProgressAfterQuiz()}
                 />
+              ) : lesson.lessonType === "VIDEO" ? (
+                <>
+                  <div className="bg-[#101a2c] p-3 sm:p-5">
+                    {videoUrl ? (
+                      <video
+                        key={videoUrl}
+                        controls
+                        playsInline
+                        preload="metadata"
+                        src={videoUrl}
+                        aria-label={`Video bài học: ${lesson.title}`}
+                        onTimeUpdate={(event) => {
+                          videoPositionRef.current = event.currentTarget.currentTime;
+                        }}
+                        onPlay={() => {
+                          videoWasPlayingRef.current = true;
+                        }}
+                        onPause={() => {
+                          videoWasPlayingRef.current = false;
+                        }}
+                        onLoadedMetadata={handleVideoMetadataLoaded}
+                        onError={handleVideoError}
+                        className="mx-auto aspect-video max-h-[72vh] w-full rounded-lg bg-black"
+                      />
+                    ) : (
+                      <div className="grid aspect-video place-items-center rounded-lg bg-slate-900 px-5 text-center text-white">
+                        <div>
+                          <CirclePlay
+                            className="mx-auto h-10 w-10 text-primary"
+                            aria-hidden="true"
+                          />
+                          <p role="status" className="mt-3 text-sm">
+                            {videoLoading ? "Đang tải video…" : "Video chưa sẵn sàng"}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  {videoUrl && !videoError ? (
+                    <div className="flex flex-col gap-2 px-5 pt-4 sm:flex-row sm:items-center sm:justify-between md:px-8">
+                      <p className="text-xs text-[#84908b]">
+                        Liên kết xem được tự làm mới khi cần.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          videoAutoRetryCountRef.current = 0;
+                          void refreshVideoAccess();
+                        }}
+                        disabled={videoLoading}
+                        className="focus-ring min-h-9 self-start rounded-lg px-3 text-xs font-semibold text-primary transition hover:bg-primary-soft disabled:opacity-60 sm:self-auto"
+                      >
+                        {videoLoading ? "Đang làm mới…" : "Làm mới liên kết"}
+                      </button>
+                    </div>
+                  ) : null}
+                  {videoError ? (
+                    <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between md:px-8">
+                      <p role="alert" className="text-sm text-rose-700">
+                        {videoError}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          videoAutoRetryCountRef.current = 0;
+                          void refreshVideoAccess();
+                        }}
+                        disabled={videoLoading}
+                        className="focus-ring inline-flex min-h-10 shrink-0 items-center justify-center rounded-lg border border-primary px-4 text-sm font-semibold text-primary hover:bg-primary-soft disabled:opacity-60"
+                      >
+                        {videoLoading ? "Đang thử lại…" : "Tải lại video"}
+                      </button>
+                    </div>
+                  ) : null}
+                  <div className="prose prose-slate max-w-none px-5 py-6 text-[15px] leading-8 text-[#43514b] md:px-8">
+                    <p className="whitespace-pre-wrap">{lesson.content?.trim()}</p>
+                  </div>
+                  <footer className="flex flex-col gap-4 border-t border-[#edf1ef] px-5 py-5 sm:flex-row sm:items-center sm:justify-between md:px-8">
+                    <span role="status" className="flex items-center gap-2 text-sm text-[#77837e]">
+                      {progress?.completed
+                        ? "Đã hoàn thành bài học"
+                        : "Học xong, đánh dấu để lưu tiến độ của bạn."}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={markComplete}
+                      disabled={saving || progress?.completed}
+                      className="focus-ring inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-white transition hover:bg-[#159e75] disabled:cursor-not-allowed disabled:bg-[#9bdcc5]"
+                    >
+                      {saving ? (
+                        <LoaderCircle className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Check className="h-4 w-4" />
+                      )}
+                      {saving
+                        ? "Đang lưu…"
+                        : progress?.completed
+                          ? "Đã hoàn thành"
+                          : "Đánh dấu hoàn thành"}
+                    </button>
+                  </footer>
+                </>
               ) : (
                 <>
                   <div className="prose prose-slate max-w-none px-5 py-7 text-[15px] leading-8 text-[#43514b] md:px-8 md:py-9">

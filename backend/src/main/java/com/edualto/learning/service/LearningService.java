@@ -29,7 +29,7 @@ public class LearningService {
     public LearningLessonResponse getLesson(UUID studentId, UUID lessonId) {
         LearningLessonResponse lesson = courses.requirePublishedLesson(lessonId);
         enrollments.requireEnrollment(studentId, lesson.courseId());
-        requireTextLesson(lesson);
+        requireReadableLesson(lesson);
         return lesson;
     }
 
@@ -37,7 +37,7 @@ public class LearningService {
     public CourseProgressResponse complete(UUID studentId, UUID lessonId) {
         LearningLessonResponse lesson = courses.requirePublishedLesson(lessonId);
         UUID enrollmentId = enrollments.requireEnrollment(studentId, lesson.courseId());
-        requireTextLesson(lesson);
+        requireCompletableLesson(lesson);
         progress.completeIfAbsent(UUID.randomUUID(), enrollmentId, lesson.courseId(), lesson.sectionId(), lesson.id());
         return summarize(enrollmentId, lesson.courseId());
     }
@@ -57,9 +57,17 @@ public class LearningService {
                 total == 0 ? 0 : (int) (completed * 100 / total), total > 0 && completed == total);
     }
 
-    private void requireTextLesson(LearningLessonResponse lesson) {
-        if (lesson.lessonType() != LessonType.TEXT) {
-            throw new BusinessException(HttpStatus.CONFLICT, "LESSON_TYPE_NOT_SUPPORTED", "Hiện tại chỉ hỗ trợ học và xác nhận hoàn thành bài học văn bản");
+    private void requireReadableLesson(LearningLessonResponse lesson) {
+        if (lesson.lessonType() != LessonType.TEXT
+                && lesson.lessonType() != LessonType.VIDEO
+                && lesson.lessonType() != LessonType.QUIZ) {
+            throw new BusinessException(HttpStatus.CONFLICT, "LESSON_TYPE_NOT_SUPPORTED", "Loại bài học này hiện chưa hỗ trợ");
+        }
+    }
+
+    private void requireCompletableLesson(LearningLessonResponse lesson) {
+        if (lesson.lessonType() != LessonType.TEXT && lesson.lessonType() != LessonType.VIDEO) {
+            throw new BusinessException(HttpStatus.CONFLICT, "LESSON_TYPE_NOT_SUPPORTED", "Chỉ bài học văn bản và video có thể được đánh dấu hoàn thành trực tiếp");
         }
     }
 }

@@ -34,7 +34,7 @@ describe("SavedLessonsView", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     fetchSavedLessonsMock.mockImplementation(async (token: string, page: number) => ({
-      data: [savedLesson],
+      data: [page === 0 ? savedLesson : { ...savedLesson, lessonTitle: "Bài học trang 2" }],
       meta: { page, size: 20, totalElements: 21, totalPages: 2 },
     }));
   });
@@ -50,6 +50,7 @@ describe("SavedLessonsView", () => {
     await user.click(screen.getByRole("button", { name: "Sau" }));
 
     expect(await screen.findByText("Trang 2 / 2")).toBeInTheDocument();
+    expect(await screen.findByText("Bài học trang 2")).toBeInTheDocument();
     expect(fetchSavedLessonsMock).toHaveBeenLastCalledWith("access-token", 1);
   });
 
@@ -59,12 +60,13 @@ describe("SavedLessonsView", () => {
     await screen.findByRole("link", { name: /Mở bài học/ });
     await user.click(screen.getByRole("button", { name: "Sau" }));
     await screen.findByText("Trang 2 / 2");
+    expect(await screen.findByText("Bài học trang 2")).toBeInTheDocument();
     fetchSavedLessonsMock.mockImplementation(async (_token: string, page: number) => ({
       data: [savedLesson],
       meta: { page, size: 20, totalElements: 20, totalPages: 1 },
     }));
 
-    await user.click(screen.getByRole("button", { name: "Bỏ lưu Bài học mẫu" }));
+    await user.click(screen.getByRole("button", { name: "Bỏ lưu Bài học trang 2" }));
 
     expect(unsaveLearningLessonMock).toHaveBeenCalledWith("access-token", "lesson-1");
     expect(await screen.findByText("Đã lưu 20 bài học")).toBeInTheDocument();

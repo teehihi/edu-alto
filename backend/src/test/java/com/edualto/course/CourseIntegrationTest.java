@@ -6,7 +6,12 @@ import com.edualto.auth.repository.EmailOtpRepository;
 import com.edualto.auth.repository.RefreshTokenRepository;
 import com.edualto.course.domain.CourseLevel;
 import com.edualto.course.domain.CourseStatus;
+import com.edualto.course.domain.Lesson;
+import com.edualto.course.domain.LessonStatus;
+import com.edualto.course.domain.LessonType;
 import com.edualto.course.repository.CourseRepository;
+import com.edualto.course.repository.SectionRepository;
+import com.edualto.course.repository.LessonRepository;
 import com.edualto.profile.domain.Profile;
 import com.edualto.profile.repository.InstructorProfileRepository;
 import com.edualto.profile.repository.ProfileRepository;
@@ -38,8 +43,10 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import com.edualto.AbstractIntegrationTest;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -73,6 +80,12 @@ class CourseIntegrationTest extends AbstractIntegrationTest {
 
     @Autowired
     private CourseRepository courseRepository;
+
+    @Autowired
+    private SectionRepository sectionRepository;
+
+    @Autowired
+    private LessonRepository lessonRepository;
 
     @MockitoBean
     private StorageService storageService;
@@ -220,7 +233,6 @@ class CourseIntegrationTest extends AbstractIntegrationTest {
                 instructorToken
         ).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         String sectionId = objectMapper.readTree(sectionResponse).get("data").get("id").asText();
-
         String textLessonResponse = postJsonAuth(
                 "/api/v1/instructor/courses/" + courseId + "/sections/" + sectionId + "/lessons",
                 Map.of("title", "Giới thiệu", "content", "PRIVATE_TEXT_PREVIEW", "lessonType", "TEXT", "durationSeconds", 90, "isPreview", true),
@@ -396,6 +408,83 @@ class CourseIntegrationTest extends AbstractIntegrationTest {
         postJsonAuth("/api/v1/instructor/courses/" + courseId + "/publish", Map.of(), instructor2Token)
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.error.code").value("UNAUTHORIZED_COURSE_ACCESS"));
+    }
+
+    @Test
+    void instructorCanDeleteOwnedDraftWithCurriculumButCannotDeletePublishedCourse() throws Exception {
+        String instructorToken = registerAndLogin(
+                "Giảng viên xóa bản nháp",
+                "instructor.course-delete@edualto.com",
+                "Password123",
+                "INSTRUCTOR",
+                null,
+                "Lập trình",
+                "Giảng viên"
+        );
+        String otherInstructorToken = registerAndLogin(
+                "Giảng viên khác",
+                "instructor.course-delete-other@edualto.com",
+                "Password123",
+                "INSTRUCTOR",
+                null,
+                "Thiết kế",
+                "Giảng viên"
+        );
+        String courseResponse = postJsonAuth("/api/v1/instructor/courses", Map.of(
+                "title", "Khóa học bản nháp cần xóa",
+                "description", "Nội dung chưa xuất bản"
+        ), instructorToken)
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String courseId = objectMapper.readTree(courseResponse).get("data").get("id").asText();
+
+        String sectionResponse = postJsonAuth(
+                "/api/v1/instructor/courses/" + courseId + "/sections",
+                Map.of("title", "Chương bản nháp", "description", "Sẽ bị xóa cùng khóa học"),
+                instructorToken
+        ).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String sectionId = objectMapper.readTree(sectionResponse).get("data").get("id").asText();
+        String lessonResponse = postJsonAuth(
+                "/api/v1/instructor/courses/" + courseId + "/sections/" + sectionId + "/lessons",
+                Map.of("title", "Bài học bản nháp", "content", "Nội dung", "lessonType", "TEXT", "durationSeconds", 60),
+                instructorToken
+        ).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String lessonId = objectMapper.readTree(lessonResponse).get("data").get("id").asText();
+        UUID videoLessonId = UUID.randomUUID();
+        String videoKey = "course-videos/" + courseId + "/" + videoLessonId + "/" + UUID.randomUUID() + ".mp4";
+        Lesson videoLesson = lessonRepository.save(new Lesson(videoLessonId, UUID.fromString(sectionId),
+                "Video bản nháp", "video-ban-nhap", null, null, LessonType.VIDEO, 2, 120, false,
+                videoKey, LessonStatus.DRAFT));
+
+        mockMvc.perform(delete("/api/v1/instructor/courses/" + courseId)
+                        .header("Authorization", "Bearer " + otherInstructorToken))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(delete("/api/v1/instructor/courses/" + courseId)
+                        .header("Authorization", "Bearer " + instructorToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").doesNotExist());
+        assertThat(courseRepository.existsById(UUID.fromString(courseId))).isFalse();
+        assertThat(sectionRepository.existsById(UUID.fromString(sectionId))).isFalse();
+        assertThat(lessonRepository.existsById(UUID.fromString(lessonId))).isFalse();
+        assertThat(lessonRepository.existsById(videoLesson.getId())).isFalse();
+        verify(storageService).deleteObject(videoKey);
+        assertThat(mockMvc.perform(get("/api/v1/instructor/courses/" + courseId)
+                        .header("Authorization", "Bearer " + instructorToken))
+                .andReturn().getResponse().getStatus()).isEqualTo(404);
+
+        String publishedResponse = postJsonAuth("/api/v1/instructor/courses", Map.of(
+                "title", "Khóa học không thể xóa sau xuất bản",
+                "description", "Cần lưu lịch sử học tập"
+        ), instructorToken).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String publishedId = objectMapper.readTree(publishedResponse).get("data").get("id").asText();
+        postJsonAuth("/api/v1/instructor/courses/" + publishedId + "/publish", Map.of(), instructorToken)
+                .andExpect(status().isOk());
+        mockMvc.perform(delete("/api/v1/instructor/courses/" + publishedId)
+                        .header("Authorization", "Bearer " + instructorToken))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error.code").value("COURSE_CANNOT_BE_DELETED"));
+        assertThat(courseRepository.existsById(UUID.fromString(publishedId))).isTrue();
     }
 
     @Test

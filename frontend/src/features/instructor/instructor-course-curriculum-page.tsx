@@ -40,6 +40,7 @@ import {
   updateLesson,
   updateSection,
 } from "@/lib/course-structure-client";
+import { uploadLessonVideo } from "@/lib/course-video-client";
 import {
   createInstructorQuiz,
   type CreateInstructorQuizRequest,
@@ -136,6 +137,8 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
   const [lessonDescription, setLessonDescription] = useState("");
   const [lessonType, setLessonType] = useState<LessonType>("TEXT");
   const [lessonTextContent, setLessonTextContent] = useState("");
+  const [lessonVideoFile, setLessonVideoFile] = useState<File | null>(null);
+  const [pendingVideoLessonId, setPendingVideoLessonId] = useState<string | null>(null);
   const [lessonDurationMinutes, setLessonDurationMinutes] = useState<string>("10");
   const [lessonIsPreview, setLessonIsPreview] = useState(false);
   const [lessonStatus, setLessonStatus] = useState<LessonStatus>("PUBLISHED");
@@ -371,6 +374,8 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
     setLessonDescription("");
     setLessonType("TEXT");
     setLessonTextContent("");
+    setLessonVideoFile(null);
+    setPendingVideoLessonId(null);
     setLessonDurationMinutes("10");
     setLessonIsPreview(false);
     setLessonStatus("PUBLISHED");
@@ -389,6 +394,8 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
     setLessonDescription(lesson.description || "");
     setLessonType(lesson.type);
     setLessonTextContent(lesson.textContent || "");
+    setLessonVideoFile(null);
+    setPendingVideoLessonId(null);
     setLessonDurationMinutes(
       lesson.videoDurationSeconds ? String(Math.round(lesson.videoDurationSeconds / 60)) : "0",
     );
@@ -420,6 +427,21 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
     if (!lessonTitle.trim()) {
       setLessonFormError("Vui lòng nhập tên bài học");
       return;
+    }
+
+    if (lessonType === "VIDEO" && !editingLesson && !pendingVideoLessonId && !lessonVideoFile) {
+      setLessonFormError("Vui lòng chọn video MP4 hoặc WebM cho bài học.");
+      return;
+    }
+    if (lessonVideoFile) {
+      if (!["video/mp4", "video/webm"].includes(lessonVideoFile.type)) {
+        setLessonFormError("Chỉ hỗ trợ video định dạng MP4 hoặc WebM.");
+        return;
+      }
+      if (lessonVideoFile.size < 1 || lessonVideoFile.size > 2 * 1024 * 1024 * 1024) {
+        setLessonFormError("Video phải có dung lượng từ 1 byte đến 2 GB.");
+        return;
+      }
     }
 
     const creatingQuiz = lessonType === "QUIZ" && !editingLesson;
@@ -486,6 +508,15 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
           status: lessonStatus,
         };
         await updateLesson(courseId, targetSectionId, editingLesson.id, payload, accessToken);
+        if (lessonType === "VIDEO" && lessonVideoFile) {
+          await uploadLessonVideo(
+            courseId,
+            targetSectionId,
+            editingLesson.id,
+            lessonVideoFile,
+            accessToken,
+          );
+        }
       } else {
         const payload: CreateLessonPayload = {
           title: lessonTitle.trim(),
@@ -496,7 +527,16 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
           isPreview: lessonIsPreview,
           status: lessonStatus,
         };
-        if (incompleteQuizLessonId) {
+        if (pendingVideoLessonId && lessonVideoFile) {
+          await uploadLessonVideo(
+            courseId,
+            targetSectionId,
+            pendingVideoLessonId,
+            lessonVideoFile,
+            accessToken,
+          );
+          setPendingVideoLessonId(null);
+        } else if (incompleteQuizLessonId) {
           if (!quizPayload) throw new Error("Hãy hoàn thiện câu hỏi trước khi lưu bài kiểm tra.");
           await createInstructorQuiz(incompleteQuizLessonId, quizPayload, accessToken);
         } else {
@@ -505,11 +545,23 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
           if (creatingQuiz && quizPayload) {
             setIncompleteQuizLessonId(createdLesson.id);
             await createInstructorQuiz(createdLesson.id, quizPayload, accessToken);
+          } else if (lessonType === "VIDEO" && lessonVideoFile) {
+            setPendingVideoLessonId(createdLesson.id);
+            await uploadLessonVideo(
+              courseId,
+              targetSectionId,
+              createdLesson.id,
+              lessonVideoFile,
+              accessToken,
+            );
+            setPendingVideoLessonId(null);
           }
         }
       }
 
       setIncompleteQuizLessonId(null);
+      setPendingVideoLessonId(null);
+      setLessonVideoFile(null);
       setLessonModalOpen(false);
       setFeedback({
         isOpen: true,
@@ -518,9 +570,11 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
       });
       await loadData();
     } catch (err) {
-      if (createdLessonId || incompleteQuizLessonId) {
+      if (createdLessonId || incompleteQuizLessonId || pendingVideoLessonId) {
         setLessonFormError(
-          "Bài học đã được tạo, nhưng chưa lưu được câu hỏi. Nội dung bài học đã khóa; hãy thử lưu câu hỏi lại.",
+          lessonType === "VIDEO" || pendingVideoLessonId
+            ? "Bài học đã được tạo nhưng video chưa tải xong. Hãy thử tải lại video; bài học sẽ không bị tạo trùng."
+            : "Bài học đã được tạo, nhưng chưa lưu được câu hỏi. Nội dung bài học đã khóa; hãy thử lưu câu hỏi lại.",
         );
       } else if (err instanceof ApiClientError) {
         setLessonFormError(err.message);
@@ -1152,8 +1206,11 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
                       <select
                         id="lesson-type"
                         value={lessonType}
-                        onChange={(e) => setLessonType(e.target.value as LessonType)}
-                        disabled={editingLesson?.type === "QUIZ"}
+                        onChange={(e) => {
+                          setLessonType(e.target.value as LessonType);
+                          setLessonVideoFile(null);
+                        }}
+                        disabled={editingLesson?.type === "QUIZ" || Boolean(pendingVideoLessonId)}
                         className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-heading shadow-2xs focus:border-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
                       >
                         <option value="TEXT">Bài đọc văn bản (Text)</option>
@@ -1217,6 +1274,45 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
                     </div>
                   )}
 
+                  {lessonType === "VIDEO" ? (
+                    <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-4">
+                      <label
+                        htmlFor="lesson-video-file"
+                        className="block text-sm font-semibold text-heading"
+                      >
+                        Video bài giảng {!editingLesson && <span className="text-rose-500">*</span>}
+                      </label>
+                      <p className="mt-1 text-xs leading-5 text-muted">
+                        Chọn tệp MP4 hoặc WebM, tối đa 2 GB. Video sẽ được tải lên kho lưu trữ an
+                        toàn.
+                        {editingLesson ? " Chọn tệp mới để thay video hiện tại." : ""}
+                      </p>
+                      <input
+                        id="lesson-video-file"
+                        type="file"
+                        accept="video/mp4,video/webm,.mp4,.webm"
+                        disabled={lessonFormLoading}
+                        onChange={(event) => {
+                          setLessonVideoFile(event.currentTarget.files?.[0] ?? null);
+                          setLessonFormError(null);
+                        }}
+                        className="mt-3 block min-h-11 w-full cursor-pointer rounded-lg border border-emerald-200 bg-white text-sm text-slate-700 file:mr-3 file:min-h-11 file:border-0 file:bg-emerald-100 file:px-3 file:text-sm file:font-semibold file:text-primary hover:file:bg-emerald-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                      />
+                      {lessonVideoFile ? (
+                        <p className="mt-2 break-all text-xs text-slate-600">
+                          Đã chọn: <span className="font-medium">{lessonVideoFile.name}</span> ·{" "}
+                          {(lessonVideoFile.size / (1024 * 1024)).toFixed(1)} MB
+                        </p>
+                      ) : null}
+                      {pendingVideoLessonId ? (
+                        <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs font-medium text-amber-800">
+                          Bài học đã được tạo nhưng video chưa hoàn tất. Chọn lại tệp nếu cần, rồi
+                          thử tải lên lần nữa.
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
+
                   {/* Options */}
                   <div className="grid grid-cols-1 gap-4 rounded-2xl bg-slate-50 p-4 sm:grid-cols-2">
                     <label className="flex cursor-pointer items-center gap-3">
@@ -1276,11 +1372,13 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
                   Hủy
                 </Button>
                 <Button type="submit" size="md" loading={lessonFormLoading}>
-                  {incompleteQuizLessonId
-                    ? "Thử lưu câu hỏi"
-                    : editingLesson
-                      ? "Lưu thay đổi"
-                      : "Tạo bài học"}
+                  {pendingVideoLessonId
+                    ? "Thử lưu video"
+                    : incompleteQuizLessonId
+                      ? "Thử lưu câu hỏi"
+                      : editingLesson
+                        ? "Lưu thay đổi"
+                        : "Tạo bài học"}
                 </Button>
               </div>
             </form>

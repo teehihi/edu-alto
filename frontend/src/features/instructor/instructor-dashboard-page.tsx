@@ -2,18 +2,22 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import {
+  Archive,
   BookOpen,
   ChartNoAxesCombined,
   CircleAlert,
+  CircleArrowUp,
   DollarSign,
   LayoutDashboard,
   MessageSquare,
   Plus,
+  Pencil,
   RefreshCw,
   Settings,
   Star,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -21,8 +25,15 @@ import { UserAvatar } from "@/components/ui/user-avatar";
 import { useAuth } from "@/features/auth/auth-client";
 import { ApiClientError } from "@/lib/api";
 import {
+  archiveInstructorCourse,
+  createInstructorCourse,
+  deleteDraftInstructorCourse,
   fetchInstructorCourses,
+  publishInstructorCourse,
+  updateInstructorCourse,
   type InstructorCourse,
+  type InstructorCourseLevel,
+  type InstructorCoursePayload,
   type InstructorCourseStatus,
 } from "@/lib/instructor-course-client";
 
@@ -57,7 +68,19 @@ function formatPrice(price: number): string {
     .replace("₫", "đ");
 }
 
-function CourseCard({ course }: { course: InstructorCourse }) {
+function CourseCard({
+  course,
+  onEdit,
+  onArchive,
+  onDelete,
+  onPublish,
+}: {
+  course: InstructorCourse;
+  onEdit: (course: InstructorCourse) => void;
+  onArchive: (course: InstructorCourse) => void;
+  onDelete: (course: InstructorCourse) => void;
+  onPublish: (course: InstructorCourse) => void;
+}) {
   return (
     <article className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
       {course.thumbnailUrl ? (
@@ -85,16 +108,91 @@ function CourseCard({ course }: { course: InstructorCourse }) {
           <span className="text-xs text-muted">Giá khóa học</span>
           <span className="text-sm font-bold text-ink">{formatPrice(course.price)}</span>
         </div>
-        <Link
-          href={`/instructor/courses/${encodeURIComponent(course.id)}/curriculum`}
-          className="focus-ring mt-4 flex min-h-10 items-center justify-center rounded-lg border border-primary px-3 text-sm font-semibold text-primary transition hover:bg-primary-soft active:bg-[#d9fff3]"
-        >
-          Quản lý nội dung
-        </Link>
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <Link
+            href={`/instructor/courses/${encodeURIComponent(course.id)}/curriculum`}
+            className="focus-ring col-span-2 flex min-h-10 items-center justify-center rounded-lg border border-primary px-3 text-sm font-semibold text-primary transition hover:bg-primary-soft active:bg-[#d9fff3]"
+          >
+            Quản lý nội dung
+          </Link>
+          {course.status === "DRAFT" ? (
+            <>
+              <button
+                type="button"
+                onClick={() => onEdit(course)}
+                className="focus-ring flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-700 transition hover:border-primary hover:text-primary active:bg-slate-50"
+              >
+                <Pencil className="h-4 w-4" aria-hidden="true" /> Chỉnh sửa
+              </button>
+              <button
+                type="button"
+                onClick={() => onPublish(course)}
+                className="focus-ring flex min-h-10 items-center justify-center gap-2 rounded-lg border border-primary bg-primary px-3 text-sm font-semibold text-white transition hover:bg-[#159e75] active:bg-[#128763]"
+              >
+                <CircleArrowUp className="h-4 w-4" aria-hidden="true" /> Xuất bản
+              </button>
+              <button
+                type="button"
+                onClick={() => onDelete(course)}
+                className="focus-ring col-span-2 flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-600 transition hover:border-rose-300 hover:text-rose-700 active:bg-rose-50"
+              >
+                <Trash2 className="h-4 w-4" aria-hidden="true" /> Xóa bản nháp
+              </button>
+            </>
+          ) : course.status !== "ARCHIVED" ? (
+            <>
+              <button
+                type="button"
+                onClick={() => onEdit(course)}
+                className="focus-ring flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-700 transition hover:border-primary hover:text-primary active:bg-slate-50"
+              >
+                <Pencil className="h-4 w-4" aria-hidden="true" /> Chỉnh sửa
+              </button>
+              <button
+                type="button"
+                onClick={() => onArchive(course)}
+                className="focus-ring flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-600 transition hover:border-rose-300 hover:text-rose-700 active:bg-rose-50"
+              >
+                <Archive className="h-4 w-4" aria-hidden="true" /> Lưu trữ
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => onEdit(course)}
+                className="focus-ring flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-700 transition hover:border-primary hover:text-primary active:bg-slate-50"
+              >
+                <Pencil className="h-4 w-4" aria-hidden="true" /> Chỉnh sửa
+              </button>
+              <span className="flex min-h-10 items-center justify-center rounded-lg bg-slate-50 px-3 text-xs text-slate-500">
+                Khóa học đã lưu trữ
+              </span>
+            </>
+          )}
+        </div>
       </div>
     </article>
   );
 }
+
+const levelLabels: Record<InstructorCourseLevel, string> = {
+  ALL_LEVELS: "Mọi trình độ",
+  BEGINNER: "Cơ bản",
+  INTERMEDIATE: "Trung cấp",
+  ADVANCED: "Nâng cao",
+};
+
+const emptyCourseForm: InstructorCoursePayload = {
+  title: "",
+  tagline: "",
+  description: "",
+  price: 0,
+  originalPrice: null,
+  level: "ALL_LEVELS",
+  language: "vi",
+  thumbnailKey: null,
+};
 
 function UnavailableValue() {
   return (
@@ -109,6 +207,19 @@ export function InstructorDashboardPage() {
   const [courses, setCourses] = useState<InstructorCourse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [courseFormOpen, setCourseFormOpen] = useState(false);
+  const [editingCourse, setEditingCourse] = useState<InstructorCourse | null>(null);
+  const [courseForm, setCourseForm] = useState<InstructorCoursePayload>(emptyCourseForm);
+  const [courseFormError, setCourseFormError] = useState<string | null>(null);
+  const [courseFormLoading, setCourseFormLoading] = useState(false);
+  const [archiveTarget, setArchiveTarget] = useState<InstructorCourse | null>(null);
+  const [archiveLoading, setArchiveLoading] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<InstructorCourse | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [publishTarget, setPublishTarget] = useState<InstructorCourse | null>(null);
+  const [publishLoading, setPublishLoading] = useState(false);
+  const [publishError, setPublishError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const loadCourses = useCallback(async () => {
     if (authLoading) return;
@@ -137,6 +248,149 @@ export function InstructorDashboardPage() {
     const timer = window.setTimeout(() => void loadCourses(), 0);
     return () => window.clearTimeout(timer);
   }, [loadCourses]);
+
+  const openCreateCourse = () => {
+    setEditingCourse(null);
+    setCourseForm(emptyCourseForm);
+    setCourseFormError(null);
+    setActionError(null);
+    setCourseFormOpen(true);
+  };
+
+  const openEditCourse = (course: InstructorCourse) => {
+    setEditingCourse(course);
+    setCourseForm({
+      title: course.title,
+      slug: course.slug,
+      tagline: course.tagline ?? "",
+      description: course.description ?? "",
+      price: course.price,
+      originalPrice: course.originalPrice,
+      level: course.level,
+      language: course.language,
+      thumbnailKey: course.thumbnailKey,
+    });
+    setCourseFormError(null);
+    setActionError(null);
+    setCourseFormOpen(true);
+  };
+
+  const saveCourse = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!accessToken) {
+      setCourseFormError("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+      return;
+    }
+    const title = courseForm.title.trim();
+    const description = courseForm.description.trim();
+    if (!title || !description) {
+      setCourseFormError("Vui lòng nhập tên và mô tả khóa học.");
+      return;
+    }
+    if (courseForm.price < 0 || (courseForm.originalPrice ?? 0) < 0) {
+      setCourseFormError("Giá khóa học không được âm.");
+      return;
+    }
+    setCourseFormLoading(true);
+    setCourseFormError(null);
+    const payload: InstructorCoursePayload = {
+      ...courseForm,
+      title,
+      description,
+      tagline: courseForm.tagline?.trim() || null,
+      originalPrice: courseForm.originalPrice === null ? null : Number(courseForm.originalPrice),
+      price: Number(courseForm.price),
+    };
+    try {
+      if (editingCourse) {
+        await updateInstructorCourse(editingCourse.id, payload, accessToken);
+      } else {
+        await createInstructorCourse(payload, accessToken);
+      }
+      setCourseFormOpen(false);
+      await loadCourses();
+    } catch (cause) {
+      setCourseFormError(
+        cause instanceof ApiClientError
+          ? cause.message
+          : "Không thể lưu khóa học. Vui lòng thử lại.",
+      );
+    } finally {
+      setCourseFormLoading(false);
+    }
+  };
+
+  const archiveCourse = async () => {
+    if (!archiveTarget || !accessToken) return;
+    setArchiveLoading(true);
+    setActionError(null);
+    try {
+      await archiveInstructorCourse(archiveTarget.id, accessToken);
+      setArchiveTarget(null);
+      await loadCourses();
+    } catch (cause) {
+      setActionError(
+        cause instanceof ApiClientError
+          ? cause.message
+          : "Không thể lưu trữ khóa học. Vui lòng thử lại.",
+      );
+      setArchiveTarget(null);
+    } finally {
+      setArchiveLoading(false);
+    }
+  };
+
+  const deleteDraftCourse = async () => {
+    if (!deleteTarget || !accessToken) return;
+    setDeleteLoading(true);
+    setActionError(null);
+    try {
+      await deleteDraftInstructorCourse(deleteTarget.id, accessToken);
+      setDeleteTarget(null);
+      await loadCourses();
+    } catch (cause) {
+      setActionError(
+        cause instanceof ApiClientError
+          ? cause.message
+          : "Không thể xóa bản nháp. Vui lòng thử lại.",
+      );
+      setDeleteTarget(null);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const requestPublishCourse = async () => {
+    if (!publishTarget || !accessToken) return;
+    setPublishError(null);
+    if (!publishTarget.title.trim()) {
+      setPublishError("Vui lòng nhập tên khóa học trước khi xuất bản.");
+      return;
+    }
+    if (!publishTarget.description?.trim()) {
+      setPublishError("Vui lòng bổ sung mô tả khóa học trước khi xuất bản.");
+      return;
+    }
+    if (!Number.isFinite(publishTarget.price) || publishTarget.price < 0) {
+      setPublishError("Giá khóa học không hợp lệ. Vui lòng cập nhật trước khi xuất bản.");
+      return;
+    }
+
+    setPublishLoading(true);
+    try {
+      await publishInstructorCourse(publishTarget.id, accessToken);
+      setPublishTarget(null);
+      await loadCourses();
+    } catch (cause) {
+      setPublishError(
+        cause instanceof ApiClientError
+          ? cause.message
+          : "Không thể xuất bản khóa học. Vui lòng thử lại.",
+      );
+    } finally {
+      setPublishLoading(false);
+    }
+  };
 
   const sidebarLinks = [
     { label: "Tổng quan", icon: LayoutDashboard, href: "/instructor", active: true },
@@ -207,13 +461,7 @@ export function InstructorDashboardPage() {
       <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-10 lg:py-6 xl:pr-[38px] xl:pl-[61px]">
         <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-2xl font-semibold text-primary">Tổng quan</h1>
-          <Button
-            type="button"
-            disabled
-            variant="primary"
-            aria-label="Thêm khóa học (sắp ra mắt)"
-            title="Tính năng tạo khóa học sẽ sớm ra mắt"
-          >
+          <Button type="button" variant="primary" onClick={openCreateCourse}>
             <Plus className="h-4 w-4" aria-hidden="true" /> Thêm khóa học
           </Button>
         </header>
@@ -301,6 +549,15 @@ export function InstructorDashboardPage() {
             </span>
           </div>
 
+          {actionError ? (
+            <p
+              role="alert"
+              className="mb-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800"
+            >
+              {actionError}
+            </p>
+          ) : null}
+
           {loading ? (
             <div
               className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3"
@@ -341,12 +598,315 @@ export function InstructorDashboardPage() {
           ) : (
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {courses.map((course) => (
-                <CourseCard key={course.id} course={course} />
+                <CourseCard
+                  key={course.id}
+                  course={course}
+                  onEdit={openEditCourse}
+                  onArchive={setArchiveTarget}
+                  onDelete={setDeleteTarget}
+                  onPublish={(course) => {
+                    setPublishError(null);
+                    setPublishTarget(course);
+                  }}
+                />
               ))}
             </div>
           )}
         </section>
       </main>
+
+      {courseFormOpen ? (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-slate-950/40 p-3 sm:p-6">
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="course-form-title"
+            className="my-auto max-h-[94vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-slate-200 bg-white p-5 shadow-xl sm:p-7"
+          >
+            <div className="mb-5">
+              <h2 id="course-form-title" className="text-xl font-semibold text-heading">
+                {editingCourse ? "Chỉnh sửa khóa học" : "Tạo khóa học mới"}
+              </h2>
+              <p className="mt-1 text-sm text-muted">
+                {editingCourse?.status === "PUBLISHED"
+                  ? "Cập nhật thông tin hiển thị của khóa học."
+                  : "Tạo bản nháp trước, sau đó bổ sung chương và bài học."}
+              </p>
+            </div>
+            <form className="space-y-4" onSubmit={saveCourse}>
+              {courseFormError ? (
+                <p
+                  role="alert"
+                  className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800"
+                >
+                  {courseFormError}
+                </p>
+              ) : null}
+              <div>
+                <label htmlFor="course-title" className="block text-sm font-medium text-slate-700">
+                  Tên khóa học <span className="text-rose-600">*</span>
+                </label>
+                <input
+                  id="course-title"
+                  required
+                  maxLength={255}
+                  value={courseForm.title}
+                  onChange={(event) => setCourseForm({ ...courseForm, title: event.target.value })}
+                  className="mt-1.5 min-h-11 w-full rounded-lg border border-slate-300 px-3 text-sm text-heading focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="course-tagline"
+                  className="block text-sm font-medium text-slate-700"
+                >
+                  Mô tả ngắn
+                </label>
+                <input
+                  id="course-tagline"
+                  maxLength={500}
+                  value={courseForm.tagline ?? ""}
+                  onChange={(event) =>
+                    setCourseForm({ ...courseForm, tagline: event.target.value })
+                  }
+                  className="mt-1.5 min-h-11 w-full rounded-lg border border-slate-300 px-3 text-sm text-heading focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="course-description"
+                  className="block text-sm font-medium text-slate-700"
+                >
+                  Mô tả khóa học <span className="text-rose-600">*</span>
+                </label>
+                <textarea
+                  id="course-description"
+                  required
+                  rows={5}
+                  value={courseForm.description}
+                  onChange={(event) =>
+                    setCourseForm({ ...courseForm, description: event.target.value })
+                  }
+                  className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-heading focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label
+                    htmlFor="course-price"
+                    className="block text-sm font-medium text-slate-700"
+                  >
+                    Giá bán (đồng)
+                  </label>
+                  <input
+                    id="course-price"
+                    type="number"
+                    min="0"
+                    step="1000"
+                    value={courseForm.price}
+                    onChange={(event) =>
+                      setCourseForm({ ...courseForm, price: Number(event.target.value) })
+                    }
+                    className="mt-1.5 min-h-11 w-full rounded-lg border border-slate-300 px-3 text-sm text-heading focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="course-original-price"
+                    className="block text-sm font-medium text-slate-700"
+                  >
+                    Giá gốc (tùy chọn)
+                  </label>
+                  <input
+                    id="course-original-price"
+                    type="number"
+                    min="0"
+                    step="1000"
+                    value={courseForm.originalPrice ?? ""}
+                    onChange={(event) =>
+                      setCourseForm({
+                        ...courseForm,
+                        originalPrice:
+                          event.target.value === "" ? null : Number(event.target.value),
+                      })
+                    }
+                    className="mt-1.5 min-h-11 w-full rounded-lg border border-slate-300 px-3 text-sm text-heading focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="course-level"
+                    className="block text-sm font-medium text-slate-700"
+                  >
+                    Trình độ
+                  </label>
+                  <select
+                    id="course-level"
+                    value={courseForm.level}
+                    onChange={(event) =>
+                      setCourseForm({
+                        ...courseForm,
+                        level: event.target.value as InstructorCourseLevel,
+                      })
+                    }
+                    className="mt-1.5 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-heading focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  >
+                    {Object.entries(levelLabels).map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label
+                    htmlFor="course-language"
+                    className="block text-sm font-medium text-slate-700"
+                  >
+                    Ngôn ngữ
+                  </label>
+                  <select
+                    id="course-language"
+                    value={courseForm.language}
+                    onChange={(event) =>
+                      setCourseForm({ ...courseForm, language: event.target.value })
+                    }
+                    className="mt-1.5 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-heading focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  >
+                    <option value="vi">Tiếng Việt</option>
+                    <option value="en">Tiếng Anh</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex flex-col-reverse gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:justify-end">
+                <Button type="button" variant="outline" onClick={() => setCourseFormOpen(false)}>
+                  Hủy
+                </Button>
+                <Button type="submit" loading={courseFormLoading}>
+                  {editingCourse ? "Lưu thay đổi" : "Tạo bản nháp"}
+                </Button>
+              </div>
+            </form>
+          </section>
+        </div>
+      ) : null}
+
+      {archiveTarget ? (
+        <div className="fixed inset-0 z-[101] flex items-center justify-center bg-slate-950/40 p-4">
+          <section
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="archive-course-title"
+            className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-5 shadow-xl sm:p-6"
+          >
+            <h2 id="archive-course-title" className="text-lg font-semibold text-heading">
+              Lưu trữ khóa học?
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-muted">
+              “{archiveTarget.title}” sẽ được gỡ khỏi danh sách khóa học đang xuất bản. Bạn vẫn có
+              thể xem nội dung trong khu vực giảng viên.
+            </p>
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={archiveLoading}
+                onClick={() => setArchiveTarget(null)}
+              >
+                Hủy
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                loading={archiveLoading}
+                onClick={() => void archiveCourse()}
+              >
+                Lưu trữ khóa học
+              </Button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {deleteTarget ? (
+        <div className="fixed inset-0 z-[102] flex items-center justify-center bg-slate-950/40 p-4">
+          <section
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="delete-course-title"
+            className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-5 shadow-xl sm:p-6"
+          >
+            <h2 id="delete-course-title" className="text-lg font-semibold text-heading">
+              Xóa bản nháp khóa học?
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-muted">
+              Bạn sắp xóa “{deleteTarget.title}”. Thao tác này không thể hoàn tác.
+            </p>
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={deleteLoading}
+                onClick={() => setDeleteTarget(null)}
+              >
+                Hủy
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                loading={deleteLoading}
+                onClick={() => void deleteDraftCourse()}
+              >
+                Xóa bản nháp
+              </Button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {publishTarget ? (
+        <div className="fixed inset-0 z-[103] flex items-center justify-center bg-slate-950/40 p-4">
+          <section
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="publish-course-title"
+            className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-5 shadow-xl sm:p-6"
+          >
+            <h2 id="publish-course-title" className="text-lg font-semibold text-heading">
+              Xuất bản khóa học?
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-muted">
+              “{publishTarget.title}” sẽ hiển thị công khai để học viên tìm và đăng ký. Kiểm tra lại
+              mô tả, giá và nội dung trước khi tiếp tục.
+            </p>
+            {publishError ? (
+              <p
+                role="alert"
+                className="mt-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800"
+              >
+                {publishError}
+              </p>
+            ) : null}
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={publishLoading}
+                onClick={() => setPublishTarget(null)}
+              >
+                Hủy
+              </Button>
+              <Button
+                type="button"
+                loading={publishLoading}
+                onClick={() => void requestPublishCourse()}
+              >
+                Xuất bản khóa học
+              </Button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </div>
   );
 }

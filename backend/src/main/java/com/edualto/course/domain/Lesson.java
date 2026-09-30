@@ -164,6 +164,11 @@ public class Lesson {
         this.updatedAt = Instant.now();
     }
 
+    public void attachMediaKey(String mediaKey) {
+        this.mediaKey = Objects.requireNonNull(mediaKey, "Media key must not be null").trim();
+        this.updatedAt = Instant.now();
+    }
+
     public UUID getId() {
         return id;
     }

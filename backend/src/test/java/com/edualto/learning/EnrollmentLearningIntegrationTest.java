@@ -16,6 +16,9 @@ import com.edualto.enrollment.repository.EnrollmentRepository;
 import com.edualto.enrollment.service.EnrollmentService;
 import com.edualto.learning.dto.CourseProgressResponse;
 import com.edualto.learning.service.LearningService;
+import com.edualto.storage.dto.PresignedDownloadUrl;
+import com.edualto.storage.dto.ObjectMetadata;
+import com.edualto.storage.service.StorageService;
 import com.edualto.user.domain.Role;
 import com.edualto.user.domain.RoleName;
 import com.edualto.user.domain.User;
@@ -23,6 +26,7 @@ import com.edualto.user.repository.RoleRepository;
 import com.edualto.user.repository.UserRepository;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -39,9 +43,13 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import tools.jackson.databind.ObjectMapper;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.when;
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -85,6 +93,9 @@ class EnrollmentLearningIntegrationTest extends AbstractIntegrationTest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @MockitoBean
+    private StorageService storageService;
 
     private final List<UUID> fixtureUserIds = new ArrayList<>();
     private final List<UUID> fixtureCourseIds = new ArrayList<>();
@@ -211,6 +222,49 @@ class EnrollmentLearningIntegrationTest extends AbstractIntegrationTest {
                         .header("Authorization", "Bearer " + otherToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data", hasSize(0)));
+    }
+
+    @Test
+    void videoPlaybackRequiresActiveEnrollmentAndReturnsShortLivedSignedUrl() throws Exception {
+        User instructor = createUser(RoleName.INSTRUCTOR, true);
+        User enrolled = createUser(RoleName.STUDENT, true);
+        User visitor = createUser(RoleName.STUDENT, true);
+        Course course = createCourse(instructor, CourseStatus.PUBLISHED, BigDecimal.ZERO);
+        Section section = createSection(course);
+        Lesson lesson = createLesson(section, LessonType.VIDEO, LessonStatus.PUBLISHED, 1);
+        String key = "course-videos/" + course.getId() + "/" + lesson.getId() + "/" + UUID.randomUUID() + ".mp4";
+        lesson.attachMediaKey(key);
+        lessonRepository.save(lesson);
+        String studentToken = tokenFor(enrolled);
+        enroll(studentToken, course.getId()).andExpect(status().isOk());
+        when(storageService.generatePresignedDownloadUrl(eq(key), any(Duration.class)))
+                .thenReturn(new PresignedDownloadUrl("https://r2.test/signed-get", Instant.now().plusSeconds(600)));
+        when(storageService.getObjectMetadata(key)).thenReturn(new ObjectMetadata("video/mp4", 1024L, "etag"));
+
+        mockMvc.perform(get("/api/v1/lessons/{lessonId}/video-access", lesson.getId())
+                        .header("Authorization", "Bearer " + tokenFor(visitor)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error.code").value("ENROLLMENT_REQUIRED"));
+        mockMvc.perform(get("/api/v1/lessons/{lessonId}", lesson.getId())
+                        .header("Authorization", "Bearer " + tokenFor(visitor)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error.code").value("ENROLLMENT_REQUIRED"));
+        mockMvc.perform(get("/api/v1/lessons/{lessonId}", lesson.getId())
+                        .header("Authorization", "Bearer " + studentToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.lessonType").value("VIDEO"))
+                .andExpect(jsonPath("$.data.mediaKey").doesNotExist())
+                .andExpect(jsonPath("$.data.videoUrl").doesNotExist());
+        mockMvc.perform(get("/api/v1/lessons/{lessonId}/video-access", lesson.getId())
+                        .header("Authorization", "Bearer " + studentToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.videoUrl").value("https://r2.test/signed-get"));
+        mockMvc.perform(post("/api/v1/lessons/{lessonId}/complete", lesson.getId())
+                        .header("Authorization", "Bearer " + studentToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.completedLessons").value(1));
+        mockMvc.perform(get("/api/v1/media/" + key))
+                .andExpect(status().isNotFound());
     }
 
     @Test

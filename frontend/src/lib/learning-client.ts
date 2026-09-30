@@ -19,6 +19,12 @@ export type LessonContent = {
   content: string | null;
 };
 
+export type LessonVideoAccess = {
+  lessonId: string;
+  videoUrl: string;
+  expiresAt: string;
+};
+
 export type CourseProgress = {
   courseId: string;
   totalLessons: number;
@@ -118,6 +124,12 @@ export async function enrollInCourse(accessToken: string, courseId: string) {
 
 export async function fetchLearningLesson(accessToken: string, lessonId: string) {
   return apiRequest<LessonContent>(`/lessons/${encodeURIComponent(lessonId)}`, { accessToken });
+}
+
+export async function fetchLessonVideoAccess(accessToken: string, lessonId: string) {
+  return apiRequest<LessonVideoAccess>(`/lessons/${encodeURIComponent(lessonId)}/video-access`, {
+    accessToken,
+  });
 }
 
 export async function fetchLearningQuiz(accessToken: string, lessonId: string) {

@@ -15,10 +15,13 @@ import com.edualto.course.dto.InstructorCourseResponse;
 import com.edualto.course.dto.UpdateCourseRequest;
 import com.edualto.course.repository.CourseRepository;
 import com.edualto.course.repository.CourseSpecification;
+import com.edualto.course.repository.LessonRepository;
+import com.edualto.course.repository.SectionRepository;
 import com.edualto.profile.domain.Profile;
 import com.edualto.profile.repository.ProfileRepository;
 import com.edualto.storage.dto.PresignedUploadUrl;
 import com.edualto.storage.service.StorageService;
+import com.edualto.storage.service.StorageCleanupService;
 import com.edualto.user.domain.RoleName;
 import com.edualto.user.domain.User;
 import com.edualto.user.repository.UserRepository;
@@ -59,17 +62,26 @@ public class CourseService {
     private final UserRepository userRepository;
     private final ProfileRepository profileRepository;
     private final StorageService storageService;
+    private final SectionRepository sectionRepository;
+    private final LessonRepository lessonRepository;
+    private final StorageCleanupService storageCleanup;
 
     public CourseService(
             CourseRepository courseRepository,
             UserRepository userRepository,
             ProfileRepository profileRepository,
-            StorageService storageService
+            StorageService storageService,
+            SectionRepository sectionRepository,
+            LessonRepository lessonRepository,
+            StorageCleanupService storageCleanup
     ) {
         this.courseRepository = courseRepository;
         this.userRepository = userRepository;
         this.profileRepository = profileRepository;
         this.storageService = storageService;
+        this.sectionRepository = sectionRepository;
+        this.lessonRepository = lessonRepository;
+        this.storageCleanup = storageCleanup;
     }
 
     // ==========================================
@@ -280,6 +292,29 @@ public class CourseService {
         course.archive();
         course = courseRepository.save(course);
         return toInstructorCourseResponse(course);
+    }
+
+    @Transactional
+    public void deleteDraftCourse(UUID instructorId, UUID courseId) {
+        Course course = getCourseAndCheckOwnership(instructorId, courseId);
+        if (course.getStatus() != CourseStatus.DRAFT) {
+            throw new BusinessException(
+                    HttpStatus.CONFLICT,
+                    "COURSE_CANNOT_BE_DELETED",
+                    "Chỉ có thể xóa khóa học bản nháp chưa xuất bản. Hãy lưu trữ khóa học đã xuất bản để giữ lịch sử học tập."
+            );
+        }
+        List<UUID> sectionIds = sectionRepository.findAllByCourseIdOrderByPositionAsc(courseId).stream()
+                .map(section -> section.getId())
+                .toList();
+        if (!sectionIds.isEmpty()) {
+            List<String> videoKeys = lessonRepository.findAllBySectionIdInOrderByPositionAsc(sectionIds).stream()
+                    .map(lesson -> lesson.getMediaKey())
+                    .filter(key -> key != null && key.startsWith("course-videos/"))
+                    .toList();
+            storageCleanup.deleteAfterCommit(videoKeys);
+        }
+        courseRepository.delete(course);
     }
 
     @Transactional(readOnly = true)
