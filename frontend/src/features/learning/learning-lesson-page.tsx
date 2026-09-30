@@ -19,12 +19,14 @@ import {
   completeLearningLesson,
   fetchSavedLessons,
   fetchLearningLesson,
+  fetchCourseProgress,
   saveLearningLesson,
   unsaveLearningLesson,
   type CourseProgress,
   type LessonContent,
 } from "@/lib/learning-client";
 import { useAuthSession } from "@/lib/auth-session";
+import { LearningQuizContent } from "@/features/learning/learning-quiz-content";
 
 export function LearningLessonPage({ lessonId }: { lessonId: string }) {
   const { user, isLoading: sessionLoading, getAccessToken } = useAuthSession();
@@ -111,6 +113,16 @@ export function LearningLessonPage({ lessonId }: { lessonId: string }) {
     }
   }
 
+  async function refreshProgressAfterQuiz() {
+    if (!courseId) return;
+    try {
+      const token = await getAccessToken();
+      if (token) setProgress(await fetchCourseProgress(token, courseId));
+    } catch {
+      // The quiz result remains available even if the progress summary cannot refresh.
+    }
+  }
+
   const backHref = courseId ? `/learning/courses/${courseId}` : "/learning/courses";
   return (
     <div className="min-h-screen bg-[#f8fbfa] text-[#101a2c]">
@@ -149,7 +161,9 @@ export function LearningLessonPage({ lessonId }: { lessonId: string }) {
               <header className="border-b border-[#edf1ef] bg-gradient-to-r from-[#e8faf4] to-white px-5 py-6 md:px-8">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-xs font-semibold text-primary">BÀI HỌC · NỘI DUNG VĂN BẢN</p>
+                    <p className="text-xs font-semibold text-primary">
+                      BÀI HỌC · {lesson.lessonType === "QUIZ" ? "BÀI KIỂM TRA" : "NỘI DUNG VĂN BẢN"}
+                    </p>
                     <h1 className="mt-2 text-2xl font-bold md:text-3xl">{lesson.title}</h1>
                   </div>
                   <button
@@ -170,40 +184,51 @@ export function LearningLessonPage({ lessonId }: { lessonId: string }) {
                   </button>
                 </div>
               </header>
-              <div className="prose prose-slate max-w-none px-5 py-7 text-[15px] leading-8 text-[#43514b] md:px-8 md:py-9">
-                <p className="whitespace-pre-wrap">
-                  {lesson.content?.trim() || "Giảng viên đang cập nhật nội dung cho bài học này."}
-                </p>
-              </div>
-              <footer className="flex flex-col gap-4 border-t border-[#edf1ef] px-5 py-5 sm:flex-row sm:items-center sm:justify-between md:px-8">
-                <span role="status" className="flex items-center gap-2 text-sm text-[#77837e]">
-                  {progress?.completed ? (
-                    <>
-                      <CircleCheck className="h-5 w-5 text-primary" />
-                      Đã hoàn thành bài học
-                    </>
-                  ) : (
-                    "Học xong, đánh dấu để lưu tiến độ của bạn."
-                  )}
-                </span>
-                <button
-                  type="button"
-                  onClick={markComplete}
-                  disabled={saving || progress?.completed}
-                  className="focus-ring inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-white transition hover:bg-[#159e75] disabled:cursor-not-allowed disabled:bg-[#9bdcc5]"
-                >
-                  {saving ? (
-                    <LoaderCircle className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Check className="h-4 w-4" />
-                  )}
-                  {saving
-                    ? "Đang lưu..."
-                    : progress?.completed
-                      ? "Đã hoàn thành"
-                      : "Đánh dấu hoàn thành"}
-                </button>
-              </footer>
+              {lesson.lessonType === "QUIZ" ? (
+                <LearningQuizContent
+                  lessonId={lessonId}
+                  getAccessToken={getAccessToken}
+                  onPassed={() => void refreshProgressAfterQuiz()}
+                />
+              ) : (
+                <>
+                  <div className="prose prose-slate max-w-none px-5 py-7 text-[15px] leading-8 text-[#43514b] md:px-8 md:py-9">
+                    <p className="whitespace-pre-wrap">
+                      {lesson.content?.trim() ||
+                        "Giảng viên đang cập nhật nội dung cho bài học này."}
+                    </p>
+                  </div>
+                  <footer className="flex flex-col gap-4 border-t border-[#edf1ef] px-5 py-5 sm:flex-row sm:items-center sm:justify-between md:px-8">
+                    <span role="status" className="flex items-center gap-2 text-sm text-[#77837e]">
+                      {progress?.completed ? (
+                        <>
+                          <CircleCheck className="h-5 w-5 text-primary" />
+                          Đã hoàn thành bài học
+                        </>
+                      ) : (
+                        "Học xong, đánh dấu để lưu tiến độ của bạn."
+                      )}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={markComplete}
+                      disabled={saving || progress?.completed}
+                      className="focus-ring inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-white transition hover:bg-[#159e75] disabled:cursor-not-allowed disabled:bg-[#9bdcc5]"
+                    >
+                      {saving ? (
+                        <LoaderCircle className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Check className="h-4 w-4" />
+                      )}
+                      {saving
+                        ? "Đang lưu..."
+                        : progress?.completed
+                          ? "Đã hoàn thành"
+                          : "Đánh dấu hoàn thành"}
+                    </button>
+                  </footer>
+                </>
+              )}
               {error && (
                 <p role="alert" className="px-5 pb-4 text-sm text-rose-600 md:px-8">
                   {error}
@@ -232,7 +257,7 @@ export function LearningLessonPage({ lessonId }: { lessonId: string }) {
                 </>
               ) : (
                 <p className="mt-2 text-xs leading-5 text-[#84908b]">
-                  Hoàn thành bài học để cập nhật tiến độ khóa học.
+                  Hoàn thành bài học hoặc đạt điểm yêu cầu để cập nhật tiến độ khóa học.
                 </p>
               )}
               <Link

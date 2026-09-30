@@ -165,6 +165,9 @@ public class AssignmentService {
         if (submission == null) {
             submission = submissions.save(new AssignmentSubmission(assignmentId, studentId, request.responseText()));
         } else {
+            if (submission.getScore() != null) {
+                throw conflict("SUBMISSION_ALREADY_GRADED", "Bài nộp đã được chấm điểm và không thể chỉnh sửa");
+            }
             submission.updateResponse(request.responseText());
         }
         Course course = courses.findById(assignment.getCourseId()).orElseThrow();

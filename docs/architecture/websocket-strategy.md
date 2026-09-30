@@ -1,6 +1,10 @@
 # WebSocket Strategy
 
-EduAlto dùng WebSocket/STOMP cho luồng realtime có giá trị rõ ràng: messaging, notification và trạng thái presence. REST API vẫn là kênh chính cho CRUD, query, submit quiz/assignment và quản trị.
+EduAlto dự kiến dùng WebSocket/STOMP cho messaging, notification và trạng thái presence. REST API vẫn là kênh chính cho CRUD, query, submit quiz/assignment và quản trị.
+
+## Implementation status
+
+WebSocket is currently disabled. Do not expose `/ws` until STOMP `CONNECT` authentication, destination authorization, and origin allowlisting are implemented and covered by integration tests. REST remains the planned primary transport for ordinary CRUD and query flows.
 
 ## Transport
 
@@ -68,4 +72,3 @@ Persist trước broadcast để client reconnect vẫn có thể đồng bộ q
 - Rate limit message send theo user/conversation.
 - Không gửi stack trace qua WebSocket error frame.
 - Không tin vào `senderId` từ client; backend lấy user từ authentication principal.
-

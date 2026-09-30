@@ -159,23 +159,29 @@ GET  /api/v1/me/courses/{courseId}/progress
 ## Quiz
 
 ```text
-GET  /api/v1/quizzes/{quizId}
-POST /api/v1/quizzes/{quizId}/attempts
-GET  /api/v1/quiz-attempts/{attemptId}
+POST /api/v1/instructor/lessons/{lessonId}/quiz
+GET  /api/v1/lessons/{lessonId}/quiz
+POST /api/v1/lessons/{lessonId}/quiz-attempts
 ```
 
-Backend quyết định khi nào trả đáp án đúng theo policy của quiz, không để frontend tự kiểm soát.
+Giảng viên chỉ tạo một quiz cho bài học dạng `QUIZ` đã xuất bản trong khóa học của mình. Người học phải có ghi danh đang hoạt động để xem câu hỏi và nộp bài. Response câu hỏi không chứa đáp án đúng; mỗi câu hỏi cần từ 2 đến 6 lựa chọn và đúng một lựa chọn đúng. Bài nộp phải trả lời mỗi câu đúng một lần; backend chấm điểm, lưu attempt cùng câu trả lời và trả `score`, `correctAnswers`, `totalQuestions`, `passed`, `submittedAt`. Đạt điểm yêu cầu sẽ hoàn thành bài học trong tiến độ học tập.
 
 ## Assignment
 
 ```text
-GET  /api/v1/assignments/{assignmentId}
+GET  /api/v1/me/assignments
 POST /api/v1/assignments/{assignmentId}/submissions
-GET  /api/v1/assignment-submissions/{submissionId}
-POST /api/v1/assignment-submissions/{submissionId}/grade
+PUT  /api/v1/assignments/{assignmentId}/submissions/me
+GET  /api/v1/instructor/courses/{courseId}/assignments
+POST /api/v1/instructor/courses/{courseId}/assignments
+PUT  /api/v1/instructor/assignments/{assignmentId}
+POST /api/v1/instructor/assignments/{assignmentId}/publish
+POST /api/v1/instructor/assignments/{assignmentId}/archive
+GET  /api/v1/instructor/assignments/{assignmentId}/submissions
+PUT  /api/v1/instructor/assignments/{assignmentId}/submissions/{submissionId}/grade
 ```
 
-File upload phải validate dung lượng, loại file và storage metadata trước production.
+Người học cần ghi danh đang hoạt động và bài tập phải được xuất bản mới có thể nộp bài. Có thể cập nhật bài nộp trước hạn cho đến khi giảng viên chấm điểm; bài đã chấm không thể bị thay thế, để tránh mất điểm và nhận xét. Chỉ giảng viên sở hữu khóa học được quản lý bài tập và chấm bài. Bài nộp hiện hỗ trợ văn bản; file upload cần validate dung lượng, loại file và storage metadata trước production.
 
 ## Documents and notes
 

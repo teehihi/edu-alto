@@ -182,6 +182,8 @@ export function CourseDetailPage({ slug }: { slug: string }) {
       price: course.price,
       thumbnailUrl: course.thumbnailUrl,
       instructorName: course.instructor?.fullName ?? "Giảng viên EduAlto",
+      lessonCount: lessons.length,
+      durationSeconds: totalSeconds,
     });
     setCartMessage("Đã thêm khóa học vào giỏ hàng.");
     setCartActionAnimating(true);

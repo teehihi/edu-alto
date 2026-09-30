@@ -33,9 +33,9 @@ public class CommerceRepository {
         return Boolean.TRUE.equals(enrolled);
     }
 
-    public void insertOrder(UUID orderId, UUID studentId, BigDecimal total, String status, String transferReference) {
-        jdbc.update("insert into orders(id, student_id, status, currency, subtotal, total, transfer_reference) values (?, ?, ?, 'VND', ?, ?, ?)",
-                orderId, studentId, status, total, total, transferReference);
+    public void insertOrder(UUID orderId, UUID studentId, String phoneNumber, BigDecimal total, String status, String transferReference) {
+        jdbc.update("insert into orders(id, student_id, status, currency, subtotal, total, transfer_reference, phone_number) values (?, ?, ?, 'VND', ?, ?, ?, ?)",
+                orderId, studentId, status, total, total, transferReference, phoneNumber);
     }
 
     public void insertOrderItem(UUID orderId, CheckoutCourse course) {

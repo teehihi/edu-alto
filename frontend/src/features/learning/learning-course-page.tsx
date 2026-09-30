@@ -89,7 +89,9 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
   }, [courseId, getAccessToken, router, sessionLoading, user]);
 
   const allLessons = curriculum?.sections.flatMap((section) => section.lessons) ?? [];
-  const nextLesson = allLessons.find((lesson) => lesson.lessonType === "TEXT");
+  const nextLesson = allLessons.find(
+    (lesson) => lesson.lessonType === "TEXT" || lesson.lessonType === "QUIZ",
+  );
 
   return (
     <div className="min-h-screen bg-[#f8fbfa] text-[#101a2c]">
@@ -191,7 +193,8 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
                           {isOpen && (
                             <ul className="divide-y divide-[#eef2f0]">
                               {section.lessons.map((lesson) => {
-                                const typeSupported = lesson.lessonType === "TEXT";
+                                const typeSupported =
+                                  lesson.lessonType === "TEXT" || lesson.lessonType === "QUIZ";
                                 return (
                                   <li key={lesson.id}>
                                     <Link
@@ -220,7 +223,9 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
                                         </span>
                                         <span className="mt-1 block text-[11px] text-[#89948f]">
                                           {typeSupported
-                                            ? "Bài học văn bản"
+                                            ? lesson.lessonType === "QUIZ"
+                                              ? "Bài kiểm tra"
+                                              : "Bài học văn bản"
                                             : "Nội dung này sẽ sớm được hỗ trợ"}
                                           {lesson.durationSeconds
                                             ? ` · ${Math.ceil(lesson.durationSeconds / 60)} phút`

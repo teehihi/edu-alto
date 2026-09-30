@@ -3,6 +3,8 @@ package com.edualto.commerce;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -107,13 +109,15 @@ class CommerceServiceTest {
         when(repository.isEnrolled(studentId, courseId)).thenReturn(false);
 
         OrderCreatedResponse response = service().createOrder(studentId,
-                new CreateOrderRequest(List.of(courseId), PaymentMethod.MOMO), "127.0.0.1");
+                new CreateOrderRequest(List.of(courseId), PaymentMethod.MOMO, "0931652105"), "127.0.0.1");
 
         assertThat(response.status()).isEqualTo("PAYMENT_REVIEW");
         assertThat(response.paymentMethod()).isEqualTo("MOMO");
         assertThat(response.paymentUrl()).isNull();
         assertThat(response.instructions().walletPhone()).isEqualTo("0389037546");
         assertThat(response.instructions().transferReference()).startsWith("EA");
+        verify(repository).insertOrder(any(UUID.class), eq(studentId), eq("0931652105"),
+                eq(new BigDecimal("250000")), eq("PAYMENT_REVIEW"), anyString());
         verify(repository, never()).markPaymentPaid(any(), any());
     }
 
@@ -126,7 +130,7 @@ class CommerceServiceTest {
         when(repository.isEnrolled(studentId, courseId)).thenReturn(false);
 
         OrderCreatedResponse response = service().createOrder(studentId,
-                new CreateOrderRequest(List.of(courseId), PaymentMethod.VIETQR), "127.0.0.1");
+                new CreateOrderRequest(List.of(courseId), PaymentMethod.VIETQR, "0931652105"), "127.0.0.1");
 
         assertThat(response.instructions().bankName()).isEqualTo("Vietcombank (VCB)");
         assertThat(response.instructions().accountNumber()).isEqualTo("1040489156");

@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { Facebook, Github, Linkedin, Mail } from "lucide-react";
 
 const footerColumns = [
   {
@@ -37,6 +38,17 @@ const footerColumns = [
       ["Chính sách cookie", "/#contact"],
     ],
   },
+];
+
+const socialLinks = [
+  {
+    label: "Facebook EduAlto",
+    href: "https://www.facebook.com/nhatthien.nguyen.566",
+    Icon: Facebook,
+  },
+  { label: "LinkedIn EduAlto", href: "https://www.linkedin.com/in/tee21/", Icon: Linkedin },
+  { label: "GitHub EduAlto", href: "https://github.com/teehihi", Icon: Github },
+  { label: "Gửi email cho EduAlto", href: "mailto:dacsanviethotro@gmail.com", Icon: Mail },
 ];
 
 export function Footer() {
@@ -77,8 +89,22 @@ export function Footer() {
       </div>
       <div className="border-t border-white/10">
         <div className="container-page flex flex-col gap-3 py-6 text-sm text-slate-400 sm:flex-row sm:items-center sm:justify-between">
-          <p>© 2026 EduAlto. Tất cả quyền được bảo lưu.</p>
-          <p>Học tập bền vững, tiến bộ mỗi ngày.</p>
+          <p>© {new Date().getFullYear()} EduAlto. Tất cả quyền được bảo lưu.</p>
+          <div className="flex items-center gap-4" aria-label="Kết nối với EduAlto">
+            {socialLinks.map(({ label, href, Icon }) => (
+              <a
+                key={label}
+                href={href}
+                aria-label={label}
+                target={href.startsWith("http") ? "_blank" : undefined}
+                rel={href.startsWith("http") ? "noreferrer" : undefined}
+                className="rounded-md text-slate-400 transition hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-[#101828]"
+              >
+                <Icon className="h-4 w-4" aria-hidden="true" />
+              </a>
+            ))}
+          </div>
+          <p className="sm:text-right">Học tập bền vững, tiến bộ mỗi ngày.</p>
         </div>
       </div>
     </footer>

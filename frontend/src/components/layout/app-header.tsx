@@ -37,9 +37,11 @@ const subscribeToMount = () => () => {};
 export function AppHeader({
   transparent = false,
   sticky = true,
+  height = "default",
 }: {
   transparent?: boolean;
   sticky?: boolean;
+  height?: "default" | "checkout";
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -160,7 +162,14 @@ export function AppHeader({
           : "border-b border-slate-100 bg-white/95 backdrop-blur-md shadow-xs",
       )}
     >
-      <div className="mx-auto flex min-h-[80px] w-full max-w-[1440px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8 xl:px-12">
+      <div
+        className={cn(
+          "mx-auto flex w-full max-w-[1440px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8 xl:px-12",
+          height === "checkout"
+            ? "min-h-[80px] lg:min-h-[100px] xl:max-w-[1200px] xl:px-0"
+            : "min-h-[80px]",
+        )}
+      >
         {/* Logo */}
         <Link href="/" className="focus-ring rounded-lg shrink-0" aria-label="Về trang chủ EduAlto">
           <Image
@@ -168,7 +177,10 @@ export function AppHeader({
             alt="EduAlto"
             width={128}
             height={72}
-            className="h-[52px] sm:h-[60px] w-auto object-contain"
+            className={cn(
+              "h-[52px] sm:h-[60px] w-auto object-contain",
+              height === "checkout" && "lg:h-[68px]",
+            )}
             priority
           />
         </Link>
@@ -245,7 +257,7 @@ export function AppHeader({
 
               {/* Wishlist / Favorites */}
               <Link
-                href="/#courses"
+                href="/favorites"
                 className="focus-ring flex h-9 w-9 items-center justify-center rounded-lg text-slate-700 transition hover:text-primary hover:bg-slate-50"
                 aria-label="Khóa học yêu thích"
               >

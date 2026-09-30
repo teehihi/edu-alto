@@ -73,6 +73,30 @@ export type LearningCurriculum = {
   }[];
 };
 
+export type LearningQuiz = {
+  id: string;
+  lessonId: string;
+  passingScore: number;
+  questions: {
+    id: string;
+    prompt: string;
+    position: number;
+    options: { id: string; label: string; position: number }[];
+  }[];
+};
+
+export type LearningQuizAttempt = {
+  id: string;
+  quizId: string;
+  score: number;
+  correctAnswers: number;
+  totalQuestions: number;
+  passed: boolean;
+  submittedAt: string;
+};
+
+export type LearningQuizAnswer = { questionId: string; optionId: string };
+
 export async function fetchMyEnrollments(accessToken: string) {
   return apiPageRequest<Enrollment>("/me/enrollments?page=0&size=100&sort=enrolledAt,desc", {
     accessToken,
@@ -94,6 +118,24 @@ export async function enrollInCourse(accessToken: string, courseId: string) {
 
 export async function fetchLearningLesson(accessToken: string, lessonId: string) {
   return apiRequest<LessonContent>(`/lessons/${encodeURIComponent(lessonId)}`, { accessToken });
+}
+
+export async function fetchLearningQuiz(accessToken: string, lessonId: string) {
+  return apiRequest<LearningQuiz>(`/lessons/${encodeURIComponent(lessonId)}/quiz`, {
+    accessToken,
+  });
+}
+
+export async function submitLearningQuiz(
+  accessToken: string,
+  lessonId: string,
+  answers: LearningQuizAnswer[],
+) {
+  return apiRequest<LearningQuizAttempt>(`/lessons/${encodeURIComponent(lessonId)}/quiz-attempts`, {
+    method: "POST",
+    accessToken,
+    body: { answers },
+  });
 }
 
 export async function completeLearningLesson(accessToken: string, lessonId: string) {
@@ -130,8 +172,9 @@ export async function deleteLearningNote(accessToken: string, noteId: string) {
   });
 }
 
-export async function fetchSavedLessons(accessToken: string) {
-  return apiPageRequest<SavedLesson>("/me/saved-lessons?page=0&size=100", { accessToken });
+export async function fetchSavedLessons(accessToken: string, page = 0, size = 20) {
+  const params = new URLSearchParams({ page: String(page), size: String(size) });
+  return apiPageRequest<SavedLesson>(`/me/saved-lessons?${params.toString()}`, { accessToken });
 }
 
 export async function saveLearningLesson(accessToken: string, lessonId: string) {

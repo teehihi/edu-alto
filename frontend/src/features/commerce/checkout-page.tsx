@@ -3,12 +3,14 @@
 import Image from "next/image";
 import Link from "next/link";
 import {
+  BookOpen,
   Check,
   ChevronRight,
   Copy,
-  CreditCard,
   LoaderCircle,
   LockKeyhole,
+  Percent,
+  QrCode,
   ShieldCheck,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -25,6 +27,7 @@ export function CheckoutPage() {
   const { user, getAccessToken } = useAuthSession();
   const router = useRouter();
   const [courses, setCourses] = useState<CartCourse[]>([]);
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("MOMO");
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -38,217 +41,287 @@ export function CheckoutPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-white">
-      <div className="bg-gradient-to-b from-[#e5f8f2] to-white">
-        <AppHeader />
-      </div>
-      <main className="mx-auto w-full max-w-[1440px] min-h-[610px] flex-1 px-5 py-8 sm:px-6 lg:px-20 md:py-10">
-        <nav aria-label="Đường dẫn" className="mb-6 flex items-center gap-2 text-sm text-[#7f8a86]">
-          <Link href="/courses" className="focus-ring rounded hover:text-primary">
-            Chi tiết khóa học
-          </Link>
-          <ChevronRight className="h-3.5 w-3.5" />
-          <Link href="/cart" className="focus-ring rounded hover:text-primary">
-            Giỏ hàng
-          </Link>
-          <ChevronRight className="h-3.5 w-3.5" />
-          <span className="text-primary" aria-current="page">
-            Thanh toán
-          </span>
-        </nav>
-        <h1 className="text-3xl font-semibold text-primary md:text-[32px]">Thanh toán</h1>
-        {courses.length ? (
-          <div className="mt-6 grid items-start gap-8 lg:gap-10 lg:grid-cols-[minmax(0,1fr)_400px]">
-            <form
-              id="checkout-form"
-              onSubmit={async (event) => {
-                event.preventDefault();
-                if (!user) {
-                  router.push(`/login?next=${encodeURIComponent("/checkout")}`);
-                  return;
-                }
-                setSubmitting(true);
-                setMessage("");
-                try {
-                  const token = await getAccessToken();
-                  if (!token)
-                    throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
-                  const order = await createCheckoutOrder(
-                    token,
-                    courses.map((course) => course.id),
-                    paymentMethod,
-                  );
-                  if (order.paymentMethod === "VNPAY") {
-                    if (!order.paymentUrl)
-                      throw new Error("Cổng VNPay chưa trả về liên kết thanh toán.");
-                    window.location.assign(order.paymentUrl);
+      <div className="relative flex flex-1 flex-col bg-[linear-gradient(180deg,rgba(95,223,183,0.13)_0px,#fff_320px)] lg:bg-[linear-gradient(180deg,rgba(95,223,183,0.13)_0px,rgba(95,223,183,0.1)_320px,#fff_820px)]">
+        <AppHeader transparent height="checkout" />
+        <main className="relative mx-auto min-h-[610px] w-full max-w-[1440px] flex-1 px-5 py-8 sm:px-6 md:py-10 lg:px-20">
+          <Image
+            src="/images/payment/checkout-dots.svg"
+            alt=""
+            aria-hidden="true"
+            width={153}
+            height={153}
+            className="pointer-events-none absolute right-[43px] top-[62px] hidden h-[153.438px] w-[153.438px] lg:block"
+          />
+          <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-baseline sm:gap-6">
+            <h1 className="text-3xl font-semibold text-primary md:text-[32px]">Thanh toán</h1>
+            <nav aria-label="Đường dẫn" className="flex items-center gap-2 text-sm text-[#7f8a86]">
+              <Link href="/courses" className="focus-ring rounded hover:text-primary">
+                Chi tiết
+              </Link>
+              <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+              <Link href="/cart" className="focus-ring rounded hover:text-primary">
+                Giỏ hàng
+              </Link>
+              <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+              <span className="text-primary" aria-current="page">
+                Thanh toán đơn hàng
+              </span>
+            </nav>
+          </div>
+          {courses.length ? (
+            <div className="mt-6 grid items-start gap-8 lg:gap-10 lg:grid-cols-[minmax(0,1fr)_400px]">
+              <form
+                id="checkout-form"
+                onSubmit={async (event) => {
+                  event.preventDefault();
+                  if (!user) {
+                    router.push(`/login?next=${encodeURIComponent("/checkout")}`);
                     return;
                   }
-                  setCreatedOrder(order);
-                  setSubmitting(false);
-                } catch (reason) {
-                  setMessage(
-                    reason instanceof ApiClientError &&
-                      reason.code === "PAYMENT_GATEWAY_NOT_CONFIGURED"
-                      ? "VNPay Sandbox chưa được cấu hình trên máy chủ. Giỏ hàng vẫn được giữ nguyên."
-                      : reason instanceof Error
-                        ? reason.message
-                        : "Chưa thể tạo đơn hàng. Vui lòng thử lại.",
-                  );
-                  setSubmitting(false);
-                }
-              }}
-              className="rounded-2xl border border-[#e2eaf0] p-4 md:min-h-[570px] md:p-6"
-            >
-              <fieldset>
-                <legend className="text-xs font-semibold text-primary">
-                  Phương thức thanh toán
-                </legend>
-                <div className="mt-3 space-y-2">
-                  {(
-                    [
-                      ["VNPAY", "VNPay Sandbox", "Thanh toán trực tuyến"],
-                      ["MOMO", "MoMo", "Chuyển khoản đến ví cá nhân"],
-                      ["VIETQR", "VietQR · Vietcombank", "Quét QR chuyển khoản"],
-                    ] as const
-                  ).map(([method, label, detail]) => (
-                    <label
-                      key={method}
-                      className={`flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-3 transition ${
-                        paymentMethod === method
-                          ? "border-[#b7e4d7] bg-[#f2fbf7]"
-                          : "border-transparent bg-[#f6f8fa] hover:bg-[#eff8f5]"
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="payment-method"
-                        value={method}
-                        checked={paymentMethod === method}
-                        onChange={() => {
-                          setPaymentMethod(method);
-                          setCreatedOrder(null);
-                          setMessage("");
-                        }}
-                        className="h-4 w-4 accent-[#20b486]"
-                      />
-                      <span className="min-w-0 flex-1 text-xs font-semibold text-[#101a2c]">
-                        {label}
-                      </span>
-                      <span className="text-right text-[11px] text-[#74817b]">{detail}</span>
-                    </label>
-                  ))}
+                  setSubmitting(true);
+                  setMessage("");
+                  try {
+                    const token = await getAccessToken();
+                    if (!token)
+                      throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+                    const order = await createCheckoutOrder(
+                      token,
+                      courses.map((course) => course.id),
+                      paymentMethod,
+                      phoneNumber,
+                    );
+                    if (order.paymentMethod === "VNPAY") {
+                      if (!order.paymentUrl)
+                        throw new Error("Cổng VNPay chưa trả về liên kết thanh toán.");
+                      window.location.assign(order.paymentUrl);
+                      return;
+                    }
+                    setCreatedOrder(order);
+                    setSubmitting(false);
+                  } catch (reason) {
+                    setMessage(
+                      reason instanceof ApiClientError &&
+                        reason.code === "PAYMENT_GATEWAY_NOT_CONFIGURED"
+                        ? "VNPay Sandbox chưa được cấu hình trên máy chủ. Giỏ hàng vẫn được giữ nguyên."
+                        : reason instanceof Error
+                          ? reason.message
+                          : "Chưa thể tạo đơn hàng. Vui lòng thử lại.",
+                    );
+                    setSubmitting(false);
+                  }
+                }}
+                className="rounded-2xl border border-[#e2eaf0] p-[15px] md:min-h-[862px] md:p-[15px]"
+              >
+                <div className="mb-5 grid gap-4 sm:grid-cols-2">
+                  <label className="flex flex-col gap-2 text-lg font-semibold text-primary">
+                    Họ và Tên
+                    <input
+                      type="text"
+                      value={user?.fullName ?? ""}
+                      readOnly
+                      placeholder="Tên tài khoản"
+                      className="h-[58px] min-w-0 rounded-lg border border-[#e2e8f0] bg-white px-3 text-base font-normal text-[#334155] outline-none placeholder:text-[#94a3b8]"
+                    />
+                  </label>
+                  <label className="flex flex-col gap-2 text-lg font-semibold text-primary">
+                    Số Điện Thoại
+                    <input
+                      type="tel"
+                      name="phoneNumber"
+                      value={phoneNumber}
+                      onChange={(event) =>
+                        setPhoneNumber(event.target.value.replace(/[^0-9]/g, "").slice(0, 10))
+                      }
+                      required
+                      pattern="0[0-9]{9}"
+                      title="Nhập số điện thoại gồm 10 chữ số và bắt đầu bằng 0"
+                      placeholder="Nhập số điện thoại"
+                      autoComplete="tel"
+                      className="h-[58px] min-w-0 rounded-lg border border-[#e2e8f0] bg-white px-3 text-base font-normal text-[#334155] outline-none placeholder:text-[#94a3b8] focus:border-primary focus:ring-2 focus:ring-primary/15"
+                    />
+                  </label>
                 </div>
-              </fieldset>
-              <div className="mt-5 flex items-start gap-2 rounded-lg bg-[#f5faf8] p-3 text-xs leading-5 text-[#75817c]">
-                <LockKeyhole className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                {paymentMethod === "VNPAY"
-                  ? "Bạn sẽ được chuyển đến VNPay Sandbox. Khóa học chỉ mở sau khi hệ thống xác nhận IPN có chữ ký hợp lệ."
-                  : "Đơn chuyển khoản sẽ chờ quản trị viên đối soát. Không gửi mật khẩu, mã OTP hoặc thông tin đăng nhập ngân hàng."}
-              </div>
-              {createdOrder?.instructions && (
-                <ManualPaymentInstructions
-                  order={createdOrder}
-                  method={paymentMethod}
-                  copied={copied}
-                  onCopy={() => {
-                    void navigator.clipboard
-                      .writeText(createdOrder.instructions!.transferReference)
-                      .then(() => {
-                        setCopied(true);
-                        window.setTimeout(() => setCopied(false), 1800);
-                      });
-                  }}
-                />
-              )}
-              {message && (
-                <p
-                  role="status"
-                  className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-900"
-                >
-                  {message}
-                </p>
-              )}
-            </form>
-            <aside className="rounded-2xl border border-[#e2eaf0] p-4">
-              <h2 className="text-sm font-semibold text-[#101a2c]">Chi tiết đơn hàng</h2>
-              <div className="mt-4 space-y-3">
-                {courses.map((course) => (
-                  <article
-                    key={course.id}
-                    className="flex gap-3 rounded-lg border border-[#e7edeb] bg-[#f8fafc] p-2.5"
+                <fieldset>
+                  <legend className="text-lg font-semibold text-primary">
+                    Phương thức Thanh toán
+                  </legend>
+                  <div className="mt-3 space-y-2">
+                    {(
+                      [
+                        ["VNPAY", "VNPay Sandbox", "Thanh toán trực tuyến"],
+                        ["MOMO", "MoMo", "Chuyển khoản đến ví cá nhân"],
+                        ["VIETQR", "VietQR · Vietcombank", "Quét QR chuyển khoản"],
+                      ] as const
+                    ).map(([method, label, detail]) => (
+                      <label
+                        key={method}
+                        className={`flex min-h-14 cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 transition ${
+                          paymentMethod === method
+                            ? "border-[#b7e4d7] bg-[#f2fbf7]"
+                            : "border-transparent bg-[#f6f8fa] hover:bg-[#eff8f5]"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="payment-method"
+                          value={method}
+                          checked={paymentMethod === method}
+                          onChange={() => {
+                            setPaymentMethod(method);
+                            setCreatedOrder(null);
+                            setMessage("");
+                          }}
+                          className="h-5 w-5 shrink-0 appearance-none rounded-full border-2 border-[#929292] bg-white transition-colors checked:border-[#20b486] checked:bg-[radial-gradient(circle,#20b486_0_45%,white_48%)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#20b486]/30 focus-visible:ring-offset-2"
+                        />
+                        <span className="min-w-0 flex-1 text-sm font-semibold text-[#101a2c]">
+                          {label}
+                        </span>
+                        <span className="flex-1 text-right text-xs text-[#74817b]">{detail}</span>
+                        {method === "VNPAY" ? (
+                          <Image
+                            src="/images/payment/vnpay-logo.svg"
+                            alt=""
+                            width={66}
+                            height={20}
+                          />
+                        ) : method === "MOMO" ? (
+                          <Image
+                            src="/images/payment/momo-logo.png"
+                            alt=""
+                            width={22}
+                            height={22}
+                          />
+                        ) : (
+                          <QrCode
+                            className="h-[22px] w-[22px] shrink-0 text-primary"
+                            aria-hidden="true"
+                          />
+                        )}
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+                <div className="mt-5 flex min-h-[60px] items-center gap-2 rounded-lg bg-[#f5faf8] p-4 text-sm leading-6 text-[#75817c]">
+                  <LockKeyhole className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  {paymentMethod === "VNPAY"
+                    ? "Bạn sẽ được chuyển đến VNPay Sandbox. Khóa học chỉ mở sau khi hệ thống xác nhận IPN có chữ ký hợp lệ."
+                    : "Đơn chuyển khoản sẽ chờ quản trị viên đối soát. Không gửi mật khẩu, mã OTP hoặc thông tin đăng nhập ngân hàng."}
+                </div>
+                {createdOrder?.instructions && (
+                  <ManualPaymentInstructions
+                    order={createdOrder}
+                    method={paymentMethod}
+                    copied={copied}
+                    onCopy={() => {
+                      void navigator.clipboard
+                        .writeText(createdOrder.instructions!.transferReference)
+                        .then(() => {
+                          setCopied(true);
+                          window.setTimeout(() => setCopied(false), 1800);
+                        });
+                    }}
+                  />
+                )}
+                {message && (
+                  <p
+                    role="status"
+                    className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-900"
                   >
+                    {message}
+                  </p>
+                )}
+              </form>
+              <aside>
+                <h2 className="text-xl font-semibold text-[#101a2c]">Chi tiết đơn hàng</h2>
+                <div className="mt-4 rounded-xl border border-[#e2e8f0] p-4">
+                  <article className="flex min-h-[163px] gap-3 rounded-lg border border-[#e7edeb] bg-[#f8fafc] p-3">
                     <Link
-                      href={`/courses/${course.slug}`}
-                      className="focus-ring relative h-[84px] w-[84px] shrink-0 overflow-hidden rounded-md bg-[#eaf8f3]"
+                      href={`/courses/${courses[0].slug}`}
+                      className="focus-ring relative h-[112px] w-[112px] shrink-0 overflow-hidden rounded-md bg-[#eaf8f3] sm:h-[131px] sm:w-[131px]"
                     >
-                      {course.thumbnailUrl ? (
+                      {courses[0].thumbnailUrl ? (
                         <Image
-                          src={course.thumbnailUrl}
-                          alt={course.title}
+                          src={courses[0].thumbnailUrl}
+                          alt={courses[0].title}
                           fill
                           unoptimized
-                          sizes="80px"
+                          sizes="112px"
                           className="object-cover"
                         />
                       ) : (
                         <span className="grid h-full place-items-center text-primary">
-                          <CreditCard className="h-5 w-5" />
+                          <BookOpen className="h-7 w-7" aria-hidden="true" />
                         </span>
                       )}
                     </Link>
-                    <div className="min-w-0">
-                      <p className="line-clamp-2 text-xs font-semibold text-primary">
-                        {course.title}
+                    <div className="min-w-0 self-center">
+                      <p className="line-clamp-2 text-sm font-semibold text-primary">
+                        {courses[0].title}
                       </p>
-                      <p className="mt-1 line-clamp-1 text-[11px] text-[#7c8783]">
-                        {course.instructorName}
+                      <p className="mt-1 line-clamp-1 text-xs text-[#7c8783]">
+                        {courses[0].lessonCount && courses[0].durationSeconds
+                          ? `${formatDuration(courses[0].durationSeconds)} · ${courses[0].lessonCount} bài học`
+                          : courses[0].instructorName}
                       </p>
-                      <p className="mt-1 text-xs font-semibold">{formatVND(course.price)}</p>
+                      {courses[0].lessonCount && courses[0].durationSeconds ? (
+                        <p className="mt-1 line-clamp-1 text-xs text-[#7c8783]">
+                          {courses[0].instructorName}
+                        </p>
+                      ) : null}
+                      <p className="mt-1 text-sm font-semibold text-[#101a2c]">
+                        {formatVND(courses[0].price)}
+                      </p>
                     </div>
                   </article>
-                ))}
-              </div>
-              <div className="mt-3 space-y-3 rounded-lg border border-[#e5ece9] bg-[#f8fbfa] p-3 text-xs">
-                <SummaryRow label="Tạm tính" value={formatVND(subtotal)} />
-                <SummaryRow label="Giảm giá" value="Chưa áp dụng" />
-                <SummaryRow label="Thuế/Phí" value="Chưa tính" />
-                <div className="border-t border-[#e5ece9] pt-3">
-                  <SummaryRow label="Tổng tạm tính" value={formatVND(subtotal)} strong />
+                  {courses.length > 1 ? (
+                    <p className="mt-3 flex h-10 items-center gap-2 rounded-lg border border-[#e2e8f0] bg-[#f8fafc] px-3 text-xs text-[#344155]">
+                      <Percent className="h-4 w-4" aria-hidden="true" />
+                      {courses.length - 1} khóa học khác
+                    </p>
+                  ) : null}
                 </div>
-              </div>
-              <button
-                form="checkout-form"
-                disabled={submitting || Boolean(createdOrder)}
-                className="focus-ring mt-5 inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#079b70] text-sm font-semibold text-white transition hover:bg-[#078561] disabled:cursor-wait disabled:opacity-60"
+                <div className="mt-3 min-h-[213px] space-y-4 rounded-lg border border-[#e5ece9] bg-[#f8fbfa] p-[15px] text-base">
+                  <SummaryRow label="Tạm tính" value={formatVND(subtotal)} />
+                  <SummaryRow label="Giảm giá" value="Chưa áp dụng" />
+                  <SummaryRow label="Thuế/Phí" value="Chưa tính" />
+                  <div className="border-t border-[#e5ece9] pt-3">
+                    <SummaryRow label="Tổng tạm tính" value={formatVND(subtotal)} strong />
+                  </div>
+                </div>
+                <button
+                  form="checkout-form"
+                  disabled={submitting || Boolean(createdOrder)}
+                  className="focus-ring mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-[#079b70] text-sm font-semibold text-white transition hover:bg-[#078561] disabled:cursor-wait disabled:opacity-60"
+                >
+                  {submitting && <LoaderCircle className="h-4 w-4 animate-spin" />}
+                  {submitting
+                    ? "Đang tạo đơn hàng..."
+                    : createdOrder
+                      ? "Đơn hàng đã được tạo"
+                      : paymentMethod === "VNPAY"
+                        ? "Thanh toán qua VNPay Sandbox"
+                        : "Tạo hướng dẫn chuyển khoản"}
+                </button>
+                <p className="mt-3 flex items-center gap-1.5 text-[11px] leading-5 text-[#84908b]">
+                  <ShieldCheck className="h-4 w-4 shrink-0 text-primary" />
+                  {paymentMethod === "VNPAY" ? "Thanh toán VNPay Sandbox" : "Chuyển khoản thủ công"}
+                </p>
+              </aside>
+            </div>
+          ) : (
+            <div className="mt-8 rounded-2xl border border-[#e5ede9] bg-[#fbfefc] px-5 py-10 text-center">
+              <p className="text-sm text-[#75817c]">Giỏ hàng của bạn đang trống.</p>
+              <Link
+                href="/courses"
+                className="focus-ring mt-4 inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-white"
               >
-                {submitting && <LoaderCircle className="h-4 w-4 animate-spin" />}
-                {submitting
-                  ? "Đang tạo đơn hàng..."
-                  : createdOrder
-                    ? "Đơn hàng đã được tạo"
-                    : paymentMethod === "VNPAY"
-                      ? "Thanh toán qua VNPay Sandbox"
-                      : "Tạo hướng dẫn chuyển khoản"}
-              </button>
-              <p className="mt-3 flex items-center gap-1.5 text-[11px] leading-5 text-[#84908b]">
-                <ShieldCheck className="h-4 w-4 shrink-0 text-primary" />
-                {paymentMethod === "VNPAY" ? "Thanh toán VNPay Sandbox" : "Chuyển khoản thủ công"}
-              </p>
-            </aside>
-          </div>
-        ) : (
-          <div className="mt-8 rounded-2xl border border-[#e5ede9] bg-[#fbfefc] px-5 py-10 text-center">
-            <p className="text-sm text-[#75817c]">Giỏ hàng của bạn đang trống.</p>
-            <Link
-              href="/courses"
-              className="focus-ring mt-4 inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-white"
-            >
-              Quay lại danh mục
-              <ChevronRight className="h-4 w-4" />
-            </Link>
-          </div>
-        )}
-      </main>
+                Quay lại danh mục
+                <ChevronRight className="h-4 w-4" />
+              </Link>
+            </div>
+          )}
+        </main>
+      </div>
       <Footer />
     </div>
   );
@@ -333,6 +406,10 @@ function PaymentDetail({ label, value }: { label: string; value: string }) {
   );
 }
 
+function formatDuration(seconds: number) {
+  return seconds >= 3600 ? `${Math.round(seconds / 3600)} giờ` : `${Math.ceil(seconds / 60)} phút`;
+}
+
 function SummaryRow({
   label,
   value,
@@ -344,10 +421,10 @@ function SummaryRow({
 }) {
   return (
     <div
-      className={`flex items-center justify-between gap-3 ${strong ? "pt-1 text-sm font-semibold text-primary" : "text-[#34413c]"}`}
+      className={`flex items-center justify-between gap-3 ${strong ? "pt-1 text-xl font-semibold text-primary" : "text-[#34413c]"}`}
     >
       <span>{label}</span>
-      <span className="font-semibold">{value}</span>
+      <span className="text-right font-semibold">{value}</span>
     </div>
   );
 }

@@ -89,7 +89,7 @@ public class CommerceService {
         String transferReference = manualTransferReference(orderId);
         boolean manual = request.paymentMethod() != PaymentMethod.VNPAY;
         String orderStatus = manual ? "PAYMENT_REVIEW" : "PENDING_PAYMENT";
-        repository.insertOrder(orderId, studentId, total, orderStatus, transferReference);
+        repository.insertOrder(orderId, studentId, request.phoneNumber(), total, orderStatus, transferReference);
         courses.forEach(course -> repository.insertOrderItem(orderId, course));
         repository.insertPayment(UUID.randomUUID(), orderId, request.paymentMethod().name(), amountMinorUnits);
         String paymentUrl = request.paymentMethod() == PaymentMethod.VNPAY

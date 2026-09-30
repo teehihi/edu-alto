@@ -5,6 +5,8 @@ export type CartCourse = {
   price: number;
   thumbnailUrl: string | null;
   instructorName: string;
+  lessonCount?: number;
+  durationSeconds?: number;
 };
 
 const STORAGE_KEY = "edualto:cart:v1";
@@ -51,6 +53,8 @@ function isCartCourse(value: unknown): value is CartCourse {
     typeof item.title === "string" &&
     typeof item.price === "number" &&
     (typeof item.thumbnailUrl === "string" || item.thumbnailUrl === null) &&
-    typeof item.instructorName === "string"
+    typeof item.instructorName === "string" &&
+    (item.lessonCount === undefined || typeof item.lessonCount === "number") &&
+    (item.durationSeconds === undefined || typeof item.durationSeconds === "number")
   );
 }

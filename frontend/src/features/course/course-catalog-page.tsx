@@ -9,6 +9,12 @@ import { AppHeader } from "@/components/layout/app-header";
 import { Footer } from "@/components/layout/footer";
 import { CustomSelect, type CustomSelectOption } from "@/components/ui/custom-select";
 import { fetchPublicCoursePage } from "@/lib/course-client";
+import {
+  readFavoriteCourses,
+  subscribeToFavoriteCourses,
+  toggleFavoriteCourse,
+  type FavoriteCourse,
+} from "@/lib/favorites";
 import type { CourseListItem } from "@/types/course";
 import { cn } from "@/lib/cn";
 
@@ -29,22 +35,6 @@ function formatVND(amount: number): string {
     .format(amount)
     .replace("₫", "đ");
 }
-
-type CourseCatalogCardData = {
-  id: string;
-  slug: string;
-  title: string;
-  instructor: string;
-  instructorRole?: string;
-  rating: number;
-  reviewCount: number;
-  totalHours: number;
-  lecturesCount: number;
-  level: string;
-  price: number;
-  originalPrice?: number;
-  image: string;
-};
 
 export function CourseCatalogPage() {
   const searchParams = useSearchParams();
@@ -133,7 +123,7 @@ export function CourseCatalogPage() {
     isFree,
   ]);
 
-  const displayCourses: CourseCatalogCardData[] = useMemo(
+  const displayCourses: FavoriteCourse[] = useMemo(
     () =>
       (catalog?.courses ?? []).map((c) => ({
         id: c.id,
@@ -570,8 +560,15 @@ export function CourseCatalogPage() {
 // ==========================================
 // Figma Course Card with VND Currency
 // ==========================================
-function FigmaCourseCard({ course }: { course: CourseCatalogCardData }) {
+export function FigmaCourseCard({ course }: { course: FavoriteCourse }) {
   const [isFavorited, setIsFavorited] = useState(false);
+
+  useEffect(() => {
+    const syncFavorite = () =>
+      setIsFavorited(readFavoriteCourses().some((favorite) => favorite.id === course.id));
+    syncFavorite();
+    return subscribeToFavoriteCourses(syncFavorite);
+  }, [course.id]);
 
   return (
     <article className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-100/90 bg-white p-3.5 shadow-xs transition-all duration-300 hover:-translate-y-1.5 hover:shadow-cardHover hover:border-primary/30">
@@ -589,10 +586,13 @@ function FigmaCourseCard({ course }: { course: CourseCatalogCardData }) {
         {/* Favorite heart button */}
         <button
           type="button"
-          aria-label="Lưu vào khóa học yêu thích"
+          aria-label={
+            isFavorited ? `Bỏ yêu thích ${course.title}` : `Lưu ${course.title} vào yêu thích`
+          }
+          aria-pressed={isFavorited}
           onClick={(e) => {
             e.preventDefault();
-            setIsFavorited(!isFavorited);
+            toggleFavoriteCourse(course);
           }}
           className="absolute right-2.5 top-2.5 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-slate-600 backdrop-blur-xs shadow-xs transition hover:bg-white hover:text-rose-500 active:scale-90"
         >

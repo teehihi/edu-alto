@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { InstructorCourseCurriculumPage } from "./instructor-course-curriculum-page";
 import * as structureClient from "@/lib/course-structure-client";
+import * as quizClient from "@/lib/instructor-quiz-client";
 import type { CourseStructure } from "@/types/course-structure";
 
 const mockStructure: CourseStructure = {
@@ -184,6 +185,137 @@ describe("InstructorCourseCurriculumPage", () => {
         expect.objectContaining({ title: "Bài mới: TypeScript Generics" }),
         "mock-token",
       );
+    });
+  });
+
+  it("creates a quiz lesson and submits its questions to the quiz API", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(structureClient, "fetchCourseStructure").mockResolvedValue(mockStructure);
+    const createLessonSpy = vi.spyOn(structureClient, "createLesson").mockResolvedValue({
+      id: "les-quiz",
+      sectionId: "sec-1",
+      title: "Kiểm tra TypeScript",
+      description: null,
+      type: "QUIZ",
+      textContent: null,
+      videoDurationSeconds: 600,
+      isPreview: false,
+      status: "PUBLISHED",
+      position: 2,
+      createdAt: "2026-09-23T00:00:00Z",
+      updatedAt: "2026-09-23T00:00:00Z",
+    });
+    const createQuizSpy = vi.spyOn(quizClient, "createInstructorQuiz").mockResolvedValue({
+      id: "quiz-1",
+      lessonId: "les-quiz",
+      passingScore: 70,
+      questions: [],
+    });
+
+    render(<InstructorCourseCurriculumPage courseId={mockStructure.courseId} />);
+
+    const addLessonButtons = await screen.findAllByRole("button", { name: /thêm bài học/i });
+    await user.click(addLessonButtons[0]);
+    await user.type(screen.getByPlaceholderText(/giới thiệu cú pháp/i), "Kiểm tra TypeScript");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Loại bài học" }), "QUIZ");
+    await user.type(screen.getByLabelText("Nội dung câu hỏi"), "Kiểu nào dùng cho chuỗi?");
+    await user.type(screen.getByPlaceholderText("Nhập phương án 1"), "string");
+    await user.type(screen.getByPlaceholderText("Nhập phương án 2"), "boolean");
+    await user.click(screen.getByRole("button", { name: "Tạo bài học" }));
+
+    await waitFor(() => {
+      expect(createLessonSpy).toHaveBeenCalledWith(
+        mockStructure.courseId,
+        "sec-1",
+        expect.objectContaining({ type: "QUIZ", title: "Kiểm tra TypeScript" }),
+        "mock-token",
+      );
+      expect(createQuizSpy).toHaveBeenCalledWith(
+        "les-quiz",
+        {
+          passingScore: 70,
+          questions: [
+            {
+              prompt: "Kiểu nào dùng cho chuỗi?",
+              options: [
+                { label: "string", correct: true },
+                { label: "boolean", correct: false },
+              ],
+            },
+          ],
+        },
+        "mock-token",
+      );
+    });
+  });
+
+  it("shows Vietnamese validation before creating a quiz with incomplete answers", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(structureClient, "fetchCourseStructure").mockResolvedValue(mockStructure);
+    const createLessonSpy = vi.spyOn(structureClient, "createLesson");
+
+    render(<InstructorCourseCurriculumPage courseId={mockStructure.courseId} />);
+
+    const addLessonButtons = await screen.findAllByRole("button", { name: /thêm bài học/i });
+    await user.click(addLessonButtons[0]);
+    await user.type(screen.getByPlaceholderText(/giới thiệu cú pháp/i), "Kiểm tra TypeScript");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Loại bài học" }), "QUIZ");
+    await user.type(screen.getByLabelText("Nội dung câu hỏi"), "Kiểu nào dùng cho chuỗi?");
+    await user.type(screen.getByPlaceholderText("Nhập phương án 1"), "string");
+    await user.click(screen.getByRole("button", { name: "Tạo bài học" }));
+
+    expect(
+      await screen.findByText(/Câu 1 cần có nội dung, từ 2 đến 6 phương án hợp lệ/),
+    ).toBeInTheDocument();
+    expect(createLessonSpy).not.toHaveBeenCalled();
+  });
+
+  it("retries saving quiz questions without creating a duplicate lesson", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(structureClient, "fetchCourseStructure").mockResolvedValue(mockStructure);
+    const createLessonSpy = vi.spyOn(structureClient, "createLesson").mockResolvedValue({
+      id: "les-quiz-retry",
+      sectionId: "sec-1",
+      title: "Kiểm tra TypeScript",
+      description: null,
+      type: "QUIZ",
+      textContent: null,
+      videoDurationSeconds: 600,
+      isPreview: false,
+      status: "PUBLISHED",
+      position: 2,
+      createdAt: "2026-09-23T00:00:00Z",
+      updatedAt: "2026-09-23T00:00:00Z",
+    });
+    const createQuizSpy = vi
+      .spyOn(quizClient, "createInstructorQuiz")
+      .mockRejectedValueOnce(new Error("Máy chủ đang bận."))
+      .mockResolvedValueOnce({
+        id: "quiz-1",
+        lessonId: "les-quiz-retry",
+        passingScore: 70,
+        questions: [],
+      });
+
+    render(<InstructorCourseCurriculumPage courseId={mockStructure.courseId} />);
+
+    const addLessonButtons = await screen.findAllByRole("button", { name: /thêm bài học/i });
+    await user.click(addLessonButtons[0]);
+    await user.type(screen.getByPlaceholderText(/giới thiệu cú pháp/i), "Kiểm tra TypeScript");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Loại bài học" }), "QUIZ");
+    await user.type(screen.getByLabelText("Nội dung câu hỏi"), "Kiểu nào dùng cho chuỗi?");
+    await user.type(screen.getByPlaceholderText("Nhập phương án 1"), "string");
+    await user.type(screen.getByPlaceholderText("Nhập phương án 2"), "boolean");
+    await user.click(screen.getByRole("button", { name: "Tạo bài học" }));
+
+    expect(
+      await screen.findByText(/Bài học đã được tạo, nhưng chưa lưu được câu hỏi/),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Thử lưu câu hỏi" }));
+
+    await waitFor(() => {
+      expect(createLessonSpy).toHaveBeenCalledTimes(1);
+      expect(createQuizSpy).toHaveBeenCalledTimes(2);
     });
   });
 

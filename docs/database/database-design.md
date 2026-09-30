@@ -359,6 +359,7 @@ This section describes the implemented V7 schema; broader tables and fields abov
 ## Commerce schema (V13)
 
 - `orders`: UUID primary key, student FK, V13 statuses (`PENDING_PAYMENT`, `PAID`, `PAYMENT_FAILED`), VND currency, immutable subtotal/total snapshots and timestamps. V14 adds `PAYMENT_REVIEW` and a unique transfer reference for manual reconciliation.
+- V15 adds an optional `phone_number` snapshot to an order. Checkout requires a 10-digit Vietnamese phone number and stores it with the order for purchase contact.
 - `order_items`: order/course FKs, course title and unit-price snapshots. Unique `(order_id, course_id)` prevents duplicate items; the order and catalog rows are retained for audit.
 - `payments`: order FK, provider, unique transaction reference, amount in VND minor units, status and paid timestamp. Callback details are not stored because they may contain sensitive gateway metadata.
 - Checkout recalculates the current catalog price and requires published, paid, non-owned, not-yet-enrolled courses. Browser return never activates enrollment. Only a checksum-valid VNPay IPN with matching reference and amount can atomically mark a VNPay order paid and insert enrollments.
@@ -368,5 +369,14 @@ This section describes the implemented V7 schema; broader tables and fields abov
 
 - V14 permits `MOMO` and `VIETQR` payment providers and adds unique `orders.transfer_reference` values plus `manual_payment_confirmations` audit rows. Creation request carries `paymentMethod` (`VNPAY`, `MOMO`, or `VIETQR`); manual methods return the recipient, amount, reference and (for VietQR) a QR image URL.
 - Manual-payment orders stay `PAYMENT_REVIEW` and payments stay `PENDING` until an active admin reconciles the external wallet/bank receipt and calls `POST /api/v1/admin/orders/{id}/confirm-payment`. The confirmation records admin ID and receipt reference; order payment and enrollment are committed together.
+- `POST /api/v1/me/orders` accepts `phoneNumber` in addition to `courseIds` and `paymentMethod`; the phone is validated and stored on the order.
 - `GET /api/v1/admin/orders` exposes paginated orders, provider, student, amount and transfer reference to active admins. Browser returns, user-submitted claims and VietQR scan events never mark an order paid.
 - MoMo is an offline manual transfer instruction only; no payment API/deep link is used. VietQR link encodes the fixed bank account, exact VND amount and unique transfer reference.
+
+## Quizzes and attempts (V16)
+
+- `quizzes` belongs to one `QUIZ` lesson and stores its passing score. A unique lesson FK prevents duplicate quizzes on a lesson.
+- `quiz_questions` and `quiz_options` keep display order. Each option records correctness for server-side scoring; learner responses omit that column.
+- `quiz_attempts` snapshots the learner's score, pass state and submission time. `quiz_attempt_answers` stores the selected option and correctness at submission time, with one answer per question per attempt.
+- Attempts and answer snapshots are retained for review. Passing an attempt completes the quiz lesson in `learning_progress`; failing attempts do not alter progress.
+- V16 references lessons and users with cascading deletes and indexes student history by quiz and submission time.

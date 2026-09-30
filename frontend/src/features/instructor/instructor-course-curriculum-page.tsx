@@ -21,7 +21,7 @@ import {
   Trash2,
   Video,
 } from "lucide-react";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { AppHeader } from "@/components/layout/app-header";
 import { Footer } from "@/components/layout/footer";
 import { Button } from "@/components/ui/button";
@@ -40,6 +40,15 @@ import {
   updateLesson,
   updateSection,
 } from "@/lib/course-structure-client";
+import {
+  createInstructorQuiz,
+  type CreateInstructorQuizRequest,
+} from "@/lib/instructor-quiz-client";
+import {
+  createQuizDraftQuestion,
+  QuizAuthoringFields,
+  type QuizDraftQuestion,
+} from "@/features/instructor/quiz-authoring-fields";
 import type {
   CourseStructure,
   CourseStructureSection,
@@ -132,6 +141,12 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
   const [lessonStatus, setLessonStatus] = useState<LessonStatus>("PUBLISHED");
   const [lessonFormLoading, setLessonFormLoading] = useState(false);
   const [lessonFormError, setLessonFormError] = useState<string | null>(null);
+  const [quizPassingScore, setQuizPassingScore] = useState("70");
+  const [quizQuestions, setQuizQuestions] = useState<QuizDraftQuestion[]>([
+    createQuizDraftQuestion(1),
+  ]);
+  const [incompleteQuizLessonId, setIncompleteQuizLessonId] = useState<string | null>(null);
+  const nextQuizQuestionId = useRef(2);
 
   // Delete Section Modal state
   const [deleteSectionTarget, setDeleteSectionTarget] = useState<CourseStructureSection | null>(
@@ -359,6 +374,10 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
     setLessonDurationMinutes("10");
     setLessonIsPreview(false);
     setLessonStatus("PUBLISHED");
+    setQuizPassingScore("70");
+    setQuizQuestions([createQuizDraftQuestion(1)]);
+    nextQuizQuestionId.current = 2;
+    setIncompleteQuizLessonId(null);
     setLessonFormError(null);
     setLessonModalOpen(true);
   };
@@ -375,8 +394,24 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
     );
     setLessonIsPreview(lesson.isPreview);
     setLessonStatus(lesson.status);
+    setIncompleteQuizLessonId(null);
     setLessonFormError(null);
     setLessonModalOpen(true);
+  };
+
+  const handleCloseLessonModal = () => {
+    setLessonModalOpen(false);
+    if (incompleteQuizLessonId) {
+      setIncompleteQuizLessonId(null);
+      setFeedback({
+        isOpen: true,
+        title: "Bài kiểm tra chưa hoàn tất",
+        description:
+          "Bài học đã được tạo nhưng chưa có câu hỏi. Bạn có thể xóa bài học này trong giáo trình rồi tạo lại.",
+        tone: "warning",
+      });
+      void loadData();
+    }
   };
 
   const handleSaveLesson = async (e: React.FormEvent) => {
@@ -387,11 +422,58 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
       return;
     }
 
+    const creatingQuiz = lessonType === "QUIZ" && !editingLesson;
+    let quizPayload: CreateInstructorQuizRequest | null = null;
+    if (creatingQuiz) {
+      const passingScore = Number(quizPassingScore);
+      if (
+        !quizPassingScore.trim() ||
+        !Number.isFinite(passingScore) ||
+        passingScore < 0 ||
+        passingScore > 100
+      ) {
+        setLessonFormError("Điểm đạt phải nằm trong khoảng từ 0 đến 100.");
+        return;
+      }
+      if (!quizQuestions.length || quizQuestions.length > 100) {
+        setLessonFormError("Bài kiểm tra cần có từ 1 đến 100 câu hỏi.");
+        return;
+      }
+      const invalidQuestion = quizQuestions.find(
+        (question) =>
+          !question.prompt.trim() ||
+          question.prompt.trim().length > 2000 ||
+          question.options.length < 2 ||
+          question.options.length > 6 ||
+          question.options.some(
+            (option) => !option.label.trim() || option.label.trim().length > 500,
+          ) ||
+          question.options.filter((option) => option.correct).length !== 1,
+      );
+      if (invalidQuestion) {
+        setLessonFormError(
+          `Câu ${quizQuestions.indexOf(invalidQuestion) + 1} cần có nội dung, từ 2 đến 6 phương án hợp lệ và đúng một đáp án đúng.`,
+        );
+        return;
+      }
+      quizPayload = {
+        passingScore,
+        questions: quizQuestions.map((question) => ({
+          prompt: question.prompt.trim(),
+          options: question.options.map((option) => ({
+            label: option.label.trim(),
+            correct: option.correct,
+          })),
+        })),
+      };
+    }
+
     const durationSeconds =
       Number(lessonDurationMinutes) > 0 ? Number(lessonDurationMinutes) * 60 : 0;
 
     setLessonFormLoading(true);
     setLessonFormError(null);
+    let createdLessonId: string | null = null;
     try {
       if (editingLesson) {
         const payload: UpdateLessonPayload = {
@@ -414,9 +496,20 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
           isPreview: lessonIsPreview,
           status: lessonStatus,
         };
-        await createLesson(courseId, targetSectionId, payload, accessToken);
+        if (incompleteQuizLessonId) {
+          if (!quizPayload) throw new Error("Hãy hoàn thiện câu hỏi trước khi lưu bài kiểm tra.");
+          await createInstructorQuiz(incompleteQuizLessonId, quizPayload, accessToken);
+        } else {
+          const createdLesson = await createLesson(courseId, targetSectionId, payload, accessToken);
+          createdLessonId = createdLesson.id;
+          if (creatingQuiz && quizPayload) {
+            setIncompleteQuizLessonId(createdLesson.id);
+            await createInstructorQuiz(createdLesson.id, quizPayload, accessToken);
+          }
+        }
       }
 
+      setIncompleteQuizLessonId(null);
       setLessonModalOpen(false);
       setFeedback({
         isOpen: true,
@@ -425,7 +518,11 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
       });
       await loadData();
     } catch (err) {
-      if (err instanceof ApiClientError) {
+      if (createdLessonId || incompleteQuizLessonId) {
+        setLessonFormError(
+          "Bài học đã được tạo, nhưng chưa lưu được câu hỏi. Nội dung bài học đã khóa; hãy thử lưu câu hỏi lại.",
+        );
+      } else if (err instanceof ApiClientError) {
         setLessonFormError(err.message);
       } else {
         setLessonFormError("Đã có lỗi xảy ra khi lưu bài học.");
@@ -1004,7 +1101,7 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
         <div className="fixed inset-0 z-[9990] flex items-center justify-center p-4">
           <div
             className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity"
-            onClick={() => setLessonModalOpen(false)}
+            onClick={handleCloseLessonModal}
           />
           <div className="relative z-10 max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-slate-100 bg-white p-6 shadow-xl sm:p-8">
             <h3 className="text-xl font-bold text-heading">
@@ -1021,126 +1118,169 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
                 </div>
               )}
 
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-                  Tên bài học <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={lessonTitle}
-                  onChange={(e) => setLessonTitle(e.target.value)}
-                  placeholder="Ví dụ: Giới thiệu cú pháp TypeScript căn bản"
-                  className="mt-1.5 w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-heading shadow-2xs placeholder:text-slate-400 focus:border-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
-                />
-              </div>
+              {incompleteQuizLessonId && (
+                <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-medium text-amber-800">
+                  Bài học đã được tạo. Hãy hoàn tất bước lưu câu hỏi bên dưới; thông tin bài học đã
+                  khóa.
+                </p>
+              )}
 
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-                    Loại bài học
-                  </label>
-                  <select
-                    value={lessonType}
-                    onChange={(e) => setLessonType(e.target.value as LessonType)}
-                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-heading shadow-2xs focus:border-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
-                  >
-                    <option value="TEXT">Bài đọc văn bản (Text)</option>
-                    <option value="VIDEO">Video bài giảng</option>
-                    <option value="DOCUMENT">Tài liệu đính kèm</option>
-                    <option value="QUIZ">Trắc nghiệm nhanh</option>
-                    <option value="ASSIGNMENT">Bài tập thực hành</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-                    Thời lượng ước tính (phút)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={lessonDurationMinutes}
-                    onChange={(e) => setLessonDurationMinutes(e.target.value)}
-                    placeholder="10"
-                    className="mt-1.5 w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-heading shadow-2xs placeholder:text-slate-400 focus:border-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-                  Mô tả bài học (Tùy chọn)
-                </label>
-                <input
-                  type="text"
-                  value={lessonDescription}
-                  onChange={(e) => setLessonDescription(e.target.value)}
-                  placeholder="Tóm tắt ngắn gọn nội dung bài học..."
-                  className="mt-1.5 w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-heading shadow-2xs placeholder:text-slate-400 focus:border-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
-                />
-              </div>
-
-              {/* Text content field */}
-              <div>
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-                    Nội dung bài học
-                  </label>
-                  <span className="text-xs text-muted">{lessonTextContent.length} ký tự</span>
-                </div>
-                <textarea
-                  rows={6}
-                  value={lessonTextContent}
-                  onChange={(e) => setLessonTextContent(e.target.value)}
-                  placeholder="Nhập nội dung bài đọc, ghi chú hướng dẫn, code sample hoặc liên kết tài liệu tại đây..."
-                  className="mt-1.5 w-full rounded-xl border border-slate-200 px-4 py-2.5 font-mono text-sm text-heading shadow-2xs placeholder:font-sans placeholder:text-slate-400 focus:border-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
-                />
-              </div>
-
-              {/* Options */}
-              <div className="grid grid-cols-1 gap-4 rounded-2xl bg-slate-50 p-4 sm:grid-cols-2">
-                <label className="flex cursor-pointer items-center gap-3">
-                  <input
-                    type="checkbox"
-                    checked={lessonIsPreview}
-                    onChange={(e) => setLessonIsPreview(e.target.checked)}
-                    className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
-                  />
+              {!incompleteQuizLessonId && (
+                <>
                   <div>
-                    <span className="text-sm font-semibold text-heading">Cho phép học thử</span>
-                    <p className="text-xs text-muted">
-                      Học viên chưa mua khóa học vẫn xem được bài này
-                    </p>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
+                      Tên bài học <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={lessonTitle}
+                      onChange={(e) => setLessonTitle(e.target.value)}
+                      placeholder="Ví dụ: Giới thiệu cú pháp TypeScript căn bản"
+                      className="mt-1.5 w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-heading shadow-2xs placeholder:text-slate-400 focus:border-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+                    />
                   </div>
-                </label>
 
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-                    Trạng thái
-                  </label>
-                  <select
-                    value={lessonStatus}
-                    onChange={(e) => setLessonStatus(e.target.value as LessonStatus)}
-                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-heading focus:border-primary focus:outline-hidden"
-                  >
-                    <option value="PUBLISHED">Đã xuất bản (Công khai)</option>
-                    <option value="DRAFT">Bản nháp (Ẩn)</option>
-                  </select>
-                </div>
-              </div>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div>
+                      <label
+                        htmlFor="lesson-type"
+                        className="block text-xs font-bold uppercase tracking-wider text-slate-600"
+                      >
+                        Loại bài học
+                      </label>
+                      <select
+                        id="lesson-type"
+                        value={lessonType}
+                        onChange={(e) => setLessonType(e.target.value as LessonType)}
+                        disabled={editingLesson?.type === "QUIZ"}
+                        className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-heading shadow-2xs focus:border-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+                      >
+                        <option value="TEXT">Bài đọc văn bản (Text)</option>
+                        <option value="VIDEO">Video bài giảng</option>
+                        <option value="DOCUMENT">Tài liệu đính kèm</option>
+                        <option
+                          value="QUIZ"
+                          disabled={Boolean(editingLesson && editingLesson.type !== "QUIZ")}
+                        >
+                          Trắc nghiệm nhanh{" "}
+                          {editingLesson && editingLesson.type !== "QUIZ" ? "(chỉ tạo mới)" : ""}
+                        </option>
+                        <option value="ASSIGNMENT">Bài tập thực hành</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
+                        Thời lượng ước tính (phút)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={lessonDurationMinutes}
+                        onChange={(e) => setLessonDurationMinutes(e.target.value)}
+                        placeholder="10"
+                        className="mt-1.5 w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-heading shadow-2xs placeholder:text-slate-400 focus:border-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
+                      Mô tả bài học (Tùy chọn)
+                    </label>
+                    <input
+                      type="text"
+                      value={lessonDescription}
+                      onChange={(e) => setLessonDescription(e.target.value)}
+                      placeholder="Tóm tắt ngắn gọn nội dung bài học..."
+                      className="mt-1.5 w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-heading shadow-2xs placeholder:text-slate-400 focus:border-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+                    />
+                  </div>
+
+                  {/* Text content field */}
+                  {lessonType !== "QUIZ" && (
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
+                          Nội dung bài học
+                        </label>
+                        <span className="text-xs text-muted">{lessonTextContent.length} ký tự</span>
+                      </div>
+                      <textarea
+                        rows={6}
+                        value={lessonTextContent}
+                        onChange={(e) => setLessonTextContent(e.target.value)}
+                        placeholder="Nhập nội dung bài đọc, ghi chú hướng dẫn, code sample hoặc liên kết tài liệu tại đây..."
+                        className="mt-1.5 w-full rounded-xl border border-slate-200 px-4 py-2.5 font-mono text-sm text-heading shadow-2xs placeholder:font-sans placeholder:text-slate-400 focus:border-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+                      />
+                    </div>
+                  )}
+
+                  {/* Options */}
+                  <div className="grid grid-cols-1 gap-4 rounded-2xl bg-slate-50 p-4 sm:grid-cols-2">
+                    <label className="flex cursor-pointer items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={lessonIsPreview}
+                        onChange={(e) => setLessonIsPreview(e.target.checked)}
+                        className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
+                      />
+                      <div>
+                        <span className="text-sm font-semibold text-heading">Cho phép học thử</span>
+                        <p className="text-xs text-muted">
+                          Học viên chưa mua khóa học vẫn xem được bài này
+                        </p>
+                      </div>
+                    </label>
+
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
+                        Trạng thái
+                      </label>
+                      <select
+                        value={lessonStatus}
+                        onChange={(e) => setLessonStatus(e.target.value as LessonStatus)}
+                        className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-heading focus:border-primary focus:outline-hidden"
+                      >
+                        <option value="PUBLISHED">Đã xuất bản (Công khai)</option>
+                        <option value="DRAFT">Bản nháp (Ẩn)</option>
+                      </select>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {lessonType === "QUIZ" && !editingLesson && (
+                <QuizAuthoringFields
+                  passingScore={quizPassingScore}
+                  questions={quizQuestions}
+                  onPassingScoreChange={setQuizPassingScore}
+                  onQuestionsChange={setQuizQuestions}
+                  onAddQuestion={() => {
+                    const id = nextQuizQuestionId.current++;
+                    setQuizQuestions((current) => [...current, createQuizDraftQuestion(id)]);
+                  }}
+                />
+              )}
+
+              {lessonType === "QUIZ" && editingLesson && (
+                <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                  Không hỗ trợ chỉnh sửa câu hỏi sau khi tạo bài kiểm tra. Phần soạn câu hỏi chỉ khả
+                  dụng khi tạo bài mới.
+                </p>
+              )}
 
               <div className="mt-6 flex justify-end gap-3 pt-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="md"
-                  onClick={() => setLessonModalOpen(false)}
-                >
+                <Button type="button" variant="outline" size="md" onClick={handleCloseLessonModal}>
                   Hủy
                 </Button>
                 <Button type="submit" size="md" loading={lessonFormLoading}>
-                  {editingLesson ? "Lưu thay đổi" : "Tạo bài học"}
+                  {incompleteQuizLessonId
+                    ? "Thử lưu câu hỏi"
+                    : editingLesson
+                      ? "Lưu thay đổi"
+                      : "Tạo bài học"}
                 </Button>
               </div>
             </form>

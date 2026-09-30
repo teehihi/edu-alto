@@ -45,11 +45,12 @@ export async function createCheckoutOrder(
   accessToken: string,
   courseIds: string[],
   paymentMethod: PaymentMethod,
+  phoneNumber: string,
 ) {
   return apiRequest<CheckoutOrder>("/me/orders", {
     method: "POST",
     accessToken,
-    body: { courseIds, paymentMethod },
+    body: { courseIds, paymentMethod, phoneNumber },
   });
 }
 
