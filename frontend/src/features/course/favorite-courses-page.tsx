@@ -6,7 +6,10 @@ import { useEffect, useState } from "react";
 import { AppHeader } from "@/components/layout/app-header";
 import { Footer } from "@/components/layout/footer";
 import { FigmaCourseCard } from "@/features/course/course-catalog-page";
+import { useAuthSession } from "@/lib/auth-session";
 import {
+  fetchFavoriteCourses,
+  loadFavoriteCoursesForUser,
   readFavoriteCourses,
   subscribeToFavoriteCourses,
   type FavoriteCourse,
@@ -14,12 +17,47 @@ import {
 
 export function FavoriteCoursesPage() {
   const [courses, setCourses] = useState<FavoriteCourse[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const { user, getAccessToken, isLoading: authLoading } = useAuthSession();
+  const userId = user?.roles.includes("STUDENT") ? user.id : null;
 
   useEffect(() => {
-    const sync = () => setCourses(readFavoriteCourses());
+    if (authLoading) return;
+    let active = true;
+    const sync = () => {
+      if (!userId) {
+        setCourses(readFavoriteCourses());
+        setError("");
+        setLoading(false);
+        return;
+      }
+      void getAccessToken()
+        .then(async (token) => {
+          if (!token) throw new Error("Vui lòng đăng nhập lại để xem khóa học đã lưu.");
+          await loadFavoriteCoursesForUser(userId, token);
+          return fetchFavoriteCourses(token);
+        })
+        .then((favorites) => {
+          if (!active) return;
+          setCourses(favorites);
+          setError("");
+        })
+        .catch(() => {
+          if (!active) return;
+          setError("Không thể tải danh sách yêu thích. Vui lòng thử lại.");
+        })
+        .finally(() => {
+          if (active) setLoading(false);
+        });
+    };
+    const unsubscribe = subscribeToFavoriteCourses(sync);
     sync();
-    return subscribeToFavoriteCourses(sync);
-  }, []);
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [authLoading, getAccessToken, userId]);
 
   return (
     <div className="flex min-h-screen flex-col bg-white">
@@ -30,7 +68,18 @@ export function FavoriteCoursesPage() {
         <h1 className="text-2xl font-bold text-[#101a2c] md:text-3xl">Khóa học yêu thích</h1>
         <p className="mt-2 text-sm text-[#667085]">Những khóa học bạn đã lưu để xem lại sau.</p>
 
-        {courses.length ? (
+        {loading ? (
+          <p className="mt-8 text-sm text-[#667085]" role="status">
+            Đang tải khóa học đã lưu…
+          </p>
+        ) : error ? (
+          <section
+            className="mt-8 rounded-xl border border-rose-200 bg-rose-50 px-5 py-8 text-center text-sm text-rose-700"
+            role="alert"
+          >
+            {error}
+          </section>
+        ) : courses.length ? (
           <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {courses.map((course) => (
               <FigmaCourseCard key={course.id} course={course} />

@@ -12,6 +12,8 @@ public record CourseReviewResponse(
         String comment,
         String status,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        String instructorReply,
+        Instant instructorRepliedAt
 ) {
 }

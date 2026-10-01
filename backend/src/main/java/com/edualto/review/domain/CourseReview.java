@@ -39,6 +39,12 @@ public class CourseReview {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    @Column(name = "instructor_reply", length = 2000)
+    private String instructorReply;
+
+    @Column(name = "instructor_replied_at")
+    private Instant instructorRepliedAt;
+
     protected CourseReview() {
     }
 
@@ -81,6 +87,11 @@ public class CourseReview {
         this.status = status;
     }
 
+    public void setInstructorReply(String reply) {
+        this.instructorReply = reply;
+        this.instructorRepliedAt = reply == null ? null : Instant.now();
+    }
+
     public UUID getId() { return id; }
     public UUID getStudentId() { return studentId; }
     public UUID getCourseId() { return courseId; }
@@ -89,4 +100,6 @@ public class CourseReview {
     public ReviewStatus getStatus() { return status; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
+    public String getInstructorReply() { return instructorReply; }
+    public Instant getInstructorRepliedAt() { return instructorRepliedAt; }
 }

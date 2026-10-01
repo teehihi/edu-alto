@@ -9,8 +9,11 @@ import com.edualto.enrollment.repository.EnrollmentRepository;
 import com.edualto.review.domain.CourseReview;
 import com.edualto.review.domain.ReviewStatus;
 import com.edualto.review.dto.CourseReviewRequest;
+import com.edualto.review.dto.CourseReviewRatingCountResponse;
 import com.edualto.review.dto.CourseReviewResponse;
 import com.edualto.review.dto.CourseReviewSummaryResponse;
+import com.edualto.review.dto.InstructorReviewReplyRequest;
+import com.edualto.review.dto.InstructorReviewSummaryResponse;
 import com.edualto.review.repository.CourseReviewRepository;
 import com.edualto.user.domain.RoleName;
 import com.edualto.user.domain.User;
@@ -18,6 +21,8 @@ import com.edualto.user.domain.UserStatus;
 import com.edualto.user.service.UserService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.Locale;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -59,13 +64,60 @@ public class CourseReviewService {
     }
 
     @Transactional(readOnly = true)
+    public Page<CourseReviewResponse> listInstructorReviews(
+            UUID instructorId, UUID courseId, int page, int size, String status
+    ) {
+        requireInstructorCourse(instructorId, courseId);
+        validatePagination(page, size);
+        ReviewStatus reviewStatus = null;
+        if (status != null && !status.isBlank()) {
+            try {
+                reviewStatus = ReviewStatus.valueOf(status.trim().toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException exception) {
+                throw new BusinessException(HttpStatus.BAD_REQUEST, "INVALID_REVIEW_STATUS", "Trạng thái đánh giá không hợp lệ");
+            }
+        }
+        return reviews.findInstructorReviews(
+                courseId,
+                reviewStatus,
+                PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by("id")))
+        );
+    }
+
+    @Transactional(readOnly = true)
     public CourseReviewSummaryResponse getSummary(UUID courseId) {
         requirePublishedCourse(courseId);
         BigDecimal average = reviews.getAverageRating(courseId, ReviewStatus.PUBLISHED);
+        List<CourseReviewRatingCountResponse> ratingCounts = reviews
+                .getRatingCounts(courseId, ReviewStatus.PUBLISHED)
+                .stream()
+                .map(count -> new CourseReviewRatingCountResponse(count.getRating(), count.getRatingCount()))
+                .toList();
         return new CourseReviewSummaryResponse(
                 courseId,
                 average == null ? EMPTY_AVERAGE : average.setScale(2, RoundingMode.HALF_UP),
-                reviews.countByCourseIdAndStatus(courseId, ReviewStatus.PUBLISHED)
+                reviews.countByCourseIdAndStatus(courseId, ReviewStatus.PUBLISHED),
+                ratingCounts
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public InstructorReviewSummaryResponse getInstructorSummary(UUID instructorId) {
+        User instructor = users.requireById(instructorId);
+        if (instructor.getStatus() != UserStatus.ACTIVE
+                || instructor.getRoles().stream().noneMatch(role -> role.getName() == RoleName.INSTRUCTOR)) {
+            throw new BusinessException(HttpStatus.FORBIDDEN, "INSTRUCTOR_REQUIRED", "Chức năng này dành cho giảng viên đang hoạt động");
+        }
+        BigDecimal average = reviews.getInstructorAverageRating(instructorId, ReviewStatus.PUBLISHED);
+        List<CourseReviewRatingCountResponse> ratingCounts = reviews
+                .getInstructorRatingCounts(instructorId, ReviewStatus.PUBLISHED)
+                .stream()
+                .map(count -> new CourseReviewRatingCountResponse(count.getRating(), count.getRatingCount()))
+                .toList();
+        return new InstructorReviewSummaryResponse(
+                average == null ? EMPTY_AVERAGE : average.setScale(2, RoundingMode.HALF_UP),
+                reviews.countByInstructorIdAndStatus(instructorId, ReviewStatus.PUBLISHED),
+                ratingCounts
         );
     }
 
@@ -103,6 +155,45 @@ public class CourseReviewService {
         return toResponse(saved, users.requireById(saved.getStudentId()).getFullName());
     }
 
+    @Transactional
+    public CourseReviewResponse replyToReview(
+            UUID instructorId, UUID courseId, UUID reviewId, InstructorReviewReplyRequest request
+    ) {
+        requireInstructorCourse(instructorId, courseId);
+        CourseReview review = requireCourseReview(courseId, reviewId);
+        review.setInstructorReply(request.reply().trim());
+        CourseReview saved = reviews.save(review);
+        return toResponse(saved, users.requireById(saved.getStudentId()).getFullName());
+    }
+
+    @Transactional
+    public CourseReviewResponse deleteInstructorReply(UUID instructorId, UUID courseId, UUID reviewId) {
+        requireInstructorCourse(instructorId, courseId);
+        CourseReview review = requireCourseReview(courseId, reviewId);
+        if (review.getInstructorReply() == null) {
+            throw new BusinessException(HttpStatus.NOT_FOUND, "REVIEW_REPLY_NOT_FOUND", "Đánh giá chưa có phản hồi của giảng viên");
+        }
+        review.setInstructorReply(null);
+        CourseReview saved = reviews.save(review);
+        return toResponse(saved, users.requireById(saved.getStudentId()).getFullName());
+    }
+
+    private CourseReview requireCourseReview(UUID courseId, UUID reviewId) {
+        return reviews.findById(reviewId)
+                .filter(review -> review.getCourseId().equals(courseId))
+                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "REVIEW_NOT_FOUND", "Không tìm thấy đánh giá"));
+    }
+
+    private Course requireInstructorCourse(UUID instructorId, UUID courseId) {
+        User instructor = users.requireById(instructorId);
+        if (instructor.getStatus() != UserStatus.ACTIVE
+                || instructor.getRoles().stream().noneMatch(role -> role.getName() == RoleName.INSTRUCTOR)) {
+            throw new BusinessException(HttpStatus.FORBIDDEN, "INSTRUCTOR_REQUIRED", "Chức năng này dành cho giảng viên đang hoạt động");
+        }
+        return courses.findByIdAndInstructorId(courseId, instructorId)
+                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "COURSE_NOT_FOUND", "Không tìm thấy khóa học"));
+    }
+
     private Course requirePublishedCourse(UUID courseId) {
         return courses.findById(courseId)
                 .filter(course -> course.getStatus() == CourseStatus.PUBLISHED)
@@ -123,7 +214,8 @@ public class CourseReviewService {
         return new CourseReviewResponse(
                 review.getId(), review.getCourseId(), review.getStudentId(), studentName,
                 review.getRating(), review.getComment(), review.getStatus().name(),
-                review.getCreatedAt(), review.getUpdatedAt()
+                review.getCreatedAt(), review.getUpdatedAt(),
+                review.getInstructorReply(), review.getInstructorRepliedAt()
         );
     }
 }

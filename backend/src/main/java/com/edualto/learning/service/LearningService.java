@@ -1,6 +1,7 @@
 package com.edualto.learning.service;
 
 import com.edualto.common.exception.BusinessException;
+import com.edualto.certificate.service.CertificateService;
 import com.edualto.course.domain.LessonType;
 import com.edualto.course.dto.LearningLessonResponse;
 import com.edualto.course.service.CourseLearningAccessService;
@@ -18,11 +19,14 @@ public class LearningService {
     private final CourseLearningAccessService courses;
     private final EnrollmentService enrollments;
     private final LearningProgressRepository progress;
+    private final CertificateService certificates;
 
-    public LearningService(CourseLearningAccessService courses, EnrollmentService enrollments, LearningProgressRepository progress) {
+    public LearningService(CourseLearningAccessService courses, EnrollmentService enrollments,
+            LearningProgressRepository progress, CertificateService certificates) {
         this.courses = courses;
         this.enrollments = enrollments;
         this.progress = progress;
+        this.certificates = certificates;
     }
 
     @Transactional(readOnly = true)
@@ -39,13 +43,15 @@ public class LearningService {
         UUID enrollmentId = enrollments.requireEnrollment(studentId, lesson.courseId());
         requireCompletableLesson(lesson);
         progress.completeIfAbsent(UUID.randomUUID(), enrollmentId, lesson.courseId(), lesson.sectionId(), lesson.id());
+        certificates.issueIfEligible(studentId, lesson.courseId());
         return summarize(enrollmentId, lesson.courseId());
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public CourseProgressResponse getProgress(UUID studentId, UUID courseId) {
         UUID enrollmentId = enrollments.requireEnrollment(studentId, courseId);
         courses.requirePublishedCourse(courseId);
+        certificates.issueIfEligible(studentId, courseId);
         return summarize(enrollmentId, courseId);
     }
 

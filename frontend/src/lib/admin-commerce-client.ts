@@ -3,6 +3,9 @@ import { apiPageRequest, apiRequest } from "@/lib/api";
 export type PaymentReviewOrder = {
   orderId: string;
   status: "PAYMENT_REVIEW";
+  paymentStatus: "PENDING" | "REVIEW" | "PAID" | "FAILED";
+  expiresAt: string | null;
+  paymentReviewReason: string | null;
   paymentMethod: "MOMO" | "VIETQR" | string;
   transferReference: string;
   studentId: string;
@@ -15,6 +18,9 @@ export type PaymentReviewOrder = {
 export type ConfirmedOrder = {
   orderId: string;
   status: string;
+  paymentStatus?: string;
+  expiresAt?: string | null;
+  paymentReviewReason?: string | null;
   currency: string;
   total: number;
   createdAt: string;
@@ -37,6 +43,17 @@ export function confirmManualPayment(
 ) {
   return apiRequest<ConfirmedOrder>(
     `/admin/orders/${encodeURIComponent(orderId)}/confirm-payment`,
+    { method: "POST", accessToken, body: { receiptReference } },
+  );
+}
+
+export function confirmCapturedPayment(
+  accessToken: string,
+  orderId: string,
+  receiptReference: string,
+) {
+  return apiRequest<ConfirmedOrder>(
+    `/admin/orders/${encodeURIComponent(orderId)}/confirm-captured-payment`,
     { method: "POST", accessToken, body: { receiptReference } },
   );
 }

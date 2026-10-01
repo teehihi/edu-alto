@@ -1,29 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import {
-  Archive,
   BookOpen,
   ChartNoAxesCombined,
   CircleAlert,
-  CircleArrowUp,
-  DollarSign,
-  LayoutDashboard,
-  MessageSquare,
+  MoreHorizontal,
   Plus,
-  Pencil,
   RefreshCw,
-  Settings,
-  Star,
-  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { UserAvatar } from "@/components/ui/user-avatar";
 import { useAuth } from "@/features/auth/auth-client";
+import { InstructorWorkspaceShell } from "@/features/instructor/instructor-workspace-shell";
 import { ApiClientError } from "@/lib/api";
+import {
+  fetchInstructorRevenueSummary,
+  type InstructorRevenueSummary,
+} from "@/lib/instructor-revenue-client";
+import { fetchInstructorReviewSummary, type InstructorReviewSummary } from "@/lib/review-client";
 import {
   archiveInstructorCourse,
   createInstructorCourse,
@@ -36,6 +32,11 @@ import {
   type InstructorCoursePayload,
   type InstructorCourseStatus,
 } from "@/lib/instructor-course-client";
+import {
+  fetchInstructorCourseMetrics,
+  indexInstructorCourseMetrics,
+  type InstructorCourseMetrics,
+} from "@/lib/instructor-course-metrics-client";
 
 const statusCopy: Record<InstructorCourseStatus, string> = {
   DRAFT: "Bản nháp",
@@ -48,12 +49,6 @@ const statusStyle: Record<InstructorCourseStatus, string> = {
   PUBLISHED: "bg-emerald-50 text-emerald-800 ring-emerald-200",
   ARCHIVED: "bg-slate-100 text-slate-700 ring-slate-200",
 };
-
-const metrics = [
-  { title: "Tổng hoa hồng từ khóa học", icon: ChartNoAxesCombined },
-  { title: "Tổng hoa hồng đã nhận", icon: ChartNoAxesCombined },
-  { title: "Hoa hồng đang chờ xử lý", icon: ChartNoAxesCombined },
-];
 
 const ratingBuckets = ["Tổng đánh giá", "1 sao", "2 sao", "3 sao", "4 sao", "5 sao"];
 
@@ -70,107 +65,134 @@ function formatPrice(price: number): string {
 
 function CourseCard({
   course,
+  stats,
   onEdit,
   onArchive,
   onDelete,
   onPublish,
 }: {
   course: InstructorCourse;
+  stats: InstructorCourseMetrics | null;
   onEdit: (course: InstructorCourse) => void;
   onArchive: (course: InstructorCourse) => void;
   onDelete: (course: InstructorCourse) => void;
   onPublish: (course: InstructorCourse) => void;
 }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const badge =
+    course.price === 0
+      ? { label: "Miễn phí", className: "bg-slate-100 text-slate-800" }
+      : course.originalPrice && course.originalPrice > course.price
+        ? { label: "Giảm giá", className: "bg-slate-100 text-slate-800" }
+        : course.status === "PUBLISHED"
+          ? { label: "Đang xuất bản", className: "bg-primary text-white" }
+          : { label: statusCopy[course.status], className: statusStyle[course.status] };
+
+  const metrics = [
+    [formatPrice(course.price), "Giá"],
+    [stats ? stats.certificateCount.toLocaleString("vi-VN") : "—", "Chứng chỉ"],
+    [stats ? stats.chapterCount.toLocaleString("vi-VN") : "—", "Chương"],
+    [stats ? stats.publicReviewCount.toLocaleString("vi-VN") : "—", "Đánh giá"],
+    [stats ? stats.paidOrderCount.toLocaleString("vi-VN") : "—", "Đơn hàng"],
+    [stats ? stats.wishlistCount.toLocaleString("vi-VN") : "—", "Thêm vào kệ"],
+  ];
+
   return (
-    <article className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-      {course.thumbnailUrl ? (
-        <div className="h-32 overflow-hidden bg-slate-100">
-          {/* The course thumbnail is supplied by the API and can change independently. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={course.thumbnailUrl} alt="" className="h-full w-full object-cover" />
-        </div>
-      ) : null}
-      <div className="p-4">
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <h2 className="min-w-0 flex-1 text-sm font-semibold leading-5 text-primary">
-            {course.title}
-          </h2>
-          <span
-            className={`inline-flex shrink-0 rounded-md px-2 py-1 text-[11px] font-semibold ring-1 ring-inset ${statusStyle[course.status]}`}
+    <article className="relative rounded-lg border border-slate-200 bg-white p-3 shadow-[0_0_8px_rgba(59,130,246,0.12)] sm:p-4">
+      <div className="flex items-center justify-between gap-2">
+        <span className={`rounded-md px-2 py-1 text-[10px] font-semibold ${badge.className}`}>
+          {badge.label}
+        </span>
+        <div className="relative">
+          <button
+            type="button"
+            aria-label={`Tùy chọn khóa học ${course.title}`}
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((open) => !open)}
+            className="focus-ring inline-flex size-8 items-center justify-center rounded-md text-slate-500 transition hover:bg-slate-100 active:bg-slate-200"
           >
-            {statusCopy[course.status]}
-          </span>
+            <MoreHorizontal className="h-5 w-5" aria-hidden="true" />
+          </button>
+          {menuOpen ? (
+            <div
+              role="menu"
+              className="absolute right-0 top-full z-20 mt-1 w-44 rounded-lg border border-slate-200 bg-white p-1 shadow-lg"
+            >
+              <Link
+                role="menuitem"
+                href={`/instructor/courses/${encodeURIComponent(course.id)}/overview`}
+                onClick={() => setMenuOpen(false)}
+                className="focus-ring flex min-h-9 items-center rounded px-2 text-sm text-slate-700 hover:bg-slate-50"
+              >
+                Quản lý khóa học
+              </Link>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  onEdit(course);
+                }}
+                className="focus-ring flex min-h-9 w-full items-center rounded px-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+              >
+                Chỉnh sửa
+              </button>
+              {course.status === "DRAFT" ? (
+                <>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onPublish(course);
+                    }}
+                    className="focus-ring flex min-h-9 w-full items-center rounded px-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                  >
+                    Xuất bản
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onDelete(course);
+                    }}
+                    className="focus-ring flex min-h-9 w-full items-center rounded px-2 text-left text-sm text-rose-700 hover:bg-rose-50"
+                  >
+                    Xóa bản nháp
+                  </button>
+                </>
+              ) : course.status === "PUBLISHED" ? (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onArchive(course);
+                  }}
+                  className="focus-ring flex min-h-9 w-full items-center rounded px-2 text-left text-sm text-rose-700 hover:bg-rose-50"
+                >
+                  Lưu trữ
+                </button>
+              ) : null}
+            </div>
+          ) : null}
         </div>
-        {course.tagline ? (
-          <p className="mt-2 line-clamp-2 text-xs text-muted">{course.tagline}</p>
-        ) : null}
-        <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
-          <span className="text-xs text-muted">Giá khóa học</span>
-          <span className="text-sm font-bold text-ink">{formatPrice(course.price)}</span>
-        </div>
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          <Link
-            href={`/instructor/courses/${encodeURIComponent(course.id)}/curriculum`}
-            className="focus-ring col-span-2 flex min-h-10 items-center justify-center rounded-lg border border-primary px-3 text-sm font-semibold text-primary transition hover:bg-primary-soft active:bg-[#d9fff3]"
-          >
-            Quản lý nội dung
-          </Link>
-          {course.status === "DRAFT" ? (
-            <>
-              <button
-                type="button"
-                onClick={() => onEdit(course)}
-                className="focus-ring flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-700 transition hover:border-primary hover:text-primary active:bg-slate-50"
-              >
-                <Pencil className="h-4 w-4" aria-hidden="true" /> Chỉnh sửa
-              </button>
-              <button
-                type="button"
-                onClick={() => onPublish(course)}
-                className="focus-ring flex min-h-10 items-center justify-center gap-2 rounded-lg border border-primary bg-primary px-3 text-sm font-semibold text-white transition hover:bg-[#159e75] active:bg-[#128763]"
-              >
-                <CircleArrowUp className="h-4 w-4" aria-hidden="true" /> Xuất bản
-              </button>
-              <button
-                type="button"
-                onClick={() => onDelete(course)}
-                className="focus-ring col-span-2 flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-600 transition hover:border-rose-300 hover:text-rose-700 active:bg-rose-50"
-              >
-                <Trash2 className="h-4 w-4" aria-hidden="true" /> Xóa bản nháp
-              </button>
-            </>
-          ) : course.status !== "ARCHIVED" ? (
-            <>
-              <button
-                type="button"
-                onClick={() => onEdit(course)}
-                className="focus-ring flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-700 transition hover:border-primary hover:text-primary active:bg-slate-50"
-              >
-                <Pencil className="h-4 w-4" aria-hidden="true" /> Chỉnh sửa
-              </button>
-              <button
-                type="button"
-                onClick={() => onArchive(course)}
-                className="focus-ring flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-600 transition hover:border-rose-300 hover:text-rose-700 active:bg-rose-50"
-              >
-                <Archive className="h-4 w-4" aria-hidden="true" /> Lưu trữ
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                onClick={() => onEdit(course)}
-                className="focus-ring flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-700 transition hover:border-primary hover:text-primary active:bg-slate-50"
-              >
-                <Pencil className="h-4 w-4" aria-hidden="true" /> Chỉnh sửa
-              </button>
-              <span className="flex min-h-10 items-center justify-center rounded-lg bg-slate-50 px-3 text-xs text-slate-500">
-                Khóa học đã lưu trữ
-              </span>
-            </>
-          )}
-        </div>
+      </div>
+      <Link
+        href={`/instructor/courses/${encodeURIComponent(course.id)}/overview`}
+        className="focus-ring mt-1 block rounded-sm text-base font-semibold leading-6 text-primary hover:text-[#159e75]"
+      >
+        {course.title}
+      </Link>
+      <div className="mt-2 grid grid-flow-col grid-cols-3 grid-rows-2 gap-y-2 border-t border-slate-100 pt-2">
+        {metrics.map(([value, label]) => (
+          <div key={label} className="min-w-0">
+            <p className="truncate text-sm font-semibold leading-5 text-slate-900">{value}</p>
+            <p className="truncate text-[10px] leading-4 text-slate-600">{label}</p>
+          </div>
+        ))}
       </div>
     </article>
   );
@@ -194,17 +216,16 @@ const emptyCourseForm: InstructorCoursePayload = {
   thumbnailKey: null,
 };
 
-function UnavailableValue() {
-  return (
-    <span className="text-lg font-semibold text-ink" aria-label="Chưa có dữ liệu">
-      —
-    </span>
-  );
-}
-
 export function InstructorDashboardPage() {
-  const { accessToken, loading: authLoading, user } = useAuth();
+  const { accessToken, loading: authLoading } = useAuth();
   const [courses, setCourses] = useState<InstructorCourse[]>([]);
+  const [courseStats, setCourseStats] = useState<Record<string, InstructorCourseMetrics>>({});
+  const [reviewSummary, setReviewSummary] = useState<InstructorReviewSummary | null>(null);
+  const [revenueSummary, setRevenueSummary] = useState<InstructorRevenueSummary | null>(null);
+  const [revenueSummaryLoading, setRevenueSummaryLoading] = useState(false);
+  const [revenueSummaryAvailable, setRevenueSummaryAvailable] = useState(true);
+  const [reviewSummaryLoading, setReviewSummaryLoading] = useState(false);
+  const [reviewSummaryAvailable, setReviewSummaryAvailable] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [courseFormOpen, setCourseFormOpen] = useState(false);
@@ -218,6 +239,7 @@ export function InstructorDashboardPage() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [publishTarget, setPublishTarget] = useState<InstructorCourse | null>(null);
   const [publishLoading, setPublishLoading] = useState(false);
+  const [dashboardOptionsOpen, setDashboardOptionsOpen] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -248,6 +270,122 @@ export function InstructorDashboardPage() {
     const timer = window.setTimeout(() => void loadCourses(), 0);
     return () => window.clearTimeout(timer);
   }, [loadCourses]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!accessToken || courses.length === 0) {
+      const timeout = window.setTimeout(() => setCourseStats({}), 0);
+      return () => {
+        cancelled = true;
+        window.clearTimeout(timeout);
+      };
+    }
+
+    void fetchInstructorCourseMetrics(accessToken)
+      .then((result) => {
+        if (!cancelled) setCourseStats(indexInstructorCourseMetrics(result));
+      })
+      .catch(() => {
+        if (!cancelled) setCourseStats({});
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken, courses]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!accessToken || courses.length === 0) {
+      const timeout = window.setTimeout(() => {
+        setReviewSummary(null);
+        setReviewSummaryLoading(false);
+        setReviewSummaryAvailable(Boolean(accessToken) && !error);
+      }, 0);
+      return () => {
+        cancelled = true;
+        window.clearTimeout(timeout);
+      };
+    }
+
+    const timeout = window.setTimeout(() => {
+      setReviewSummaryLoading(true);
+      void fetchInstructorReviewSummary(accessToken)
+        .then((summary) => {
+          if (cancelled) return;
+          setReviewSummary(summary);
+          setReviewSummaryAvailable(true);
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setReviewSummary(null);
+          setReviewSummaryAvailable(false);
+        })
+        .finally(() => {
+          if (!cancelled) setReviewSummaryLoading(false);
+        });
+    }, 0);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+    };
+  }, [accessToken, courses, error]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    let cancelled = false;
+    const timeout = window.setTimeout(() => {
+      if (!accessToken) {
+        setRevenueSummary(null);
+        setRevenueSummaryAvailable(false);
+        setRevenueSummaryLoading(false);
+        return;
+      }
+      setRevenueSummaryLoading(true);
+      void fetchInstructorRevenueSummary(accessToken, {})
+        .then((summary) => {
+          if (cancelled) return;
+          setRevenueSummary(summary);
+          setRevenueSummaryAvailable(true);
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setRevenueSummary(null);
+          setRevenueSummaryAvailable(false);
+        })
+        .finally(() => {
+          if (!cancelled) setRevenueSummaryLoading(false);
+        });
+    }, 0);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+    };
+  }, [accessToken, authLoading]);
+
+  const revenueMetrics = [
+    {
+      title: "Doanh thu khóa học đã thanh toán",
+      value: revenueSummary
+        ? `${new Intl.NumberFormat("vi-VN").format(revenueSummary.paidNetAmount)}đ`
+        : "—",
+      detail: "Sau ưu đãi, trước phí nền tảng",
+      icon: ChartNoAxesCombined,
+    },
+    {
+      title: "Giao dịch đã thanh toán",
+      value: revenueSummary?.paidTransactionCount.toLocaleString("vi-VN") ?? "—",
+      detail: "Tính theo từng khóa học trong đơn",
+      icon: ChartNoAxesCombined,
+    },
+    {
+      title: "Đơn hàng đang chờ",
+      value: revenueSummary?.pendingTransactionCount.toLocaleString("vi-VN") ?? "—",
+      detail: "Chờ thanh toán hoặc xác nhận",
+      icon: ChartNoAxesCombined,
+    },
+  ];
 
   const openCreateCourse = () => {
     setEditingCourse(null);
@@ -392,86 +530,75 @@ export function InstructorDashboardPage() {
     }
   };
 
-  const sidebarLinks = [
-    { label: "Tổng quan", icon: LayoutDashboard, href: "/instructor", active: true },
-    { label: "Khóa học", icon: BookOpen, href: "#courses-heading", active: false },
-  ];
+  function downloadCourseList() {
+    if (courses.length === 0) return;
+    const escapeCsv = (value: string) => `"${value.replaceAll('"', '""')}"`;
+    const rows = [
+      ["Tên khóa học", "Trạng thái", "Giá", "Ngày cập nhật"],
+      ...courses.map((course) => [
+        course.title,
+        statusCopy[course.status],
+        String(course.price),
+        course.updatedAt,
+      ]),
+    ];
+    const csv = `\uFEFF${rows.map((row) => row.map(escapeCsv).join(",")).join("\r\n")}`;
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "khoa-hoc-giang-vien.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+    setDashboardOptionsOpen(false);
+  }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-ink lg:flex">
-      <aside className="flex shrink-0 flex-col bg-[#101A2C] text-white lg:sticky lg:top-0 lg:h-screen lg:w-[261px]">
-        <div className="flex h-[64px] items-center justify-between border-b border-white/10 px-5 lg:h-[68px]">
-          <Link href="/" className="focus-ring rounded-sm" aria-label="EduAlto, về trang chủ">
-            <Image
-              src="/images/edualto-wordmark.png"
-              alt="EduAlto"
-              width={73}
-              height={16}
-              priority
-            />
-          </Link>
-          <span className="text-xs font-medium text-slate-400">Giảng viên</span>
-        </div>
-        <nav
-          aria-label="Điều hướng giảng viên"
-          className="flex gap-1 overflow-x-auto p-2 lg:flex-1 lg:flex-col lg:gap-2 lg:p-3 lg:pt-5"
-        >
-          {sidebarLinks.map(({ label, icon: Icon, href, active }) => (
-            <Link
-              key={label}
-              href={href}
-              aria-current={active ? "page" : undefined}
-              className={`focus-ring flex min-h-11 shrink-0 items-center gap-3 rounded-md px-3 text-sm transition ${
-                active
-                  ? "bg-white/5 font-semibold text-primary"
-                  : "text-slate-200 hover:bg-white/5 hover:text-white"
-              }`}
-            >
-              <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
-              {label}
-            </Link>
-          ))}
-          <span className="hidden px-3 pt-3 text-xs font-medium text-slate-500 lg:block">
-            Sắp ra mắt
-          </span>
-          <div className="hidden lg:block">
-            {[
-              { label: "Cộng đồng", icon: MessageSquare },
-              { label: "Doanh thu và Lợi nhuận", icon: DollarSign },
-              { label: "Cài đặt", icon: Settings },
-            ].map(({ label, icon: Icon }) => (
-              <span
-                key={label}
-                aria-disabled="true"
-                className="flex min-h-11 items-center gap-3 rounded-md px-3 text-sm text-slate-500"
-              >
-                <Icon className="h-[18px] w-[18px]" aria-hidden="true" /> {label}
-              </span>
-            ))}
-          </div>
-        </nav>
-        <div className="hidden items-center gap-3 border-t border-white/10 px-5 py-4 lg:flex">
-          <UserAvatar name={user?.fullName} avatarUrl={user?.avatarUrl} size="sm" />
-          <span className="truncate text-sm text-slate-200">
-            Chào, {user?.fullName || "Giảng viên"}
-          </span>
-        </div>
-      </aside>
-
+    <InstructorWorkspaceShell activeSection="dashboard">
       <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-10 lg:py-6 xl:pr-[38px] xl:pl-[61px]">
         <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-2xl font-semibold text-primary">Tổng quan</h1>
-          <Button type="button" variant="primary" onClick={openCreateCourse}>
-            <Plus className="h-4 w-4" aria-hidden="true" /> Thêm khóa học
-          </Button>
+          <div className="flex items-center gap-2 self-end sm:self-auto">
+            <Button type="button" variant="primary" onClick={openCreateCourse}>
+              <Plus className="h-4 w-4" aria-hidden="true" /> Thêm khóa học
+            </Button>
+            <div className="relative">
+              <button
+                type="button"
+                aria-label="Tùy chọn tổng quan"
+                aria-expanded={dashboardOptionsOpen}
+                aria-haspopup="menu"
+                onClick={() => setDashboardOptionsOpen((open) => !open)}
+                className="focus-ring inline-flex h-10 w-10 items-center justify-center rounded-md text-slate-700 transition hover:bg-slate-200 active:bg-slate-300"
+              >
+                <MoreHorizontal className="h-5 w-5" aria-hidden="true" />
+              </button>
+              {dashboardOptionsOpen ? (
+                <div
+                  role="menu"
+                  aria-label="Tùy chọn tổng quan"
+                  className="absolute right-0 top-full z-20 mt-2 w-56 rounded-lg border border-slate-200 bg-white p-1.5 shadow-lg"
+                >
+                  <button
+                    type="button"
+                    role="menuitem"
+                    disabled={courses.length === 0}
+                    onClick={downloadCourseList}
+                    className="focus-ring flex min-h-10 w-full items-center rounded-md px-3 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-400"
+                  >
+                    Tải danh sách khóa học (CSV)
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          </div>
         </header>
 
         <section
-          aria-label="Doanh thu và hoa hồng"
+          aria-label="Doanh thu khóa học"
           className="grid gap-4 xl:grid-cols-[minmax(280px,378px)_minmax(0,1fr)]"
         >
           <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
-            {metrics.map(({ title, icon: Icon }) => (
+            {revenueMetrics.map(({ title, value, detail, icon: Icon }) => (
               <article
                 key={title}
                 className="flex min-h-[88px] items-center gap-4 rounded-lg border border-slate-200 bg-white px-5 py-4 shadow-sm xl:min-h-[116px]"
@@ -482,9 +609,17 @@ export function InstructorDashboardPage() {
                   aria-hidden="true"
                 />
                 <div>
-                  <UnavailableValue />
+                  <span className="text-lg font-semibold text-ink" aria-live="polite">
+                    {revenueSummaryLoading && revenueSummary === null
+                      ? "…"
+                      : revenueSummaryAvailable
+                        ? value
+                        : "—"}
+                  </span>
                   <p className="mt-1 text-xs leading-5 text-slate-600">{title}</p>
-                  <p className="text-[11px] text-muted">Chưa có dữ liệu</p>
+                  <p className="text-[11px] text-muted">
+                    {revenueSummaryAvailable ? detail : "Dữ liệu doanh thu hiện chưa sẵn có"}
+                  </p>
                 </div>
               </article>
             ))}
@@ -500,14 +635,53 @@ export function InstructorDashboardPage() {
               </h2>
               <span className="text-xs text-muted">Đơn vị: đ</span>
             </div>
-            <div className="flex flex-1 flex-col items-center justify-center text-center">
-              <ChartNoAxesCombined className="h-9 w-9 text-slate-300" aria-hidden="true" />
-              <p className="mt-3 text-sm font-medium text-slate-700">
-                Biểu đồ doanh số chưa có dữ liệu
-              </p>
-              <p className="mt-1 max-w-sm text-xs leading-5 text-muted">
-                Thống kê sẽ hiển thị khi hệ thống có dữ liệu doanh thu cho khóa học của bạn.
-              </p>
+            <div className="flex flex-1 flex-col justify-center">
+              {revenueSummaryLoading ? (
+                <p className="text-center text-sm text-slate-500">Đang tải doanh thu…</p>
+              ) : !revenueSummaryAvailable || !revenueSummary ? (
+                <p className="text-center text-sm text-slate-500">
+                  Chưa có dữ liệu doanh thu để hiển thị.
+                </p>
+              ) : (revenueSummary.periods ?? []).every((period) => period.netAmount === 0) ? (
+                <div className="flex flex-col items-center text-center">
+                  <ChartNoAxesCombined className="h-9 w-9 text-slate-300" aria-hidden="true" />
+                  <p className="mt-3 text-sm font-medium text-slate-700">
+                    Chưa có giao dịch đã thanh toán
+                  </p>
+                  <p className="mt-1 max-w-sm text-xs leading-5 text-muted">
+                    Biểu đồ theo dõi 12 tháng gần nhất.
+                  </p>
+                </div>
+              ) : (
+                <div
+                  role="img"
+                  aria-label="Doanh thu khóa học đã thanh toán trong 12 tháng gần nhất"
+                  className="flex h-48 items-end gap-2 overflow-x-auto pb-1"
+                >
+                  {(revenueSummary.periods ?? []).map((period) => {
+                    const maximum = Math.max(
+                      ...(revenueSummary.periods ?? []).map((entry) => entry.netAmount),
+                    );
+                    const height =
+                      maximum === 0 ? 0 : Math.max(3, (period.netAmount / maximum) * 130);
+                    return (
+                      <div
+                        key={period.label}
+                        className="flex h-full min-w-[28px] flex-1 flex-col justify-end"
+                      >
+                        <div
+                          title={`${period.label}: ${new Intl.NumberFormat("vi-VN").format(period.netAmount)}đ`}
+                          className="mx-auto w-full max-w-7 rounded-t bg-primary/80 hover:bg-primary"
+                          style={{ height: `${height}px` }}
+                        />
+                        <span className="mt-2 truncate text-center text-[9px] text-slate-500">
+                          {period.label.slice(5)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </section>
         </section>
@@ -517,21 +691,48 @@ export function InstructorDashboardPage() {
             Đánh giá
           </h2>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
-            {ratingBuckets.map((label, index) => (
-              <article
-                key={label}
-                className="min-h-[76px] rounded-lg border border-slate-200 bg-white p-3 shadow-sm"
-              >
-                <p className="text-xs text-slate-600">{label}</p>
-                <div className="mt-2 flex items-center gap-2">
-                  <UnavailableValue />
-                  {index > 0 ? (
-                    <Star className="h-4 w-4 text-amber-400" aria-label={`${index} sao`} />
+            {ratingBuckets.map((label, index) => {
+              const value =
+                index === 0
+                  ? (reviewSummary?.reviewCount ?? 0)
+                  : (reviewSummary?.ratingCounts?.find((item) => item.rating === index)?.count ??
+                    0);
+              const displayValue =
+                loading || reviewSummaryLoading
+                  ? "…"
+                  : reviewSummaryAvailable
+                    ? value.toLocaleString("vi-VN")
+                    : "—";
+              const badgeColors = [
+                "",
+                "bg-rose-500",
+                "bg-amber-500",
+                "bg-yellow-400",
+                "bg-emerald-400",
+                "bg-emerald-600",
+              ];
+              return (
+                <article
+                  key={label}
+                  className="min-h-[76px] rounded-lg border border-slate-200 bg-white p-3 shadow-sm"
+                >
+                  <p className="text-xs text-slate-600">{label}</p>
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="text-xl font-semibold text-slate-900">{displayValue}</span>
+                    {index > 0 ? (
+                      <span
+                        className={`rounded px-1.5 py-0.5 text-[10px] font-semibold text-white ${badgeColors[index]}`}
+                      >
+                        {index.toFixed(1)}
+                      </span>
+                    ) : null}
+                  </div>
+                  {!reviewSummaryLoading && !reviewSummaryAvailable ? (
+                    <p className="text-[10px] text-muted">Chưa tải được thống kê</p>
                   ) : null}
-                </div>
-                <p className="text-[10px] text-muted">Chưa có dữ liệu</p>
-              </article>
-            ))}
+                </article>
+              );
+            })}
           </div>
         </section>
 
@@ -544,9 +745,19 @@ export function InstructorDashboardPage() {
             <h2 id="courses-heading-title" className="text-base font-semibold text-slate-900">
               Khóa học
             </h2>
-            <span className="text-xs text-muted">
-              {loading ? "Đang tải…" : `${courses.length} khóa học`}
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-muted">
+                {loading ? "Đang tải…" : `${courses.length} khóa học`}
+              </span>
+              {courses.length > 3 ? (
+                <Link
+                  href="/instructor/courses/overview"
+                  className="focus-ring rounded text-xs font-semibold text-primary hover:underline"
+                >
+                  Xem tất cả
+                </Link>
+              ) : null}
+            </div>
           </div>
 
           {actionError ? (
@@ -597,10 +808,11 @@ export function InstructorDashboardPage() {
             </div>
           ) : (
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {courses.map((course) => (
+              {courses.slice(0, 3).map((course) => (
                 <CourseCard
                   key={course.id}
                   course={course}
+                  stats={courseStats[course.id] ?? null}
                   onEdit={openEditCourse}
                   onArchive={setArchiveTarget}
                   onDelete={setDeleteTarget}
@@ -907,6 +1119,6 @@ export function InstructorDashboardPage() {
           </section>
         </div>
       ) : null}
-    </div>
+    </InstructorWorkspaceShell>
   );
 }

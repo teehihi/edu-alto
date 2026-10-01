@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   BookOpen,
+  Award,
   ChevronDown,
   ChevronRight,
   CirclePlay,
@@ -89,8 +90,8 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
   }, [courseId, getAccessToken, router, sessionLoading, user]);
 
   const allLessons = curriculum?.sections.flatMap((section) => section.lessons) ?? [];
-  const nextLesson = allLessons.find(
-    (lesson) => lesson.lessonType === "TEXT" || lesson.lessonType === "QUIZ",
+  const nextLesson = allLessons.find((lesson) =>
+    ["TEXT", "VIDEO", "QUIZ"].includes(lesson.lessonType),
   );
 
   return (
@@ -150,6 +151,20 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
                 </span>
               </div>
             </section>
+            {progress?.completed && (
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#ccefe2] bg-[#effbf6] px-4 py-3">
+                <p className="text-sm font-medium text-[#276c55]">
+                  Bạn đã hoàn thành giáo trình khóa học.
+                </p>
+                <Link
+                  href={`/learning/certificates/${encodeURIComponent(courseId)}`}
+                  className="focus-ring inline-flex min-h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-white hover:bg-[#159e75]"
+                >
+                  <Award className="h-4 w-4" aria-hidden="true" />
+                  Xem chứng chỉ
+                </Link>
+              </div>
+            )}
             <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
               <section className="rounded-2xl border border-[#e4ece8] bg-white p-5 md:p-7">
                 <div className="flex items-center justify-between gap-3">
@@ -193,8 +208,9 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
                           {isOpen && (
                             <ul className="divide-y divide-[#eef2f0]">
                               {section.lessons.map((lesson) => {
-                                const typeSupported =
-                                  lesson.lessonType === "TEXT" || lesson.lessonType === "QUIZ";
+                                const typeSupported = ["TEXT", "VIDEO", "QUIZ"].includes(
+                                  lesson.lessonType,
+                                );
                                 return (
                                   <li key={lesson.id}>
                                     <Link
@@ -225,7 +241,9 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
                                           {typeSupported
                                             ? lesson.lessonType === "QUIZ"
                                               ? "Bài kiểm tra"
-                                              : "Bài học văn bản"
+                                              : lesson.lessonType === "VIDEO"
+                                                ? "Bài giảng video"
+                                                : "Bài học văn bản"
                                             : "Nội dung này sẽ sớm được hỗ trợ"}
                                           {lesson.durationSeconds
                                             ? ` · ${Math.ceil(lesson.durationSeconds / 60)} phút`

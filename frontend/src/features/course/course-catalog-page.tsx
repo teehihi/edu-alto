@@ -9,8 +9,12 @@ import { AppHeader } from "@/components/layout/app-header";
 import { Footer } from "@/components/layout/footer";
 import { CustomSelect, type CustomSelectOption } from "@/components/ui/custom-select";
 import { fetchPublicCoursePage } from "@/lib/course-client";
+import { useAuthSession } from "@/lib/auth-session";
 import {
+  getCachedFavoriteCourseIds,
+  loadFavoriteCoursesForUser,
   readFavoriteCourses,
+  setRemoteFavoriteCourse,
   subscribeToFavoriteCourses,
   toggleFavoriteCourse,
   type FavoriteCourse,
@@ -562,13 +566,40 @@ export function CourseCatalogPage() {
 // ==========================================
 export function FigmaCourseCard({ course }: { course: FavoriteCourse }) {
   const [isFavorited, setIsFavorited] = useState(false);
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
+  const [favoriteReady, setFavoriteReady] = useState(false);
+  const [favoriteError, setFavoriteError] = useState("");
+  const { user, getAccessToken } = useAuthSession();
+  const userId = user?.roles.includes("STUDENT") ? user.id : null;
 
   useEffect(() => {
+    let active = true;
     const syncFavorite = () =>
-      setIsFavorited(readFavoriteCourses().some((favorite) => favorite.id === course.id));
+      setIsFavorited(
+        userId
+          ? (getCachedFavoriteCourseIds(userId)?.has(course.id) ?? false)
+          : readFavoriteCourses().some((favorite) => favorite.id === course.id),
+      );
     syncFavorite();
-    return subscribeToFavoriteCourses(syncFavorite);
-  }, [course.id]);
+    const unsubscribe = subscribeToFavoriteCourses(syncFavorite);
+    if (userId) {
+      void getAccessToken()
+        .then((token) => (token ? loadFavoriteCoursesForUser(userId, token) : new Set<string>()))
+        .then((ids) => {
+          if (active) setIsFavorited(ids.has(course.id));
+        })
+        .catch(() => {
+          if (active) setFavoriteError("Không thể tải danh sách yêu thích.");
+        })
+        .finally(() => {
+          if (active) setFavoriteReady(true);
+        });
+    }
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [course.id, getAccessToken, userId]);
 
   return (
     <article className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-100/90 bg-white p-3.5 shadow-xs transition-all duration-300 hover:-translate-y-1.5 hover:shadow-cardHover hover:border-primary/30">
@@ -592,12 +623,35 @@ export function FigmaCourseCard({ course }: { course: FavoriteCourse }) {
           aria-pressed={isFavorited}
           onClick={(e) => {
             e.preventDefault();
-            toggleFavoriteCourse(course);
+            setFavoriteError("");
+            if (userId) {
+              setFavoriteLoading(true);
+              void getAccessToken()
+                .then((token) => {
+                  if (!token) throw new Error("Vui lòng đăng nhập lại để lưu khóa học.");
+                  return setRemoteFavoriteCourse(userId, course.id, token, !isFavorited);
+                })
+                .catch(() =>
+                  setFavoriteError("Không thể cập nhật danh sách yêu thích. Vui lòng thử lại."),
+                )
+                .finally(() => setFavoriteLoading(false));
+            } else {
+              toggleFavoriteCourse(course);
+            }
           }}
-          className="absolute right-2.5 top-2.5 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-slate-600 backdrop-blur-xs shadow-xs transition hover:bg-white hover:text-rose-500 active:scale-90"
+          disabled={favoriteLoading || (userId !== null && !favoriteReady)}
+          className="absolute right-2.5 top-2.5 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-slate-600 backdrop-blur-xs shadow-xs transition hover:bg-white hover:text-rose-500 active:scale-90 disabled:cursor-wait disabled:opacity-60"
         >
           <Heart className={cn("h-4 w-4", isFavorited && "fill-rose-500 text-rose-500")} />
         </button>
+        {favoriteError ? (
+          <span
+            className="absolute right-2 top-12 max-w-48 rounded-md bg-rose-600 px-2 py-1 text-[10px] font-medium text-white shadow"
+            role="status"
+          >
+            {favoriteError}
+          </span>
+        ) : null}
 
         {/* Level badge */}
         <span className="absolute left-2.5 top-2.5 rounded-lg bg-white/95 px-2 py-0.5 text-[10px] font-bold text-slate-800 backdrop-blur-xs shadow-xs">

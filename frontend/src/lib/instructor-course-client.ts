@@ -47,6 +47,43 @@ export async function fetchInstructorCourses(
   });
 }
 
+export function fetchInstructorCourse(
+  courseId: string,
+  accessToken?: string | null,
+): Promise<InstructorCourse> {
+  return apiRequest<InstructorCourse>(`/instructor/courses/${encodeURIComponent(courseId)}`, {
+    accessToken,
+  });
+}
+
+export type CourseThumbnailUploadUrl = {
+  uploadUrl: string;
+  objectKey: string;
+  expiresAt: string;
+};
+
+export function createCourseThumbnailUploadUrl(
+  file: Pick<File, "type" | "size">,
+  accessToken: string,
+): Promise<CourseThumbnailUploadUrl> {
+  return apiRequest<CourseThumbnailUploadUrl>("/instructor/courses/thumbnail-upload-url", {
+    method: "POST",
+    body: { contentType: file.type, contentLength: file.size },
+    accessToken,
+  });
+}
+
+export async function uploadCourseThumbnail(uploadUrl: string, file: File): Promise<void> {
+  const response = await fetch(uploadUrl, {
+    method: "PUT",
+    headers: { "Content-Type": file.type },
+    body: file,
+  });
+  if (!response.ok) {
+    throw new Error("Không thể tải ảnh khóa học lên. Vui lòng thử lại.");
+  }
+}
+
 export function createInstructorCourse(
   payload: InstructorCoursePayload,
   accessToken?: string | null,

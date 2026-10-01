@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-client";
 import {
+  confirmCapturedPayment,
   confirmManualPayment,
   fetchPaymentReviewOrders,
   type PaymentReviewOrder,
@@ -36,7 +37,9 @@ function formatDate(value: string) {
 }
 
 function paymentMethodLabel(method: string) {
-  return method === "MOMO" ? "Chuyển khoản MoMo" : "Chuyển khoản ngân hàng";
+  if (method === "MOMO") return "Chuyển khoản MoMo";
+  if (method === "VNPAY") return "Thanh toán VNPay";
+  return "Chuyển khoản ngân hàng";
 }
 
 export function AdminPaymentsPage() {
@@ -81,7 +84,25 @@ export function AdminPaymentsPage() {
     try {
       const token = await getAccessToken();
       if (!token) throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
-      await confirmManualPayment(token, orderId, receiptReference);
+      const order = result?.data.find((entry) => entry.orderId === orderId);
+      if (order?.paymentStatus === "REVIEW") {
+        await confirmCapturedPayment(token, orderId, receiptReference);
+        setReferences((current) => {
+          const next = { ...current };
+          delete next[orderId];
+          return next;
+        });
+        await loadOrders();
+        return;
+      }
+      const confirmedOrder = await confirmManualPayment(token, orderId, receiptReference);
+      if (confirmedOrder.status === "PAYMENT_REVIEW") {
+        setActionError(
+          "Thời hạn giữ chỗ đã hết. Đơn được chuyển sang trạng thái cần xác minh; hãy kiểm tra giao dịch rồi xác nhận lại.",
+        );
+        await loadOrders();
+        return;
+      }
       const nextTotal = Math.max(0, (result?.meta.totalElements ?? 1) - 1);
       const nextPageCount = Math.ceil(nextTotal / pageSize);
       if (page > 0 && page >= nextPageCount) setPage(Math.max(0, nextPageCount - 1));
@@ -218,6 +239,11 @@ export function AdminPaymentsPage() {
                       {order.studentName} · {paymentMethodLabel(order.paymentMethod)} ·{" "}
                       {formatDate(order.createdAt)}
                     </p>
+                    {order.expiresAt ? (
+                      <p className="mt-1 text-xs text-muted">
+                        Hạn giữ ưu đãi: {formatDate(order.expiresAt)}
+                      </p>
+                    ) : null}
                   </div>
                   <p className="shrink-0 text-base font-bold text-ink">
                     {formatMoney(order.total, order.currency)}
@@ -229,9 +255,18 @@ export function AdminPaymentsPage() {
                     <span className="font-semibold text-ink">{order.transferReference}</span>
                   </p>
                   <span className="w-fit rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">
-                    Chờ đối soát
+                    {order.paymentStatus === "REVIEW"
+                      ? "Cần xác minh giao dịch trễ"
+                      : "Chờ đối soát"}
                   </span>
                 </div>
+                {order.paymentStatus === "REVIEW" ? (
+                  <p className="mt-3 rounded-lg border border-orange-200 bg-orange-50 p-3 text-sm text-orange-900">
+                    {order.paymentReviewReason === "PROMOTION_RESERVATION_EXPIRED"
+                      ? "Ưu đãi đã hết hạn giữ chỗ khi hệ thống nhận được xác nhận thanh toán. Hãy kiểm tra giao dịch thực tế và nhập mã tham chiếu trước khi ghi nhận đã nhận tiền."
+                      : "Giao dịch cần được kiểm tra thủ công trước khi ghi nhận đã nhận tiền."}
+                  </p>
+                ) : null}
                 <form
                   className="mt-4 flex flex-col gap-2 sm:flex-row"
                   onSubmit={(event) => {

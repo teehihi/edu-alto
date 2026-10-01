@@ -27,6 +27,7 @@ public interface LearningProgressRepository extends JpaRepository<LearningProgre
             from lessons l join sections s on s.id = l.section_id
             left join learning_progress p on p.lesson_id = l.id and p.enrollment_id = :enrollmentId
             where s.course_id = :courseId and l.status = 'PUBLISHED'
+              and l.lesson_type in ('TEXT', 'VIDEO', 'QUIZ')
             """, nativeQuery = true)
     ProgressCounts countProgress(@Param("enrollmentId") UUID enrollmentId, @Param("courseId") UUID courseId);
 }

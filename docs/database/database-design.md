@@ -51,7 +51,8 @@ Core identity ERD:
 | Participation | `enrollments`, `learning_progress`, `notes` | `enrollment`, `learning` | Unique enrollment theo student/course. |
 | Assessment | `quizzes`, `questions`, `question_options`, `quiz_attempts`, `quiz_answers`, `assignments`, `assignment_submissions` | `quiz`, `assignment` | Policy chấm điểm và deadline nằm ở service. |
 | Content and collaboration | `documents`, `saved_documents`, `discussions`, `discussion_comments`, `conversations`, `conversation_participants`, `messages` | `document`, `discussion`, `messaging` | WebSocket chỉ broadcast sau khi persist message. |
-| Engagement | `notifications`, `calendar_events`, `reviews`, `certificates` | `notification`, `schedule`, `review`, `certificate` | Notification có REST sync và realtime delivery. |
+| Commerce | `orders`, `order_items`, `payments`, `manual_payment_confirmations`, `promotions`, `promotion_redemptions` | `commerce` | Giá trị đơn hàng và lượt đổi ưu đãi được snapshot; chỉ thanh toán thành công mới tính lượt đã sử dụng. |
+| Engagement | `notifications`, `calendar_events`, `reviews`, `certificates`, `course_wishlists` | `notification`, `schedule`, `review`, `certificate`, `learning` | Notification có REST sync và realtime delivery; wishlist lưu theo học viên và khóa học. |
 | Insight and AI | `learning_signals`, `analytics_snapshots`, `ai_model_versions`, `recommendations`, `recommendation_items`, `recommendation_reasons` | `analytics`, `ai` | AI có thể tắt mà core LMS vẫn chạy. |
 
 ## Core schema
@@ -262,10 +263,11 @@ Constraints:
 - Channel values: `IN_APP`, `EMAIL`.
 - Index `(recipient_id, status, created_at desc)`.
 
-`calendar_events`, `reviews`, `certificates`
+`calendar_events`, `reviews`, `certificates`, `course_wishlists`
 
 - Reviews have unique `(student_id, course_id)`.
-- Certificates have unique `(student_id, course_id)`.
+- Certificates have one row per enrollment and preserve the student, course, and instructor names at issuance time.
+- Course wishlists have unique `(user_id, course_id)` and cascade when the account or course is deleted.
 - Calendar events use `start_at`, `end_at` with timezone-aware timestamps.
 
 ### Insight and AI extension
@@ -358,7 +360,7 @@ This section describes the implemented V7 schema; broader tables and fields abov
 
 ## Commerce schema (V13)
 
-- `orders`: UUID primary key, student FK, V13 statuses (`PENDING_PAYMENT`, `PAID`, `PAYMENT_FAILED`), VND currency, immutable subtotal/total snapshots and timestamps. V14 adds `PAYMENT_REVIEW` and a unique transfer reference for manual reconciliation.
+- `orders`: UUID primary key, student FK, V13 statuses (`PENDING_PAYMENT`, `PAID`, `PAYMENT_FAILED`), VND currency, immutable subtotal/total snapshots and timestamps. V14 adds `PAYMENT_REVIEW` and a unique transfer reference for manual reconciliation. V17 snapshots checkout expiry and the reason a captured payment needs review.
 - V15 adds an optional `phone_number` snapshot to an order. Checkout requires a 10-digit Vietnamese phone number and stores it with the order for purchase contact.
 - `order_items`: order/course FKs, course title and unit-price snapshots. Unique `(order_id, course_id)` prevents duplicate items; the order and catalog rows are retained for audit.
 - `payments`: order FK, provider, unique transaction reference, amount in VND minor units, status and paid timestamp. Callback details are not stored because they may contain sensitive gateway metadata.
@@ -368,10 +370,22 @@ This section describes the implemented V7 schema; broader tables and fields abov
 ## Manual transfer payments (V14)
 
 - V14 permits `MOMO` and `VIETQR` payment providers and adds unique `orders.transfer_reference` values plus `manual_payment_confirmations` audit rows. Creation request carries `paymentMethod` (`VNPAY`, `MOMO`, or `VIETQR`); manual methods return the recipient, amount, reference and (for VietQR) a QR image URL.
-- Manual-payment orders stay `PAYMENT_REVIEW` and payments stay `PENDING` until an active admin reconciles the external wallet/bank receipt and calls `POST /api/v1/admin/orders/{id}/confirm-payment`. The confirmation records admin ID and receipt reference; order payment and enrollment are committed together.
+- Manual-payment orders stay `PAYMENT_REVIEW` and payments stay `PENDING` until an active admin reconciles the external wallet/bank receipt and calls `POST /api/v1/admin/orders/{id}/confirm-payment`. The confirmation records admin ID and receipt reference; order payment and enrollment are committed together. If a promotion reservation expired first, a verified receipt is sent to the separate captured-payment review flow.
 - `POST /api/v1/me/orders` accepts `phoneNumber` in addition to `courseIds` and `paymentMethod`; the phone is validated and stored on the order.
 - `GET /api/v1/admin/orders` exposes paginated orders, provider, student, amount and transfer reference to active admins. Browser returns, user-submitted claims and VietQR scan events never mark an order paid.
 - MoMo is an offline manual transfer instruction only; no payment API/deep link is used. VietQR link encodes the fixed bank account, exact VND amount and unique transfer reference.
+
+## Instructor workspace and commerce additions (V17)
+
+- `course_promotions` belongs to one course and its instructor. Promotion codes are normalized to uppercase and globally unique. A promotion can apply percentage or fixed VND discounts, with an optional global redemption limit and an inclusive start/end time window.
+- Checkout accepts one optional promotion code per order. The code must belong to one course in the cart; its discount is capped at that course's current price. Order and order-item rows snapshot list price, discount, net price, and code so later edits do not change the paid order history.
+- Checkout reserves one available redemption under a row lock. Capacity counts successful redemptions plus reservations that have not expired. VNPay reservations last 15 minutes; manual transfer reservations last 24 hours. Expired reservations do not count as used.
+- A reservation becomes `REDEEMED` only in the same transaction that records a successful payment and activates enrollment. Failed payments release the reservation. Promotion usage and discount totals include redeemed rows only.
+- A signed VNPay success callback or verified manual transfer that arrives after reservation expiry is moved to payment review instead of being marked failed. An active admin can confirm captured funds through the reconciliation endpoint; the paid order is honored and the redemption is audited even if that rare late payment makes the configured capacity exceed its limit.
+- Promotion summary and list endpoints are instructor-scoped; updates to code or discount terms are rejected after a reservation or redemption exists. Name, time window, redemption limit and enabled state remain manageable.
+- The same V17 migration adds `conversations` and `messages` for persisted instructor/student messaging, read state, instructor block and hide state; `instructor_notifications` for published announcements and drafts; and instructor reply text/timestamp columns on `course_reviews`.
+- V17 also adds `course_wishlists` for persistent per-account saved courses and `certificates` for one immutable issued certificate per enrollment, including the display-name snapshots used by the printable certificate.
+- Student announcement feeds return published announcements only while their display window is active and enforce the configured all-students or enrolled-students audience.
 
 ## Quizzes and attempts (V16)
 

@@ -5,7 +5,9 @@ export type CheckoutOrder = {
   status: "PENDING_PAYMENT" | "PAYMENT_REVIEW";
   currency: "VND";
   subtotal: number;
+  discountTotal: number;
   total: number;
+  expiresAt: string | null;
   paymentMethod: PaymentMethod;
   paymentUrl: string | null;
   instructions: PaymentInstructions | null;
@@ -36,9 +38,20 @@ export type OrderDetails = {
   orderId: string;
   status: OrderStatus;
   currency: "VND";
+  subtotal: number;
+  discountTotal: number;
   total: number;
   createdAt: string;
-  items: { courseId: string; title: string; unitPrice: number }[];
+  expiresAt: string | null;
+  paymentReviewReason: string | null;
+  items: {
+    courseId: string;
+    title: string;
+    unitPrice: number;
+    listPrice: number;
+    discountAmount: number;
+    promotionCode: string | null;
+  }[];
 };
 
 export async function createCheckoutOrder(
@@ -46,11 +59,17 @@ export async function createCheckoutOrder(
   courseIds: string[],
   paymentMethod: PaymentMethod,
   phoneNumber: string,
+  promotionCode?: string,
 ) {
   return apiRequest<CheckoutOrder>("/me/orders", {
     method: "POST",
     accessToken,
-    body: { courseIds, paymentMethod, phoneNumber },
+    body: {
+      courseIds,
+      paymentMethod,
+      phoneNumber,
+      promotionCode: promotionCode?.trim() || undefined,
+    },
   });
 }
 

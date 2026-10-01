@@ -161,6 +161,26 @@ DELETE /api/v1/instructor/courses/{id}
 
 Chỉ chủ sở hữu khóa học mới được quản lý khóa học đó. Xóa cứng chỉ áp dụng cho khóa học `DRAFT`; khóa học đã xuất bản hoặc lưu trữ không thể xóa để bảo toàn lịch sử ghi danh và giao dịch. Dùng thao tác lưu trữ để gỡ khóa học khỏi danh mục công khai.
 
+## Commerce promotions
+
+```text
+POST  /api/v1/me/orders
+GET   /api/v1/me/orders/{orderId}
+GET   /api/v1/instructor/courses/{courseId}/promotions
+POST  /api/v1/instructor/courses/{courseId}/promotions
+GET   /api/v1/instructor/courses/{courseId}/promotions/summary
+PATCH /api/v1/instructor/promotions/{promotionId}
+GET   /api/v1/instructor/revenue/courses/{courseId}/summary
+GET   /api/v1/instructor/courses/{courseId}/reviews
+PUT   /api/v1/instructor/courses/{courseId}/reviews/{reviewId}/reply
+DELETE /api/v1/instructor/courses/{courseId}/reviews/{reviewId}/reply
+POST  /api/v1/admin/orders/{orderId}/confirm-captured-payment
+```
+
+Giảng viên đang hoạt động sở hữu khóa học có thể tạo/cập nhật hoặc xóa phản hồi đánh giá. Request tạo/cập nhật dùng `{ "reply": "Cảm ơn bạn đã chia sẻ..." }`; review response gồm `instructorReply` và `instructorRepliedAt` (cùng null khi chưa có phản hồi). Phản hồi được hiển thị cùng đánh giá công khai.
+
+Checkout accepts one optional `promotionCode`; it can discount only the matching course in the cart. The order response includes `subtotal`, `discountTotal`, net `total`, and `expiresAt` when a code is applied. Coupon capacity is reserved while the order awaits payment, but usage is counted only after a successful payment confirmation. Instructor promotion APIs only expose codes belonging to the instructor's course. Captured payments confirmed after reservation expiry enter payment review; an active administrator can reconcile them with a receipt reference.
+
 ## Learning
 
 ```text
@@ -226,21 +246,29 @@ POST /api/v1/discussions/{discussionId}/comments
 REST:
 
 ```text
-GET  /api/v1/conversations
-POST /api/v1/conversations
-GET  /api/v1/conversations/{conversationId}/messages
+GET    /api/v1/instructor/conversations
+GET    /api/v1/instructor/conversations/{conversationId}/messages
+POST   /api/v1/instructor/conversations/{conversationId}/messages
+PUT    /api/v1/instructor/conversations/{conversationId}/block
+DELETE /api/v1/instructor/conversations/{conversationId}
+
+GET    /api/v1/me/conversations
+GET    /api/v1/me/conversations/{conversationId}/messages
+POST   /api/v1/me/conversations/{conversationId}/messages
+POST   /api/v1/me/instructors/{instructorId}/conversations
 ```
 
-WebSocket/STOMP:
+Conversation list and message endpoints use `page` and `size`. Opening a conversation marks incoming messages on that conversation as read. Instructor hiding is soft and applies only to the instructor's list; a later student message makes it visible again. An instructor block prevents further student messages while leaving the conversation readable. A student starts a conversation by posting the first message to an active instructor. Only active accounts with the matching `STUDENT` or `INSTRUCTOR` role can use these endpoints; resource access is limited to the authenticated participant.
+
+Message requests use `{ "body": "..." }` with a non-blank body of at most 4000 characters. Blocking uses `{ "blocked": true }`. Conversation/message responses contain participant IDs and names, last message and unread count for conversations, and sender/body/timestamps for messages. A blocked student receives `403 MESSAGING_BLOCKED`; inaccessible conversation IDs return `404`.
+
+The legacy WebSocket/STOMP transport is a future extension; REST persistence is the supported messaging contract:
 
 ```text
-CONNECT   /ws
-SEND      /app/conversations/{conversationId}/messages
-SUBSCRIBE /topic/conversations/{conversationId}
-SUBSCRIBE /user/queue/notifications
+CONNECT   /ws (not implemented)
+SEND      /app/conversations/{conversationId}/messages (not implemented)
+SUBSCRIBE /topic/conversations/{conversationId} (not implemented)
 ```
-
-REST là nguồn đồng bộ lại sau reconnect; WebSocket không thay thế persistence.
 
 ## Notifications
 
@@ -248,17 +276,41 @@ REST là nguồn đồng bộ lại sau reconnect; WebSocket không thay thế p
 GET  /api/v1/me/notifications
 POST /api/v1/me/notifications/{notificationId}/read
 POST /api/v1/me/notifications/read-all
+GET  /api/v1/me/instructor-announcements?page=0&size=20
+GET  /api/v1/instructor/notifications?page=0&size=20&status=DRAFT&audience=ALL_STUDENTS
+POST /api/v1/instructor/notifications
+GET  /api/v1/instructor/notifications/{notificationId}
+PUT  /api/v1/instructor/notifications/{notificationId}
+POST /api/v1/instructor/notifications/{notificationId}/publish
+DELETE /api/v1/instructor/notifications/{notificationId}
 ```
+
+`GET /api/v1/me/instructor-announcements` trả các thông báo `PUBLISHED` còn trong thời gian hiệu lực, mới xuất bản trước. Thông báo `ALL_STUDENTS` hiển thị với mọi học viên đang hoạt động; `ENROLLED_STUDENTS` chỉ hiển thị cho học viên có lượt ghi danh `ACTIVE` vào ít nhất một khóa học của giảng viên. Trường ảnh trong response là URL public đã phân giải từ storage. API này không khởi chạy gửi push/email.
 
 ## Analytics
 
 ```text
 GET /api/v1/me/analytics/learning-summary
 GET /api/v1/instructor/courses/{courseId}/analytics
+GET /api/v1/instructor/analytics/course-metrics
 GET /api/v1/admin/analytics/overview
 ```
 
 Student chỉ đọc dữ liệu của chính mình. Instructor chỉ đọc course mình quản lý. Admin đọc toàn hệ thống.
+
+`GET /api/v1/instructor/analytics/course-metrics` trả về một aggregate cho mỗi khóa học của giảng viên hiện tại: `courseId`, `chapterCount`, `publicReviewCount`, `paidOrderCount`, `activeEnrollmentCount`, `wishlistCount` và `certificateCount`. Đánh giá chỉ đếm trạng thái `PUBLISHED`, đơn hàng chỉ đếm đơn `PAID`, lượt ghi danh chỉ đếm trạng thái `ACTIVE`; chứng chỉ đếm bản đã cấp và wishlist đếm lượt lưu theo tài khoản. Endpoint tổng hợp theo lô để dashboard không cần gọi từng khóa học.
+
+Học viên quản lý khóa học yêu thích và chứng chỉ đã cấp qua các endpoint:
+
+```text
+GET    /api/v1/me/favorite-courses?page=0&size=20
+PUT    /api/v1/me/favorite-courses/{courseId}
+DELETE /api/v1/me/favorite-courses/{courseId}
+GET    /api/v1/me/certificates
+GET    /api/v1/me/courses/{courseId}/certificate
+```
+
+Chứng chỉ được cấp tự động khi học viên đang ghi danh hoàn tất toàn bộ bài học đã xuất bản thuộc loại `TEXT`, `VIDEO` hoặc `QUIZ`; bài quiz phải đạt điều kiện qua bài. Tên học viên, khóa học và giảng viên được lưu thành snapshot tại thời điểm cấp.
 
 ## Recommendations
 

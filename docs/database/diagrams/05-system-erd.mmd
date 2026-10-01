@@ -48,8 +48,19 @@ erDiagram
     uuid id PK
     uuid student_id FK
     uuid course_id FK
-    varchar certificate_code UK
+    uuid enrollment_id FK, UK
+    varchar certificate_number UK
+    varchar student_name
+    varchar course_title
+    varchar instructor_name
     timestamptz issued_at
+  }
+  course_wishlists {
+    uuid id PK
+    uuid user_id FK
+    uuid course_id FK
+    timestamptz created_at
+    %% unique(user_id, course_id)
   }
 
   users ||--o{ file_assets : owns
@@ -60,3 +71,6 @@ erDiagram
   courses ||--o{ reviews : receives
   users ||--o{ certificates : earns
   courses ||--o{ certificates : awards
+  enrollments ||--o| certificates : earns
+  users ||--o{ course_wishlists : saves
+  courses ||--o{ course_wishlists : saved_by

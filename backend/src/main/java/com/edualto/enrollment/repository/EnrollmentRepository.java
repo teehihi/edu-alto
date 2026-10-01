@@ -1,6 +1,8 @@
 package com.edualto.enrollment.repository;
 
 import com.edualto.enrollment.domain.Enrollment;
+import com.edualto.enrollment.domain.EnrollmentStatus;
+import com.edualto.enrollment.dto.InstructorCourseStudentResponse;
 import com.edualto.enrollment.dto.EnrollmentResponse;
 import java.util.Optional;
 import java.util.UUID;
@@ -29,4 +31,23 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, UUID> {
             where e.studentId = :studentId
             """)
     Page<EnrollmentResponse> findHistory(@Param("studentId") UUID studentId, Pageable pageable);
+
+    @Query("""
+            select new com.edualto.enrollment.dto.InstructorCourseStudentResponse(
+                u.id, u.fullName, u.email, e.enrolledAt)
+            from Enrollment e join User u on u.id = e.studentId
+            where e.courseId = :courseId
+                and e.status = :status
+                and (
+                    :search is null
+                    or lower(u.fullName) like lower(concat('%', :search, '%'))
+                    or lower(u.email) like lower(concat('%', :search, '%'))
+                )
+            """)
+    Page<InstructorCourseStudentResponse> findInstructorCourseStudents(
+            @Param("courseId") UUID courseId,
+            @Param("status") EnrollmentStatus status,
+            @Param("search") String search,
+            Pageable pageable
+    );
 }

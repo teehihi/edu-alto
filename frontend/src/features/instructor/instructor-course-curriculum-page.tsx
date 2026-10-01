@@ -109,9 +109,13 @@ function getLessonTypeLabel(type: LessonType): string {
 
 export interface InstructorCourseCurriculumPageProps {
   courseId: string;
+  embedded?: boolean;
 }
 
-export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCurriculumPageProps) {
+export function InstructorCourseCurriculumPage({
+  courseId,
+  embedded = false,
+}: InstructorCourseCurriculumPageProps) {
   const { accessToken, loading: authLoading } = useAuth();
 
   const [structure, setStructure] = useState<CourseStructure | null>(null);
@@ -662,38 +666,42 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#F9FBFA] text-ink antialiased">
-      <AppHeader />
+    <div
+      className={`${embedded ? "min-w-0" : "flex min-h-screen flex-col bg-[#F9FBFA]"} text-ink antialiased`}
+    >
+      {!embedded ? <AppHeader /> : null}
 
-      <main className="flex-1 pb-24 pt-8">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+      <main className={embedded ? "min-w-0" : "flex-1 pb-24 pt-8"}>
+        <div className={embedded ? "mx-auto w-full" : "mx-auto max-w-6xl px-4 sm:px-6 lg:px-8"}>
           {/* Breadcrumbs & Navigation */}
-          <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-2 text-sm text-muted">
-              <Link
-                href="/courses"
-                className="flex items-center gap-1.5 transition hover:text-primary"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                <span>Quản lý khóa học</span>
-              </Link>
-              <span className="text-slate-300">/</span>
-              <span className="font-medium text-heading">Chương trình học</span>
-            </div>
-
-            {structure && (
-              <div className="flex items-center gap-3">
+          {!embedded ? (
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-2 text-sm text-muted">
                 <Link
-                  href={`/courses/${structure.courseSlug}`}
-                  target="_blank"
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 shadow-xs transition hover:bg-slate-50"
+                  href="/courses"
+                  className="flex items-center gap-1.5 transition hover:text-primary"
                 >
-                  <Eye className="h-4 w-4 text-slate-500" />
-                  <span>Xem trang khóa học</span>
+                  <ArrowLeft className="h-4 w-4" />
+                  <span>Quản lý khóa học</span>
                 </Link>
+                <span className="text-slate-300">/</span>
+                <span className="font-medium text-heading">Chương trình học</span>
               </div>
-            )}
-          </div>
+
+              {structure && (
+                <div className="flex items-center gap-3">
+                  <Link
+                    href={`/courses/${structure.courseSlug}`}
+                    target="_blank"
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 shadow-xs transition hover:bg-slate-50"
+                  >
+                    <Eye className="h-4 w-4 text-slate-500" />
+                    <span>Xem trang khóa học</span>
+                  </Link>
+                </div>
+              )}
+            </div>
+          ) : null}
 
           {/* Hero / Header Card */}
           <div className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-6 shadow-xs sm:p-8">
@@ -1435,7 +1443,7 @@ export function InstructorCourseCurriculumPage({ courseId }: InstructorCourseCur
         autoCloseMs={3000}
       />
 
-      <Footer />
+      {!embedded ? <Footer /> : null}
     </div>
   );
 }

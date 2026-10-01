@@ -28,6 +28,7 @@ export function CheckoutPage() {
   const router = useRouter();
   const [courses, setCourses] = useState<CartCourse[]>([]);
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [promotionCode, setPromotionCode] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("MOMO");
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -89,6 +90,7 @@ export function CheckoutPage() {
                       courses.map((course) => course.id),
                       paymentMethod,
                       phoneNumber,
+                      promotionCode,
                     );
                     if (order.paymentMethod === "VNPAY") {
                       if (!order.paymentUrl)
@@ -141,6 +143,22 @@ export function CheckoutPage() {
                     />
                   </label>
                 </div>
+                <label className="mb-5 flex flex-col gap-2 text-sm font-semibold text-primary">
+                  Mã giảm giá
+                  <input
+                    type="text"
+                    value={promotionCode}
+                    onChange={(event) => setPromotionCode(event.target.value.toUpperCase())}
+                    disabled={submitting || Boolean(createdOrder)}
+                    maxLength={32}
+                    autoComplete="off"
+                    placeholder="Nhập mã ưu đãi (nếu có)"
+                    className="h-12 min-w-0 rounded-lg border border-[#e2e8f0] bg-white px-3 text-sm font-normal uppercase text-[#334155] outline-none placeholder:normal-case placeholder:text-[#94a3b8] focus:border-primary focus:ring-2 focus:ring-primary/15 disabled:bg-slate-50"
+                  />
+                  <span className="text-xs font-normal text-slate-500">
+                    Mã sẽ được kiểm tra theo khóa học trong giỏ hàng khi bạn tạo đơn.
+                  </span>
+                </label>
                 <fieldset>
                   <legend className="text-lg font-semibold text-primary">
                     Phương thức Thanh toán
@@ -281,11 +299,29 @@ export function CheckoutPage() {
                   ) : null}
                 </div>
                 <div className="mt-3 min-h-[213px] space-y-4 rounded-lg border border-[#e5ece9] bg-[#f8fbfa] p-[15px] text-base">
-                  <SummaryRow label="Tạm tính" value={formatVND(subtotal)} />
-                  <SummaryRow label="Giảm giá" value="Chưa áp dụng" />
+                  <SummaryRow
+                    label="Tạm tính"
+                    value={formatVND(createdOrder?.subtotal ?? subtotal)}
+                  />
+                  <SummaryRow
+                    label="Giảm giá"
+                    value={
+                      createdOrder
+                        ? createdOrder.discountTotal > 0
+                          ? `−${formatVND(createdOrder.discountTotal)}`
+                          : "Không áp dụng"
+                        : promotionCode.trim()
+                          ? "Sẽ kiểm tra khi tạo đơn"
+                          : "Chưa áp dụng"
+                    }
+                  />
                   <SummaryRow label="Thuế/Phí" value="Chưa tính" />
                   <div className="border-t border-[#e5ece9] pt-3">
-                    <SummaryRow label="Tổng tạm tính" value={formatVND(subtotal)} strong />
+                    <SummaryRow
+                      label="Tổng tạm tính"
+                      value={formatVND(createdOrder?.total ?? subtotal)}
+                      strong
+                    />
                   </div>
                 </div>
                 <button
@@ -340,6 +376,13 @@ function ManualPaymentInstructions({
 }) {
   const details = order.instructions;
   if (!details) return null;
+  const reservationDeadline = order.expiresAt
+    ? new Intl.DateTimeFormat("vi-VN", {
+        dateStyle: "medium",
+        timeStyle: "short",
+        timeZone: "Asia/Ho_Chi_Minh",
+      }).format(new Date(order.expiresAt))
+    : null;
 
   return (
     <section className="mt-4 rounded-xl border border-[#cfe9df] bg-[#f5fbf8] p-4">
@@ -353,6 +396,11 @@ function ManualPaymentInstructions({
             Chuyển đúng số tiền và nhập mã đơn hàng ở nội dung. Khóa học sẽ mở sau khi quản trị viên
             xác nhận giao dịch.
           </p>
+          {reservationDeadline ? (
+            <p className="mt-1 text-xs font-medium text-amber-800">
+              Vui lòng chuyển khoản trước {reservationDeadline} để giữ mức giảm giá.
+            </p>
+          ) : null}
         </div>
       </div>
       {details.qrUrl && (
@@ -378,6 +426,9 @@ function ManualPaymentInstructions({
         <PaymentDetail label="Số tiền" value={formatVND(details.amount)} />
         <PaymentDetail label="Nội dung chuyển khoản" value={details.transferReference} />
         <PaymentDetail label="Mã đơn hàng" value={order.orderId} />
+        {reservationDeadline ? (
+          <PaymentDetail label="Hạn chuyển khoản" value={reservationDeadline} />
+        ) : null}
       </dl>
       <button
         type="button"

@@ -1,6 +1,7 @@
 package com.edualto.quiz.service;
 
 import com.edualto.common.exception.BusinessException;
+import com.edualto.certificate.service.CertificateService;
 import com.edualto.course.domain.Course;
 import com.edualto.course.domain.CourseStatus;
 import com.edualto.course.domain.Lesson;
@@ -57,12 +58,13 @@ public class QuizService {
     private final CourseLearningAccessService learningAccess;
     private final EnrollmentService enrollments;
     private final LearningProgressRepository progress;
+    private final CertificateService certificates;
 
     public QuizService(QuizRepository quizzes, QuizAttemptRepository attempts,
             QuizAttemptAnswerRepository attemptAnswers, LessonRepository lessons,
             SectionRepository sections, CourseRepository courses, UserRepository users,
             CourseLearningAccessService learningAccess, EnrollmentService enrollments,
-            LearningProgressRepository progress) {
+            LearningProgressRepository progress, CertificateService certificates) {
         this.quizzes = quizzes;
         this.attempts = attempts;
         this.attemptAnswers = attemptAnswers;
@@ -73,6 +75,7 @@ public class QuizService {
         this.learningAccess = learningAccess;
         this.enrollments = enrollments;
         this.progress = progress;
+        this.certificates = certificates;
     }
 
     @Transactional
@@ -164,6 +167,7 @@ public class QuizService {
         attemptAnswers.saveAll(persistedAnswers);
         if (attempt.isPassed()) {
             progress.completeIfAbsent(UUID.randomUUID(), enrollmentId, lesson.courseId(), lesson.sectionId(), lesson.id());
+            certificates.issueIfEligible(studentId, lesson.courseId());
         }
         return toAttemptResponse(attempt);
     }

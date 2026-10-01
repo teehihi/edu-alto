@@ -10,6 +10,8 @@ import com.edualto.commerce.dto.OrderResponse;
 import com.edualto.commerce.repository.CommerceRepository;
 import com.edualto.commerce.repository.CommerceRepository.CheckoutCourse;
 import com.edualto.commerce.repository.CommerceRepository.PaymentOrder;
+import com.edualto.commerce.repository.PromotionRepository;
+import com.edualto.commerce.repository.PromotionRepository.PromotionRecord;
 import com.edualto.common.exception.BusinessException;
 import com.edualto.user.service.UserService;
 import java.math.BigDecimal;
@@ -19,9 +21,11 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Map;
+import java.util.Locale;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
@@ -41,11 +45,14 @@ public class CommerceService {
     private final CommerceRepository repository;
     private final UserService users;
     private final VnPayProperties properties;
+    private final PromotionRepository promotions;
 
-    public CommerceService(CommerceRepository repository, UserService users, VnPayProperties properties) {
+    public CommerceService(CommerceRepository repository, UserService users, VnPayProperties properties,
+                           PromotionRepository promotions) {
         this.repository = repository;
         this.users = users;
         this.properties = properties;
+        this.promotions = promotions;
     }
 
     @Transactional
@@ -75,7 +82,38 @@ public class CommerceService {
             }
             courses.add(course);
         }
-        BigDecimal total = courses.stream().map(CheckoutCourse::price).reduce(BigDecimal.ZERO, BigDecimal::add);
+        PromotionRecord promotion = null;
+        CheckoutCourse promotionCourse = null;
+        BigDecimal itemDiscount = BigDecimal.ZERO;
+        if (request.promotionCode() != null && !request.promotionCode().isBlank()) {
+            String normalizedCode = request.promotionCode().trim().toUpperCase(Locale.ROOT);
+            PromotionRecord lockedPromotion = promotions.lockByCode(normalizedCode)
+                    .orElseThrow(() -> new BusinessException(HttpStatus.BAD_REQUEST, "PROMOTION_INVALID", "Mã khuyến mãi không hợp lệ"));
+            promotion = lockedPromotion;
+            promotionCourse = courses.stream().filter(course -> course.id().equals(lockedPromotion.courseId())).findFirst()
+                    .orElseThrow(() -> new BusinessException(HttpStatus.BAD_REQUEST, "PROMOTION_COURSE_NOT_IN_CART", "Khóa học áp dụng mã chưa có trong giỏ hàng"));
+            OffsetDateTime now = OffsetDateTime.now();
+            if (!promotion.enabled() || now.isBefore(promotion.startsAt()) || !now.isBefore(promotion.endsAt())) {
+                throw new BusinessException(HttpStatus.CONFLICT, "PROMOTION_NOT_ACTIVE", "Mã khuyến mãi hiện không áp dụng được");
+            }
+            if (promotion.maxRedemptions() != null && promotions.countCapacityUsage(promotion.id()) >= promotion.maxRedemptions()) {
+                throw new BusinessException(HttpStatus.CONFLICT, "PROMOTION_EXHAUSTED", "Mã khuyến mãi đã hết lượt sử dụng");
+            }
+            itemDiscount = "PERCENT".equals(promotion.discountType())
+                    ? promotionCourse.price().multiply(promotion.discountValue()).divide(BigDecimal.valueOf(100), 0, RoundingMode.HALF_UP)
+                    : promotion.discountValue();
+            BigDecimal maxDiscount = promotionCourse.price().subtract(BigDecimal.ONE).max(BigDecimal.ZERO);
+            itemDiscount = itemDiscount.min(maxDiscount);
+            if (itemDiscount.signum() <= 0) {
+                throw new BusinessException(HttpStatus.BAD_REQUEST, "INVALID_PROMOTION_DISCOUNT", "Mức giảm phải lớn hơn 0 đồng");
+            }
+        }
+        BigDecimal subtotal = courses.stream().map(CheckoutCourse::price).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal discountTotal = itemDiscount;
+        BigDecimal total = subtotal.subtract(discountTotal);
+        if (total.signum() <= 0) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "INVALID_PROMOTION_TOTAL", "Tổng thanh toán phải lớn hơn 0 đồng");
+        }
         long amountMinorUnits;
         try {
             amountMinorUnits = total.movePointRight(2).longValueExact();
@@ -89,15 +127,24 @@ public class CommerceService {
         String transferReference = manualTransferReference(orderId);
         boolean manual = request.paymentMethod() != PaymentMethod.VNPAY;
         String orderStatus = manual ? "PAYMENT_REVIEW" : "PENDING_PAYMENT";
-        repository.insertOrder(orderId, studentId, request.phoneNumber(), total, orderStatus, transferReference);
-        courses.forEach(course -> repository.insertOrderItem(orderId, course));
+        OffsetDateTime expiresAt = promotion == null ? null : OffsetDateTime.now().plusMinutes(manual ? 24 * 60 : 15);
+        repository.insertOrder(orderId, studentId, request.phoneNumber(), subtotal, discountTotal, total,
+                orderStatus, transferReference, expiresAt);
+        for (CheckoutCourse course : courses) {
+            BigDecimal discount = course.equals(promotionCourse) ? itemDiscount : BigDecimal.ZERO;
+            UUID itemId = repository.insertOrderItem(orderId, course, course.price().subtract(discount), discount,
+                    discount.signum() > 0 ? promotion.id() : null, discount.signum() > 0 ? promotion.code() : null);
+            if (discount.signum() > 0) {
+                promotions.insertReservation(promotion.id(), orderId, itemId, studentId, discount, expiresAt);
+            }
+        }
         repository.insertPayment(UUID.randomUUID(), orderId, request.paymentMethod().name(), amountMinorUnits);
         String paymentUrl = request.paymentMethod() == PaymentMethod.VNPAY
-                ? buildPaymentUrl(orderId, amountMinorUnits, clientIp) : null;
+                ? buildPaymentUrl(orderId, amountMinorUnits, clientIp, expiresAt) : null;
         OrderCreatedResponse.ManualPaymentInstructions instructions = manual
                 ? createManualInstructions(request.paymentMethod(), total, transferReference) : null;
-        return new OrderCreatedResponse(orderId, orderStatus, "VND", total, total,
-                request.paymentMethod().name(), paymentUrl, instructions);
+        return new OrderCreatedResponse(orderId, orderStatus, "VND", subtotal, discountTotal, total,
+                request.paymentMethod().name(), paymentUrl, expiresAt, instructions);
     }
 
     @Transactional(readOnly = true)
@@ -134,7 +181,29 @@ public class CommerceService {
         if (!"PAYMENT_REVIEW".equals(payment.orderStatus()) || !"PENDING".equals(payment.paymentStatus())) {
             throw new BusinessException(HttpStatus.CONFLICT, "ORDER_NOT_PENDING_REVIEW", "Đơn hàng không còn chờ xác nhận thủ công");
         }
+        if (repository.orderHasPromotion(orderId) && !promotions.reservationIsActive(orderId)) {
+            repository.markPaymentReview(orderId, "PROMOTION_RESERVATION_EXPIRED");
+            promotions.releaseReservation(orderId);
+            return repository.findOrder(orderId, payment.studentId()).orElseThrow();
+        }
+        if (repository.orderHasPromotion(orderId) && !promotions.redeemReservation(orderId)) {
+            repository.markPaymentReview(orderId, "PROMOTION_RESERVATION_EXPIRED");
+            promotions.releaseReservation(orderId);
+            return repository.findOrder(orderId, payment.studentId()).orElseThrow();
+        }
         repository.confirmManualPayment(orderId, payment.studentId(), adminId, request.receiptReference().trim());
+        return repository.findOrder(orderId, payment.studentId()).orElseThrow();
+    }
+
+    @Transactional
+    public OrderResponse confirmCapturedPayment(UUID adminId, UUID orderId, ConfirmManualPaymentRequest request) {
+        users.requireActiveAdmin(adminId);
+        PaymentOrder payment = repository.lockPaymentOrder(orderId.toString())
+                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "ORDER_NOT_FOUND", "Không tìm thấy đơn hàng"));
+        if (!"PAYMENT_REVIEW".equals(payment.orderStatus()) || !"REVIEW".equals(payment.paymentStatus())) {
+            throw new BusinessException(HttpStatus.CONFLICT, "ORDER_NOT_IN_PAYMENT_REVIEW", "Đơn hàng không cần xác minh thanh toán trễ");
+        }
+        repository.confirmCapturedPayment(orderId, payment.studentId(), adminId, request.receiptReference().trim());
         return repository.findOrder(orderId, payment.studentId()).orElseThrow();
     }
 
@@ -172,15 +241,28 @@ public class CommerceService {
         boolean success = "00".equals(parameters.get("vnp_ResponseCode"))
                 && "00".equals(parameters.get("vnp_TransactionStatus"));
         if (success) {
+            if (repository.orderHasPromotion(payment.orderId()) && !promotions.reservationIsActive(payment.orderId())) {
+                repository.markPaymentReview(payment.orderId(), "PROMOTION_RESERVATION_EXPIRED");
+                promotions.releaseReservation(payment.orderId());
+                return new IpNResult("00", "Payment needs admin reconciliation");
+            }
+            if (repository.orderHasPromotion(payment.orderId()) && !promotions.redeemReservation(payment.orderId())) {
+                repository.markPaymentReview(payment.orderId(), "PROMOTION_RESERVATION_EXPIRED");
+                promotions.releaseReservation(payment.orderId());
+                return new IpNResult("00", "Payment needs admin reconciliation");
+            }
             repository.markPaymentPaid(payment.orderId(), payment.studentId());
         } else {
             repository.markPaymentFailed(payment.orderId());
+            promotions.releaseReservation(payment.orderId());
         }
         return new IpNResult("00", "Confirm Success");
     }
 
-    private String buildPaymentUrl(UUID orderId, long amountMinorUnits, String clientIp) {
+    private String buildPaymentUrl(UUID orderId, long amountMinorUnits, String clientIp, OffsetDateTime reservationExpiresAt) {
         ZonedDateTime now = ZonedDateTime.now(VIETNAM_ZONE);
+        ZonedDateTime expiresAt = reservationExpiresAt == null
+                ? now.plusMinutes(15) : reservationExpiresAt.atZoneSameInstant(VIETNAM_ZONE);
         Map<String, String> params = new TreeMap<>();
         params.put("vnp_Version", "2.1.0");
         params.put("vnp_SecureHashType", "HmacSHA512");
@@ -195,7 +277,7 @@ public class CommerceService {
         params.put("vnp_ReturnUrl", properties.returnUrl());
         params.put("vnp_IpAddr", normalizeIp(clientIp));
         params.put("vnp_CreateDate", now.format(VNPAY_DATE));
-        params.put("vnp_ExpireDate", now.plusMinutes(15).format(VNPAY_DATE));
+        params.put("vnp_ExpireDate", expiresAt.format(VNPAY_DATE));
         String hashData = toQuery(params);
         params.put("vnp_SecureHash", hmacSha512(properties.hashSecret(), hashData));
         return properties.paymentUrl() + "?" + toQuery(params);

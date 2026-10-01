@@ -4,7 +4,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  Bell,
   ChevronDown,
   LayoutDashboard,
   GraduationCap,
@@ -22,6 +21,7 @@ import { cn } from "@/lib/cn";
 import { readCart } from "@/lib/cart";
 import { useAuthSession } from "@/lib/auth-session";
 import { UserAvatar } from "@/components/ui/user-avatar";
+import { StudentAnnouncementBell } from "@/features/notification/student-announcement-bell";
 
 const navItems = [
   { label: "Trang chủ", href: "/" },
@@ -264,15 +264,7 @@ export function AppHeader({
                 <Heart className="h-[21px] w-[21px] stroke-[1.8]" />
               </Link>
 
-              {/* Notification Bell */}
-              <button
-                type="button"
-                className="focus-ring relative flex h-9 w-9 items-center justify-center rounded-lg text-slate-700 transition hover:text-primary hover:bg-slate-50"
-                aria-label="Thông báo"
-              >
-                <Bell className="h-[21px] w-[21px] stroke-[1.8]" />
-                <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-primary ring-2 ring-white" />
-              </button>
+              <StudentAnnouncementBell />
 
               {/* User Avatar + Green Chevron Trigger */}
               <div className="relative" ref={userMenuRef}>

@@ -56,10 +56,12 @@ import {
 import { useAuthSession } from "@/lib/auth-session";
 import { cn } from "@/lib/cn";
 import { SavedLessonsView } from "@/features/learning/saved-lessons-view";
+import { CertificateListView } from "@/features/learning/certificate-list-view";
 
 type PortalView =
   | "overview"
   | "courses"
+  | "certificates"
   | "savedLessons"
   | "assignments"
   | "calendar"
@@ -107,6 +109,12 @@ const navGroups = [
         icon: GraduationCap,
       },
       {
+        label: "Chứng chỉ của tôi",
+        href: "/learning/certificates",
+        view: "certificates" as const,
+        icon: GraduationCap,
+      },
+      {
         label: "Bài học đã lưu",
         href: "/learning/saved-lessons",
         view: "savedLessons" as const,
@@ -136,6 +144,7 @@ const navGroups = [
 const viewTitles: Record<PortalView, string> = {
   overview: "Tổng quan học tập",
   courses: "Khóa học của tôi",
+  certificates: "Chứng chỉ của tôi",
   savedLessons: "Bài học đã lưu",
   assignments: "Bài tập",
   calendar: "Thời khóa biểu",
@@ -504,6 +513,8 @@ export function LearningPortal({ view }: { view: PortalView }) {
               />
             ) : view === "savedLessons" ? (
               <SavedLessonsView />
+            ) : view === "certificates" ? (
+              <CertificateListView />
             ) : (
               <UtilityView view={view} />
             )}
@@ -1083,6 +1094,13 @@ function UtilityView({
   if (view === "messages") return <MessagesView />;
   if (view === "resources") return <ResourcesView />;
   const configs = {
+    certificates: {
+      icon: GraduationCap,
+      title: "Chứng chỉ của bạn",
+      copy: "Chứng chỉ hoàn thành khóa học sẽ được lưu tại đây sau khi bạn hoàn tất giáo trình.",
+      action: "Xem khóa học",
+      href: "/learning/courses",
+    },
     assignments: {
       icon: ClipboardList,
       title: "Bài tập sẽ được đồng bộ tại đây",

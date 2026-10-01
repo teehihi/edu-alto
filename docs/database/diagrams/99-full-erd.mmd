@@ -8,6 +8,15 @@ erDiagram
   users ||--o| student_profiles : owns
   users ||--o| instructor_profiles : owns
   instructor_profiles ||--o{ courses : creates
+  users ||--o{ orders : places
+  orders ||--|{ order_items : contains
+  courses ||--o{ order_items : snapshots
+  orders ||--|| payments : paid_by
+  courses ||--o{ promotions : discounts
+  promotions ||--o{ promotion_redemptions : reserves
+  orders ||--o{ promotion_redemptions : applies
+  order_items ||--o| promotion_redemptions : discounts
+  users ||--o{ promotion_redemptions : redeems
   categories ||--o{ categories : parent
   courses ||--o{ course_categories : tagged
   categories ||--o{ course_categories : groups
@@ -51,6 +60,9 @@ erDiagram
   users ||--o{ reviews : writes
   courses ||--o{ certificates : awards
   users ||--o{ certificates : earns
+  enrollments ||--o| certificates : certifies
+  users ||--o{ course_wishlists : saves
+  courses ||--o{ course_wishlists : saved_by
   users ||--o{ learning_signals : emits
   courses ||--o{ learning_signals : scopes
   users ||--o{ analytics_snapshots : has

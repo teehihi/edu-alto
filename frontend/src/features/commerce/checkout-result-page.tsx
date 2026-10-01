@@ -103,7 +103,9 @@ export function CheckoutResultPage() {
                 ? "Đơn hàng đã được xác nhận. Khóa học đã mở trong khu vực học tập của bạn."
                 : pending
                   ? order?.status === "PAYMENT_REVIEW"
-                    ? "Đơn hàng đang chờ quản trị viên đối soát giao dịch chuyển khoản. Khóa học sẽ mở sau khi giao dịch được xác nhận."
+                    ? order?.paymentReviewReason === "PROMOTION_RESERVATION_EXPIRED"
+                      ? "Giao dịch đến sau thời hạn giữ mã giảm giá và đang được quản trị viên xác minh. Khóa học sẽ mở sau khi xác nhận tiền đã nhận."
+                      : "Đơn hàng đang chờ quản trị viên đối soát giao dịch chuyển khoản. Khóa học sẽ mở sau khi giao dịch được xác nhận."
                     : "VNPay đã quay lại EduAlto. Hệ thống đang chờ xác nhận an toàn từ máy chủ thanh toán; trạng thái sẽ tự cập nhật sau ít phút."
                   : "Đơn hàng chưa được thanh toán. Bạn có thể quay lại giỏ hàng và thử lại."}
             </p>
@@ -114,14 +116,42 @@ export function CheckoutResultPage() {
                   <span className="font-medium">{order.orderId}</span>
                 </div>
                 <div className="mt-2 flex justify-between gap-3">
+                  <span className="text-[#667085]">Tạm tính</span>
+                  <span className="font-medium">{formatVND(order.subtotal)}</span>
+                </div>
+                {order.discountTotal > 0 ? (
+                  <div className="mt-2 flex justify-between gap-3">
+                    <span className="text-[#667085]">Ưu đãi</span>
+                    <span className="font-medium text-primary">
+                      −{formatVND(order.discountTotal)}
+                    </span>
+                  </div>
+                ) : null}
+                <div className="mt-2 flex justify-between gap-3">
                   <span className="text-[#667085]">Tổng tiền</span>
                   <span className="font-semibold">{formatVND(order.total)}</span>
                 </div>
                 <ul className="mt-3 space-y-1 border-t border-[#e5eee9] pt-3 text-xs text-[#52605a]">
                   {order.items.map((item) => (
                     <li key={item.courseId} className="flex justify-between gap-3">
-                      <span>{item.title}</span>
-                      <span>{formatVND(item.unitPrice)}</span>
+                      <span>
+                        {item.title}
+                        {item.promotionCode ? (
+                          <span className="ml-1 text-primary">({item.promotionCode})</span>
+                        ) : null}
+                      </span>
+                      <span>
+                        {item.discountAmount > 0 ? (
+                          <>
+                            <span className="mr-1 text-slate-400 line-through">
+                              {formatVND(item.listPrice)}
+                            </span>
+                            {formatVND(item.unitPrice)}
+                          </>
+                        ) : (
+                          formatVND(item.unitPrice)
+                        )}
+                      </span>
                     </li>
                   ))}
                 </ul>

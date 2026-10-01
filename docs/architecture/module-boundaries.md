@@ -29,12 +29,12 @@ Cross-module dependency phải đi qua service/use case công khai của module 
 | `assignment` | Assignment, submission, grading | `course`, `lesson`, `enrollment`, file infrastructure, `notification` | Không lưu file bytes trong DB. |
 | `document` | Course document, saved document, note | `course`, `lesson`, file infrastructure | Không quản lý enrollment state. |
 | `discussion` | Discussion, comment, moderation state | `course`, `lesson`, `enrollment`, `notification` | Không thay thế messaging direct/group. |
-| `messaging` | Conversation, participant, message | `user`, `course`, WebSocket infrastructure, `notification` | Không broadcast trước khi persist message. |
+| `messaging` | Persistent instructor/student conversations, messages, read state, instructor block and hide state | `user` | Ghi tin nhắn vào DB trước; WebSocket và notification delivery chưa thuộc API hiện tại. |
 | `notification` | In-app/email notification, read state | `user`, WebSocket/email infrastructure | Không chứa business rule nguồn của event. |
 | `schedule` | Calendar event, deadline/event view | `user`, `course`, `assignment` read model | Không tự tạo assignment/lesson. |
 | `review` | Course review and rating | `user`, `course`, `enrollment` | Không tự cập nhật denormalized course rating nếu chưa có job rõ. |
 | `certificate` | Certificate issue rule and lookup | `user`, `course`, `enrollment`, `learning`, `quiz`, `assignment` | Không sửa progress để đạt điều kiện. |
-| `analytics` | Learning signals, aggregate snapshots | read-only from learning/quiz/assignment signals | Không nằm trên request path bắt buộc nếu có thể batch. |
+| `analytics` | Learning signals, aggregate snapshots, instructor course metrics read model | read-only aggregates over source-module data | Không ghi vào dữ liệu nguồn của module khác. |
 | `admin` | Administrative use cases and governance | uses service APIs from owned modules | Không truy cập repository mọi module như shortcut mặc định. |
 | `ai` | Future recommendation model metadata and recommendation output | `analytics`, `learning` read model | Không hard-code vào `CourseService` hoặc `LearningProgressService`. |
 
@@ -61,7 +61,7 @@ Tên interface có thể thay đổi theo implementation, nhưng trách nhiệm 
 | Participation | `enrollment`, `learning` | `enrollments`, `learning_progress`, `notes` |
 | Assessment | `quiz`, `assignment` | `quizzes`, `questions`, `question_options`, `quiz_attempts`, `quiz_answers`, `assignments`, `assignment_submissions` |
 | Collaboration | `document`, `discussion`, `messaging` | `documents`, `saved_documents`, `discussions`, `discussion_comments`, `conversations`, `conversation_participants`, `messages` |
-| Commerce | `commerce` | `orders`, `order_items`, `payments`, `manual_payment_confirmations` |
+| Commerce | `commerce` | `orders`, `order_items`, `payments`, `manual_payment_confirmations`, `promotions`, `promotion_redemptions` |
 | Engagement | `notification`, `schedule`, `review`, `certificate` | `notifications`, `calendar_events`, `reviews`, `certificates` |
 | Insight | `analytics`, `ai` | `learning_signals`, `analytics_snapshots`, `ai_model_versions`, `recommendations`, `recommendation_items`, `recommendation_reasons` |
 
@@ -75,8 +75,9 @@ Tên interface có thể thay đổi theo implementation, nhưng trách nhiệm 
 - `learning -> enrollment + lesson`: xác thực enrollment trước khi cập nhật progress.
 - `quiz/assignment -> enrollment`: xác thực quyền học trước khi nộp bài.
 - `discussion/document -> enrollment/course`: kiểm tra quyền truy cập content.
-- `messaging -> user/course`: kiểm tra participant và course conversation scope.
+- `messaging -> user`: kiểm tra tài khoản active, role và participant; conversation là trực tiếp giữa học viên và giảng viên, không gắn course.
 - `certificate -> learning/quiz/assignment`: đọc điều kiện hoàn thành, không tự sửa dữ liệu nguồn.
+- `analytics -> source modules`: đọc dữ liệu cần thiết để tính aggregate/read model; không ghi vào bảng nguồn.
 - `analytics -> signals`: đọc hoặc nhận append-only signal.
 - `ai -> analytics`: đọc dữ liệu đã tổng hợp để sinh recommendation.
 

@@ -8,6 +8,8 @@ export type CourseReview = {
   rating: number;
   comment: string;
   status: string;
+  instructorReply?: string | null;
+  instructorRepliedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -16,7 +18,10 @@ export type CourseReviewSummary = {
   courseId: string;
   averageRating: number;
   reviewCount: number;
+  ratingCounts?: Array<{ rating: number; count: number }>;
 };
+
+export type InstructorReviewSummary = Omit<CourseReviewSummary, "courseId">;
 
 export async function fetchCourseReviews(courseId: string) {
   return apiPageRequest<CourseReview>(
@@ -28,6 +33,12 @@ export async function fetchCourseReviewSummary(courseId: string) {
   return apiRequest<CourseReviewSummary>(
     `/courses/${encodeURIComponent(courseId)}/reviews/summary`,
   );
+}
+
+export async function fetchInstructorReviewSummary(accessToken: string) {
+  return apiRequest<InstructorReviewSummary>("/instructor/reviews/summary", {
+    accessToken,
+  });
 }
 
 export async function saveCourseReview(

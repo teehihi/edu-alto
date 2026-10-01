@@ -50,4 +50,14 @@ public class AdminCommerceController {
     ) {
         return ApiResponse.ok(commerce.confirmManualPayment(principal.id(), orderId, request));
     }
+
+    @PostMapping("/api/v1/admin/orders/{orderId}/confirm-captured-payment")
+    @Operation(summary = "Quản trị viên ghi nhận khoản tiền đã được xác minh sau hạn giữ ưu đãi")
+    public ApiResponse<OrderResponse> confirmCapturedPayment(
+            @AuthenticationPrincipal AuthenticatedUser principal,
+            @PathVariable UUID orderId,
+            @Valid @RequestBody ConfirmManualPaymentRequest request
+    ) {
+        return ApiResponse.ok(commerce.confirmCapturedPayment(principal.id(), orderId, request));
+    }
 }

@@ -17,6 +17,8 @@ public record CreateOrderRequest(
         PaymentMethod paymentMethod,
         @NotBlank(message = "Vui lòng nhập số điện thoại liên hệ")
         @Pattern(regexp = "^0[0-9]{9}$", message = "Số điện thoại phải gồm 10 chữ số và bắt đầu bằng 0")
-        String phoneNumber
+        String phoneNumber,
+        @Size(max = 40, message = "Mã khuyến mãi tối đa 40 ký tự")
+        String promotionCode
 ) {
 }

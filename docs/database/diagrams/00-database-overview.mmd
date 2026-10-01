@@ -5,6 +5,7 @@ flowchart LR
   participation["Participation\nenrollment progress notes"]
   assessment["Assessment\nquiz assignment grading"]
   collaboration["Collaboration\ndocument discussion messaging"]
+  commerce["Commerce\norders payments promotions"]
   engagement["Engagement\nnotification schedule review certificate"]
   insight["Insight and AI\nsignals analytics recommendations"]
 
@@ -14,6 +15,8 @@ flowchart LR
   catalog --> participation
   catalog --> assessment
   catalog --> collaboration
+  catalog --> commerce
+  identity --> commerce
   participation --> assessment
   participation --> insight
   assessment --> insight
