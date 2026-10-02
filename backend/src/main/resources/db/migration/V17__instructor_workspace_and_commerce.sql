@@ -158,7 +158,7 @@ create table certificates (
     issued_at timestamptz not null,
     created_at timestamptz not null default current_timestamp,
     constraint fk_certificates_enrollment_course foreign key (enrollment_id, course_id)
-        references enrollments(id, course_id)
+        references enrollments(id, course_id) on delete cascade
 );
 
 create index idx_certificates_student_issued on certificates(student_id, issued_at desc, id);

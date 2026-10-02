@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -17,6 +18,8 @@ import com.edualto.commerce.dto.OrderCreatedResponse;
 import com.edualto.commerce.dto.OrderResponse;
 import com.edualto.commerce.repository.CommerceRepository;
 import com.edualto.commerce.repository.CommerceRepository.PaymentOrder;
+import com.edualto.commerce.repository.PromotionRepository;
+import com.edualto.commerce.repository.PromotionRepository.PromotionRecord;
 import com.edualto.commerce.service.CommerceService;
 import com.edualto.common.exception.BusinessException;
 import com.edualto.user.service.UserService;
@@ -44,6 +47,8 @@ class CommerceServiceTest {
     private CommerceRepository repository;
     @Mock
     private UserService users;
+    @Mock
+    private PromotionRepository promotions;
 
     @Test
     void validIpnMarksPaymentPaidAndActivatesEnrollment() {
@@ -109,7 +114,7 @@ class CommerceServiceTest {
         when(repository.isEnrolled(studentId, courseId)).thenReturn(false);
 
         OrderCreatedResponse response = service().createOrder(studentId,
-                new CreateOrderRequest(List.of(courseId), PaymentMethod.MOMO, "0931652105"), "127.0.0.1");
+                new CreateOrderRequest(List.of(courseId), PaymentMethod.MOMO, "0931652105", null), "127.0.0.1");
 
         assertThat(response.status()).isEqualTo("PAYMENT_REVIEW");
         assertThat(response.paymentMethod()).isEqualTo("MOMO");
@@ -117,7 +122,8 @@ class CommerceServiceTest {
         assertThat(response.instructions().walletPhone()).isEqualTo("0389037546");
         assertThat(response.instructions().transferReference()).startsWith("EA");
         verify(repository).insertOrder(any(UUID.class), eq(studentId), eq("0931652105"),
-                eq(new BigDecimal("250000")), eq("PAYMENT_REVIEW"), anyString());
+                eq(new BigDecimal("250000")), eq(BigDecimal.ZERO), eq(new BigDecimal("250000")),
+                eq("PAYMENT_REVIEW"), anyString(), isNull());
         verify(repository, never()).markPaymentPaid(any(), any());
     }
 
@@ -130,7 +136,7 @@ class CommerceServiceTest {
         when(repository.isEnrolled(studentId, courseId)).thenReturn(false);
 
         OrderCreatedResponse response = service().createOrder(studentId,
-                new CreateOrderRequest(List.of(courseId), PaymentMethod.VIETQR, "0931652105"), "127.0.0.1");
+                new CreateOrderRequest(List.of(courseId), PaymentMethod.VIETQR, "0931652105", null), "127.0.0.1");
 
         assertThat(response.instructions().bankName()).isEqualTo("Vietcombank (VCB)");
         assertThat(response.instructions().accountNumber()).isEqualTo("1040489156");
@@ -146,7 +152,7 @@ class CommerceServiceTest {
         when(repository.lockPaymentOrder(orderId.toString())).thenReturn(Optional.of(
                 new PaymentOrder(orderId, 25000000L, "PENDING", "MOMO", "PAYMENT_REVIEW", studentId)));
         OrderResponse order = new OrderResponse(orderId, "PAID", "VND", new BigDecimal("250000"),
-                OffsetDateTime.now(), List.of());
+                BigDecimal.ZERO, new BigDecimal("250000"), OffsetDateTime.now(), null, null, List.of());
         when(repository.findOrder(orderId, studentId)).thenReturn(Optional.of(order));
 
         OrderResponse response = service().confirmManualPayment(adminId, orderId,
@@ -168,10 +174,79 @@ class CommerceServiceTest {
         verify(repository, never()).countAdminOrders(any());
     }
 
+    @Test
+    void promotionDiscountIsReservedAndManualPaymentUsesNetAmount() {
+        UUID studentId = UUID.randomUUID();
+        UUID courseId = UUID.randomUUID();
+        UUID promotionId = UUID.randomUUID();
+        UUID itemId = UUID.randomUUID();
+        var course = new CommerceRepository.CheckoutCourse(courseId, UUID.randomUUID(),
+                "Khóa học thử", new BigDecimal("250000"), "PUBLISHED");
+        when(repository.lockCourse(courseId)).thenReturn(Optional.of(course));
+        when(promotions.lockByCode("WELCOME20")).thenReturn(Optional.of(new PromotionRecord(
+                promotionId, courseId, "Ưu đãi khóa học", "WELCOME20", "PERCENT", new BigDecimal("20"),
+                10, OffsetDateTime.now().minusDays(1), OffsetDateTime.now().plusDays(1), true)));
+        when(repository.insertOrderItem(any(UUID.class), eq(course), eq(new BigDecimal("200000")),
+                eq(new BigDecimal("50000")), eq(promotionId), eq("WELCOME20"))).thenReturn(itemId);
+
+        OrderCreatedResponse response = service().createOrder(studentId,
+                new CreateOrderRequest(List.of(courseId), PaymentMethod.VIETQR, "0931652105", " welcome20 "),
+                "127.0.0.1");
+
+        assertThat(response.subtotal()).isEqualByComparingTo("250000");
+        assertThat(response.discountTotal()).isEqualByComparingTo("50000");
+        assertThat(response.total()).isEqualByComparingTo("200000");
+        assertThat(response.expiresAt()).isAfter(OffsetDateTime.now().plusHours(23));
+        assertThat(response.instructions().qrUrl()).contains("amount=200000");
+        verify(promotions).insertReservation(promotionId, response.orderId(), itemId, studentId,
+                new BigDecimal("50000"), response.expiresAt());
+        verify(repository).insertPayment(any(UUID.class), eq(response.orderId()), eq("VIETQR"), eq(20000000L));
+    }
+
+    @Test
+    void successfulIpnWithExpiredReservationRequiresReviewWithoutEnrollment() {
+        UUID orderId = UUID.randomUUID();
+        UUID studentId = UUID.randomUUID();
+        when(repository.lockPaymentOrder(orderId.toString())).thenReturn(Optional.of(
+                new PaymentOrder(orderId, 20000000L, "PENDING", "VNPAY", "PENDING_PAYMENT", studentId)));
+        when(repository.orderHasPromotion(orderId)).thenReturn(true);
+
+        CommerceService.IpNResult result = service().processIpn(signed(Map.of(
+                "vnp_TxnRef", orderId.toString(), "vnp_Amount", "20000000",
+                "vnp_ResponseCode", "00", "vnp_TransactionStatus", "00")));
+
+        assertThat(result.rspCode()).isEqualTo("00");
+        verify(repository).markPaymentReview(orderId, "PROMOTION_RESERVATION_EXPIRED");
+        verify(promotions).releaseReservation(orderId);
+        verify(repository, never()).markPaymentPaid(any(), any());
+        verify(repository, never()).markPaymentFailed(any());
+    }
+
+    @Test
+    void successfulIpnRedeemsActiveReservationAndActivatesEnrollment() {
+        UUID orderId = UUID.randomUUID();
+        UUID studentId = UUID.randomUUID();
+        when(repository.lockPaymentOrder(orderId.toString())).thenReturn(Optional.of(
+                new PaymentOrder(orderId, 20000000L, "PENDING", "VNPAY", "PENDING_PAYMENT", studentId)));
+        when(repository.orderHasPromotion(orderId)).thenReturn(true);
+        when(promotions.reservationIsActive(orderId)).thenReturn(true);
+        when(promotions.redeemReservation(orderId)).thenReturn(true);
+
+        CommerceService.IpNResult result = service().processIpn(signed(Map.of(
+                "vnp_TxnRef", orderId.toString(), "vnp_Amount", "20000000",
+                "vnp_ResponseCode", "00", "vnp_TransactionStatus", "00")));
+
+        assertThat(result.rspCode()).isEqualTo("00");
+        verify(promotions).redeemReservation(orderId);
+        verify(repository).markPaymentPaid(orderId, studentId);
+        verify(repository, never()).markPaymentReview(any(), any());
+        verify(promotions, never()).releaseReservation(any());
+    }
+
     private CommerceService service() {
         return new CommerceService(repository, users,
                 new VnPayProperties("TESTTMNCODE", SECRET, "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html",
-                        "https://example.test/checkout/result"));
+                        "https://example.test/checkout/result"), promotions);
     }
 
     private static Map<String, String> signed(Map<String, String> values) {
