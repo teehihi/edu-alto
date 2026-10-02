@@ -200,7 +200,7 @@ export function AppHeader({
             />
             <Link
               href="/courses"
-              className="focus-ring inline-flex items-center gap-1 rounded-lg bg-primary-soft px-2.5 py-1 text-xs font-semibold text-primary transition hover:bg-[#d9fff3]"
+              className="focus-ring inline-flex min-h-11 items-center gap-1 rounded-lg bg-primary-soft px-3 text-xs font-semibold text-primary transition hover:bg-[#d9fff3]"
             >
               Khám phá
               <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
@@ -234,13 +234,13 @@ export function AppHeader({
         </nav>
 
         {/* Right Section: Header After Login Action Icons */}
-        <div className="hidden items-center gap-4 lg:flex">
+        <div className="hidden items-center gap-3 lg:flex">
           {isAuthed && user ? (
             <div className="flex items-center gap-4">
               {/* Shopping Cart */}
               <Link
                 href="/cart"
-                className="focus-ring relative flex h-9 w-9 items-center justify-center rounded-lg text-slate-700 transition-colors duration-200 hover:text-primary"
+                className="focus-ring relative flex h-11 w-11 items-center justify-center rounded-xl text-slate-700 transition-colors duration-200 hover:text-primary"
                 aria-label={cartCount ? `Giỏ hàng, ${cartCount} khóa học` : "Giỏ hàng"}
               >
                 <ShoppingCart className="h-[21px] w-[21px] stroke-[1.8]" />
@@ -258,7 +258,7 @@ export function AppHeader({
               {/* Wishlist / Favorites */}
               <Link
                 href="/favorites"
-                className="focus-ring flex h-9 w-9 items-center justify-center rounded-lg text-slate-700 transition hover:text-primary hover:bg-slate-50"
+                className="focus-ring flex h-11 w-11 items-center justify-center rounded-xl text-slate-700 transition-colors hover:text-primary"
                 aria-label="Khóa học yêu thích"
               >
                 <Heart className="h-[21px] w-[21px] stroke-[1.8]" />
@@ -267,14 +267,20 @@ export function AppHeader({
               <StudentAnnouncementBell />
 
               {/* User Avatar + Green Chevron Trigger */}
-              <div className="relative" ref={userMenuRef}>
+              <div
+                className="relative"
+                ref={userMenuRef}
+                onPointerEnter={(event) => {
+                  if (event.pointerType === "mouse") setIsUserMenuOpen(true);
+                }}
+              >
                 <button
                   type="button"
-                  onClick={() => setIsUserMenuOpen((prev) => !prev)}
+                  onClick={() => setIsUserMenuOpen(true)}
                   aria-expanded={isUserMenuOpen}
                   aria-haspopup="true"
                   aria-label={`Menu người dùng: ${user.fullName || "Tài khoản"}`}
-                  className="focus-ring group flex items-center gap-1.5 rounded-full p-0.5 transition hover:opacity-90"
+                  className="focus-ring group flex min-h-11 items-center gap-1.5 rounded-full p-1 transition hover:bg-primary-soft/60"
                 >
                   <UserAvatar
                     name={user.fullName}
@@ -294,105 +300,109 @@ export function AppHeader({
 
                 {/* User Dropdown Popover */}
                 {isUserMenuOpen && (
-                  <div
-                    className="absolute right-0 mt-3 w-64 origin-top-right rounded-2xl border border-slate-100 bg-white p-2 shadow-xl ring-1 ring-black/5 animate-page z-50"
-                    role="menu"
-                    aria-orientation="vertical"
-                  >
-                    {/* User Card inside Popover */}
-                    <div className="flex items-center gap-3 rounded-xl bg-slate-50/80 p-3 mb-1">
-                      <UserAvatar
-                        name={user.fullName}
-                        email={user.email}
-                        avatarUrl={user.avatarUrl}
-                        size="md"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs font-bold text-heading">
-                          {user.fullName || "Tài khoản"}
-                        </p>
-                        <p className="truncate text-[11px] text-muted">{user.email}</p>
-                        <span className="mt-1 inline-block rounded-md bg-primary-soft px-2 py-0.5 text-[10px] font-semibold text-primary">
-                          {roleLabel}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="h-px bg-slate-100 my-1" />
-
-                    <Link
-                      href="/profile"
-                      role="menuitem"
-                      onClick={() => setIsUserMenuOpen(false)}
-                      className={cn(
-                        "group flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold transition hover:bg-slate-50 hover:text-primary",
-                        pathname === "/profile"
-                          ? "text-primary bg-primary-soft/50"
-                          : "text-slate-700",
-                      )}
+                  <div className="absolute right-0 top-full z-50 pt-2">
+                    <div
+                      className="w-64 origin-top-right rounded-2xl border border-slate-100 bg-white p-2 shadow-xl ring-1 ring-black/5 animate-page"
+                      role="menu"
+                      aria-orientation="vertical"
                     >
-                      <UserIcon
-                        className={cn(
-                          "h-4 w-4 transition-colors group-hover:text-primary",
-                          pathname === "/profile" ? "text-primary" : "text-slate-400",
-                        )}
-                      />
-                      <span>Trang cá nhân</span>
-                    </Link>
+                      {/* User Card inside Popover */}
+                      <div className="mb-1 flex items-center gap-3 rounded-xl bg-slate-50/80 p-3">
+                        <UserAvatar
+                          name={user.fullName}
+                          email={user.email}
+                          avatarUrl={user.avatarUrl}
+                          size="md"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-bold text-heading">
+                            {user.fullName || "Tài khoản"}
+                          </p>
+                          <p className="truncate text-[11px] text-muted">{user.email}</p>
+                          <span className="mt-1 inline-block rounded-md bg-primary-soft px-2 py-0.5 text-[10px] font-semibold text-primary">
+                            {roleLabel}
+                          </span>
+                        </div>
+                      </div>
 
-                    {isInstructor ? (
+                      <div className="my-1 h-px bg-slate-100" />
+
                       <Link
-                        href="/instructor"
+                        href="/profile"
                         role="menuitem"
                         onClick={() => setIsUserMenuOpen(false)}
                         className={cn(
-                          "group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold transition hover:bg-slate-50 hover:text-primary",
-                          pathname.startsWith("/instructor")
+                          "group flex min-h-11 items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold transition hover:bg-slate-50 hover:text-primary",
+                          pathname === "/profile"
                             ? "text-primary bg-primary-soft/50"
                             : "text-slate-700",
                         )}
                       >
-                        <LayoutDashboard
+                        <UserIcon
                           className={cn(
                             "h-4 w-4 transition-colors group-hover:text-primary",
-                            pathname.startsWith("/instructor") ? "text-primary" : "text-slate-400",
+                            pathname === "/profile" ? "text-primary" : "text-slate-400",
                           )}
                         />
-                        <span>Bảng điều khiển giảng viên</span>
+                        <span>Trang cá nhân</span>
                       </Link>
-                    ) : null}
 
-                    <Link
-                      href="/learning/courses"
-                      role="menuitem"
-                      onClick={() => setIsUserMenuOpen(false)}
-                      className="group flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-primary"
-                    >
-                      <GraduationCap className="h-4 w-4 text-slate-400 transition-colors group-hover:text-primary" />
-                      <span>Khóa học của tôi</span>
-                    </Link>
+                      {isInstructor ? (
+                        <Link
+                          href="/instructor"
+                          role="menuitem"
+                          onClick={() => setIsUserMenuOpen(false)}
+                          className={cn(
+                            "group flex min-h-11 w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold transition hover:bg-slate-50 hover:text-primary",
+                            pathname.startsWith("/instructor")
+                              ? "text-primary bg-primary-soft/50"
+                              : "text-slate-700",
+                          )}
+                        >
+                          <LayoutDashboard
+                            className={cn(
+                              "h-4 w-4 transition-colors group-hover:text-primary",
+                              pathname.startsWith("/instructor")
+                                ? "text-primary"
+                                : "text-slate-400",
+                            )}
+                          />
+                          <span>Bảng điều khiển giảng viên</span>
+                        </Link>
+                      ) : null}
 
-                    <Link
-                      href="/profile"
-                      role="menuitem"
-                      onClick={() => setIsUserMenuOpen(false)}
-                      className="group flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-primary"
-                    >
-                      <Settings className="h-4 w-4 text-slate-400 transition-colors group-hover:text-primary" />
-                      <span>Cài đặt tài khoản</span>
-                    </Link>
+                      <Link
+                        href="/learning/courses"
+                        role="menuitem"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="group flex min-h-11 items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-primary"
+                      >
+                        <GraduationCap className="h-4 w-4 text-slate-400 transition-colors group-hover:text-primary" />
+                        <span>Khóa học của tôi</span>
+                      </Link>
 
-                    <div className="h-px bg-slate-100 my-1" />
+                      <Link
+                        href="/profile"
+                        role="menuitem"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="group flex min-h-11 items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-primary"
+                      >
+                        <Settings className="h-4 w-4 text-slate-400 transition-colors group-hover:text-primary" />
+                        <span>Cài đặt tài khoản</span>
+                      </Link>
 
-                    <button
-                      type="button"
-                      role="menuitem"
-                      onClick={handleLogout}
-                      className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-rose-600 transition hover:bg-rose-50"
-                    >
-                      <LogOut className="h-4 w-4 text-rose-500 transition-colors group-hover:text-rose-600" />
-                      <span>Đăng xuất</span>
-                    </button>
+                      <div className="my-1 h-px bg-slate-100" />
+
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={handleLogout}
+                        className="group flex min-h-11 w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold text-rose-600 transition hover:bg-rose-50"
+                      >
+                        <LogOut className="h-4 w-4 text-rose-500 transition-colors group-hover:text-rose-600" />
+                        <span>Đăng xuất</span>
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -415,7 +425,7 @@ export function AppHeader({
         {/* Mobile Menu Button */}
         <Link
           href="/cart"
-          className="focus-ring relative flex h-10 w-10 items-center justify-center rounded-xl text-slate-700 transition-colors duration-200 hover:text-primary lg:hidden"
+          className="focus-ring relative flex h-11 w-11 items-center justify-center rounded-xl text-slate-700 transition-colors duration-200 hover:text-primary lg:hidden"
           aria-label={cartCount ? `Mở giỏ hàng, ${cartCount} khóa học` : "Mở giỏ hàng"}
         >
           <ShoppingCart className="h-5 w-5 stroke-[1.8]" aria-hidden="true" />
@@ -430,7 +440,7 @@ export function AppHeader({
           ) : null}
         </Link>
         <button
-          className="focus-ring inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-ink lg:hidden"
+          className="focus-ring inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-ink lg:hidden"
           type="button"
           aria-label={isOpen ? "Đóng menu" : "Mở menu"}
           aria-expanded={isOpen}

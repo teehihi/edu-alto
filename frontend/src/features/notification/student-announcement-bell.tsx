@@ -89,7 +89,7 @@ export function StudentAnnouncementBell() {
         aria-label="Thông báo"
         aria-expanded={open}
         aria-haspopup="dialog"
-        className="focus-ring relative flex h-9 w-9 items-center justify-center rounded-lg text-slate-700 transition hover:bg-slate-50 hover:text-primary"
+        className="focus-ring relative flex h-11 w-11 items-center justify-center rounded-xl text-slate-700 transition-colors hover:text-primary"
       >
         <Bell className="h-[21px] w-[21px] stroke-[1.8]" aria-hidden="true" />
       </button>

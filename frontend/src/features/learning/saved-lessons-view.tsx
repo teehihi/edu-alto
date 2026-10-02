@@ -163,7 +163,7 @@ export function SavedLessonsView() {
           </p>
           <Link
             href="/learning/courses"
-            className="focus-ring mt-4 inline-flex rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white"
+            className="focus-ring mt-4 inline-flex min-h-11 items-center rounded-lg bg-primary px-4 text-sm font-semibold text-white transition hover:bg-[#159e75] active:bg-[#128763]"
           >
             Xem khóa học của tôi
           </Link>

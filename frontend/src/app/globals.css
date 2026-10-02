@@ -44,6 +44,33 @@
   box-sizing: border-box;
 }
 
+button {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+a.h-8,
+a.h-9,
+a.h-10,
+a.min-h-8,
+a.min-h-9,
+a.min-h-10 {
+  min-height: 44px;
+}
+
+a.w-8,
+a.w-9,
+a.w-10 {
+  min-width: 44px;
+}
+
+a.size-8,
+a.size-9,
+a.size-10 {
+  min-height: 44px;
+  min-width: 44px;
+}
+
 html {
   scroll-behavior: smooth;
 }

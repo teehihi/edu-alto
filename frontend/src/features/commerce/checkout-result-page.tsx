@@ -171,7 +171,7 @@ export function CheckoutResultPage() {
           )}
           <Link
             href={paid ? "/learning/courses" : "/cart"}
-            className="focus-ring rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#159e75]"
+            className="focus-ring inline-flex min-h-11 items-center rounded-lg bg-primary px-4 text-sm font-semibold text-white transition hover:bg-[#159e75] active:bg-[#128763]"
           >
             {paid ? "Vào khóa học" : "Quay lại giỏ hàng"}
           </Link>

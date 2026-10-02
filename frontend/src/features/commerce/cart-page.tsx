@@ -99,7 +99,7 @@ export function CartPage() {
                     <button
                       type="button"
                       onClick={() => setCourses(removeCourseFromCart(course.id))}
-                      className="focus-ring inline-flex items-center gap-1 rounded text-xs font-medium text-rose-600 hover:underline"
+                      className="focus-ring inline-flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-rose-600 transition hover:bg-rose-50 hover:underline"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                       Xóa
@@ -151,7 +151,7 @@ export function CartPage() {
               </div>
               <Link
                 href="/checkout"
-                className="focus-ring mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#079b70] text-sm font-semibold text-white hover:bg-[#078561]"
+                className="focus-ring mt-4 flex h-14 w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-[#079b70] text-base font-semibold text-white transition hover:bg-[#078561] active:bg-[#067454]"
               >
                 Tiếp tục thanh toán
                 <ChevronRight className="h-4 w-4" />
@@ -174,7 +174,7 @@ export function CartPage() {
               </p>
               <Link
                 href="/courses"
-                className="focus-ring mt-5 inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-white hover:bg-[#159e75]"
+                className="focus-ring mt-5 inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-white transition hover:bg-[#159e75] active:bg-[#128763]"
               >
                 Khám phá khóa học
                 <ChevronRight className="h-4 w-4" />

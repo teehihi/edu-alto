@@ -301,7 +301,7 @@ export function CourseDetailPage({ slug }: { slug: string }) {
               <div className="bg-white">
                 <div className="mx-auto grid max-w-[1440px] gap-10 px-5 pb-12 sm:px-10 lg:grid-cols-[minmax(0,1fr)_400px] lg:px-20">
                   <aside
-                    className="order-first self-start rounded-xl border border-slate-200 bg-white shadow-xs lg:order-last lg:-mt-[350px] lg:z-10"
+                    className="relative z-20 order-first self-start rounded-xl border border-slate-200 bg-white shadow-xs lg:order-last lg:-mt-[350px]"
                     aria-label="Thông tin đăng ký khóa học"
                   >
                     <div className="p-6">
@@ -320,9 +320,11 @@ export function CourseDetailPage({ slug }: { slug: string }) {
                         )}
                       </div>
                       <Button
+                        type="button"
                         disabled={enrollmentLoading}
                         onClick={course.price === 0 ? enroll : addToCart}
-                        className={`mt-6 w-full rounded-lg ${cartActionAnimating && course.price > 0 ? "cart-add-pop" : ""}`}
+                        size="lg"
+                        className={`relative z-10 mt-6 min-h-[60px] w-full rounded-lg ${cartActionAnimating && course.price > 0 ? "cart-add-pop" : ""}`}
                         aria-describedby="enrollment-status"
                       >
                         {enrollmentLoading ? (
@@ -340,9 +342,11 @@ export function CourseDetailPage({ slug }: { slug: string }) {
                       </Button>
                       {course.price > 0 && (
                         <Button
+                          type="button"
                           onClick={buyNow}
                           variant="outline"
-                          className="mt-4 w-full rounded-lg"
+                          size="lg"
+                          className="relative z-10 mt-4 min-h-[60px] w-full rounded-lg"
                           aria-describedby="enrollment-status"
                         >
                           Mua ngay

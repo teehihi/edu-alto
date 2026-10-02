@@ -269,7 +269,7 @@ export function OtpSuccessModal({ open, seconds = 3 }: { open: boolean; seconds?
       </p>
       <Link
         href="/login"
-        className="focus-ring mt-3.5 inline-block rounded-xl bg-primary px-6 py-2.5 text-xs font-semibold text-white shadow-xs transition hover:bg-primary-dark sm:text-sm"
+        className="focus-ring mt-3.5 inline-flex min-h-11 items-center rounded-xl bg-primary px-6 text-xs font-semibold text-white shadow-xs transition hover:bg-primary-dark active:bg-primary-dark sm:text-sm"
       >
         Đăng nhập ngay
       </Link>

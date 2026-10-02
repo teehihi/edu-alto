@@ -212,7 +212,7 @@ export function LearningLessonPage({ lessonId }: { lessonId: string }) {
             <p className="mt-2 text-sm text-[#74817b]">{error}</p>
             <Link
               href={backHref}
-              className="focus-ring mt-5 inline-flex rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white"
+              className="focus-ring mt-5 inline-flex min-h-11 items-center rounded-lg bg-primary px-4 text-sm font-semibold text-white transition hover:bg-[#159e75] active:bg-[#128763]"
             >
               Quay về giáo trình
             </Link>

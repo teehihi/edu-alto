@@ -143,7 +143,7 @@ export function AdminPaymentsPage() {
           Đăng nhập bằng tài khoản quản trị để đối soát thanh toán.
         </p>
         <Link
-          className="focus-ring mt-5 inline-flex rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white"
+          className="focus-ring mt-5 inline-flex min-h-11 items-center rounded-lg bg-primary px-4 text-sm font-semibold text-white transition hover:bg-[#159e75] active:bg-[#128763]"
           href="/login"
         >
           Đăng nhập
@@ -161,7 +161,7 @@ export function AdminPaymentsPage() {
           Trang đối soát chỉ dành cho quản trị viên EduAlto.
         </p>
         <Link
-          className="focus-ring mt-5 inline-flex rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-ink hover:bg-slate-50"
+          className="focus-ring mt-5 inline-flex min-h-11 items-center rounded-lg border border-slate-300 px-4 text-sm font-semibold text-ink transition hover:bg-slate-50 active:bg-slate-100"
           href="/"
         >
           Về trang chủ

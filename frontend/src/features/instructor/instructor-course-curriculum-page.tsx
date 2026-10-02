@@ -693,7 +693,7 @@ export function InstructorCourseCurriculumPage({
                   <Link
                     href={`/courses/${structure.courseSlug}`}
                     target="_blank"
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 shadow-xs transition hover:bg-slate-50"
+                    className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-700 shadow-xs transition hover:bg-slate-50 active:bg-slate-100"
                   >
                     <Eye className="h-4 w-4 text-slate-500" />
                     <span>Xem trang khóa học</span>

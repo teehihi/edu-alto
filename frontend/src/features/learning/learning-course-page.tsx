@@ -124,7 +124,7 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
             <p className="mt-2 text-sm text-[#667085]">{message}</p>
             <Link
               href="/learning/courses"
-              className="focus-ring mt-5 inline-flex rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white"
+              className="focus-ring mt-5 inline-flex min-h-11 items-center rounded-lg bg-primary px-4 text-sm font-semibold text-white transition hover:bg-[#159e75] active:bg-[#128763]"
             >
               Quay về khóa học của tôi
             </Link>

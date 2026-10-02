@@ -10,6 +10,8 @@ import {
   fetchLessonPreview,
 } from "@/lib/course-client";
 
+const routerPushMock = vi.fn();
+
 vi.mock("@/lib/course-client", () => ({
   fetchPublicCourseBySlug: vi.fn(),
   fetchPublicCourses: vi.fn(),
@@ -19,7 +21,7 @@ vi.mock("@/lib/course-client", () => ({
 vi.mock("@/components/layout/app-header", () => ({ AppHeader: () => null }));
 vi.mock("@/components/layout/footer", () => ({ Footer: () => null }));
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+  useRouter: () => ({ push: routerPushMock, refresh: vi.fn() }),
 }));
 vi.mock("@/lib/auth-session", () => ({
   useAuthSession: () => ({ user: null, getAccessToken: vi.fn() }),
@@ -44,6 +46,7 @@ const course = {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  window.localStorage.clear();
   vi.mocked(fetchPublicCourses).mockResolvedValue([]);
   vi.mocked(fetchPublicCourseBySlug).mockResolvedValue(course);
   vi.mocked(fetchPublicCurriculum).mockResolvedValue({
@@ -79,6 +82,40 @@ beforeEach(() => {
     this.removeAttribute("open");
     this.dispatchEvent(new Event("close"));
   };
+});
+
+it("adds a paid course to the cart when the add button is clicked", async () => {
+  vi.mocked(fetchPublicCourseBySlug).mockResolvedValue({
+    ...course,
+    price: 299_000,
+    originalPrice: 499_000,
+  });
+  const user = userEvent.setup();
+  render(<CourseDetailPage slug="khoa-hoc" />);
+
+  await user.click(await screen.findByRole("button", { name: "Thêm vào giỏ hàng" }));
+
+  expect(JSON.parse(window.localStorage.getItem("edualto:cart:v1") ?? "[]")).toEqual([
+    expect.objectContaining({ id: course.id, price: 299_000 }),
+  ]);
+  expect(screen.getByText("Đã thêm khóa học vào giỏ hàng.")).toBeInTheDocument();
+});
+
+it("adds a paid course and opens checkout when buy now is clicked", async () => {
+  vi.mocked(fetchPublicCourseBySlug).mockResolvedValue({
+    ...course,
+    price: 299_000,
+    originalPrice: 499_000,
+  });
+  const user = userEvent.setup();
+  render(<CourseDetailPage slug="khoa-hoc" />);
+
+  await user.click(await screen.findByRole("button", { name: "Mua ngay" }));
+
+  expect(JSON.parse(window.localStorage.getItem("edualto:cart:v1") ?? "[]")).toEqual([
+    expect.objectContaining({ id: course.id, price: 299_000 }),
+  ]);
+  expect(routerPushMock).toHaveBeenCalledWith("/checkout");
 });
 
 it("loads real course data and fetches preview only after an explicit action", async () => {
