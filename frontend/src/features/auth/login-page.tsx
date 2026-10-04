@@ -50,7 +50,8 @@ export function LoginPage() {
         tone: "success",
         message: "Đăng nhập thành công. EduAlto đang chuẩn bị không gian học tập cho bạn.",
       });
-      router.push("/");
+      const next = new URLSearchParams(window.location.search).get("next");
+      router.push(resolveLoginDestination(next));
       router.refresh();
     } catch (error) {
       if (
@@ -59,7 +60,7 @@ export function LoginPage() {
         "code" in error &&
         (error as { code: string }).code === "ACCOUNT_NOT_VERIFIED"
       ) {
-        router.push(`/verify-email?email=${encodeURIComponent(email.trim())}&sent=1`);
+        router.push(`/verify-email?email=${encodeURIComponent(email.trim())}`);
         return;
       }
       setStatus({
@@ -142,4 +143,15 @@ export function LoginPage() {
       </form>
     </AuthShell>
   );
+}
+
+function resolveLoginDestination(next: string | null): string {
+  if (!next?.startsWith("/")) return "/";
+  try {
+    const url = new URL(next, window.location.origin);
+    if (url.origin !== window.location.origin) return "/";
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return "/";
+  }
 }

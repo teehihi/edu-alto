@@ -19,6 +19,7 @@ vi.mock("./auth-client", () => ({
 describe("LoginPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.history.replaceState({}, "", "/login");
   });
 
   it("shows Vietnamese validation messages before calling the API", async () => {
@@ -73,6 +74,29 @@ describe("LoginPage", () => {
     await user.type(screen.getByLabelText("Mật khẩu"), "Matkhau123");
     await user.click(screen.getByRole("button", { name: /đăng nhập/i }));
 
-    expect(pushMock).toHaveBeenCalledWith("/verify-email?email=unverified%40example.com&sent=1");
+    expect(pushMock).toHaveBeenCalledWith("/verify-email?email=unverified%40example.com");
   });
+
+  it("returns to the requested checkout page after login", async () => {
+    window.history.replaceState({}, "", "/login?next=%2Fcheckout%2Fresult%3Fvnp_TxnRef%3Dorder-1");
+    loginMock.mockResolvedValueOnce({ id: "test-user-id" });
+    render(<LoginPage />);
+    await userEvent.type(screen.getByLabelText(/email/i), "test@example.com");
+    await userEvent.type(screen.getByLabelText("Mật khẩu"), "Password1");
+    await userEvent.click(screen.getByRole("button", { name: /đăng nhập/i }));
+    expect(pushMock).toHaveBeenCalledWith("/checkout/result?vnp_TxnRef=order-1");
+  });
+
+  it.each(["https://example.com", "//example.com", "/\\example.com", "javascript:alert(1)"])(
+    "rejects unsafe return destination %s",
+    async (destination) => {
+      window.history.replaceState({}, "", `/login?next=${encodeURIComponent(destination)}`);
+      loginMock.mockResolvedValueOnce({ id: "test-user-id" });
+      render(<LoginPage />);
+      await userEvent.type(screen.getByLabelText(/email/i), "test@example.com");
+      await userEvent.type(screen.getByLabelText("Mật khẩu"), "Password1");
+      await userEvent.click(screen.getByRole("button", { name: /đăng nhập/i }));
+      expect(pushMock).toHaveBeenCalledWith("/");
+    },
+  );
 });

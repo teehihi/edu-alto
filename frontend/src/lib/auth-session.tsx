@@ -40,9 +40,13 @@ const AuthSessionContext = createContext<AuthSessionState | null>(null);
 export function AuthSessionProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<InMemorySession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const sessionRef = useRef<InMemorySession | null>(null);
+  const sessionVersionRef = useRef(0);
   const refreshPromiseRef = useRef<Promise<InMemorySession | null> | null>(null);
 
   const clearSession = useCallback(() => {
+    sessionVersionRef.current++;
+    sessionRef.current = null;
     setSession(null);
   }, []);
 
@@ -52,17 +56,19 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
       expiresAt: Date.now() + response.expiresInSeconds * 1000,
       user: response.user,
     };
+    sessionRef.current = nextSession;
     setSession(nextSession);
     return nextSession;
   }, []);
 
   const refreshStoredSession = useCallback(async (): Promise<InMemorySession | null> => {
     if (!refreshPromiseRef.current) {
+      const version = sessionVersionRef.current;
       refreshPromiseRef.current = authApi
         .refresh()
-        .then(saveSession)
+        .then((response) => (version === sessionVersionRef.current ? saveSession(response) : null))
         .catch(() => {
-          clearSession();
+          if (version === sessionVersionRef.current) clearSession();
           return null;
         })
         .finally(() => {
@@ -84,17 +90,19 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const getAccessToken = useCallback(async () => {
-    if (!session) {
+    const current = sessionRef.current;
+    if (!current) {
       return null;
     }
-    if (session.expiresAt > Date.now() + REFRESH_SKEW_MS) {
-      return session.accessToken;
+    if (current.expiresAt > Date.now() + REFRESH_SKEW_MS) {
+      return current.accessToken;
     }
     const refreshed = await refreshStoredSession();
     return refreshed?.accessToken ?? null;
-  }, [refreshStoredSession, session]);
+  }, [refreshStoredSession]);
 
   const reloadCurrentUser = useCallback(async () => {
+    const version = sessionVersionRef.current;
     const token = await getAccessToken();
     if (!token) {
       return null;
@@ -103,11 +111,14 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
     try {
       const user = await currentUserApi.getCurrentUser(token);
       setSession((current) => {
-        if (!current) return current;
-        return { ...current, user };
+        if (!current || current.accessToken !== token) return current;
+        const next = { ...current, user };
+        sessionRef.current = next;
+        return next;
       });
       return user;
     } catch (error) {
+      if (version !== sessionVersionRef.current) return null;
       if (isUnauthorized(error)) {
         const refreshed = await refreshStoredSession();
         if (!refreshed) {
@@ -116,8 +127,10 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
         try {
           const user = await currentUserApi.getCurrentUser(refreshed.accessToken);
           setSession((current) => {
-            if (!current) return current;
-            return { ...current, user };
+            if (!current || current.accessToken !== refreshed.accessToken) return current;
+            const next = { ...current, user };
+            sessionRef.current = next;
+            return next;
           });
           return user;
         } catch {
@@ -130,8 +143,11 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(
     async (request: LoginRequest) => {
+      const version = ++sessionVersionRef.current;
+      await refreshPromiseRef.current;
       const response = await authApi.login(request);
-      return saveSession(response).user;
+      if (version === sessionVersionRef.current) saveSession(response);
+      return response.user;
     },
     [saveSession],
   );
@@ -139,6 +155,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     clearSession();
     try {
+      await refreshPromiseRef.current;
       await authApi.logout();
     } catch {
       // Local cleanup is complete; logout must not expose token state through errors.
@@ -153,7 +170,9 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
   const updateUserAvatar = useCallback((avatarUrl: string | null) => {
     setSession((current) => {
       if (!current) return null;
-      return { ...current, user: { ...current.user, avatarUrl } };
+      const next = { ...current, user: { ...current.user, avatarUrl } };
+      sessionRef.current = next;
+      return next;
     });
   }, []);
 

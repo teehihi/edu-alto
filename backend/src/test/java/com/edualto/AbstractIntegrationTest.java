@@ -10,7 +10,8 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
         "edualto.auth.jwt.secret=test-jwt-secret-with-at-least-32-characters",
         "edualto.auth.otp.fixed-code=123456",
         "edualto.auth.otp.resend-cooldown-seconds=0",
-        "edualto.auth.otp.max-attempts=2"
+        "edualto.auth.otp.max-attempts=2",
+        "edualto.auth.rate-limit.max-requests=10000"
 })
 @AutoConfigureMockMvc
 public abstract class AbstractIntegrationTest {

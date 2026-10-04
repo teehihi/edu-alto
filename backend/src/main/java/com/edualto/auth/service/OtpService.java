@@ -15,7 +15,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.util.StringUtils;
 
 @Service
@@ -74,20 +73,20 @@ public class OtpService {
         emailSender.sendOtp(user.getEmail(), purpose, otp);
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW, noRollbackFor = BusinessException.class)
+    @Transactional(noRollbackFor = BusinessException.class)
     public void verifyEmailOtp(User user, String otp) {
         EmailOtp emailOtp = requireLatestOtp(user, OtpPurpose.EMAIL_VERIFICATION);
         emailOtp.verifyCode(otp, passwordEncoder);
         emailOtp.consume();
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW, noRollbackFor = BusinessException.class)
+    @Transactional(noRollbackFor = BusinessException.class)
     public void verifyResetOtp(User user, String otp) {
         EmailOtp emailOtp = requireLatestOtp(user, OtpPurpose.PASSWORD_RESET);
         emailOtp.verifyCode(otp, passwordEncoder);
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW, noRollbackFor = BusinessException.class)
+    @Transactional(noRollbackFor = BusinessException.class)
     public void consumeVerifiedResetOtp(User user, String otp) {
         EmailOtp emailOtp = requireLatestOtp(user, OtpPurpose.PASSWORD_RESET);
         emailOtp.consumeVerifiedCode(otp, passwordEncoder);

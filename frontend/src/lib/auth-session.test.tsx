@@ -1,4 +1,5 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
+import { useState } from "react";
 import userEvent from "@testing-library/user-event";
 import { AuthSessionProvider, useAuthSession } from "@/lib/auth-session";
 
@@ -14,14 +15,29 @@ const activeUser = {
 };
 
 function Probe() {
-  const { isLoading, user, reloadCurrentUser } = useAuthSession();
+  const { isLoading, user, reloadCurrentUser, logout, refreshSession, getAccessToken } =
+    useAuthSession();
+  const [token, setToken] = useState<string | null>(null);
 
   return (
     <div>
       <span data-testid="loading">{String(isLoading)}</span>
       <span data-testid="name">{user?.fullName ?? "Chưa đăng nhập"}</span>
+      <span data-testid="token">{token}</span>
       <button type="button" onClick={() => void reloadCurrentUser()}>
         Tải lại
+      </button>
+      <button type="button" onClick={() => void logout()}>
+        Đăng xuất
+      </button>
+      <button
+        type="button"
+        onClick={async () => {
+          await refreshSession();
+          setToken(await getAccessToken());
+        }}
+      >
+        Làm mới token
       </button>
     </div>
   );
@@ -128,7 +144,60 @@ describe("AuthSessionProvider", () => {
     await waitFor(() => expect(screen.getByTestId("loading")).toHaveTextContent("false"));
     expect(screen.getByTestId("name")).toHaveTextContent("Chưa đăng nhập");
   });
+
+  it("uses the rotated token immediately within the same callback", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(tokenResponse("old-token"))
+        .mockResolvedValueOnce(tokenResponse("new-token")),
+    );
+    render(
+      <AuthSessionProvider>
+        <Probe />
+      </AuthSessionProvider>,
+    );
+    await waitFor(() => expect(screen.getByTestId("loading")).toHaveTextContent("false"));
+    await userEvent.click(screen.getByRole("button", { name: "Làm mới token" }));
+    await waitFor(() => expect(screen.getByTestId("token")).toHaveTextContent("new-token"));
+  });
+
+  it("does not restore a session when an in-flight refresh finishes after logout", async () => {
+    let resolveRefresh!: (response: Response) => void;
+    const refresh = new Promise<Response>((resolve) => {
+      resolveRefresh = resolve;
+    });
+    const fetchMock = vi
+      .fn()
+      .mockReturnValueOnce(refresh)
+      .mockResolvedValueOnce(jsonResponse(200, { success: true, data: {} }));
+    vi.stubGlobal("fetch", fetchMock);
+    render(
+      <AuthSessionProvider>
+        <Probe />
+      </AuthSessionProvider>,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Đăng xuất" }));
+    await act(async () => {
+      resolveRefresh(tokenResponse("late-token"));
+    });
+    await waitFor(() => expect(screen.getByTestId("loading")).toHaveTextContent("false"));
+    expect(screen.getByTestId("name")).toHaveTextContent("Chưa đăng nhập");
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "http://localhost:8080/api/v1/auth/logout",
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
 });
+
+function tokenResponse(accessToken: string) {
+  return jsonResponse(200, {
+    success: true,
+    data: { tokenType: "Bearer", accessToken, expiresInSeconds: 900, user: activeUser },
+    meta: null,
+  });
+}
 
 function jsonResponse(status: number, body: unknown) {
   return new Response(JSON.stringify(body), {

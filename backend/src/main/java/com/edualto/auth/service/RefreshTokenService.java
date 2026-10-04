@@ -49,7 +49,7 @@ public class RefreshTokenService {
         return rawToken;
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = BusinessException.class)
     public User rotate(String rawToken) {
         RefreshToken token = requireUsable(rawToken);
         token.revoke();

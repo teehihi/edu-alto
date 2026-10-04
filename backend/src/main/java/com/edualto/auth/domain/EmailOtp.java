@@ -88,8 +88,8 @@ public class EmailOtp {
             throw new BusinessException(HttpStatus.TOO_MANY_REQUESTS, "OTP_ATTEMPT_LIMIT_EXCEEDED", "Bạn đã nhập sai OTP quá số lần cho phép");
         }
 
-        attempts++;
         if (!passwordEncoder.matches(otp, otpHash)) {
+            attempts++;
             throw invalidOtp();
         }
         verifiedAt = Instant.now();
@@ -113,10 +113,10 @@ public class EmailOtp {
         if (!isVerified()) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "RESET_OTP_NOT_VERIFIED", "Vui lòng xác thực OTP trước khi đặt lại mật khẩu");
         }
+        if (attempts >= maxAttempts) {
+            throw new BusinessException(HttpStatus.TOO_MANY_REQUESTS, "OTP_ATTEMPT_LIMIT_EXCEEDED", "Bạn đã nhập sai OTP quá số lần cho phép");
+        }
         if (!passwordEncoder.matches(otp, otpHash)) {
-            if (attempts >= maxAttempts) {
-                throw new BusinessException(HttpStatus.TOO_MANY_REQUESTS, "OTP_ATTEMPT_LIMIT_EXCEEDED", "Bạn đã nhập sai OTP quá số lần cho phép");
-            }
             attempts++;
             throw invalidOtp();
         }

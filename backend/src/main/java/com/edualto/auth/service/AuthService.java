@@ -15,6 +15,7 @@ import com.edualto.user.domain.UserStatus;
 import com.edualto.user.dto.UserResponse;
 import com.edualto.user.repository.UserRepository;
 import com.edualto.user.service.UserService;
+import java.nio.charset.StandardCharsets;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -54,6 +55,7 @@ public class AuthService {
     @Transactional
     public AuthMessageResponse register(RegisterRequest request) {
         ensurePasswordsMatch(request.password(), request.confirmPassword());
+        validatePasswordBytes(request.password());
         RoleName targetRole = request.role() != null ? request.role() : RoleName.STUDENT;
 
         if (targetRole == RoleName.ADMIN) {
@@ -89,13 +91,14 @@ public class AuthService {
         return new AuthMessageResponse("Đăng ký thành công. Vui lòng kiểm tra email để xác thực tài khoản.");
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = BusinessException.class)
     public AuthMessageResponse verifyEmail(VerifyOtpRequest request) {
         User user = userRepository.findByEmail(normalizeEmail(request.email()))
                 .orElseThrow(() -> new BusinessException(HttpStatus.BAD_REQUEST, "INVALID_OTP", "Mã OTP không hợp lệ"));
         if (user.getStatus() == UserStatus.ACTIVE) {
             return new AuthMessageResponse("Tài khoản đã được xác thực.");
         }
+        requirePendingVerification(user);
         otpService.verifyEmailOtp(user, request.otp());
         user.activate();
         return new AuthMessageResponse("Xác thực email thành công.");
@@ -108,24 +111,23 @@ public class AuthService {
         if (user.getStatus() == UserStatus.ACTIVE) {
             return new AuthMessageResponse("Tài khoản đã được xác thực.");
         }
+        requirePendingVerification(user);
         otpService.issue(user, OtpPurpose.EMAIL_VERIFICATION, true);
         return new AuthMessageResponse("Mã OTP mới đã được gửi đến email của bạn.");
     }
 
     @Transactional(noRollbackFor = BusinessException.class)
     public AuthResult login(LoginRequest request, String deviceName) {
+        if (request.password().getBytes(StandardCharsets.UTF_8).length > 72) {
+            throw invalidCredentials();
+        }
         User user = userRepository.findByEmail(normalizeEmail(request.email()))
                 .orElseThrow(this::invalidCredentials);
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
             throw invalidCredentials();
         }
         if (user.getStatus() == UserStatus.PENDING_VERIFICATION) {
-            try {
-                otpService.issue(user, OtpPurpose.EMAIL_VERIFICATION, false);
-            } catch (Exception ignored) {
-                // If email sending or cooldown fails, still enforce verification
-            }
-            throw new BusinessException(HttpStatus.FORBIDDEN, "ACCOUNT_NOT_VERIFIED", "Tài khoản chưa được xác thực. Mã OTP mới đã được gửi đến email của bạn.");
+            throw new BusinessException(HttpStatus.FORBIDDEN, "ACCOUNT_NOT_VERIFIED", "Tài khoản chưa được xác thực. Vui lòng kiểm tra email hoặc yêu cầu gửi lại mã OTP.");
         }
         if (user.getStatus() != UserStatus.ACTIVE) {
             throw invalidCredentials();
@@ -136,7 +138,7 @@ public class AuthService {
         return new AuthResult(tokenResponse(user), refreshToken);
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = BusinessException.class)
     public AuthResult refresh(String rawRefreshToken) {
         User user = refreshTokenService.rotate(rawRefreshToken);
         if (user.getStatus() != UserStatus.ACTIVE) {
@@ -168,7 +170,7 @@ public class AuthService {
         return new AuthMessageResponse(RESET_MESSAGE);
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = BusinessException.class)
     public AuthMessageResponse verifyResetOtp(VerifyOtpRequest request) {
         User user = userRepository.findByEmail(normalizeEmail(request.email()))
                 .orElseThrow(() -> new BusinessException(HttpStatus.BAD_REQUEST, "INVALID_OTP", "Mã OTP không hợp lệ"));
@@ -176,9 +178,10 @@ public class AuthService {
         return new AuthMessageResponse("OTP đặt lại mật khẩu hợp lệ.");
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = BusinessException.class)
     public AuthMessageResponse resetPassword(ResetPasswordRequest request) {
         ensurePasswordsMatch(request.newPassword(), request.confirmPassword());
+        validatePasswordBytes(request.newPassword());
         User user = userRepository.findByEmail(normalizeEmail(request.email()))
                 .orElseThrow(() -> new BusinessException(HttpStatus.BAD_REQUEST, "INVALID_RESET_REQUEST", "Yêu cầu đặt lại mật khẩu không hợp lệ"));
         otpService.consumeVerifiedResetOtp(user, request.otp());
@@ -207,6 +210,18 @@ public class AuthService {
 
     private BusinessException invalidCredentials() {
         return new BusinessException(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", "Email hoặc mật khẩu không đúng");
+    }
+
+    private void validatePasswordBytes(String password) {
+        if (password.getBytes(StandardCharsets.UTF_8).length > 72) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "PASSWORD_TOO_LONG", "Mật khẩu không được vượt quá 72 byte UTF-8. Vui lòng dùng mật khẩu ngắn hơn.");
+        }
+    }
+
+    private void requirePendingVerification(User user) {
+        if (user.getStatus() != UserStatus.PENDING_VERIFICATION) {
+            throw new BusinessException(HttpStatus.FORBIDDEN, "ACCOUNT_NOT_AVAILABLE", "Tài khoản hiện không thể xác thực. Vui lòng liên hệ quản trị viên.");
+        }
     }
 
     private String normalizeEmail(String email) {
