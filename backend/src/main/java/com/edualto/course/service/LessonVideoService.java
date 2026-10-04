@@ -22,6 +22,7 @@ import com.edualto.storage.service.StorageCleanupService;
 import com.edualto.storage.service.StorageService;
 import com.edualto.user.domain.RoleName;
 import com.edualto.user.domain.User;
+import com.edualto.user.domain.UserStatus;
 import com.edualto.user.repository.UserRepository;
 import java.time.Duration;
 import java.util.List;
@@ -135,7 +136,7 @@ public class LessonVideoService {
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Không tìm thấy người dùng"));
         boolean eligible = instructor.getRoles().stream()
                 .anyMatch(role -> role.getName() == RoleName.INSTRUCTOR || role.getName() == RoleName.ADMIN);
-        if (!eligible) {
+        if (instructor.getStatus() != UserStatus.ACTIVE || !eligible) {
             throw new BusinessException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Bạn không có quyền giảng viên để thực hiện thao tác này");
         }
         Course course = courses.findById(courseId)

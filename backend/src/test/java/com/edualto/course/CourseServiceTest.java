@@ -69,7 +69,20 @@ class CourseServiceTest {
         instructorRole = new Role(RoleName.INSTRUCTOR, "Giảng viên");
         instructorUser = new User("Giảng Viên A", "instructor@edualto.com", "hash");
         instructorUser.addRole(instructorRole);
+        instructorUser.activate();
         instructorId = instructorUser.getId();
+    }
+
+    @Test
+    void thumbnailUploadRejectsInactiveInstructor() {
+        User pendingInstructor = new User("Pending", "pending@example.com", "hash");
+        pendingInstructor.addRole(instructorRole);
+        when(userRepository.findById(instructorId)).thenReturn(Optional.of(pendingInstructor));
+
+        assertThatThrownBy(() -> courseService.generateThumbnailUploadUrl(instructorId,
+                new CourseThumbnailUploadUrlRequest("image/png", 1024L)))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("status", HttpStatus.FORBIDDEN);
     }
 
     @Test

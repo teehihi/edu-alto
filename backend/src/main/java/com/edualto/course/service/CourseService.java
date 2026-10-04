@@ -24,6 +24,7 @@ import com.edualto.storage.service.StorageService;
 import com.edualto.storage.service.StorageCleanupService;
 import com.edualto.user.domain.RoleName;
 import com.edualto.user.domain.User;
+import com.edualto.user.domain.UserStatus;
 import com.edualto.user.repository.UserRepository;
 import java.math.BigDecimal;
 import java.time.Duration;
@@ -370,7 +371,7 @@ public class CourseService {
 
         boolean isInstructor = user.getRoles().stream()
                 .anyMatch(role -> role.getName() == RoleName.INSTRUCTOR || role.getName() == RoleName.ADMIN);
-        if (!isInstructor) {
+        if (user.getStatus() != UserStatus.ACTIVE || !isInstructor) {
             throw new BusinessException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Bạn không có quyền giảng viên để thực hiện thao tác này");
         }
     }

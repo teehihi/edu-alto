@@ -71,6 +71,7 @@ class CourseStructureServiceTest {
     void setUp() {
         instructorUser = new User("Giảng viên A", "instructor@edualto.com", "hash123");
         instructorUser.addRole(new Role(RoleName.INSTRUCTOR, "Giảng viên"));
+        instructorUser.activate();
         instructorId = instructorUser.getId();
 
         courseId = UUID.randomUUID();
@@ -112,6 +113,7 @@ class CourseStructureServiceTest {
         UUID otherInstructorId = UUID.randomUUID();
         User otherUser = new User("Other", "other@edualto.com", "hash");
         otherUser.addRole(new Role(RoleName.INSTRUCTOR, "Giảng viên"));
+        otherUser.activate();
 
         when(userRepository.findById(otherInstructorId)).thenReturn(Optional.of(otherUser));
         when(courseRepository.findById(courseId)).thenReturn(Optional.of(testCourse));
