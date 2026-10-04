@@ -33,7 +33,7 @@ EduAlto là LMS foundation dành cho học viên, giảng viên và quản trị
 | Next.js 16 + React 19 + Turbopack | Hoàn thành |
 | PostgreSQL 16 & Redis 8.8.0 local infrastructure | Hoàn thành |
 | Testcontainers (PostgreSQL 16) integration testing | Hoàn thành |
-| Flyway migration (V1 & V2) | Hoàn thành |
+| Flyway migration (V1–V17) | Hoàn thành |
 | User + Authentication backend slice (HttpOnly cookie) | Hoàn thành |
 | Profile & Cloudflare R2 presigned avatar slice | Hoàn thành |
 | Course catalog & Course structure curriculum slice | Hoàn thành |
@@ -46,7 +46,7 @@ EduAlto là LMS foundation dành cho học viên, giảng viên và quản trị
 - Đăng ký tài khoản, xác thực tài khoản qua email bằng mã OTP bảo mật.
 - Gửi lại mã xác thực OTP có cơ chế giới hạn thời gian (rate limit/cooldown) và chống spam.
 - Đăng nhập bằng email/password, cấp phát JWT Access Token và Refresh Token.
-- Bảo mật Refresh Token qua HttpOnly Cookie (`edualto.refresh`, SameSite=Strict, Path=/api/v1/auth) ngăn chặn tấn công XSS.
+- Refresh Token dùng HttpOnly Cookie (`edualto.refresh`, Path=/api/v1/auth), SameSite mặc định `Lax`; môi trường cross-site dùng `None` và `Secure=true`.
 - Hỗ trợ Refresh Token rotation và cơ chế revoke token triệt để khi logout.
 - Quên mật khẩu, gửi OTP đặt lại mật khẩu và cập nhật mật khẩu mới an toàn.
 - API thông tin người dùng hiện tại: `GET /api/v1/me`, `PUT /api/v1/me`.
@@ -78,14 +78,17 @@ EduAlto là LMS foundation dành cho học viên, giảng viên và quản trị
 - OTP lưu dạng băm (SHA-256), có TTL (thời gian sống), giới hạn số lần nhập sai (attempt limit) và chống tái sử dụng.
 - Tài khoản mới tạo ở trạng thái `PENDING_VERIFICATION`, chỉ kích hoạt `ACTIVE` sau khi xác thực OTP thành công.
 - Refresh token hash lưu trữ an toàn trong DB, không lưu token thô.
-- Cấu hình HttpOnly Cookie cho refresh token với cờ `SameSite=Strict`, `HttpOnly` và `Secure` trên môi trường production.
+- Refresh token và OTP được khóa khi xử lý để chống tái sử dụng đồng thời; OTP được tiêu thụ cùng giao dịch đổi mật khẩu hoặc kích hoạt tài khoản.
+- Cấu hình HttpOnly Cookie cho refresh token với `HttpOnly`, SameSite phù hợp và `Secure` trên môi trường production.
+- Các endpoint credential/OTP có giới hạn request theo IP và trả `429` cùng `Retry-After` khi vượt giới hạn.
 - Biến môi trường local phân tách trong `.env`, tuyệt đối không commit secrets lên repository.
 - Xử lý lỗi toàn cục qua `@RestControllerAdvice`, che giấu stack trace và trả về mã lỗi chuẩn hóa cho client.
 
 ### Database Foundation
 
 - Flyway migration `V1__auth_user_management.sql`: các bảng `users`, `roles`, `user_roles`, `email_otps`, `refresh_tokens`.
-- Flyway migration `V2__profile_and_course_foundation.sql`: các bảng `profiles`, `student_profiles`, `instructor_profiles`, `categories`, `courses`, `sections`, `lessons`.
+- Flyway migration `V2__create_user_profiles.sql`: các bảng `profiles`, `student_profiles`, `instructor_profiles`.
+- V3–V17 bổ sung avatar, handle, khóa học, giáo trình, ghi danh, tiến độ, đánh giá, bài tập, quiz, lịch, ghi chú, thanh toán, khuyến mãi, tin nhắn và thông báo.
 - PostgreSQL 16 runtime đã được verify với Flyway history, bảng thật, constraints, foreign keys và indexes.
 
 ## Tech Stack
@@ -169,7 +172,7 @@ Nguyên tắc quan trọng:
 cp .env.example .env
 ```
 
-Với môi trường local hiện tại, `.env` không được commit. Hãy dùng secret riêng cho máy của bạn.
+Điền `POSTGRES_PASSWORD` và `JWT_SECRET` riêng trong `.env` trước khi chạy. JWT secret cần ít nhất 32 byte; có thể tạo bằng `openssl rand -base64 48`. Backend và Compose không dùng secret mặc định. `.env` không được commit.
 
 ### 2. Chạy PostgreSQL và Redis
 
@@ -292,27 +295,30 @@ POST /api/v1/auth/verify-reset-otp   # Xác thực OTP đặt lại mật khẩu
 POST /api/v1/auth/reset-password     # Xác nhận mật khẩu mới
 ```
 
-#### 2. User & Profile (`/api/v1/me`, `/api/v1/profile`)
+#### 2. User & Profile (`/api/v1/me`, `/api/v1/me/profile`)
 ```text
 GET  /api/v1/me                                # Lấy thông tin user hiện tại
 PUT  /api/v1/me                                # Cập nhật thông tin cơ bản
-GET  /api/v1/profile                           # Lấy hồ sơ (Student / Instructor)
-PUT  /api/v1/profile                           # Cập nhật thông tin hồ sơ & vai trò
-POST /api/v1/profile/avatar/presigned-url      # Xin presigned URL upload avatar lên R2
+GET  /api/v1/me/profile                        # Lấy hồ sơ cá nhân (Student / Instructor)
+PUT  /api/v1/me/profile                        # Cập nhật thông tin hồ sơ
+POST /api/v1/me/profile/avatar/upload-url      # Xin presigned URL upload avatar lên R2
+POST /api/v1/me/profile/avatar/complete        # Xác nhận avatar đã upload
+POST /api/v1/me/profile/avatar                 # Upload multipart tối đa 5 MB
+GET  /api/v1/profiles/{identifier}             # Hồ sơ công khai, không trả email hoặc trạng thái tài khoản
 ```
 
 #### 3. Media & Storage (`/api/v1/media`)
 ```text
-POST /api/v1/media/upload-url                  # Cấp link presigned upload lên Cloudflare R2
-GET  /api/v1/media/view-url                    # Cấp link presigned xem / phát media có thời hạn
+GET /api/v1/media/{objectKey}                  # Phục vụ media công khai; video khóa học bị chặn
+GET /api/v1/lessons/{lessonId}/video-access     # URL phát video có kiểm tra ghi danh
 ```
 
 #### 4. Course & Curriculum (`/api/v1/courses`)
 ```text
 GET  /api/v1/courses                                      # Tìm kiếm và phân trang khóa học
-GET  /api/v1/courses/{id}                                 # Xem chi tiết khóa học
-GET  /api/v1/courses/{id}/structure                       # Lấy đề cương khóa học (Sections & Lessons)
-GET  /api/v1/courses/{id}/lessons/{lessonId}/play         # Lấy presigned URL phát video bài học
+GET  /api/v1/courses/{slug}                               # Xem chi tiết khóa học
+GET  /api/v1/courses/{slug}/curriculum                    # Lấy giáo trình công khai
+GET  /api/v1/courses/{slug}/lessons/{lessonId}/preview     # Xem thử bài học văn bản
 ```
 
 ## Tài Liệu Chính

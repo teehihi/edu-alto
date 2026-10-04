@@ -106,12 +106,16 @@ GET  /api/v1/me/profile
 PUT  /api/v1/me/profile
 POST /api/v1/me/profile/avatar/upload-url
 POST /api/v1/me/profile/avatar/complete
+POST /api/v1/me/profile/avatar
 ```
 
 - `GET /api/v1/me/profile`: Trả về `UserProfileResponse` tổng hợp gồm thông tin tài khoản cơ bản (`users.full_name`, email, trạng thái, vai trò), thông tin hồ sơ chung (`headline`, `bio`, `avatarKey`, `avatarUrl`, `language`, liên kết mạng xã hội), `studentProfile` (nếu có) và `instructorProfile` (nếu có).
 - `PUT /api/v1/me/profile`: Nhận `UpdateProfileRequest` cho phép cập nhật `fullName` (cập nhật trực tiếp `users.full_name` - nguồn dữ liệu gốc duy nhất), thông tin hồ sơ chung, và các trường của học viên / giảng viên.
 - `POST /api/v1/me/profile/avatar/upload-url`: Khởi tạo luồng direct upload avatar lên Cloudflare R2 bằng presigned PUT URL. Nhận `contentType` (chỉ chấp nhận `image/jpeg`, `image/png`, `image/webp`) và `contentLength` (tối đa 5MB), trả về `uploadUrl`, `objectKey` (định dạng `avatars/{userId}/avatar.{ext}`) và `expiresAt`.
-- `POST /api/v1/me/profile/avatar/complete`: Xác nhận hoàn tất upload sau khi client gửi trực tiếp file lên Cloudflare R2. Backend kiểm tra quyền sở hữu object key, kiểm tra file tồn tại và đúng metadata trên R2 qua `HeadObject`, cập nhật `profiles.avatar_key = objectKey`, đồng thời tự động xóa avatar cũ nếu có.
+- `POST /api/v1/me/profile/avatar/complete`: Xác nhận hoàn tất upload sau khi client gửi trực tiếp file lên Cloudflare R2. Backend kiểm tra quyền sở hữu object key, kiểm tra file tồn tại và đúng metadata trên R2 qua `HeadObject`, cập nhật `profiles.avatar_key = objectKey`, rồi xóa avatar cũ sau khi giao dịch database commit thành công.
+- `POST /api/v1/me/profile/avatar`: Multipart fallback với field `file`, tối đa 5 MB; giới hạn toàn request là 6 MB để chứa multipart headers. File vượt giới hạn parser trả `413 FILE_TOO_LARGE`.
+
+Hồ sơ công khai dùng `GET /api/v1/profiles/{identifier}` hoặc `GET /api/v1/users/{identifier}/profile`. Identifier là UUID hoặc custom handle. Response `PublicProfileResponse` chỉ chứa dữ liệu trình bày hồ sơ; không trả email, trạng thái tài khoản, storage key hoặc timestamps nội bộ. Chỉ tài khoản `ACTIVE` có hồ sơ công khai; tài khoản khác trả `404`.
 
 Sequence diagram luồng upload avatar:
 

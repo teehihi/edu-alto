@@ -17,6 +17,8 @@ Tài liệu này định nghĩa nền tảng xác thực và phân quyền cho E
 - Email phải unique, normalize trước khi lưu.
 - Account mới ở trạng thái `PENDING_VERIFICATION`.
 - OTP xác thực email phải có TTL, giới hạn số lần thử và lưu dạng hash.
+- BCrypt passwords must fit within 72 UTF-8 bytes; character count alone is insufficient for Vietnamese passwords. Oversized registration/reset requests return `400 PASSWORD_TOO_LONG`.
+- Only `PENDING_VERIFICATION` accounts can be activated by email OTP. Locked or disabled accounts cannot reactivate through this flow.
 
 ## Login
 
@@ -25,6 +27,9 @@ Tài liệu này định nghĩa nền tảng xác thực và phân quyền cho E
 - Error message phải an toàn: không tiết lộ email tồn tại hay không.
 - Ví dụ message: `Email hoặc mật khẩu không đúng`.
 - Endpoint login/register/forgot password phải có rate limiting.
+- Unverified login returns ACCOUNT_NOT_VERIFIED without replacing OTP or clearing its failed attempts. New codes are requested through resend-verification, which enforces cooldown. The verification UI does not claim a new email was sent by login.
+
+Auth HTTP rate limiting runs before JWT authentication for credential and OTP POST endpoints. The current modular monolith uses a bounded in-memory counter per servlet client IP: 60 requests per 60-second window, at most 10,000 tracked IPs. Rejections return `429 AUTH_RATE_LIMIT_EXCEEDED` and `Retry-After`; refresh and logout remain available. Limits are configurable through `AUTH_RATE_LIMIT_MAX_REQUESTS`, `AUTH_RATE_LIMIT_WINDOW_SECONDS`, and `AUTH_RATE_LIMIT_MAX_CLIENTS`. Integration fixtures raise the request limit without disabling the filter. Multiple backend instances need a shared counter or an ingress limit; a trusted proxy must supply the real servlet client IP before this policy is deployed behind it.
 
 ## Token strategy
 
@@ -33,6 +38,7 @@ Tài liệu này định nghĩa nền tảng xác thực và phân quyền cho E
 - Token chứa tối thiểu `sub`, `roles`, `jti`, `iat`, `exp`.
 - Không nhét dữ liệu profile lớn vào token.
 - Logout revoke refresh token hiện tại.
+- Refresh token lookup uses a database write lock so only one concurrent rotation can succeed. Revocations for an inactive account commit even when refresh returns `401`.
 
 ## Authorization layers
 
@@ -55,6 +61,7 @@ Không chỉ dựa vào frontend để ẩn action. Backend luôn kiểm tra quy
 - `POST /api/v1/auth/forgot-password` luôn trả message an toàn.
 - Reset token/OTP có TTL ngắn, lưu hash.
 - Sau reset password, revoke refresh token đang hoạt động của user.
+- OTP verification/consumption uses a write lock. Invalid attempts commit on business errors, while successful consumption, password change/account activation and refresh revocation share one transaction. Attempt limits count incorrect codes, and a verified reset OTP remains blocked after reaching the limit.
 
 ## WebSocket auth
 
