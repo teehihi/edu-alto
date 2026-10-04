@@ -25,6 +25,8 @@ import com.edualto.common.exception.BusinessException;
 import com.edualto.user.service.UserService;
 import java.math.BigDecimal;
 import java.net.URLEncoder;
+import java.net.URI;
+import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.util.Map;
@@ -49,6 +51,45 @@ class CommerceServiceTest {
     private UserService users;
     @Mock
     private PromotionRepository promotions;
+
+    @Test
+    void ipnAcceptsVnPayFormEncodingWithSpacesAndEmptyOptionalFields() {
+        UUID orderId = UUID.randomUUID();
+        UUID studentId = UUID.randomUUID();
+        when(repository.lockPaymentOrder(orderId.toString())).thenReturn(Optional.of(
+                new PaymentOrder(orderId, 25000000L, "PENDING", "VNPAY", "PENDING_PAYMENT", studentId)));
+
+        CommerceService.IpNResult result = service().processIpn(signed(Map.of(
+                "vnp_TxnRef", orderId.toString(), "vnp_Amount", "25000000",
+                "vnp_ResponseCode", "00", "vnp_TransactionStatus", "00",
+                "vnp_OrderInfo", "Thanh toan don hang EduAlto", "vnp_BankTranNo", "")));
+
+        assertThat(result.rspCode()).isEqualTo("00");
+        verify(repository).markPaymentPaid(orderId, studentId);
+    }
+
+    @Test
+    void checkoutUrlUsesVnPay21ChecksumConvention() {
+        UUID studentId = UUID.randomUUID();
+        UUID courseId = UUID.randomUUID();
+        when(repository.lockCourse(courseId)).thenReturn(Optional.of(new CommerceRepository.CheckoutCourse(
+                courseId, UUID.randomUUID(), "Khóa học thử", new BigDecimal("250000"), "PUBLISHED")));
+
+        OrderCreatedResponse order = service().createOrder(studentId,
+                new CreateOrderRequest(List.of(courseId), PaymentMethod.VNPAY, "0931652105", null), "127.0.0.1");
+
+        String query = URI.create(order.paymentUrl()).getRawQuery();
+        assertThat(query).contains("vnp_OrderInfo=Thanh+toan+don+hang+EduAlto+")
+                .doesNotContain("vnp_SecureHashType");
+        Map<String, String> parameters = new TreeMap<>();
+        for (String field : query.split("&")) {
+            String[] parts = field.split("=", 2);
+            parameters.put(URLDecoder.decode(parts[0], StandardCharsets.UTF_8),
+                    URLDecoder.decode(parts[1], StandardCharsets.UTF_8));
+        }
+        String signature = parameters.remove("vnp_SecureHash");
+        assertThat(signature).isEqualTo(hmac(toQuery(parameters)));
+    }
 
     @Test
     void validIpnMarksPaymentPaidAndActivatesEnrollment() {
@@ -258,12 +299,13 @@ class CommerceServiceTest {
 
     private static String toQuery(Map<String, String> params) {
         return params.entrySet().stream()
+                .filter(entry -> entry.getValue() != null && !entry.getValue().isEmpty())
                 .map(entry -> encode(entry.getKey()) + "=" + encode(entry.getValue()))
                 .reduce((left, right) -> left + "&" + right).orElse("");
     }
 
     private static String encode(String value) {
-        return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
+        return URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
 
     private static String hmac(String data) {

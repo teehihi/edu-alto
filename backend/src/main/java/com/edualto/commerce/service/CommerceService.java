@@ -265,7 +265,6 @@ public class CommerceService {
                 ? now.plusMinutes(15) : reservationExpiresAt.atZoneSameInstant(VIETNAM_ZONE);
         Map<String, String> params = new TreeMap<>();
         params.put("vnp_Version", "2.1.0");
-        params.put("vnp_SecureHashType", "HmacSHA512");
         params.put("vnp_Command", "pay");
         params.put("vnp_TmnCode", properties.tmnCode());
         params.put("vnp_Amount", Long.toString(amountMinorUnits));
@@ -320,12 +319,13 @@ public class CommerceService {
 
     private static String toQuery(Map<String, String> params) {
         return params.entrySet().stream()
+                .filter(entry -> entry.getValue() != null && !entry.getValue().isEmpty())
                 .map(entry -> encode(entry.getKey()) + "=" + encode(entry.getValue()))
                 .reduce((left, right) -> left + "&" + right).orElse("");
     }
 
     private static String encode(String value) {
-        return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
+        return URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
 
     private static String hmacSha512(String secret, String data) {

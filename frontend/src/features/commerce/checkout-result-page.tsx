@@ -27,23 +27,32 @@ export function CheckoutResultPage() {
     }
     if (!orderId) return;
     let active = true;
-    void getAccessToken()
-      .then((token) => {
-        if (!token) throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
-        return fetchOrderDetails(token, orderId);
-      })
-      .then((result) => {
-        if (active) setOrder(result);
-      })
-      .catch((reason: unknown) => {
-        if (active)
-          setError(reason instanceof Error ? reason.message : "Chưa thể kiểm tra đơn hàng.");
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const checkOrder = () =>
+      void getAccessToken()
+        .then((token) => {
+          if (!token) throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+          return fetchOrderDetails(token, orderId);
+        })
+        .then((result) => {
+          if (!active) return;
+          setOrder(result);
+          setError("");
+          if (result.status === "PENDING_PAYMENT" || result.status === "PAYMENT_REVIEW") {
+            timer = setTimeout(checkOrder, 10_000);
+          }
+        })
+        .catch((reason: unknown) => {
+          if (active)
+            setError(reason instanceof Error ? reason.message : "Chưa thể kiểm tra đơn hàng.");
+        })
+        .finally(() => {
+          if (active) setLoading(false);
+        });
+    checkOrder();
     return () => {
       active = false;
+      clearTimeout(timer);
     };
   }, [getAccessToken, orderId, router, sessionLoading, user]);
 
