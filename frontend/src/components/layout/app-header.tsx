@@ -38,10 +38,14 @@ export function AppHeader({
   transparent = false,
   sticky = true,
   height = "default",
+  className,
+  transparentBg = "bg-transparent",
 }: {
   transparent?: boolean;
   sticky?: boolean;
   height?: "default" | "checkout";
+  className?: string;
+  transparentBg?: string;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -158,8 +162,9 @@ export function AppHeader({
             )
           : "relative",
         transparent && !isScrolled
-          ? "bg-transparent border-transparent"
+          ? cn("border-transparent shadow-none", transparentBg)
           : "border-b border-slate-100 bg-white/95 backdrop-blur-md shadow-xs",
+        className,
       )}
     >
       <div
@@ -186,7 +191,7 @@ export function AppHeader({
         </Link>
 
         {/* Search Bar */}
-        <div className="hidden min-w-[280px] max-w-[340px] flex-1 items-center rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-1.5 shadow-xs transition focus-within:border-primary focus-within:bg-white focus-within:ring-2 focus-within:ring-primary/20 xl:flex">
+        <div className="hidden w-[280px] shrink-0 items-center rounded-xl border border-slate-200 bg-white px-2.5 py-1 shadow-xs transition focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 xl:flex">
           <Search className="h-4 w-4 text-slate-400 shrink-0" aria-hidden="true" />
           <form className="flex min-w-0 flex-1 items-center" action="/courses" method="get">
             <label className="sr-only" htmlFor="desktop-search">
@@ -200,7 +205,7 @@ export function AppHeader({
             />
             <Link
               href="/courses"
-              className="focus-ring inline-flex min-h-11 items-center gap-1 rounded-lg bg-primary-soft px-3 text-xs font-semibold text-primary transition hover:bg-[#d9fff3]"
+              className="focus-ring inline-flex h-7 items-center gap-1 rounded-md bg-primary-soft px-2.5 text-xs font-semibold text-primary transition hover:bg-[#d9fff3]"
             >
               Khám phá
               <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />

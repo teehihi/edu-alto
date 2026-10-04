@@ -48,9 +48,9 @@ export function HomePage() {
 
   return (
     <div suppressHydrationWarning className="min-h-screen bg-white">
-      <AppHeader />
+      <AppHeader transparent transparentBg="bg-[#eaf7f3]" />
       <main>
-        <section className="relative overflow-hidden bg-[#fbfffd] pt-8 lg:pt-12">
+        <section className="relative overflow-hidden bg-[#eaf7f3] pt-6 lg:pt-10">
           <HeroBackgroundPatterns />
           <div className="container-page grid min-h-[620px] items-center gap-10 pb-16 lg:grid-cols-[1.05fr_0.95fr]">
             <div className="relative z-10">

@@ -448,7 +448,7 @@ export function HomeSkeleton() {
   return (
     <div className="min-h-screen bg-white" aria-label="Đang tải trang chủ">
       {/* Header Skeleton */}
-      <div className="border-b border-slate-100 bg-white">
+      <div className="bg-[#eaf7f3]">
         <div className="container-page flex min-h-[80px] items-center justify-between gap-4">
           <Skeleton className="h-10 w-36 rounded-lg" />
           <Skeleton className="hidden h-10 w-72 rounded-xl xl:block" />
@@ -466,7 +466,7 @@ export function HomeSkeleton() {
       </div>
 
       {/* Hero Section Skeleton */}
-      <section className="bg-[#fbfffd] py-12 lg:py-16">
+      <section className="bg-[#eaf7f3] py-12 lg:py-16">
         <div className="container-page grid min-h-[520px] items-center gap-10 lg:grid-cols-2">
           <div className="space-y-6">
             <div className="space-y-3">
