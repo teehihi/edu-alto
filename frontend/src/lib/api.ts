@@ -40,12 +40,23 @@ const API_BASE_URL = normalizeBaseUrl(
 async function requestPayload(path: string, options: ApiRequestOptions = {}): Promise<unknown> {
   const { accessToken, body, headers, ...init } = options;
   const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
-    credentials: "include",
-    headers: buildHeaders(headers, body, accessToken, isFormData),
-    body: body === undefined ? undefined : isFormData ? body : JSON.stringify(body),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...init,
+      credentials: "include",
+      headers: buildHeaders(headers, body, accessToken, isFormData),
+      body: body === undefined ? undefined : isFormData ? body : JSON.stringify(body),
+    });
+  } catch (error) {
+    if (init.signal?.aborted || (error instanceof Error && error.name === "AbortError"))
+      throw error;
+    throw new ApiClientError(0, {
+      code: "NETWORK_ERROR",
+      message: "Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng hoặc thử lại sau.",
+      details: [],
+    });
+  }
 
   const payload = await parseJson(response);
   if (!response.ok) {
