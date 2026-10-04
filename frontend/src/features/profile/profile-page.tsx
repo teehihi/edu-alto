@@ -740,7 +740,7 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                             "focus-ring flex w-full items-center justify-between rounded-2xl px-4 py-3.5 text-left text-sm font-semibold transition",
                             activeTab === "personal"
                               ? "bg-primary text-white shadow-xs"
-                              : "text-slate-700 hover:bg-slate-50",
+                              : "text-slate-700 hover:bg-[#F2FAF7] hover:text-primary",
                           )}
                         >
                           <span>Trang cá nhân</span>
@@ -750,7 +750,7 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                           <Link
                             href="/learning"
                             prefetch={false}
-                            className="focus-ring flex w-full items-center justify-between rounded-2xl px-4 py-3.5 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                            className="focus-ring flex w-full items-center justify-between rounded-2xl px-4 py-3.5 text-left text-sm font-medium text-slate-700 transition hover:bg-[#F2FAF7] hover:text-primary"
                           >
                             <span>Quản lý học tập</span>
                             <ExternalLink className="h-4 w-4 text-primary" />
@@ -765,7 +765,7 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                               "focus-ring flex w-full items-center justify-between rounded-2xl px-4 py-3.5 text-left text-sm font-medium transition",
                               activeTab === "instructor"
                                 ? "bg-primary text-white font-semibold shadow-xs"
-                                : "text-slate-700 hover:bg-slate-50",
+                                : "text-slate-700 hover:bg-[#F2FAF7] hover:text-primary",
                             )}
                           >
                             <span>Giảng viên</span>
@@ -785,7 +785,7 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                               "focus-ring flex w-full items-center justify-between rounded-2xl px-4 py-3.5 text-left text-sm font-medium transition",
                               activeTab === "reviews"
                                 ? "bg-primary text-white font-semibold shadow-xs"
-                                : "text-slate-700 hover:bg-slate-50",
+                                : "text-slate-700 hover:bg-[#F2FAF7] hover:text-primary",
                             )}
                           >
                             <span>Đánh giá của tôi</span>

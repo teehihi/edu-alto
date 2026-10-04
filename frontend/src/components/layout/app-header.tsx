@@ -16,7 +16,7 @@ import {
   User as UserIcon,
   X,
 } from "lucide-react";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { cn } from "@/lib/cn";
 import { readCart } from "@/lib/cart";
 import { useAuthSession } from "@/lib/auth-session";
@@ -57,9 +57,46 @@ export function AppHeader({
   const [isOpen, setIsOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [cartCount, setCartCount] = useState(0);
-  const [menuPathname, setMenuPathname] = useState(pathname);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const userMenuLeaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const { user, isAuthenticated, logout } = useAuthSession();
+
+  const handleUserMenuPointerEnter = useCallback((event: React.PointerEvent) => {
+    if (event.pointerType === "mouse") {
+      if (userMenuLeaveTimerRef.current) {
+        clearTimeout(userMenuLeaveTimerRef.current);
+        userMenuLeaveTimerRef.current = null;
+      }
+      setIsUserMenuOpen(true);
+    }
+  }, []);
+
+  const handleUserMenuPointerLeave = useCallback((event: React.PointerEvent) => {
+    if (event.pointerType === "mouse") {
+      if (userMenuLeaveTimerRef.current) {
+        clearTimeout(userMenuLeaveTimerRef.current);
+      }
+      userMenuLeaveTimerRef.current = setTimeout(() => {
+        setIsUserMenuOpen(false);
+      }, 280);
+    }
+  }, []);
+
+  const handleUserMenuButtonClick = useCallback(() => {
+    if (userMenuLeaveTimerRef.current) {
+      clearTimeout(userMenuLeaveTimerRef.current);
+      userMenuLeaveTimerRef.current = null;
+    }
+    setIsUserMenuOpen(true);
+  }, []);
+
+  const closeUserMenu = useCallback(() => {
+    if (userMenuLeaveTimerRef.current) {
+      clearTimeout(userMenuLeaveTimerRef.current);
+      userMenuLeaveTimerRef.current = null;
+    }
+    setIsUserMenuOpen(false);
+  }, []);
 
   useEffect(() => {
     const updateCartCount = () => setCartCount(readCart().length);
@@ -73,8 +110,17 @@ export function AppHeader({
     };
   }, []);
 
-  if (menuPathname !== pathname) {
-    setMenuPathname(pathname);
+  useEffect(() => {
+    return () => {
+      if (userMenuLeaveTimerRef.current) {
+        clearTimeout(userMenuLeaveTimerRef.current);
+      }
+    };
+  }, []);
+
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  if (prevPathname !== pathname) {
+    setPrevPathname(pathname);
     setIsUserMenuOpen(false);
     setIsOpen(false);
   }
@@ -86,12 +132,20 @@ export function AppHeader({
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        if (userMenuLeaveTimerRef.current) {
+          clearTimeout(userMenuLeaveTimerRef.current);
+          userMenuLeaveTimerRef.current = null;
+        }
         setIsUserMenuOpen(false);
       }
     }
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
+        if (userMenuLeaveTimerRef.current) {
+          clearTimeout(userMenuLeaveTimerRef.current);
+          userMenuLeaveTimerRef.current = null;
+        }
         setIsUserMenuOpen(false);
       }
     }
@@ -144,7 +198,7 @@ export function AppHeader({
   }, [isSticky, isOpen, isUserMenuOpen]);
 
   async function handleLogout() {
-    setIsUserMenuOpen(false);
+    closeUserMenu();
     setIsOpen(false);
     await logout();
     router.push("/login");
@@ -275,17 +329,16 @@ export function AppHeader({
               <div
                 className="relative"
                 ref={userMenuRef}
-                onPointerEnter={(event) => {
-                  if (event.pointerType === "mouse") setIsUserMenuOpen(true);
-                }}
+                onPointerEnter={handleUserMenuPointerEnter}
+                onPointerLeave={handleUserMenuPointerLeave}
               >
                 <button
                   type="button"
-                  onClick={() => setIsUserMenuOpen(true)}
+                  onClick={handleUserMenuButtonClick}
                   aria-expanded={isUserMenuOpen}
                   aria-haspopup="true"
                   aria-label={`Menu người dùng: ${user.fullName || "Tài khoản"}`}
-                  className="focus-ring group flex min-h-11 items-center gap-1.5 rounded-full p-1 transition hover:bg-primary-soft/60"
+                  className="focus-ring group flex items-center gap-1.5 rounded-full p-1 transition hover:bg-primary-soft/60"
                 >
                   <UserAvatar
                     name={user.fullName}
@@ -305,7 +358,11 @@ export function AppHeader({
 
                 {/* User Dropdown Popover */}
                 {isUserMenuOpen && (
-                  <div className="absolute right-0 top-full z-50 pt-2">
+                  <div
+                    className="absolute right-0 top-full z-50 pt-2"
+                    onPointerEnter={handleUserMenuPointerEnter}
+                    onPointerLeave={handleUserMenuPointerLeave}
+                  >
                     <div
                       className="w-64 origin-top-right rounded-2xl border border-slate-100 bg-white p-2 shadow-xl ring-1 ring-black/5 animate-page"
                       role="menu"
@@ -335,18 +392,20 @@ export function AppHeader({
                       <Link
                         href="/profile"
                         role="menuitem"
-                        onClick={() => setIsUserMenuOpen(false)}
+                        onClick={closeUserMenu}
                         className={cn(
-                          "group flex min-h-11 items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold transition hover:bg-slate-50 hover:text-primary",
+                          "group flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold transition",
                           pathname === "/profile"
-                            ? "text-primary bg-primary-soft/50"
-                            : "text-slate-700",
+                            ? "bg-primary-soft text-primary font-bold hover:bg-[#d5f7ec]"
+                            : "text-slate-700 hover:bg-primary-soft/60 hover:text-primary active:bg-primary-soft",
                         )}
                       >
                         <UserIcon
                           className={cn(
-                            "h-4 w-4 transition-colors group-hover:text-primary",
-                            pathname === "/profile" ? "text-primary" : "text-slate-400",
+                            "h-4 w-4 transition-colors",
+                            pathname === "/profile"
+                              ? "text-primary"
+                              : "text-slate-400 group-hover:text-primary",
                           )}
                         />
                         <span>Trang cá nhân</span>
@@ -356,20 +415,20 @@ export function AppHeader({
                         <Link
                           href="/instructor"
                           role="menuitem"
-                          onClick={() => setIsUserMenuOpen(false)}
+                          onClick={closeUserMenu}
                           className={cn(
-                            "group flex min-h-11 w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold transition hover:bg-slate-50 hover:text-primary",
+                            "group flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold transition",
                             pathname.startsWith("/instructor")
-                              ? "text-primary bg-primary-soft/50"
-                              : "text-slate-700",
+                              ? "bg-primary-soft text-primary font-bold hover:bg-[#d5f7ec]"
+                              : "text-slate-700 hover:bg-primary-soft/60 hover:text-primary active:bg-primary-soft",
                           )}
                         >
                           <LayoutDashboard
                             className={cn(
-                              "h-4 w-4 transition-colors group-hover:text-primary",
+                              "h-4 w-4 transition-colors",
                               pathname.startsWith("/instructor")
                                 ? "text-primary"
-                                : "text-slate-400",
+                                : "text-slate-400 group-hover:text-primary",
                             )}
                           />
                           <span>Bảng điều khiển giảng viên</span>
@@ -379,18 +438,30 @@ export function AppHeader({
                       <Link
                         href="/learning/courses"
                         role="menuitem"
-                        onClick={() => setIsUserMenuOpen(false)}
-                        className="group flex min-h-11 items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-primary"
+                        onClick={closeUserMenu}
+                        className={cn(
+                          "group flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold transition",
+                          pathname.startsWith("/learning")
+                            ? "bg-primary-soft text-primary font-bold hover:bg-[#d5f7ec]"
+                            : "text-slate-700 hover:bg-primary-soft/60 hover:text-primary active:bg-primary-soft",
+                        )}
                       >
-                        <GraduationCap className="h-4 w-4 text-slate-400 transition-colors group-hover:text-primary" />
+                        <GraduationCap
+                          className={cn(
+                            "h-4 w-4 transition-colors",
+                            pathname.startsWith("/learning")
+                              ? "text-primary"
+                              : "text-slate-400 group-hover:text-primary",
+                          )}
+                        />
                         <span>Khóa học của tôi</span>
                       </Link>
 
                       <Link
                         href="/profile"
                         role="menuitem"
-                        onClick={() => setIsUserMenuOpen(false)}
-                        className="group flex min-h-11 items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-primary"
+                        onClick={closeUserMenu}
+                        className="group flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-primary-soft/60 hover:text-primary active:bg-primary-soft"
                       >
                         <Settings className="h-4 w-4 text-slate-400 transition-colors group-hover:text-primary" />
                         <span>Cài đặt tài khoản</span>
@@ -402,7 +473,7 @@ export function AppHeader({
                         type="button"
                         role="menuitem"
                         onClick={handleLogout}
-                        className="group flex min-h-11 w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold text-rose-600 transition hover:bg-rose-50"
+                        className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 hover:text-rose-700 active:bg-rose-100"
                       >
                         <LogOut className="h-4 w-4 text-rose-500 transition-colors group-hover:text-rose-600" />
                         <span>Đăng xuất</span>

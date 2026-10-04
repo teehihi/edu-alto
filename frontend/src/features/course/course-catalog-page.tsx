@@ -640,7 +640,7 @@ export function FigmaCourseCard({ course }: { course: FavoriteCourse }) {
             }
           }}
           disabled={favoriteLoading || (userId !== null && !favoriteReady)}
-          className="focus-ring absolute right-2 top-2 flex h-11 w-11 items-center justify-center rounded-full bg-white/90 text-slate-600 backdrop-blur-xs shadow-xs transition hover:bg-white hover:text-rose-500 active:scale-95 disabled:cursor-wait disabled:opacity-60"
+          className="focus-ring absolute right-2.5 top-2.5 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-slate-600 backdrop-blur-xs shadow-xs transition hover:bg-white hover:text-rose-500 active:scale-90 disabled:cursor-wait disabled:opacity-60"
         >
           <Heart className={cn("h-4 w-4", isFavorited && "fill-rose-500 text-rose-500")} />
         </button>

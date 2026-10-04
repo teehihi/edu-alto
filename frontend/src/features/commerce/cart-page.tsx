@@ -99,7 +99,7 @@ export function CartPage() {
                     <button
                       type="button"
                       onClick={() => setCourses(removeCourseFromCart(course.id))}
-                      className="focus-ring inline-flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-rose-600 transition hover:bg-rose-50 hover:underline"
+                      className="focus-ring inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold text-rose-600 transition hover:bg-rose-50 active:bg-rose-100"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                       Xóa

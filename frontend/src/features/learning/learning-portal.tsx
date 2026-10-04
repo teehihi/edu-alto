@@ -850,7 +850,7 @@ function RecentCourse({
         {compact && (
           <Link
             href={archived ? "/courses" : `/learning/courses/${course.courseId}`}
-            className="focus-ring inline-flex min-h-11 shrink-0 items-center rounded-lg bg-primary px-3 text-xs font-semibold text-white transition hover:bg-[#159e75] active:bg-[#128763]"
+            className="focus-ring inline-flex h-8 shrink-0 items-center rounded-lg bg-primary px-3 text-xs font-semibold text-white transition hover:bg-[#159e75] active:bg-[#128763]"
           >
             {archived ? "Khám phá" : "Tiếp tục"}
           </Link>
@@ -905,7 +905,7 @@ function SmallEmpty({
       <p className="mt-1 max-w-sm text-xs leading-5 text-[#87928e]">{detail}</p>
       <Link
         href={href}
-        className="focus-ring mt-3 inline-flex min-h-11 items-center rounded-lg bg-primary px-4 text-xs font-semibold text-white transition hover:bg-[#159e75] active:bg-[#128763]"
+        className="focus-ring mt-3 inline-flex h-9 items-center rounded-lg bg-primary px-4 text-xs font-semibold text-white transition hover:bg-[#159e75] active:bg-[#128763]"
       >
         {action}
       </Link>

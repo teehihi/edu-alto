@@ -113,7 +113,7 @@ export function InstructorCourseWorkspace({
                 <Link
                   href="/instructor/courses/overview"
                   aria-label="Quay lại danh sách khóa học"
-                  className="focus-ring inline-flex size-9 min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md text-primary transition hover:bg-emerald-50 active:bg-emerald-100"
+                  className="focus-ring inline-flex size-9 shrink-0 items-center justify-center rounded-md text-primary transition hover:bg-emerald-50 active:bg-emerald-100"
                 >
                   <ArrowLeft className="h-5 w-5" aria-hidden="true" />
                 </Link>

@@ -323,8 +323,8 @@ export function CourseDetailPage({ slug }: { slug: string }) {
                         type="button"
                         disabled={enrollmentLoading}
                         onClick={course.price === 0 ? enroll : addToCart}
-                        size="lg"
-                        className={`relative z-10 mt-6 min-h-[60px] w-full rounded-lg ${cartActionAnimating && course.price > 0 ? "cart-add-pop" : ""}`}
+                        size="md"
+                        className={`relative z-10 mt-5 w-full rounded-xl ${cartActionAnimating && course.price > 0 ? "cart-add-pop" : ""}`}
                         aria-describedby="enrollment-status"
                       >
                         {enrollmentLoading ? (
@@ -345,8 +345,8 @@ export function CourseDetailPage({ slug }: { slug: string }) {
                           type="button"
                           onClick={buyNow}
                           variant="outline"
-                          size="lg"
-                          className="relative z-10 mt-4 min-h-[60px] w-full rounded-lg"
+                          size="md"
+                          className="relative z-10 mt-2.5 w-full rounded-xl"
                           aria-describedby="enrollment-status"
                         >
                           Mua ngay
