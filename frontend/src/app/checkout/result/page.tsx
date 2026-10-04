@@ -1,9 +1,10 @@
+import { createPrivatePageMetadata } from "@/lib/page-metadata";
 import { Suspense } from "react";
 import { AppHeader } from "@/components/layout/app-header";
 import { Footer } from "@/components/layout/footer";
 import { CheckoutResultPage } from "@/features/commerce/checkout-result-page";
 
-export const metadata = { title: "Kết quả thanh toán | EduAlto" };
+export const metadata = createPrivatePageMetadata("Kết quả thanh toán");
 
 export default function Page() {
   return (

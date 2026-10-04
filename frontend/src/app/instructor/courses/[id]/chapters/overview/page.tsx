@@ -1,3 +1,4 @@
+import { createPrivatePageMetadata } from "@/lib/page-metadata";
 import { Suspense } from "react";
 import { CourseCurriculumSkeleton } from "@/components/ui/skeleton";
 import { InstructorCourseCurriculumPage } from "@/features/instructor/instructor-course-curriculum-page";
@@ -6,6 +7,8 @@ import { InstructorCourseWorkspace } from "@/features/instructor/instructor-cour
 interface CourseChapterOverviewPageProps {
   params: Promise<{ id: string }>;
 }
+
+export const metadata = createPrivatePageMetadata("Tổng quan giáo trình");
 
 export default async function Page({ params }: CourseChapterOverviewPageProps) {
   const { id } = await params;

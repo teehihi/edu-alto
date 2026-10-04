@@ -1,6 +1,6 @@
 import { CourseCertificatePage } from "@/features/learning/course-certificate-page";
 
-export const metadata = { title: "Chứng nhận hoàn thành | EduAlto" };
+export const metadata = { title: "Chứng nhận hoàn thành" };
 
 export default async function CourseCertificateRoute({
   params,

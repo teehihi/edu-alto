@@ -1,6 +1,6 @@
 import { LearningCoursePage } from "@/features/learning/learning-course-page";
 
-export const metadata = { title: "Giáo trình của tôi | EduAlto" };
+export const metadata = { title: "Giáo trình của tôi" };
 
 export default async function LearningCourseRoute({
   params,

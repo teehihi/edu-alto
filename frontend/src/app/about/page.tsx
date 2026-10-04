@@ -1,7 +1,7 @@
 import { AboutPage } from "@/features/about/about-page";
 
 export const metadata = {
-  title: "Về chúng tôi | EduAlto",
+  title: "Về chúng tôi",
   description: "Tìm hiểu về sứ mệnh, tính năng nổi bật và giá trị giáo dục trực tuyến tại EduAlto.",
 };
 

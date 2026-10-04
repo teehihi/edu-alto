@@ -1,6 +1,6 @@
 import { CourseDetailPage } from "@/features/course/course-detail-page";
 
-export const metadata = { title: "Chi tiết khóa học | EduAlto" };
+export const metadata = { title: "Chi tiết khóa học" };
 
 export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;

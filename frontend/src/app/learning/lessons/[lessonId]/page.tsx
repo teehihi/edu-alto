@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { LearningLessonPage } from "@/features/learning/learning-lesson-page";
 
-export const metadata = { title: "Bài học | EduAlto" };
+export const metadata = { title: "Bài học" };
 
 export default async function LearningLessonRoute({
   params,
