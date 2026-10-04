@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Facebook, Github, Linkedin, Mail } from "lucide-react";
+import { CookieSettingsButton } from "@/components/layout/cookie-settings-button";
 
 const footerColumns = [
   {
@@ -35,7 +36,7 @@ const footerColumns = [
     links: [
       ["Điều khoản sử dụng", "/#contact"],
       ["Chính sách bảo mật", "/#contact"],
-      ["Chính sách cookie", "/#contact"],
+      ["Chính sách cookie", "/cookie-policy"],
     ],
   },
 ];
@@ -90,6 +91,7 @@ export function Footer() {
       <div className="border-t border-white/10">
         <div className="container-page flex flex-col gap-3 py-6 text-sm text-slate-400 sm:flex-row sm:items-center sm:justify-between">
           <p>© {new Date().getFullYear()} EduAlto. Tất cả quyền được bảo lưu.</p>
+          <CookieSettingsButton />
           <div className="flex items-center gap-4" aria-label="Kết nối với EduAlto">
             {socialLinks.map(({ label, href, Icon }) => (
               <a
