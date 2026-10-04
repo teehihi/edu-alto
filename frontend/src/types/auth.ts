@@ -57,6 +57,8 @@ export type UserProfile = {
   updatedAt: string;
 };
 
+export type PublicUserProfile = Omit<UserProfile, "email" | "status" | "createdAt" | "updatedAt">;
+
 export type RegisterRequest = {
   fullName: string;
   email: string;

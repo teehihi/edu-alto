@@ -17,6 +17,7 @@ export {
 export type { AuthUser } from "@/lib/auth";
 export type {
   UserProfile,
+  PublicUserProfile,
   StudentProfile,
   InstructorProfile,
   UpdateProfileRequest,

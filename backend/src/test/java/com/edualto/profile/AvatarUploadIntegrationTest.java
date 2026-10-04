@@ -7,6 +7,8 @@ import com.edualto.auth.repository.RefreshTokenRepository;
 import com.edualto.course.repository.CourseRepository;
 import com.edualto.profile.domain.Profile;
 import com.edualto.profile.repository.ProfileRepository;
+import com.edualto.profile.service.ProfileService;
+import com.edualto.profile.dto.AvatarCompleteRequest;
 import com.edualto.storage.dto.ObjectMetadata;
 import com.edualto.storage.dto.PresignedUploadUrl;
 import com.edualto.storage.service.StorageService;
@@ -24,11 +26,17 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.core.env.Environment;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.util.unit.DataSize;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.startsWith;
 import static org.mockito.ArgumentMatchers.any;
@@ -41,6 +49,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import com.edualto.AbstractIntegrationTest;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -67,6 +76,15 @@ class AvatarUploadIntegrationTest extends AbstractIntegrationTest {
 
     @Autowired
     private RefreshTokenRepository refreshTokenRepository;
+
+    @Autowired
+    private Environment environment;
+
+    @Autowired
+    private ProfileService profileService;
+
+    @Autowired
+    private PlatformTransactionManager transactionManager;
 
     @MockitoBean
     private StorageService storageService;
@@ -120,6 +138,49 @@ class AvatarUploadIntegrationTest extends AbstractIntegrationTest {
 
         JsonNode root = objectMapper.readTree(response);
         return root.get("data").get("accessToken").asText();
+    }
+
+    @Test
+    void avatarReplacementKeepsOldObjectWhenProfileUpdateRollsBack() throws Exception {
+        registerAndLogin("Rollback Avatar", "rollback-avatar@example.com", "Password1");
+        User user = userRepository.findByEmail("rollback-avatar@example.com").orElseThrow();
+        String oldKey = "avatars/" + user.getId() + "/old.png";
+        String newKey = "avatars/" + user.getId() + "/new.png";
+        profileRepository.save(new Profile(user.getId(), "Developer", "Bio", oldKey));
+        when(storageService.objectExists(newKey)).thenReturn(true);
+        when(storageService.getObjectMetadata(newKey)).thenReturn(new ObjectMetadata("image/png", 1024L, "etag-new"));
+
+        assertThatThrownBy(() -> new TransactionTemplate(transactionManager).executeWithoutResult(transaction -> {
+            profileService.completeAvatarUpload(user.getId(), new AvatarCompleteRequest(newKey));
+            throw new IllegalStateException("Simulated persistence failure");
+        })).isInstanceOf(IllegalStateException.class);
+
+        assertThat(profileRepository.findById(user.getId()).orElseThrow().getAvatarKey()).isEqualTo(oldKey);
+        verify(storageService, never()).deleteObject(oldKey);
+    }
+
+    @Test
+    void multipartAvatarSupportsFiveMbAndRejectsOversizedFiles() throws Exception {
+        String token = registerAndLogin("Multipart User", "multipart@example.com", "Password1");
+        byte[] data = new byte[5 * 1024 * 1024];
+        when(storageService.getPublicUrl(anyString())).thenReturn("https://r2.test/avatar.png");
+
+        assertThat(DataSize.parse(environment.getRequiredProperty("spring.servlet.multipart.max-file-size")))
+                .isEqualTo(DataSize.ofMegabytes(5));
+        assertThat(DataSize.parse(environment.getRequiredProperty("spring.servlet.multipart.max-request-size")))
+                .isEqualTo(DataSize.ofMegabytes(6));
+        mockMvc.perform(multipart("/api/v1/me/profile/avatar")
+                .file(new MockMultipartFile("file", "avatar.png", "image/png", data))
+                .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.avatarUrl").value("https://r2.test/avatar.png"));
+        verify(storageService).putObject(anyString(), eq("image/png"), eq(data));
+
+        mockMvc.perform(multipart("/api/v1/me/profile/avatar")
+                .file(new MockMultipartFile("file", "oversized.png", "image/png", new byte[data.length + 1]))
+                .header("Authorization", "Bearer " + token))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("INVALID_FILE_SIZE"));
     }
 
     @Test

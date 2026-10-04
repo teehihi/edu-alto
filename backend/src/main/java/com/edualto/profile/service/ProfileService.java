@@ -9,30 +9,30 @@ import com.edualto.profile.dto.AvatarUploadUrlRequest;
 import com.edualto.profile.dto.AvatarUploadUrlResponse;
 import com.edualto.profile.dto.UpdateProfileRequest;
 import com.edualto.profile.dto.UserProfileResponse;
+import com.edualto.profile.dto.PublicProfileResponse;
 import com.edualto.profile.repository.InstructorProfileRepository;
 import com.edualto.profile.repository.ProfileRepository;
 import com.edualto.profile.repository.StudentProfileRepository;
 import com.edualto.storage.dto.ObjectMetadata;
 import com.edualto.storage.dto.PresignedUploadUrl;
 import com.edualto.storage.service.StorageService;
+import com.edualto.storage.service.StorageCleanupService;
 import com.edualto.user.domain.Role;
 import com.edualto.user.domain.RoleName;
 import com.edualto.user.domain.User;
+import com.edualto.user.domain.UserStatus;
 import com.edualto.user.repository.UserRepository;
 import java.time.Duration;
 import java.util.Set;
+import java.util.List;
 import java.util.UUID;
 import java.util.regex.Pattern;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ProfileService {
-
-    private static final Logger log = LoggerFactory.getLogger(ProfileService.class);
 
     private static final Set<String> ALLOWED_AVATAR_CONTENT_TYPES = Set.of(
             "image/jpeg",
@@ -49,19 +49,22 @@ public class ProfileService {
     private final InstructorProfileRepository instructorProfileRepository;
     private final UserRepository userRepository;
     private final StorageService storageService;
+    private final StorageCleanupService storageCleanup;
 
     public ProfileService(
             ProfileRepository profileRepository,
             StudentProfileRepository studentProfileRepository,
             InstructorProfileRepository instructorProfileRepository,
             UserRepository userRepository,
-            StorageService storageService
+            StorageService storageService,
+            StorageCleanupService storageCleanup
     ) {
         this.profileRepository = profileRepository;
         this.studentProfileRepository = studentProfileRepository;
         this.instructorProfileRepository = instructorProfileRepository;
         this.userRepository = userRepository;
         this.storageService = storageService;
+        this.storageCleanup = storageCleanup;
     }
 
     @Transactional
@@ -112,7 +115,7 @@ public class ProfileService {
     }
 
     @Transactional(readOnly = true)
-    public UserProfileResponse getProfileByIdentifier(String identifier) {
+    public PublicProfileResponse getProfileByIdentifier(String identifier) {
         if (identifier == null || identifier.isBlank()) {
             throw new BusinessException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Không tìm thấy người dùng");
         }
@@ -120,7 +123,7 @@ public class ProfileService {
         String trimmed = identifier.trim();
         try {
             UUID userId = UUID.fromString(trimmed);
-            return getProfile(userId);
+            return getPublicProfile(userId);
         } catch (IllegalArgumentException ignored) {
             // Identifier is not a UUID, search by custom handle
         }
@@ -128,7 +131,15 @@ public class ProfileService {
         Profile profile = profileRepository.findByCustomHandleIgnoreCase(trimmed)
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Không tìm thấy người dùng"));
 
-        return getProfile(profile.getUserId());
+        return getPublicProfile(profile.getUserId());
+    }
+
+    private PublicProfileResponse getPublicProfile(UUID userId) {
+        UserProfileResponse profile = getProfile(userId);
+        if (profile.status() != UserStatus.ACTIVE) {
+            throw new BusinessException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Không tìm thấy người dùng");
+        }
+        return PublicProfileResponse.from(profile);
     }
 
     @Transactional
@@ -345,13 +356,9 @@ public class ProfileService {
         profile.setAvatarKey(objectKey);
         profile = profileRepository.save(profile);
 
-        // Delete old avatar if different
+        // Delete replaced avatars only after the profile update commits.
         if (previousAvatarKey != null && !previousAvatarKey.isBlank() && !previousAvatarKey.equals(objectKey)) {
-            try {
-                storageService.deleteObject(previousAvatarKey);
-            } catch (Exception e) {
-                log.warn("Không thể xóa ảnh đại diện cũ trên R2: {}", previousAvatarKey, e);
-            }
+            storageCleanup.deleteAfterCommit(List.of(previousAvatarKey));
         }
 
         StudentProfile studentProfile = studentProfileRepository.findById(userId).orElse(null);
@@ -401,11 +408,7 @@ public class ProfileService {
         profile = profileRepository.save(profile);
 
         if (previousAvatarKey != null && !previousAvatarKey.isBlank() && !previousAvatarKey.equals(objectKey)) {
-            try {
-                storageService.deleteObject(previousAvatarKey);
-            } catch (Exception e) {
-                log.warn("Không thể xóa ảnh đại diện cũ trên R2: {}", previousAvatarKey, e);
-            }
+            storageCleanup.deleteAfterCommit(List.of(previousAvatarKey));
         }
 
         StudentProfile studentProfile = studentProfileRepository.findById(userId).orElse(null);

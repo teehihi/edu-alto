@@ -69,6 +69,7 @@ const updateProfileMock = vi.fn().mockResolvedValue({
   customHandle: "minhanh21",
 });
 const logoutMock = vi.fn().mockResolvedValue({});
+const updateUserAvatarMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/profile",
@@ -94,7 +95,7 @@ vi.mock("@/features/auth/auth-client", () => ({
     getPublicProfile: getPublicProfileMock,
     updateProfile: updateProfileMock,
     uploadAvatar: vi.fn().mockResolvedValue({ avatarUrl: "https://example.com/new-avatar.png" }),
-    updateUserAvatar: vi.fn(),
+    updateUserAvatar: updateUserAvatarMock,
     getCurrentUser: vi.fn(),
     updateCurrentUser: vi.fn(),
   }),
@@ -189,6 +190,7 @@ describe("ProfilePage", () => {
       await screen.findByRole("heading", { name: "Trần Văn Bình", level: 1 }),
     ).toBeInTheDocument();
     expect(screen.getAllByText("Chuyên gia AI").length).toBeGreaterThan(0);
+    expect(updateUserAvatarMock).not.toHaveBeenCalled();
 
     // Edit button should not exist for visitor
     expect(screen.queryByRole("button", { name: /chỉnh sửa/i })).not.toBeInTheDocument();

@@ -1,7 +1,7 @@
 package com.edualto.profile.controller;
 
 import com.edualto.common.api.ApiResponse;
-import com.edualto.profile.dto.UserProfileResponse;
+import com.edualto.profile.dto.PublicProfileResponse;
 import com.edualto.profile.service.ProfileService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -19,12 +19,12 @@ public class PublicProfileController {
     }
 
     @GetMapping("/profiles/{identifier}")
-    public ApiResponse<UserProfileResponse> getProfileByIdentifier(@PathVariable String identifier) {
+    public ApiResponse<PublicProfileResponse> getProfileByIdentifier(@PathVariable String identifier) {
         return ApiResponse.ok(profileService.getProfileByIdentifier(identifier));
     }
 
     @GetMapping("/users/{identifier}/profile")
-    public ApiResponse<UserProfileResponse> getUserProfileByIdentifier(@PathVariable String identifier) {
+    public ApiResponse<PublicProfileResponse> getUserProfileByIdentifier(@PathVariable String identifier) {
         return ApiResponse.ok(profileService.getProfileByIdentifier(identifier));
     }
 }

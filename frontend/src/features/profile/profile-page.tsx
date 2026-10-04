@@ -41,7 +41,12 @@ import { CustomSelect } from "@/components/ui/custom-select";
 import { FeedbackModal, type FeedbackTone } from "@/components/ui/feedback-modal";
 import { ProfileSkeleton } from "@/components/ui/skeleton";
 import { UserAvatar } from "@/components/ui/user-avatar";
-import { getPublicProfile, useAuth, type UserProfile } from "@/features/auth/auth-client";
+import {
+  getPublicProfile,
+  useAuth,
+  type UserProfile,
+  type PublicUserProfile,
+} from "@/features/auth/auth-client";
 import { AlertMessage, FormField } from "@/features/auth/form-field";
 import { getFriendlyError } from "@/features/auth/form-utils";
 import { ApiClientError } from "@/lib/api";
@@ -153,7 +158,7 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
     updateUserAvatar,
   } = useAuth();
   const [activeTab, setActiveTab] = useState<ActiveTab>("personal");
-  const [profileData, setProfileData] = useState<UserProfile | null>(null);
+  const [profileData, setProfileData] = useState<UserProfile | PublicUserProfile | null>(null);
   const [isEditing, setIsEditing] = useState(defaultEditing);
 
   // Split name state for Figma layout (Họ và Tên lót + Tên)
@@ -223,7 +228,7 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
   const isOwner = useMemo(() => {
     if (!targetIdentifier) return true;
     if (!profileData) return false;
-    if (user && (user.id === profileData.id || user.email === profileData.email)) {
+    if (user && user.id === profileData.id) {
       return true;
     }
     return false;
@@ -238,7 +243,7 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
     return { family, given };
   }
 
-  const populateForm = useCallback((data: UserProfile) => {
+  const populateForm = useCallback((data: UserProfile | PublicUserProfile) => {
     setProfileData(data);
     const { family, given } = splitFullName(data.fullName || "");
     setFamilyName(family);
@@ -293,14 +298,15 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
     setLoadingProfile(true);
     setStatus(null);
     try {
-      let data: UserProfile;
+      let data: UserProfile | PublicUserProfile;
       if (targetIdentifier) {
         data = await getPublicProfile(targetIdentifier);
+        if (data.id === user?.id) data = await getProfile();
       } else {
         data = await getProfile();
       }
       populateForm(data);
-      if (data.avatarUrl) {
+      if (data.avatarUrl && (!targetIdentifier || data.id === user?.id)) {
         updateUserAvatar(data.avatarUrl);
       }
     } catch (err: unknown) {
@@ -309,7 +315,7 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
     } finally {
       setLoadingProfile(false);
     }
-  }, [getProfile, targetIdentifier, isAuthenticated, populateForm, updateUserAvatar]);
+  }, [getProfile, targetIdentifier, isAuthenticated, populateForm, updateUserAvatar, user]);
 
   useEffect(() => {
     if (!authLoading && !initialLoadDoneRef.current) {
@@ -675,7 +681,7 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                     <div className="relative mx-auto flex items-center justify-center pt-2">
                       <UserAvatar
                         name={combinedFullName}
-                        email={profileData?.email || user?.email || ""}
+                        email={profileData && "email" in profileData ? profileData.email : ""}
                         avatarUrl={savedAvatarUrl}
                         size="2xl"
                         className="shadow-sm ring-4 ring-white"

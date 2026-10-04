@@ -252,6 +252,33 @@ class ProfileIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void publicProfileOmitsPrivateAccountFieldsAndHidesInactiveUsers() throws Exception {
+        String token = registerAndLogin("Public User", "public@example.com", "Password1", "STUDENT", "Learn Java", null, "Public bio");
+        User user = userRepository.findByEmail("public@example.com").orElseThrow();
+
+        for (String path : new String[]{"/api/v1/profiles/", "/api/v1/users/"}) {
+            String suffix = path.contains("users") ? "/profile" : "";
+            mockMvc.perform(get(path + user.getId() + suffix))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.fullName").value("Public User"))
+                    .andExpect(jsonPath("$.data.bio").value("Public bio"))
+                    .andExpect(jsonPath("$.data.email").doesNotExist())
+                    .andExpect(jsonPath("$.data.status").doesNotExist())
+                    .andExpect(jsonPath("$.data.avatarKey").doesNotExist())
+                    .andExpect(jsonPath("$.data.createdAt").doesNotExist())
+                    .andExpect(jsonPath("$.data.updatedAt").doesNotExist())
+                    .andExpect(jsonPath("$.data.studentProfile.createdAt").doesNotExist());
+        }
+        mockMvc.perform(get("/api/v1/me/profile").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.email").value("public@example.com"));
+
+        User pending = new User("Pending User", "pending-public@example.com", "hash");
+        userRepository.save(pending);
+        mockMvc.perform(get("/api/v1/profiles/" + pending.getId())).andExpect(status().isNotFound());
+    }
+
+    @Test
     void anonymousAccessToProfileEndpointIsRejected() throws Exception {
         mockMvc.perform(get("/api/v1/me/profile"))
                 .andExpect(status().isUnauthorized());

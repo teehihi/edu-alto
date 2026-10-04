@@ -8,6 +8,7 @@ import type {
   CurrentUser,
   EmailRequest,
   LoginRequest,
+  PublicUserProfile,
   RegisterRequest,
   ResetPasswordRequest,
   UpdateCurrentUserRequest,
@@ -93,7 +94,7 @@ export const profileApi = {
     }),
 
   getPublicProfile: (identifier: string) =>
-    apiRequest<UserProfile>(`/profiles/${encodeURIComponent(identifier)}`, {
+    apiRequest<PublicUserProfile>(`/profiles/${encodeURIComponent(identifier)}`, {
       method: "GET",
     }),
 
