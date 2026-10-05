@@ -9,6 +9,7 @@ import { AppHeader } from "@/components/layout/app-header";
 import { Footer } from "@/components/layout/footer";
 import { CourseCard } from "@/components/course/course-card";
 import { FeatureCard } from "@/components/marketing/feature-card";
+import { Reveal } from "@/components/ui/reveal";
 import {
   blogPosts,
   courseCategories,
@@ -47,23 +48,27 @@ export function HomePage() {
   const activeTestimonial = testimonials[activeTestimonialIndex] ?? testimonials[0];
 
   return (
-    <div suppressHydrationWarning className="min-h-screen bg-white">
-      <AppHeader transparent transparentBg="bg-[#eaf7f3]" />
+    <div suppressHydrationWarning className="min-h-screen overflow-x-clip bg-white">
+      <AppHeader transparent />
       <main>
-        <section className="relative overflow-hidden bg-[#eaf7f3] pt-6 lg:pt-10">
+        <section className="relative overflow-hidden bg-[linear-gradient(180deg,#E6F7F2_0%,#F2FAF7_248px,#FFFFFF_608px,#FFFFFF_100%)] pt-6 lg:pt-10">
           <HeroBackgroundPatterns />
           <div className="container-page grid min-h-[620px] items-center gap-10 pb-16 lg:grid-cols-[1.05fr_0.95fr]">
             <div className="relative z-10">
-              <h1 className="max-w-[650px] text-[44px] font-extrabold capitalize leading-[1.18] text-ink sm:text-[56px] lg:text-[62px]">
-                Nâng Tầm <span className="text-primary">Kỹ Năng</span>
-                <br />
-                <span className="text-primary">Bứt Phá</span> Sự Nghiệp
-              </h1>
-              <p className="mt-6 max-w-[540px] text-sm leading-7 text-[#667085] sm:text-base">
-                Nền tảng học tập trực tuyến hiện đại, cung cấp khóa học và tài liệu chất lượng giúp
-                bạn nâng cao kiến thức và phát triển kỹ năng.
-              </p>
-              <div className="mt-8 flex flex-col gap-4 sm:flex-row">
+              <Reveal>
+                <h1 className="max-w-[650px] text-[44px] font-extrabold capitalize leading-[1.18] text-ink sm:text-[56px] lg:text-[62px]">
+                  Nâng Tầm <span className="text-primary">Kỹ Năng</span>
+                  <br />
+                  <span className="text-primary">Bứt Phá</span> Sự Nghiệp
+                </h1>
+              </Reveal>
+              <Reveal delay={120}>
+                <p className="mt-6 max-w-[540px] text-sm leading-7 text-[#667085] sm:text-base">
+                  Nền tảng học tập trực tuyến hiện đại, cung cấp khóa học và tài liệu chất lượng
+                  giúp bạn nâng cao kiến thức và phát triển kỹ năng.
+                </p>
+              </Reveal>
+              <Reveal delay={240} className="mt-8 flex flex-col gap-4 sm:flex-row">
                 <Link
                   href="#courses"
                   className="focus-ring inline-flex h-[58px] items-center justify-center rounded-lg border border-primary bg-primary px-8 text-base font-semibold text-white shadow-xs transition duration-200 hover:bg-primary-dark hover:shadow-soft active:bg-primary-dark"
@@ -76,8 +81,11 @@ export function HomePage() {
                 >
                   Trải nghiệm miễn phí
                 </Link>
-              </div>
-              <div className="mt-12 flex flex-wrap items-center gap-8 text-sm font-semibold text-[#101828]">
+              </Reveal>
+              <Reveal
+                delay={360}
+                className="mt-12 flex flex-wrap items-center gap-8 text-sm font-semibold text-[#101828]"
+              >
                 <div className="flex items-center gap-3">
                   <Image
                     src="/icons/home/book 1.svg"
@@ -108,10 +116,15 @@ export function HomePage() {
                   />
                   <span>Tiến Bộ Mỗi Ngày</span>
                 </div>
-              </div>
+              </Reveal>
             </div>
 
-            <div className="relative z-10 mx-auto flex h-[480px] w-full max-w-[560px] items-center justify-center sm:h-[540px]">
+            <Reveal
+              direction="scale"
+              delay={200}
+              duration={1000}
+              className="relative z-10 mx-auto flex h-[480px] w-full max-w-[560px] items-center justify-center sm:h-[540px]"
+            >
               {/* Green circular base with student image from Figma */}
               <div className="relative flex h-[380px] w-[380px] items-end justify-center overflow-hidden rounded-full bg-primary shadow-xl sm:h-[460px] sm:w-[460px]">
                 <Image
@@ -176,12 +189,12 @@ export function HomePage() {
                   <p className="text-2xl font-bold text-ink">250+</p>
                 </div>
               </div>
-            </div>
+            </Reveal>
           </div>
 
           {/* Partners section */}
           <div className="container-page pb-16 pt-4">
-            <div className="flex flex-col items-center gap-8 md:flex-row md:items-center md:gap-14">
+            <Reveal className="flex flex-col items-center gap-8 md:flex-row md:items-center md:gap-14">
               <div className="shrink-0 text-center md:text-left">
                 <p className="text-3xl font-extrabold text-primary">250+</p>
                 <p className="mt-0.5 text-lg font-semibold text-muted">Đối Tác</p>
@@ -216,23 +229,25 @@ export function HomePage() {
                   className="h-8 w-auto object-contain grayscale opacity-70"
                 />
               </div>
-            </div>
+            </Reveal>
           </div>
         </section>
 
         <section id="about" className="container-page scroll-mt-24 py-20">
-          <div className="mx-auto max-w-4xl text-center">
+          <Reveal className="mx-auto max-w-4xl text-center">
             <p className="text-sm font-bold text-primary">Có gì tại EduAlto</p>
             <h2 className="mt-3 text-[34px] font-bold leading-tight text-ink sm:text-[40px]">
               Xây dựng môi trường học tập vui nhộn và hấp dẫn
             </h2>
-          </div>
+          </Reveal>
           <div className="mt-12 grid gap-8 lg:grid-cols-3">
-            {features.map((feature) => (
-              <FeatureCard key={feature.title} feature={feature} />
+            {features.map((feature, index) => (
+              <Reveal key={feature.title} delay={index * 120} className="h-full">
+                <FeatureCard feature={feature} />
+              </Reveal>
             ))}
           </div>
-          <div className="mt-10 flex justify-center">
+          <Reveal direction="fade" delay={300} className="mt-10 flex justify-center">
             <Image
               src="/icons/home/Group 521.svg"
               alt=""
@@ -240,12 +255,12 @@ export function HomePage() {
               height={12}
               className="h-3 w-auto"
             />
-          </div>
+          </Reveal>
         </section>
 
         <section id="courses" className="container-page scroll-mt-24 py-12">
           <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
-            <div>
+            <Reveal direction="right">
               <p className="text-sm font-bold text-primary">Khám phá EduAlto</p>
               <h2 className="mt-3 text-[34px] font-bold leading-tight text-ink sm:text-[40px]">
                 Khóa học phổ biến
@@ -254,10 +269,10 @@ export function HomePage() {
                 Hãy tham gia lớp học nổi tiếng của chúng tôi, kiến thức được cung cấp chắc chắn sẽ
                 hữu ích cho bạn.
               </p>
-            </div>
+            </Reveal>
 
             {/* Interactive Category Filter Pills */}
-            <div className="flex flex-wrap gap-2">
+            <Reveal direction="left" delay={150} className="flex flex-wrap gap-2">
               {courseCategories.map((category) => (
                 <button
                   key={category.id}
@@ -273,19 +288,25 @@ export function HomePage() {
                   {category.label}
                 </button>
               ))}
-            </div>
+            </Reveal>
           </div>
 
           {query ? <p className="mt-5 text-sm text-muted">Kết quả tìm kiếm cho “{query}”</p> : null}
 
           <div className="mt-10 grid gap-7 lg:grid-cols-3">
-            {filteredCourses.map((course) => (
-              <CourseCard key={course.id} course={course} />
+            {filteredCourses.map((course, index) => (
+              <Reveal key={course.id} delay={(index % 3) * 120} className="h-full">
+                <CourseCard course={course} />
+              </Reveal>
             ))}
           </div>
 
           {filteredCourses.length === 0 ? (
-            <div className="mt-12 rounded-xl border border-dashed border-primary/40 bg-primary-soft/40 px-6 py-10 text-center">
+            <Reveal
+              direction="scale"
+              duration={500}
+              className="mt-12 rounded-xl border border-dashed border-primary/40 bg-primary-soft/40 px-6 py-10 text-center"
+            >
               <p className="text-base font-semibold text-ink">Chưa tìm thấy khóa học phù hợp</p>
               <p className="mt-2 text-sm text-muted">
                 Hãy thử chọn danh mục khác hoặc thay đổi từ khóa tìm kiếm.
@@ -297,51 +318,52 @@ export function HomePage() {
               >
                 Xem tất cả khóa học
               </button>
-            </div>
+            </Reveal>
           ) : null}
 
-          <div className="mt-12 flex justify-center">
+          <Reveal className="mt-12 flex justify-center">
             <Link
               href="#courses"
               className="focus-ring inline-flex h-11 items-center justify-center rounded-lg border border-slate-300 bg-white px-7 text-sm font-semibold text-ink shadow-xs transition duration-200 hover:border-primary hover:bg-slate-50 hover:text-primary active:bg-slate-100"
             >
               Xem Tất Cả Khóa Học
             </Link>
-          </div>
+          </Reveal>
         </section>
 
         <section id="instructors" className="container-page scroll-mt-24 py-20 text-center">
-          <p className="text-sm font-bold text-primary">Đội Ngũ Giảng Viên</p>
-          <h2 className="mt-3 text-[34px] font-bold leading-tight text-ink sm:text-[40px]">
-            Những Người Đồng Hành
-          </h2>
-          <p className="mx-auto mt-5 max-w-2xl text-base leading-8 text-muted">
-            Đội ngũ giảng viên giàu kinh nghiệm tại EduAlto, mang đến những kiến thức và kỹ năng
-            thiết thực cho người học.
-          </p>
+          <Reveal>
+            <p className="text-sm font-bold text-primary">Đội Ngũ Giảng Viên</p>
+            <h2 className="mt-3 text-[34px] font-bold leading-tight text-ink sm:text-[40px]">
+              Những Người Đồng Hành
+            </h2>
+            <p className="mx-auto mt-5 max-w-2xl text-base leading-8 text-muted">
+              Đội ngũ giảng viên giàu kinh nghiệm tại EduAlto, mang đến những kiến thức và kỹ năng
+              thiết thực cho người học.
+            </p>
+          </Reveal>
           <div className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-            {instructors.map((instructor) => (
-              <article
-                key={instructor.name}
-                className="group rounded-2xl border border-slate-100/80 bg-[#f8fafb] px-7 py-10 text-center transition duration-300 hover:-translate-y-1.5 hover:bg-white hover:shadow-cardHover"
-              >
-                <Image
-                  src={instructor.image}
-                  alt={instructor.name}
-                  width={80}
-                  height={80}
-                  className="mx-auto h-20 w-20 rounded-full object-cover shadow-sm ring-2 ring-primary/20 transition group-hover:ring-primary/40"
-                />
-                <h3 className="mt-6 text-base font-bold text-ink">{instructor.name}</h3>
-                <p className="mt-1 text-sm font-semibold text-primary">{instructor.role}</p>
-                <p className="mx-auto mt-3 min-h-[64px] max-w-[220px] text-sm leading-6 text-muted">
-                  {instructor.description}
-                </p>
-                <div className="mt-6 flex justify-center gap-4 text-slate-400">
-                  <Twitter className="h-4 w-4 transition hover:text-primary" aria-hidden="true" />
-                  <span className="text-sm font-bold transition hover:text-primary">in</span>
-                </div>
-              </article>
+            {instructors.map((instructor, index) => (
+              <Reveal key={instructor.name} delay={(index % 4) * 110} className="h-full">
+                <article className="group h-full rounded-2xl border border-slate-100/80 bg-[#f8fafb] px-7 py-10 text-center transition duration-300 hover:-translate-y-1.5 hover:bg-white hover:shadow-cardHover">
+                  <Image
+                    src={instructor.image}
+                    alt={instructor.name}
+                    width={80}
+                    height={80}
+                    className="mx-auto h-20 w-20 rounded-full object-cover shadow-sm ring-2 ring-primary/20 transition group-hover:ring-primary/40"
+                  />
+                  <h3 className="mt-6 text-base font-bold text-ink">{instructor.name}</h3>
+                  <p className="mt-1 text-sm font-semibold text-primary">{instructor.role}</p>
+                  <p className="mx-auto mt-3 min-h-[64px] max-w-[220px] text-sm leading-6 text-muted">
+                    {instructor.description}
+                  </p>
+                  <div className="mt-6 flex justify-center gap-4 text-slate-400">
+                    <Twitter className="h-4 w-4 transition hover:text-primary" aria-hidden="true" />
+                    <span className="text-sm font-bold transition hover:text-primary">in</span>
+                  </div>
+                </article>
+              </Reveal>
             ))}
           </div>
         </section>
@@ -349,28 +371,37 @@ export function HomePage() {
         {/* Testimonial Section with interactive carousel switch */}
         <section className="bg-[#eefbf7] py-24 text-center">
           <div className="container-page">
-            <Image
-              src="/images/logo-with-text.png"
-              alt="EduAlto"
-              width={98}
-              height={55}
-              className="mx-auto h-14 w-auto object-contain"
-            />
-            <blockquote className="mx-auto mt-9 max-w-5xl text-[28px] font-bold leading-[1.35] text-ink sm:text-[38px] lg:text-[42px]">
-              &ldquo;{activeTestimonial.quote}&rdquo;
-            </blockquote>
-            <Image
-              src={activeTestimonial.avatar}
-              alt={activeTestimonial.author}
-              width={64}
-              height={64}
-              className="mx-auto mt-10 h-16 w-16 rounded-full object-cover shadow-md ring-2 ring-primary/30"
-            />
-            <p className="mt-4 text-base font-bold text-ink">{activeTestimonial.author}</p>
-            <p className="mt-1 text-sm text-muted">{activeTestimonial.role}</p>
+            <Reveal direction="scale">
+              <Image
+                src="/images/logo-with-text.png"
+                alt="EduAlto"
+                width={98}
+                height={55}
+                className="mx-auto h-14 w-auto object-contain"
+              />
+            </Reveal>
+            <Reveal delay={150}>
+              <div
+                key={activeTestimonial.id}
+                className="animate-[pageFadeIn_0.6s_cubic-bezier(0.22,1,0.36,1)]"
+              >
+                <blockquote className="mx-auto mt-9 max-w-5xl text-[28px] font-bold leading-[1.35] text-ink sm:text-[38px] lg:text-[42px]">
+                  &ldquo;{activeTestimonial.quote}&rdquo;
+                </blockquote>
+                <Image
+                  src={activeTestimonial.avatar}
+                  alt={activeTestimonial.author}
+                  width={64}
+                  height={64}
+                  className="mx-auto mt-10 h-16 w-16 rounded-full object-cover shadow-md ring-2 ring-primary/30"
+                />
+                <p className="mt-4 text-base font-bold text-ink">{activeTestimonial.author}</p>
+                <p className="mt-1 text-sm text-muted">{activeTestimonial.role}</p>
+              </div>
+            </Reveal>
 
             {/* Interactive dots */}
-            <div className="mt-8 flex justify-center gap-2">
+            <Reveal direction="fade" delay={300} className="mt-8 flex justify-center gap-2">
               {testimonials.map((item, index) => (
                 <button
                   key={item.id}
@@ -385,24 +416,30 @@ export function HomePage() {
                   )}
                 />
               ))}
-            </div>
+            </Reveal>
           </div>
         </section>
 
         <section className="container-page py-20">
-          <h2 className="text-2xl font-bold text-ink sm:text-3xl">Bài Viết Gần Đây</h2>
+          <Reveal>
+            <h2 className="text-2xl font-bold text-ink sm:text-3xl">Bài Viết Gần Đây</h2>
+          </Reveal>
           <div className="mt-9 grid gap-10 lg:grid-cols-[1fr_1.22fr]">
             <div className="grid gap-8">
               {blogPosts
                 .filter((post) => !post.featured)
-                .map((post) => (
-                  <BlogSmallCard key={post.title} post={post} />
+                .map((post, index) => (
+                  <Reveal key={post.title} direction="right" delay={index * 120}>
+                    <BlogSmallCard post={post} />
+                  </Reveal>
                 ))}
             </div>
             {blogPosts
               .filter((post) => post.featured)
               .map((post) => (
-                <BlogFeaturedCard key={post.title} post={post} />
+                <Reveal key={post.title} direction="left" delay={150}>
+                  <BlogFeaturedCard post={post} />
+                </Reveal>
               ))}
           </div>
         </section>

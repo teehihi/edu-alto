@@ -6,6 +6,7 @@ import { ArrowRight, X } from "lucide-react";
 import React, { useState } from "react";
 import { AppHeader } from "@/components/layout/app-header";
 import { Footer } from "@/components/layout/footer";
+import { Reveal } from "@/components/ui/reveal";
 
 interface BenefitItem {
   id: string;
@@ -74,7 +75,7 @@ export function AboutPage() {
   return (
     <div
       suppressHydrationWarning
-      className="flex min-h-screen flex-col bg-white text-[#101A2C] antialiased"
+      className="flex min-h-screen flex-col overflow-x-clip bg-white text-[#101A2C] antialiased"
     >
       <AppHeader />
 
@@ -87,35 +88,39 @@ export function AboutPage() {
             <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-12 lg:gap-12 xl:gap-16">
               {/* Left Column: Typography */}
               <div className="lg:col-span-7 space-y-6 sm:space-y-7">
-                <div className="space-y-3">
-                  <h1 className="text-4xl sm:text-5xl lg:text-[52px] font-extrabold tracking-tight text-[#20B486] leading-[1.1]">
-                    Về Chúng Tôi
-                  </h1>
-                  <h2 className="text-2xl sm:text-3xl lg:text-[32px] font-extrabold tracking-tight text-[#101A2C] leading-[1.25]">
-                    <span className="text-[#20B486]">EDUALTO</span> – NỀN TẢNG HỌC
-                    <br />
-                    TẬP TRỰC TUYẾN
-                  </h2>
-                </div>
+                <Reveal>
+                  <div className="space-y-3">
+                    <h1 className="text-4xl sm:text-5xl lg:text-[52px] font-extrabold tracking-tight text-[#20B486] leading-[1.1]">
+                      Về Chúng Tôi
+                    </h1>
+                    <h2 className="text-2xl sm:text-3xl lg:text-[32px] font-extrabold tracking-tight text-[#101A2C] leading-[1.25]">
+                      <span className="text-[#20B486]">EDUALTO</span> – NỀN TẢNG HỌC
+                      <br />
+                      TẬP TRỰC TUYẾN
+                    </h2>
+                  </div>
+                </Reveal>
 
                 {/* Plain Paragraph directly on white background matching Figma */}
-                <div className="space-y-3 text-sm sm:text-base leading-[1.75] text-[#475467] max-w-[560px]">
-                  <p>
-                    EduAlto được xây dựng với mong muốn mang đến một môi trường học tập trực tuyến
-                    tiện dụng, nơi mọi người học có thể dễ dàng tiếp cận kiến thức, phát triển kỹ
-                    năng và chủ động trên hành trình học tập của mình. EduAlto cung cấp hệ thống
-                    khóa học, bài học và tài liệu học tập đa dạng, kết hợp cùng các bài kiểm tra và
-                    đánh giá giúp người học củng cố kiến thức. Với giao diện trực quan và trải
-                    nghiệm học tập thuận tiện, EduAlto hướng đến việc tạo ra một nền tảng học tập dễ
-                    tiếp cận, linh hoạt và hiệu quả.
-                  </p>
-                  <p>
-                    Học tập không chỉ là tiếp thu kiến thức, mà còn là hành trình không ngừng phát
-                    triển bản thân.
-                  </p>
-                </div>
+                <Reveal delay={120}>
+                  <div className="space-y-3 text-sm sm:text-base leading-[1.75] text-[#475467] max-w-[560px]">
+                    <p>
+                      EduAlto được xây dựng với mong muốn mang đến một môi trường học tập trực tuyến
+                      tiện dụng, nơi mọi người học có thể dễ dàng tiếp cận kiến thức, phát triển kỹ
+                      năng và chủ động trên hành trình học tập của mình. EduAlto cung cấp hệ thống
+                      khóa học, bài học và tài liệu học tập đa dạng, kết hợp cùng các bài kiểm tra
+                      và đánh giá giúp người học củng cố kiến thức. Với giao diện trực quan và trải
+                      nghiệm học tập thuận tiện, EduAlto hướng đến việc tạo ra một nền tảng học tập
+                      dễ tiếp cận, linh hoạt và hiệu quả.
+                    </p>
+                    <p>
+                      Học tập không chỉ là tiếp thu kiến thức, mà còn là hành trình không ngừng phát
+                      triển bản thân.
+                    </p>
+                  </div>
+                </Reveal>
 
-                <div className="pt-2">
+                <Reveal delay={240} className="pt-2">
                   <Link
                     href="/courses"
                     className="inline-flex items-center gap-2.5 rounded-full bg-[#20B486] px-6 py-3 text-sm font-semibold text-white shadow-xs transition duration-200 hover:bg-[#1ca077] active:scale-[0.98]"
@@ -123,11 +128,16 @@ export function AboutPage() {
                     <span>Trải nghiệm ngay</span>
                     <ArrowRight className="h-4 w-4" />
                   </Link>
-                </div>
+                </Reveal>
               </div>
 
               {/* Right Column: Layered Overlap Composition */}
-              <div className="relative lg:col-span-5 flex items-center justify-center lg:justify-end">
+              <Reveal
+                direction="scale"
+                delay={160}
+                duration={900}
+                className="relative lg:col-span-5 flex items-center justify-center lg:justify-end"
+              >
                 <div className="relative h-[290px] w-[390px] sm:h-[320px] sm:w-[430px]">
                   {/* Background Soft Mint Rounded Container */}
                   <div className="absolute right-0 top-3 h-[240px] w-[300px] sm:h-[260px] sm:w-[330px] rounded-[32px] bg-[#EEF5F2]" />
@@ -155,7 +165,7 @@ export function AboutPage() {
                     />
                   </div>
                 </div>
-              </div>
+              </Reveal>
             </div>
           </div>
         </section>
@@ -167,7 +177,11 @@ export function AboutPage() {
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-12 lg:gap-16">
               {/* Left Column: HCMUTE Campus with background container */}
-              <div className="lg:col-span-5 flex justify-center lg:justify-start">
+              <Reveal
+                direction="right"
+                duration={800}
+                className="lg:col-span-5 flex justify-center lg:justify-start"
+              >
                 <div className="relative rounded-[32px] bg-[#EEF5F2] p-4 sm:p-5 shadow-xs">
                   <div className="relative h-[300px] w-[280px] sm:h-[350px] sm:w-[320px] overflow-hidden rounded-2xl shadow-xs">
                     <Image
@@ -179,36 +193,40 @@ export function AboutPage() {
                     />
                   </div>
                 </div>
-              </div>
+              </Reveal>
 
               {/* Right Column: Content */}
               <div className="lg:col-span-7 space-y-5 sm:space-y-6">
-                <div>
-                  <span className="text-sm sm:text-base font-bold text-[#20B486]">
-                    Tính năng nổi bật
-                  </span>
-                  <h2 className="mt-2 text-3xl sm:text-4xl lg:text-[42px] font-extrabold text-[#101A2C] leading-[1.2]">
-                    Mang đến trải nghiệm
-                    <br />
-                    học tập tốt hơn mỗi
-                    <br />
-                    ngày.
-                  </h2>
-                </div>
+                <Reveal direction="left">
+                  <div>
+                    <span className="text-sm sm:text-base font-bold text-[#20B486]">
+                      Tính năng nổi bật
+                    </span>
+                    <h2 className="mt-2 text-3xl sm:text-4xl lg:text-[42px] font-extrabold text-[#101A2C] leading-[1.2]">
+                      Mang đến trải nghiệm
+                      <br />
+                      học tập tốt hơn mỗi
+                      <br />
+                      ngày.
+                    </h2>
+                  </div>
+                </Reveal>
 
-                <div className="space-y-3.5 text-sm sm:text-base leading-[1.75] text-[#475467] max-w-[540px]">
-                  <p>
-                    EduAlto hướng đến việc giúp người học xác định rõ mục tiêu, duy trì động lực và
-                    tự tin trên hành trình phát triển kiến thức, kỹ năng của mình.
-                  </p>
-                  <p>
-                    Ngày nay, bạn có thể dễ dàng tìm thấy vô số thông tin chỉ với một vài cú nhấp
-                    chuột. Tuy nhiên, EduAlto tin rằng kiến thức chỉ thực sự có giá trị khi được kết
-                    hợp với việc học tập, thực hành và không ngừng phát triển bản thân.
-                  </p>
-                </div>
+                <Reveal direction="left" delay={120}>
+                  <div className="space-y-3.5 text-sm sm:text-base leading-[1.75] text-[#475467] max-w-[540px]">
+                    <p>
+                      EduAlto hướng đến việc giúp người học xác định rõ mục tiêu, duy trì động lực
+                      và tự tin trên hành trình phát triển kiến thức, kỹ năng của mình.
+                    </p>
+                    <p>
+                      Ngày nay, bạn có thể dễ dàng tìm thấy vô số thông tin chỉ với một vài cú nhấp
+                      chuột. Tuy nhiên, EduAlto tin rằng kiến thức chỉ thực sự có giá trị khi được
+                      kết hợp với việc học tập, thực hành và không ngừng phát triển bản thân.
+                    </p>
+                  </div>
+                </Reveal>
 
-                <div className="pt-2">
+                <Reveal direction="left" delay={240} className="pt-2">
                   <Link
                     href="/courses"
                     className="inline-flex items-center gap-2.5 rounded-full bg-[#20B486] px-6 py-3 text-sm font-semibold text-white shadow-xs transition duration-200 hover:bg-[#1ca077] active:scale-[0.98]"
@@ -216,7 +234,7 @@ export function AboutPage() {
                     <span>Tìm hiểu thêm</span>
                     <ArrowRight className="h-4 w-4" />
                   </Link>
-                </div>
+                </Reveal>
               </div>
             </div>
           </div>
@@ -228,7 +246,7 @@ export function AboutPage() {
         <section className="pt-12 pb-20 lg:pt-16 lg:pb-28">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             {/* Centered Heading */}
-            <div className="mx-auto max-w-2xl text-center space-y-2">
+            <Reveal className="mx-auto max-w-2xl text-center space-y-2">
               <span className="text-sm sm:text-base font-bold text-[#20B486]">Lợi ích Nổi bật</span>
               <h2 className="text-3xl sm:text-4xl lg:text-[38px] font-extrabold text-[#101A2C] leading-snug">
                 Những giá trị EduAlto mang đến
@@ -239,41 +257,43 @@ export function AboutPage() {
                 <br className="hidden sm:inline" /> năng và chủ động hơn trên hành trình chinh phục
                 kiến thức.
               </p>
-            </div>
+            </Reveal>
 
             {/* 6 Benefit Cards Grid */}
             <div className="mt-12 sm:mt-14 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {BENEFIT_ITEMS.map((item) => (
-                <div
-                  key={item.id}
-                  className={`group relative flex flex-col justify-between rounded-[20px] border border-[#E7F0EB] p-6 sm:p-7 transition-all duration-300 hover:border-[#20B486]/50 hover:shadow-md ${
-                    item.highlightBg ? "bg-[#F3FAF6]" : "bg-[#F9FCFA]"
-                  }`}
-                >
-                  <div>
-                    {/* Water-drop shape with number matching Figma */}
-                    <div className="relative flex h-11 w-11 items-center justify-center rounded-tl-xl rounded-br-xl bg-[#20B486]/15 text-[#20B486]">
-                      <span className="text-sm font-extrabold">{item.number}</span>
+              {BENEFIT_ITEMS.map((item, index) => (
+                <Reveal key={item.id} delay={(index % 3) * 120} className="h-full">
+                  <div
+                    className={`group relative flex h-full flex-col justify-between rounded-[20px] border border-[#E7F0EB] p-6 sm:p-7 transition-all duration-300 hover:border-[#20B486]/50 hover:shadow-md ${
+                      item.highlightBg ? "bg-[#F3FAF6]" : "bg-[#F9FCFA]"
+                    }`}
+                  >
+                    <div>
+                      {/* Water-drop shape with number matching Figma */}
+                      <div className="relative flex h-11 w-11 items-center justify-center rounded-tl-xl rounded-br-xl bg-[#20B486]/15 text-[#20B486]">
+                        <span className="text-sm font-extrabold">{item.number}</span>
+                      </div>
+
+                      {/* Title */}
+                      <h3 className="mt-4 text-[17px] sm:text-[18px] font-bold text-[#101A2C]">
+                        {item.title}
+                      </h3>
+
+                      {/* Description */}
+                      <p className="mt-2.5 text-[13px] sm:text-sm leading-relaxed text-[#667085]">
+                        {item.shortDesc}{" "}
+                        <button
+                          type="button"
+                          onClick={() => setSelectedBenefit(item)}
+                          className="font-semibold text-[#20B486] hover:underline"
+                          aria-label={`Read more - ${item.title}`}
+                        >
+                          Xem thêm
+                        </button>
+                      </p>
                     </div>
-
-                    {/* Title */}
-                    <h3 className="mt-4 text-[17px] sm:text-[18px] font-bold text-[#101A2C]">
-                      {item.title}
-                    </h3>
-
-                    {/* Description */}
-                    <p className="mt-2.5 text-[13px] sm:text-sm leading-relaxed text-[#667085]">
-                      {item.shortDesc}{" "}
-                      <button
-                        type="button"
-                        onClick={() => setSelectedBenefit(item)}
-                        className="font-semibold text-[#20B486] hover:underline"
-                      >
-                        Read More
-                      </button>
-                    </p>
                   </div>
-                </div>
+                </Reveal>
               ))}
             </div>
           </div>

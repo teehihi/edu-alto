@@ -66,7 +66,7 @@ export function UserMenu({
       }
       userMenuLeaveTimerRef.current = setTimeout(() => {
         setIsUserMenuOpen(false);
-      }, 260);
+      }, 350);
     }
   }, []);
 
@@ -152,14 +152,14 @@ export function UserMenu({
       {/* Trigger Pill: Avatar (Click to Profile) + Toggle Button */}
       <div
         className={cn(
-          "flex items-center rounded-full p-1 transition-all duration-200 border",
+          "flex items-center rounded-full border border-transparent p-1 transition-colors duration-200",
           dark
             ? isUserMenuOpen
-              ? "border-primary/50 bg-white/10 ring-2 ring-primary/20"
-              : "border-transparent hover:bg-white/10"
+              ? "bg-white/10"
+              : "hover:bg-white/10"
             : isUserMenuOpen
-              ? "border-primary/40 bg-primary-soft/80 ring-2 ring-primary/20"
-              : "border-transparent hover:bg-primary-soft/60",
+              ? "bg-primary-soft/80"
+              : "hover:bg-primary-soft/60",
         )}
       >
         <Link
@@ -220,12 +220,21 @@ export function UserMenu({
             "absolute z-50",
             dropDirection === "up" ? "bottom-full pb-2" : "top-full pt-2",
             align === "left" ? "left-0 origin-top-left" : "right-0 origin-top-right",
+            showNameTrigger ? "w-72 min-w-full" : "w-64",
           )}
           onPointerEnter={handlePointerEnter}
           onPointerLeave={handlePointerLeave}
         >
+          {/* Invisible hit-area bridge connecting trigger and dropdown */}
           <div
-            className="w-64 rounded-2xl border border-slate-100 bg-white p-2 shadow-xl ring-1 ring-black/5"
+            className={cn(
+              "absolute left-0 right-0 h-3",
+              dropDirection === "up" ? "-bottom-3" : "-top-3",
+            )}
+            aria-hidden="true"
+          />
+          <div
+            className="w-full rounded-2xl border border-slate-100 bg-white p-2 shadow-xl ring-1 ring-black/5"
             role="menu"
             aria-orientation="vertical"
           >

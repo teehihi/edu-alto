@@ -29,7 +29,7 @@ export function FeatureCard({ feature }: { feature: Feature }) {
   return (
     <article
       className={cn(
-        "group flex min-h-[250px] flex-col rounded-2xl p-8 transition duration-200 hover:-translate-y-1 hover:shadow-lg",
+        "group flex h-full min-h-[250px] flex-col rounded-2xl p-8 transition duration-200 hover:-translate-y-1 hover:shadow-lg",
         style.card,
       )}
     >

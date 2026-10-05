@@ -126,14 +126,20 @@ function CatalogFilterForm({
                         className="peer sr-only"
                       />
                       <span
+                        aria-hidden="true"
                         className={cn(
-                          "flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full border transition-all duration-150",
+                          "flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border-2 bg-white transition-colors duration-150 peer-focus-visible:ring-2 peer-focus-visible:ring-primary/30 peer-focus-visible:ring-offset-2",
                           isSelected
-                            ? "border-primary bg-primary ring-2 ring-primary/20"
-                            : "border-slate-300 bg-white group-hover:border-primary/60",
+                            ? "border-primary"
+                            : "border-slate-300 group-hover:border-primary/60",
                         )}
                       >
-                        {isSelected && <span className="h-2 w-2 rounded-full bg-white" />}
+                        <span
+                          className={cn(
+                            "h-2 w-2 rounded-full bg-primary transition-[transform,opacity] duration-150",
+                            isSelected ? "scale-100 opacity-100" : "scale-0 opacity-0",
+                          )}
+                        />
                       </span>
                       <span
                         className={cn(
@@ -205,14 +211,20 @@ function CatalogFilterForm({
                         className="peer sr-only"
                       />
                       <span
+                        aria-hidden="true"
                         className={cn(
-                          "flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full border transition-all duration-150",
+                          "flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border-2 bg-white transition-colors duration-150 peer-focus-visible:ring-2 peer-focus-visible:ring-primary/30 peer-focus-visible:ring-offset-2",
                           isSelected
-                            ? "border-primary bg-primary ring-2 ring-primary/20"
-                            : "border-slate-300 bg-white group-hover:border-primary/60",
+                            ? "border-primary"
+                            : "border-slate-300 group-hover:border-primary/60",
                         )}
                       >
-                        {isSelected && <span className="h-2 w-2 rounded-full bg-white" />}
+                        <span
+                          className={cn(
+                            "h-2 w-2 rounded-full bg-primary transition-[transform,opacity] duration-150",
+                            isSelected ? "scale-100 opacity-100" : "scale-0 opacity-0",
+                          )}
+                        />
                       </span>
                       <span
                         className={cn(
@@ -286,14 +298,20 @@ function CatalogFilterForm({
                         className="peer sr-only"
                       />
                       <span
+                        aria-hidden="true"
                         className={cn(
-                          "flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full border transition-all duration-150",
+                          "flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border-2 bg-white transition-colors duration-150 peer-focus-visible:ring-2 peer-focus-visible:ring-primary/30 peer-focus-visible:ring-offset-2",
                           isSelected
-                            ? "border-primary bg-primary ring-2 ring-primary/20"
-                            : "border-slate-300 bg-white group-hover:border-primary/60",
+                            ? "border-primary"
+                            : "border-slate-300 group-hover:border-primary/60",
                         )}
                       >
-                        {isSelected && <span className="h-2 w-2 rounded-full bg-white" />}
+                        <span
+                          className={cn(
+                            "h-2 w-2 rounded-full bg-primary transition-[transform,opacity] duration-150",
+                            isSelected ? "scale-100 opacity-100" : "scale-0 opacity-0",
+                          )}
+                        />
                       </span>
                       <span
                         className={cn(
