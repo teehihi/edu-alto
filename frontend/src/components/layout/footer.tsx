@@ -1,3 +1,4 @@
+import { memo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Facebook, Github, Linkedin, Mail } from "lucide-react";
@@ -52,7 +53,7 @@ const socialLinks = [
   { label: "Gửi email cho EduAlto", href: "mailto:dacsanviethotro@gmail.com", Icon: Mail },
 ];
 
-export function Footer() {
+export const Footer = memo(function Footer() {
   return (
     <footer className="bg-[#101828]">
       <div className="container-page grid gap-10 py-16 lg:grid-cols-[1.15fr_2.6fr]">
@@ -90,7 +91,7 @@ export function Footer() {
       </div>
       <div className="border-t border-white/10">
         <div className="container-page flex flex-col gap-3 py-6 text-sm text-slate-400 sm:flex-row sm:items-center sm:justify-between">
-          <p>© {new Date().getFullYear()} EduAlto. Tất cả quyền được bảo lưu.</p>
+          <p>© 2026 EduAlto. Tất cả quyền được bảo lưu.</p>
           <CookieSettingsButton />
           <div className="flex items-center gap-4" aria-label="Kết nối với EduAlto">
             {socialLinks.map(({ label, href, Icon }) => (
@@ -111,4 +112,4 @@ export function Footer() {
       </div>
     </footer>
   );
-}
+});

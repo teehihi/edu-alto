@@ -11,16 +11,17 @@ import {
   LogOut,
   Menu,
   Search,
-  Settings,
+  ShieldCheck,
   ShoppingCart,
   User as UserIcon,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { memo, useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { cn } from "@/lib/cn";
 import { readCart } from "@/lib/cart";
 import { useAuthSession } from "@/lib/auth-session";
 import { UserAvatar } from "@/components/ui/user-avatar";
+import { UserMenu } from "@/components/layout/user-menu";
 import { StudentAnnouncementBell } from "@/features/notification/student-announcement-bell";
 
 const navItems = [
@@ -34,12 +35,104 @@ const authLinkClass =
   "focus-ring inline-flex h-10 items-center justify-center rounded-xl border border-primary bg-primary px-5 text-sm font-semibold text-white shadow-xs transition duration-200 hover:bg-primary-dark active:bg-primary-dark";
 const subscribeToMount = () => () => {};
 
-export function AppHeader({
+export const HeaderCartButton = memo(function HeaderCartButton({
+  isMobile = false,
+}: {
+  isMobile?: boolean;
+}) {
+  const mounted = useSyncExternalStore(
+    subscribeToMount,
+    () => true,
+    () => false,
+  );
+  const [cartCount, setCartCount] = useState(0);
+
+  useEffect(() => {
+    const updateCartCount = () => setCartCount(readCart().length);
+    updateCartCount();
+    window.addEventListener("edualto:cart-changed", updateCartCount);
+    window.addEventListener("storage", updateCartCount);
+    return () => {
+      window.removeEventListener("edualto:cart-changed", updateCartCount);
+      window.removeEventListener("storage", updateCartCount);
+    };
+  }, []);
+
+  const count = mounted ? cartCount : 0;
+
+  if (isMobile) {
+    return (
+      <Link
+        href="/cart"
+        className="focus-ring relative flex h-11 w-11 items-center justify-center rounded-xl text-slate-700 transition-colors duration-200 hover:text-primary lg:hidden"
+        aria-label={count ? `Mở giỏ hàng, ${count} khóa học` : "Mở giỏ hàng"}
+      >
+        <ShoppingCart className="h-5 w-5 stroke-[1.8]" aria-hidden="true" />
+        {count > 0 ? (
+          <span
+            aria-hidden="true"
+            className="absolute right-0 top-0 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold leading-none text-white ring-2 ring-white"
+          >
+            {count > 99 ? "99+" : count}
+          </span>
+        ) : null}
+      </Link>
+    );
+  }
+
+  return (
+    <Link
+      href="/cart"
+      className="focus-ring relative flex h-11 w-11 items-center justify-center rounded-xl text-slate-700 transition-colors duration-200 hover:text-primary"
+      aria-label={count ? `Giỏ hàng, ${count} khóa học` : "Giỏ hàng"}
+    >
+      <ShoppingCart className="h-[21px] w-[21px] stroke-[1.8]" />
+      {count > 0 ? (
+        <span
+          aria-hidden="true"
+          className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold leading-none text-white ring-2 ring-white"
+        >
+          {count > 99 ? "99+" : count}
+        </span>
+      ) : null}
+    </Link>
+  );
+});
+
+const HeaderNavLinks = memo(function HeaderNavLinks({ pathname }: { pathname: string }) {
+  return (
+    <nav
+      className="hidden items-center gap-6 text-sm font-semibold text-ink lg:flex"
+      aria-label="Điều hướng chính"
+    >
+      {navItems.map((item) => {
+        const isActive =
+          item.href === "/"
+            ? pathname === "/"
+            : pathname.startsWith(item.href) && !item.href.includes("#");
+        return (
+          <Link
+            key={item.label}
+            href={item.href}
+            className={cn(
+              "focus-ring rounded-md py-1 transition",
+              isActive ? "font-bold text-primary" : "text-slate-700 hover:text-primary",
+            )}
+          >
+            {item.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+});
+
+export const AppHeader = memo(function AppHeader({
   transparent = false,
   sticky = true,
   height = "default",
   className,
-  transparentBg = "bg-transparent",
+  transparentBg = "bg-[#E6F7F2]",
 }: {
   transparent?: boolean;
   sticky?: boolean;
@@ -55,113 +148,27 @@ export function AppHeader({
     () => false,
   );
   const [isOpen, setIsOpen] = useState(false);
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [cartCount, setCartCount] = useState(0);
-  const userMenuRef = useRef<HTMLDivElement>(null);
-  const userMenuLeaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const { user, isAuthenticated, logout } = useAuthSession();
 
-  const handleUserMenuPointerEnter = useCallback((event: React.PointerEvent) => {
-    if (event.pointerType === "mouse") {
-      if (userMenuLeaveTimerRef.current) {
-        clearTimeout(userMenuLeaveTimerRef.current);
-        userMenuLeaveTimerRef.current = null;
-      }
-      setIsUserMenuOpen(true);
-    }
-  }, []);
-
-  const handleUserMenuPointerLeave = useCallback((event: React.PointerEvent) => {
-    if (event.pointerType === "mouse") {
-      if (userMenuLeaveTimerRef.current) {
-        clearTimeout(userMenuLeaveTimerRef.current);
-      }
-      userMenuLeaveTimerRef.current = setTimeout(() => {
-        setIsUserMenuOpen(false);
-      }, 280);
-    }
-  }, []);
-
-  const handleUserMenuButtonClick = useCallback(() => {
-    if (userMenuLeaveTimerRef.current) {
-      clearTimeout(userMenuLeaveTimerRef.current);
-      userMenuLeaveTimerRef.current = null;
-    }
-    setIsUserMenuOpen(true);
-  }, []);
-
-  const closeUserMenu = useCallback(() => {
-    if (userMenuLeaveTimerRef.current) {
-      clearTimeout(userMenuLeaveTimerRef.current);
-      userMenuLeaveTimerRef.current = null;
-    }
-    setIsUserMenuOpen(false);
-  }, []);
-
-  useEffect(() => {
-    const updateCartCount = () => setCartCount(readCart().length);
-    const initialUpdate = window.setTimeout(updateCartCount, 0);
-    window.addEventListener("edualto:cart-changed", updateCartCount);
-    window.addEventListener("storage", updateCartCount);
-    return () => {
-      window.clearTimeout(initialUpdate);
-      window.removeEventListener("edualto:cart-changed", updateCartCount);
-      window.removeEventListener("storage", updateCartCount);
-    };
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (userMenuLeaveTimerRef.current) {
-        clearTimeout(userMenuLeaveTimerRef.current);
-      }
-    };
-  }, []);
+  const handleLogout = useCallback(async () => {
+    setIsOpen(false);
+    await logout();
+    router.push("/login");
+    router.refresh();
+  }, [logout, router]);
 
   const [prevPathname, setPrevPathname] = useState(pathname);
   if (prevPathname !== pathname) {
     setPrevPathname(pathname);
-    setIsUserMenuOpen(false);
     setIsOpen(false);
   }
 
   const isSticky = sticky;
   const isAuthed = mounted && isAuthenticated && Boolean(user);
 
-  // Close dropdown when clicking outside or pressing Escape
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
-        if (userMenuLeaveTimerRef.current) {
-          clearTimeout(userMenuLeaveTimerRef.current);
-          userMenuLeaveTimerRef.current = null;
-        }
-        setIsUserMenuOpen(false);
-      }
-    }
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        if (userMenuLeaveTimerRef.current) {
-          clearTimeout(userMenuLeaveTimerRef.current);
-          userMenuLeaveTimerRef.current = null;
-        }
-        setIsUserMenuOpen(false);
-      }
-    }
-
-    if (isUserMenuOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-      document.addEventListener("keydown", handleKeyDown);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isUserMenuOpen]);
-
-  const isInstructor = user?.roles?.includes("INSTRUCTOR");
-  const roleLabel = isInstructor ? "Giảng viên" : "Học viên";
+  const isAdmin = user?.roles?.some((r) => r === "ADMIN" || r === "ROLE_ADMIN");
+  const isInstructor = user?.roles?.some((r) => r === "INSTRUCTOR" || r === "ROLE_INSTRUCTOR");
+  const roleLabel = isAdmin ? "Quản trị viên" : isInstructor ? "Giảng viên" : "Học viên";
 
   const [isVisible, setIsVisible] = useState(true);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -176,8 +183,8 @@ export function AppHeader({
       // Track if we scrolled past the top
       setIsScrolled(currentScrollY > 15);
 
-      // Always show when near top or when mobile menu / user popover is open
-      if (currentScrollY <= 20 || isOpen || isUserMenuOpen) {
+      // Always show when near top or when mobile menu is open
+      if (currentScrollY <= 20 || isOpen) {
         setIsVisible(true);
         lastScrollYRef.current = currentScrollY;
         return;
@@ -193,17 +200,10 @@ export function AppHeader({
       lastScrollYRef.current = currentScrollY;
     }
 
+    handleScroll();
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [isSticky, isOpen, isUserMenuOpen]);
-
-  async function handleLogout() {
-    closeUserMenu();
-    setIsOpen(false);
-    await logout();
-    router.push("/login");
-    router.refresh();
-  }
+  }, [isSticky, isOpen]);
 
   return (
     <header
@@ -268,51 +268,14 @@ export function AppHeader({
         </div>
 
         {/* Navigation Links */}
-        <nav
-          className="hidden items-center gap-6 text-sm font-semibold text-ink lg:flex"
-          aria-label="Điều hướng chính"
-        >
-          {navItems.map((item) => {
-            const isActive =
-              item.href === "/"
-                ? pathname === "/"
-                : pathname.startsWith(item.href) && !item.href.includes("#");
-            return (
-              <Link
-                key={item.label}
-                href={item.href}
-                className={cn(
-                  "focus-ring rounded-md py-1 transition",
-                  isActive ? "font-bold text-primary" : "text-slate-700 hover:text-primary",
-                )}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
+        <HeaderNavLinks pathname={pathname} />
 
         {/* Right Section: Header After Login Action Icons */}
         <div className="hidden items-center gap-3 lg:flex">
           {isAuthed && user ? (
             <div className="flex items-center gap-4">
               {/* Shopping Cart */}
-              <Link
-                href="/cart"
-                className="focus-ring relative flex h-11 w-11 items-center justify-center rounded-xl text-slate-700 transition-colors duration-200 hover:text-primary"
-                aria-label={cartCount ? `Giỏ hàng, ${cartCount} khóa học` : "Giỏ hàng"}
-              >
-                <ShoppingCart className="h-[21px] w-[21px] stroke-[1.8]" />
-                {cartCount > 0 ? (
-                  <span
-                    key={cartCount}
-                    aria-hidden="true"
-                    className="cart-count-pop absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold leading-none text-white ring-2 ring-white"
-                  >
-                    {cartCount > 99 ? "99+" : cartCount}
-                  </span>
-                ) : null}
-              </Link>
+              <HeaderCartButton />
 
               {/* Wishlist / Favorites */}
               <Link
@@ -325,163 +288,7 @@ export function AppHeader({
 
               <StudentAnnouncementBell />
 
-              {/* User Avatar + Green Chevron Trigger */}
-              <div
-                className="relative"
-                ref={userMenuRef}
-                onPointerEnter={handleUserMenuPointerEnter}
-                onPointerLeave={handleUserMenuPointerLeave}
-              >
-                <button
-                  type="button"
-                  onClick={handleUserMenuButtonClick}
-                  aria-expanded={isUserMenuOpen}
-                  aria-haspopup="true"
-                  aria-label={`Menu người dùng: ${user.fullName || "Tài khoản"}`}
-                  className="focus-ring group flex items-center gap-1.5 rounded-full p-1 transition hover:bg-primary-soft/60"
-                >
-                  <UserAvatar
-                    name={user.fullName}
-                    email={user.email}
-                    avatarUrl={user.avatarUrl}
-                    size="sm"
-                    className="h-[38px] w-[38px] transition-transform group-hover:scale-105"
-                  />
-                  <ChevronDown
-                    className={cn(
-                      "h-4 w-4 text-primary transition-transform duration-200",
-                      isUserMenuOpen && "rotate-180",
-                    )}
-                    aria-hidden="true"
-                  />
-                </button>
-
-                {/* User Dropdown Popover */}
-                {isUserMenuOpen && (
-                  <div
-                    className="absolute right-0 top-full z-50 pt-2"
-                    onPointerEnter={handleUserMenuPointerEnter}
-                    onPointerLeave={handleUserMenuPointerLeave}
-                  >
-                    <div
-                      className="w-64 origin-top-right rounded-2xl border border-slate-100 bg-white p-2 shadow-xl ring-1 ring-black/5 animate-page"
-                      role="menu"
-                      aria-orientation="vertical"
-                    >
-                      {/* User Card inside Popover */}
-                      <div className="mb-1 flex items-center gap-3 rounded-xl bg-slate-50/80 p-3">
-                        <UserAvatar
-                          name={user.fullName}
-                          email={user.email}
-                          avatarUrl={user.avatarUrl}
-                          size="md"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-xs font-bold text-heading">
-                            {user.fullName || "Tài khoản"}
-                          </p>
-                          <p className="truncate text-[11px] text-muted">{user.email}</p>
-                          <span className="mt-1 inline-block rounded-md bg-primary-soft px-2 py-0.5 text-[10px] font-semibold text-primary">
-                            {roleLabel}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="my-1 h-px bg-slate-100" />
-
-                      <Link
-                        href="/profile"
-                        role="menuitem"
-                        onClick={closeUserMenu}
-                        className={cn(
-                          "group flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold transition",
-                          pathname === "/profile"
-                            ? "bg-primary-soft text-primary font-bold hover:bg-[#d5f7ec]"
-                            : "text-slate-700 hover:bg-primary-soft/60 hover:text-primary active:bg-primary-soft",
-                        )}
-                      >
-                        <UserIcon
-                          className={cn(
-                            "h-4 w-4 transition-colors",
-                            pathname === "/profile"
-                              ? "text-primary"
-                              : "text-slate-400 group-hover:text-primary",
-                          )}
-                        />
-                        <span>Trang cá nhân</span>
-                      </Link>
-
-                      {isInstructor ? (
-                        <Link
-                          href="/instructor"
-                          role="menuitem"
-                          onClick={closeUserMenu}
-                          className={cn(
-                            "group flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold transition",
-                            pathname.startsWith("/instructor")
-                              ? "bg-primary-soft text-primary font-bold hover:bg-[#d5f7ec]"
-                              : "text-slate-700 hover:bg-primary-soft/60 hover:text-primary active:bg-primary-soft",
-                          )}
-                        >
-                          <LayoutDashboard
-                            className={cn(
-                              "h-4 w-4 transition-colors",
-                              pathname.startsWith("/instructor")
-                                ? "text-primary"
-                                : "text-slate-400 group-hover:text-primary",
-                            )}
-                          />
-                          <span>Bảng điều khiển giảng viên</span>
-                        </Link>
-                      ) : null}
-
-                      <Link
-                        href="/learning/courses"
-                        role="menuitem"
-                        onClick={closeUserMenu}
-                        className={cn(
-                          "group flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold transition",
-                          pathname.startsWith("/learning")
-                            ? "bg-primary-soft text-primary font-bold hover:bg-[#d5f7ec]"
-                            : "text-slate-700 hover:bg-primary-soft/60 hover:text-primary active:bg-primary-soft",
-                        )}
-                      >
-                        <GraduationCap
-                          className={cn(
-                            "h-4 w-4 transition-colors",
-                            pathname.startsWith("/learning")
-                              ? "text-primary"
-                              : "text-slate-400 group-hover:text-primary",
-                          )}
-                        />
-                        <span>Khóa học của tôi</span>
-                      </Link>
-
-                      <Link
-                        href="/profile"
-                        role="menuitem"
-                        onClick={closeUserMenu}
-                        className="group flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-primary-soft/60 hover:text-primary active:bg-primary-soft"
-                      >
-                        <Settings className="h-4 w-4 text-slate-400 transition-colors group-hover:text-primary" />
-                        <span>Cài đặt tài khoản</span>
-                      </Link>
-
-                      <div className="my-1 h-px bg-slate-100" />
-
-                      <button
-                        type="button"
-                        role="menuitem"
-                        onClick={handleLogout}
-                        className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 hover:text-rose-700 active:bg-rose-100"
-                      >
-                        <LogOut className="h-4 w-4 text-rose-500 transition-colors group-hover:text-rose-600" />
-                        <span>Đăng xuất</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
+              <UserMenu />
             </div>
           ) : (
             <div className="flex items-center gap-2">
@@ -499,22 +306,7 @@ export function AppHeader({
         </div>
 
         {/* Mobile Menu Button */}
-        <Link
-          href="/cart"
-          className="focus-ring relative flex h-11 w-11 items-center justify-center rounded-xl text-slate-700 transition-colors duration-200 hover:text-primary lg:hidden"
-          aria-label={cartCount ? `Mở giỏ hàng, ${cartCount} khóa học` : "Mở giỏ hàng"}
-        >
-          <ShoppingCart className="h-5 w-5 stroke-[1.8]" aria-hidden="true" />
-          {cartCount > 0 ? (
-            <span
-              key={cartCount}
-              aria-hidden="true"
-              className="cart-count-pop absolute right-0 top-0 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold leading-none text-white ring-2 ring-white"
-            >
-              {cartCount > 99 ? "99+" : cartCount}
-            </span>
-          ) : null}
-        </Link>
+        <HeaderCartButton isMobile />
         <button
           className="focus-ring inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-ink lg:hidden"
           type="button"
@@ -549,7 +341,11 @@ export function AppHeader({
 
           {/* User info if authenticated */}
           {isAuthed && user ? (
-            <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50/80 p-3">
+            <Link
+              href="/profile"
+              onClick={() => setIsOpen(false)}
+              className="mt-4 block rounded-xl border border-slate-100 bg-slate-50/80 p-3 transition-colors hover:bg-primary-soft/60 focus-ring"
+            >
               <div className="flex items-center gap-3">
                 <UserAvatar
                   name={user.fullName}
@@ -567,7 +363,7 @@ export function AppHeader({
                   {roleLabel}
                 </span>
               </div>
-            </div>
+            </Link>
           ) : null}
 
           {/* Nav links */}
@@ -596,6 +392,21 @@ export function AppHeader({
                   <GraduationCap className="h-4 w-4" />
                   <span>Khu vực học tập</span>
                 </Link>
+                {isAdmin ? (
+                  <Link
+                    href="/admin/payments"
+                    onClick={() => setIsOpen(false)}
+                    className={cn(
+                      "focus-ring flex items-center gap-2.5 rounded-xl border px-4 py-2.5 text-sm font-semibold transition",
+                      pathname.startsWith("/admin")
+                        ? "border-primary/30 bg-primary-soft/40 text-primary"
+                        : "border-slate-200 bg-white text-ink hover:bg-slate-50 hover:text-primary",
+                    )}
+                  >
+                    <ShieldCheck className="h-4 w-4" />
+                    <span>Quản trị hệ thống</span>
+                  </Link>
+                ) : null}
                 {isInstructor ? (
                   <Link
                     href="/instructor"
@@ -661,4 +472,4 @@ export function AppHeader({
       ) : null}
     </header>
   );
-}
+});
