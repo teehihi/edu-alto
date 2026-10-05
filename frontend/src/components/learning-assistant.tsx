@@ -4,8 +4,8 @@ import { BotAvatar } from "bot-avatars";
 import { BorderBeam } from "border-beam";
 import { Liquid } from "liquid-gooey";
 import Image from "next/image";
-import { ArrowUp, BookOpen, Clock3, MessageCircle, Plus, X } from "lucide-react";
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { ArrowUp, BookOpen, ChevronDown, Clock3, MessageCircle, Plus, X } from "lucide-react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 type ChatMessage = { id: number; role: "user" | "assistant"; text: string };
 
@@ -16,6 +16,8 @@ function ChatbotAvatar({
   size: 40 | 52;
   state?: "default" | "working";
 }) {
+  const isHeader = size === 52;
+
   return (
     <BotAvatar
       type="clover"
@@ -25,7 +27,10 @@ function ChatbotAvatar({
       color="#20B486"
       saturation={1.1}
       theme="light"
-      interactive={size === 52}
+      interactive={isHeader}
+      paused={!isHeader}
+      turn={isHeader ? 1 : 0}
+      jumpEvery={isHeader ? 8 : 0}
     />
   );
 }
@@ -42,11 +47,53 @@ export function LearningAssistant() {
   const [isWorking, setIsWorking] = useState(false);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const messageEndRef = useRef<HTMLDivElement>(null);
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
+
+  function handleScroll() {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    setShowScrollBottom(distanceFromBottom > 80);
+  }
+
+  function scrollToBottom() {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({
+        top: scrollContainerRef.current.scrollHeight,
+        behavior: "smooth",
+      });
+    }
+    setShowScrollBottom(false);
+  }
+
+  const lastAssistantMessageId = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === "assistant") {
+        return messages[i].id;
+      }
+    }
+    return null;
+  }, [messages]);
+
+  const showWelcomeAvatar = !isWorking && lastAssistantMessageId === null;
 
   useEffect(() => {
-    messageEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({
+        top: scrollContainerRef.current.scrollHeight,
+        behavior: "smooth",
+      });
+    }
   }, [messages, isWorking]);
+
+  useEffect(() => {
+    if (isOpen && scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+      setShowScrollBottom(false);
+    }
+  }, [isOpen]);
 
   function sendMessage(text: string) {
     const question = text.trim();
@@ -90,7 +137,11 @@ export function LearningAssistant() {
         aria-label="Trợ lý học tập EduAlto"
         aria-hidden={!isOpen}
         inert={!isOpen}
-        className={`assistant-panel relative mb-4 flex h-[min(540px,calc(100dvh-112px))] w-[min(368px,calc(100vw-32px))] origin-bottom-right flex-col overflow-hidden rounded-2xl border border-[#e2e8f0] bg-white shadow-[0_20px_60px_rgba(16,26,44,0.18)] transition duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${isOpen ? "translate-y-0 scale-100 opacity-100" : "pointer-events-none translate-y-3 scale-[0.97] opacity-0"}`}
+        className={`assistant-panel relative mb-4 flex h-[min(540px,calc(100dvh-112px))] w-[min(368px,calc(100vw-32px))] flex-col overflow-hidden rounded-2xl border border-[#e2e8f0] bg-white shadow-[0_20px_60px_rgba(16,26,44,0.18)] transition-opacity duration-150 ease-out ${
+          isOpen
+            ? "opacity-100 pointer-events-auto visible"
+            : "pointer-events-none opacity-0 invisible"
+        }`}
       >
         <header className="relative flex h-[92px] shrink-0 items-center justify-between bg-white px-[15px]">
           <div className="flex min-w-0 items-center gap-2">
@@ -146,68 +197,107 @@ export function LearningAssistant() {
           )}
         </header>
 
-        <div
-          className="flex-1 space-y-4 overflow-y-auto bg-[radial-gradient(ellipse_at_top,_rgba(32,180,134,0.05),_transparent_62%)] px-4 py-5"
-          aria-live="polite"
-        >
-          <div className="flex items-end gap-2.5">
-            <ChatbotAvatar size={40} />
-            <div className="assistant-message max-w-[84%] rounded-2xl rounded-bl-md border border-[#e8f2ee] bg-[#f5fbf9] px-4 py-3 text-sm leading-6 text-[#344054]">
-              <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.08em] text-[#20a77b]">
-                Alto chào bạn!
-              </span>
-              Mình có thể giúp bạn tìm khóa học và lên kế hoạch học tập. Hôm nay bạn muốn học gì?
+        <div className="relative flex-1 min-h-0">
+          <div
+            ref={scrollContainerRef}
+            onScroll={handleScroll}
+            className="absolute inset-0 space-y-4 overflow-y-auto bg-[radial-gradient(ellipse_at_top,_rgba(32,180,134,0.05),_transparent_62%)] px-4 py-5"
+            aria-live="polite"
+          >
+            <div className="flex items-end gap-2.5">
+              {showWelcomeAvatar ? (
+                <ChatbotAvatar size={40} />
+              ) : (
+                <div className="w-10 shrink-0" aria-hidden="true" />
+              )}
+              <div className="assistant-message max-w-[84%] rounded-2xl rounded-bl-md border border-[#e8f2ee] bg-[#f5fbf9] px-4 py-3 text-sm leading-6 text-[#344054]">
+                <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.08em] text-[#20a77b]">
+                  Alto chào bạn!
+                </span>
+                Mình có thể giúp bạn tìm khóa học và lên kế hoạch học tập. Hôm nay bạn muốn học gì?
+              </div>
             </div>
+
+            {messages.map((message) => {
+              const isLatestAssistant =
+                !isWorking && message.role === "assistant" && message.id === lastAssistantMessageId;
+
+              return (
+                <div
+                  key={message.id}
+                  className={`flex ${message.role === "user" ? "justify-end" : "items-end gap-2.5"}`}
+                >
+                  {message.role === "assistant" &&
+                    (isLatestAssistant ? (
+                      <ChatbotAvatar size={40} />
+                    ) : (
+                      <div className="w-10 shrink-0" aria-hidden="true" />
+                    ))}
+                  <div
+                    className={`assistant-message max-w-[84%] rounded-2xl px-4 py-3 text-sm leading-6 ${
+                      message.role === "user"
+                        ? "rounded-br-md bg-[#20b486] text-white"
+                        : "rounded-bl-md bg-[#f5fbf9] text-[#344054]"
+                    }`}
+                  >
+                    {message.text}
+                  </div>
+                </div>
+              );
+            })}
+
+            {isWorking && (
+              <div className="flex items-end gap-2.5">
+                <ChatbotAvatar size={40} state="working" />
+                <div
+                  className="flex items-center gap-1.5 rounded-2xl rounded-bl-md bg-[#f5fbf9] px-4 py-4"
+                  aria-label="Alto đang nhập"
+                >
+                  <span className="assistant-typing-dot" />
+                  <span className="assistant-typing-dot [animation-delay:120ms]" />
+                  <span className="assistant-typing-dot [animation-delay:240ms]" />
+                  <span className="sr-only">Alto đang nhập</span>
+                </div>
+              </div>
+            )}
+
+            {messages.length === 0 && (
+              <div className="ml-10 grid gap-2">
+                <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-[#98a2b3]">
+                  Gợi ý cho bạn
+                </p>
+                {suggestions.map(({ icon: Icon, label }) => (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => sendMessage(label)}
+                    className="focus-ring flex items-center gap-2 rounded-xl border border-[#e6efeb] px-3 py-2.5 text-left text-xs font-medium text-[#344054] transition hover:border-[#20b486] hover:bg-[#f5fbf9]"
+                  >
+                    <Icon size={15} className="text-[#20b486]" />
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div ref={messageEndRef} />
           </div>
 
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex ${message.role === "user" ? "justify-end" : "items-end gap-2.5"}`}
-            >
-              {message.role === "assistant" && <ChatbotAvatar size={40} />}
-              <div
-                className={`assistant-message max-w-[84%] rounded-2xl px-4 py-3 text-sm leading-6 ${message.role === "user" ? "rounded-br-md bg-[#20b486] text-white" : "rounded-bl-md bg-[#f5fbf9] text-[#344054]"}`}
-              >
-                {message.text}
-              </div>
-            </div>
-          ))}
-
-          {isWorking && (
-            <div className="flex items-end gap-2.5">
-              <ChatbotAvatar size={40} state="working" />
-              <div
-                className="flex items-center gap-1.5 rounded-2xl rounded-bl-md bg-[#f5fbf9] px-4 py-4"
-                aria-label="Alto đang nhập"
-              >
-                <span className="assistant-typing-dot" />
-                <span className="assistant-typing-dot [animation-delay:120ms]" />
-                <span className="assistant-typing-dot [animation-delay:240ms]" />
-                <span className="sr-only">Alto đang nhập</span>
-              </div>
-            </div>
-          )}
-
-          {messages.length === 0 && (
-            <div className="ml-10 grid gap-2">
-              <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-[#98a2b3]">
-                Gợi ý cho bạn
-              </p>
-              {suggestions.map(({ icon: Icon, label }) => (
-                <button
-                  key={label}
-                  type="button"
-                  onClick={() => sendMessage(label)}
-                  className="focus-ring flex items-center gap-2 rounded-xl border border-[#e6efeb] px-3 py-2.5 text-left text-xs font-medium text-[#344054] transition hover:border-[#20b486] hover:bg-[#f5fbf9]"
-                >
-                  <Icon size={15} className="text-[#20b486]" />
-                  {label}
-                </button>
-              ))}
-            </div>
-          )}
-          <div ref={messageEndRef} />
+          {/* Scroll to bottom button */}
+          <button
+            type="button"
+            onClick={scrollToBottom}
+            aria-label="Cuộn xuống tin nhắn mới nhất"
+            title="Cuộn xuống tin nhắn mới nhất"
+            aria-hidden={!showScrollBottom}
+            tabIndex={showScrollBottom ? 0 : -1}
+            className={`focus-ring absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex h-8 w-8 items-center justify-center rounded-full border border-[#dce7e2] bg-white text-slate-600 shadow-[0_4px_12px_rgba(16,26,44,0.12)] transition-all duration-200 hover:border-[#20b486] hover:text-[#20b486] hover:shadow-[0_6px_16px_rgba(32,180,134,0.2)] active:scale-95 ${
+              showScrollBottom
+                ? "translate-y-0 opacity-100 pointer-events-auto"
+                : "translate-y-2 opacity-0 pointer-events-none"
+            }`}
+          >
+            <ChevronDown size={17} className="stroke-[2.2]" />
+          </button>
         </div>
 
         <div className="relative border-t border-[#edf2f0] px-4 pb-3 pt-3">
