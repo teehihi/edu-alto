@@ -17,6 +17,9 @@ vi.mock("@/lib/course-client", () => ({
   fetchPublicCourses: vi.fn(),
   fetchPublicCurriculum: vi.fn(),
   fetchLessonPreview: vi.fn(),
+  getCachedCourseDetail: vi.fn(() => null),
+  getCachedCurriculum: vi.fn(() => null),
+  getCachedCoursePage: vi.fn(() => null),
 }));
 vi.mock("@/components/layout/app-header", () => ({ AppHeader: () => null }));
 vi.mock("@/components/layout/footer", () => ({ Footer: () => null }));

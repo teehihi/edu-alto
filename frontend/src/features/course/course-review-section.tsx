@@ -43,9 +43,36 @@ export function CourseReviewSection({ courseId }: { courseId: string }) {
   }, [courseId]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => void loadReviews(), 0);
-    return () => window.clearTimeout(timer);
-  }, [loadReviews]);
+    let active = true;
+    const timer = window.setTimeout(async () => {
+      setLoading(true);
+      try {
+        const [page, aggregate] = await Promise.all([
+          fetchCourseReviews(courseId),
+          fetchCourseReviewSummary(courseId),
+        ]);
+        if (active) {
+          setReviews(page.data);
+          setSummary(aggregate);
+          setError("");
+        }
+      } catch (reason) {
+        if (active) {
+          setError(
+            reason instanceof ApiClientError ? reason.message : "Không thể tải đánh giá lúc này.",
+          );
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    }, 0);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [courseId]);
 
   async function submitReview(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

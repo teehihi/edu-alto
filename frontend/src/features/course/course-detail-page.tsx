@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BookOpen, Check, Copy, FileText, LockKeyhole, Play, X } from "lucide-react";
+import { BookOpen, Check, Copy, FileText, LoaderCircle, LockKeyhole, Play, X } from "lucide-react";
 import { AppHeader } from "@/components/layout/app-header";
 import { Footer } from "@/components/layout/footer";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,8 @@ import {
   fetchPublicCourses,
   fetchPublicCurriculum,
   fetchLessonPreview,
+  getCachedCourseDetail,
+  getCachedCurriculum,
 } from "@/lib/course-client";
 import type { CourseDetail, CourseListItem, CourseCurriculum, LessonPreview } from "@/types/course";
 
@@ -80,12 +82,22 @@ export function CourseDetailPage({ slug }: { slug: string }) {
     course?: CourseDetail;
     error?: string;
     missing?: boolean;
-  } | null>(null);
-  const [curriculum, setCurriculum] = useState<CourseCurriculum | null>(null);
+  } | null>(() => {
+    const cached = getCachedCourseDetail(slug);
+    return cached ? { attempt: 0, course: cached } : null;
+  });
+  const [curriculum, setCurriculum] = useState<CourseCurriculum | null>(() =>
+    getCachedCurriculum(slug),
+  );
   const [curriculumError, setCurriculumError] = useState(false);
+  const [openSectionIds, setOpenSectionIds] = useState<Set<string>>(() => {
+    const cached = getCachedCurriculum(slug);
+    return new Set(cached?.sections[0] ? [cached.sections[0].id] : []);
+  });
   const [related, setRelated] = useState<CourseListItem[]>([]);
   const [activeSection, setActiveSection] = useState("description");
-  const [shareMessage, setShareMessage] = useState("");
+  const [copied, setCopied] = useState(false);
+  const [buyingNow, setBuyingNow] = useState(false);
   const [enrollmentLoading, setEnrollmentLoading] = useState(false);
   const [enrollmentMessage, setEnrollmentMessage] = useState("");
   const [cartMessage, setCartMessage] = useState("");
@@ -93,6 +105,7 @@ export function CourseDetailPage({ slug }: { slug: string }) {
   const [previewId, setPreviewId] = useState<string | null>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const cartAnimationTimeoutRef = useRef<number | null>(null);
+  const copyTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -113,6 +126,12 @@ export function CourseDetailPage({ slug }: { slug: string }) {
         if (active) {
           setCurriculum(data);
           setCurriculumError(false);
+          setOpenSectionIds((prev) => {
+            if (prev.size === 0 && data.sections.length > 0) {
+              return new Set([data.sections[0].id]);
+            }
+            return prev;
+          });
         }
       })
       .catch(() => {
@@ -130,20 +149,47 @@ export function CourseDetailPage({ slug }: { slug: string }) {
       if (cartAnimationTimeoutRef.current !== null) {
         window.clearTimeout(cartAnimationTimeoutRef.current);
       }
+      if (copyTimeoutRef.current !== null) {
+        window.clearTimeout(copyTimeoutRef.current);
+      }
     };
   }, [slug, attempt]);
+
+  useEffect(() => {
+    router.prefetch?.("/checkout");
+    router.prefetch?.("/cart");
+  }, [router]);
 
   const loading = !result || result.attempt !== attempt;
   const course = result?.course;
   const lessons = curriculum?.sections.flatMap((section) => section.lessons) ?? [];
   const totalSeconds = lessons.reduce((total, lesson) => total + (lesson.durationSeconds ?? 0), 0);
 
+  function toggleSection(sectionId: string) {
+    setOpenSectionIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(sectionId)) {
+        next.delete(sectionId);
+      } else {
+        next.add(sectionId);
+      }
+      return next;
+    });
+  }
+
   async function copyLink() {
     try {
       await navigator.clipboard.writeText(window.location.href);
-      setShareMessage("Đã sao chép liên kết khóa học.");
+      setCopied(true);
+      if (copyTimeoutRef.current !== null) {
+        window.clearTimeout(copyTimeoutRef.current);
+      }
+      copyTimeoutRef.current = window.setTimeout(() => {
+        setCopied(false);
+        copyTimeoutRef.current = null;
+      }, 2400);
     } catch {
-      setShareMessage("Không thể sao chép. Bạn có thể sao chép địa chỉ trên thanh trình duyệt.");
+      setCopied(false);
     }
   }
 
@@ -197,8 +243,19 @@ export function CourseDetailPage({ slug }: { slug: string }) {
   }
 
   function buyNow() {
-    if (!course || course.price <= 0) return;
-    addToCart();
+    if (!course || course.price <= 0 || buyingNow) return;
+    setBuyingNow(true);
+    // Thêm vào giỏ hàng mà không kích hoạt animation hoặc message trên nút 'Thêm vào giỏ hàng'
+    addCourseToCart({
+      id: course.id,
+      slug: course.slug,
+      title: course.title,
+      price: course.price,
+      thumbnailUrl: course.thumbnailUrl,
+      instructorName: course.instructor?.fullName ?? "Giảng viên EduAlto",
+      lessonCount: lessons.length,
+      durationSeconds: totalSeconds,
+    });
     router.push("/checkout");
   }
 
@@ -343,13 +400,21 @@ export function CourseDetailPage({ slug }: { slug: string }) {
                       {course.price > 0 && (
                         <Button
                           type="button"
+                          disabled={buyingNow}
                           onClick={buyNow}
                           variant="outline"
                           size="md"
-                          className="relative z-10 mt-2.5 w-full rounded-xl"
+                          className="relative z-10 mt-2.5 w-full rounded-xl transition-[transform,colors,opacity] duration-150 active:scale-[0.98]"
                           aria-describedby="enrollment-status"
                         >
-                          Mua ngay
+                          {buyingNow ? (
+                            <span className="inline-flex items-center gap-2">
+                              <LoaderCircle className="h-4 w-4 animate-spin text-primary" />
+                              Đang chuyển trang…
+                            </span>
+                          ) : (
+                            "Mua ngay"
+                          )}
                         </Button>
                       )}
                       <p
@@ -365,14 +430,39 @@ export function CourseDetailPage({ slug }: { slug: string }) {
                       </p>
                     </div>
                     <div className="border-t border-slate-200 p-6">
-                      <h2 className="font-medium">Chia sẻ khóa học</h2>
-                      <Button variant="outline" onClick={copyLink} className="mt-3 rounded-lg">
-                        <Copy className="h-4 w-4" />
-                        Sao chép liên kết
-                      </Button>
-                      <p role="status" className="mt-2 text-sm text-muted">
-                        {shareMessage}
-                      </p>
+                      <h2 className="font-medium text-heading">Chia sẻ khóa học</h2>
+                      <button
+                        type="button"
+                        onClick={copyLink}
+                        className={`focus-ring group mt-3 inline-flex w-full items-center justify-center gap-2.5 rounded-xl border px-4 py-2.5 text-sm font-medium transition-[border-color,background-color,color,box-shadow,transform] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] active:scale-[0.97] ${
+                          copied
+                            ? "border-primary/60 bg-primary/10 text-primary-dark shadow-[0_0_0_3px_rgba(32,180,134,0.14)]"
+                            : "border-slate-200 bg-white text-slate-700 hover:border-primary/40 hover:bg-slate-50/80 hover:text-heading"
+                        }`}
+                        aria-label={copied ? "Đã sao chép liên kết" : "Sao chép liên kết khóa học"}
+                      >
+                        <span className="relative flex h-4 w-4 shrink-0 items-center justify-center">
+                          <Copy
+                            className={`h-4 w-4 transition-[transform,opacity] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none ${
+                              copied
+                                ? "scale-0 rotate-45 opacity-0"
+                                : "scale-100 rotate-0 opacity-100 text-slate-500 group-hover:text-primary"
+                            }`}
+                            aria-hidden="true"
+                          />
+                          <Check
+                            className={`absolute h-4 w-4 text-primary transition-[transform,opacity] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none ${
+                              copied
+                                ? "scale-100 rotate-0 opacity-100"
+                                : "scale-0 -rotate-45 opacity-0"
+                            }`}
+                            aria-hidden="true"
+                          />
+                        </span>
+                        <span className="transition-colors duration-200">
+                          {copied ? "Đã sao chép liên kết!" : "Sao chép liên kết"}
+                        </span>
+                      </button>
                     </div>
                   </aside>
                   <div className="min-w-0 py-8 lg:py-10">
@@ -422,14 +512,20 @@ export function CourseDetailPage({ slug }: { slug: string }) {
                             {course.instructor.headline || "Giảng viên EduAlto"}
                           </p>
                           <div className="mt-4 flex items-center gap-5">
-                            <UserAvatar
-                              name={course.instructor.fullName}
-                              avatarUrl={course.instructor.avatarUrl}
-                              size="2xl"
-                            />
                             <Link
                               href={`/profile/${encodeURIComponent(course.instructor.customHandle || course.instructor.id)}`}
-                              className="focus-ring rounded-lg border border-slate-200 px-4 py-3 text-sm font-medium hover:border-primary"
+                              className="focus-ring rounded-full transition-transform duration-200 hover:scale-105 active:scale-95"
+                              aria-label={`Xem trang cá nhân của ${course.instructor.fullName}`}
+                            >
+                              <UserAvatar
+                                name={course.instructor.fullName}
+                                avatarUrl={course.instructor.avatarUrl}
+                                size="2xl"
+                              />
+                            </Link>
+                            <Link
+                              href={`/profile/${encodeURIComponent(course.instructor.customHandle || course.instructor.id)}`}
+                              className="focus-ring rounded-lg border border-slate-200 px-4 py-3 text-sm font-medium transition-colors hover:border-primary hover:bg-[#F5FBF9]"
                             >
                               Xem hồ sơ giảng viên
                             </Link>
@@ -464,54 +560,85 @@ export function CourseDetailPage({ slug }: { slug: string }) {
                           Giáo trình đang được cập nhật.
                         </p>
                       ) : (
-                        <div className="mt-4 overflow-hidden rounded-lg border border-slate-200">
-                          {curriculum.sections.map((section) => (
-                            <details
-                              key={section.id}
-                              className="group border-b border-slate-200 last:border-b-0"
-                            >
-                              <summary className="focus-ring flex cursor-pointer list-none items-center gap-4 p-5 hover:bg-footer">
-                                <span className="transition group-open:rotate-180">
-                                  <DesignIcon name="chevron-down" />
-                                </span>
-                                <h3 className="flex-1 text-base font-semibold">{section.title}</h3>
-                                <span className="shrink-0 text-xs text-muted">
-                                  {section.lessons.length} bài học
-                                </span>
-                              </summary>
-                              <ul className="border-t border-slate-100 bg-slate-50/60">
-                                {section.lessons.map((lesson) => (
-                                  <li
-                                    key={lesson.id}
-                                    className="flex flex-wrap items-center gap-3 px-5 py-4 text-sm"
+                        <div className="mt-4 overflow-hidden rounded-lg border border-slate-200 divide-y divide-slate-200">
+                          {curriculum.sections.map((section) => {
+                            const isOpen = openSectionIds.has(section.id);
+                            return (
+                              <div key={section.id} className="group/section bg-white">
+                                <h3>
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleSection(section.id)}
+                                    aria-expanded={isOpen}
+                                    aria-controls={`section-content-${section.id}`}
+                                    id={`section-header-${section.id}`}
+                                    className="focus-ring flex w-full cursor-pointer list-none items-center gap-4 p-5 text-left transition-[background-color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:bg-[#F5FBF9] active:bg-[#EAF7F3]"
                                   >
-                                    <FileText className="h-4 w-4 shrink-0 text-muted" />
-                                    <span className="min-w-0 flex-1">{lesson.title}</span>
-                                    {lesson.durationSeconds !== null &&
-                                      lesson.durationSeconds > 0 && (
-                                        <span className="text-xs text-muted">
-                                          {duration(lesson.durationSeconds)}
-                                        </span>
-                                      )}
-                                    {lesson.preview ? (
-                                      <button
-                                        className="focus-ring flex items-center gap-1 rounded-lg px-2 py-1 font-semibold text-primary-dark hover:bg-primary/10 active:bg-primary/20"
-                                        onClick={() => openPreview(lesson.id)}
-                                      >
-                                        <Play className="h-3 w-3" />
-                                        Học thử
-                                      </button>
-                                    ) : (
-                                      <LockKeyhole
-                                        className="h-4 w-4 text-muted"
-                                        aria-label="Bài học dành cho học viên đã đăng ký"
-                                      />
-                                    )}
-                                  </li>
-                                ))}
-                              </ul>
-                            </details>
-                          ))}
+                                    <span
+                                      className={`inline-flex shrink-0 transition-transform duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none ${
+                                        isOpen ? "rotate-180" : "rotate-0"
+                                      }`}
+                                    >
+                                      <DesignIcon name="chevron-down" />
+                                    </span>
+                                    <span className="flex-1 text-base font-semibold text-heading">
+                                      {section.title}
+                                    </span>
+                                    <span className="shrink-0 text-xs text-muted">
+                                      {section.lessons.length} bài học
+                                    </span>
+                                  </button>
+                                </h3>
+                                <div
+                                  id={`section-content-${section.id}`}
+                                  role="region"
+                                  aria-labelledby={`section-header-${section.id}`}
+                                  className={`grid transition-[grid-template-rows,opacity] duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none ${
+                                    isOpen
+                                      ? "grid-rows-[1fr] opacity-100"
+                                      : "grid-rows-[0fr] opacity-0 pointer-events-none"
+                                  }`}
+                                >
+                                  <div className="overflow-hidden">
+                                    <ul className="border-t border-slate-100 bg-slate-50/60 divide-y divide-slate-100/80">
+                                      {section.lessons.map((lesson) => (
+                                        <li
+                                          key={lesson.id}
+                                          className="flex flex-wrap items-center gap-3 px-5 py-4 text-sm transition-[background-color] duration-150 hover:bg-white/80"
+                                        >
+                                          <FileText className="h-4 w-4 shrink-0 text-muted" />
+                                          <span className="min-w-0 flex-1 font-normal text-slate-800">
+                                            {lesson.title}
+                                          </span>
+                                          {lesson.durationSeconds !== null &&
+                                            lesson.durationSeconds > 0 && (
+                                              <span className="text-xs text-muted">
+                                                {duration(lesson.durationSeconds)}
+                                              </span>
+                                            )}
+                                          {lesson.preview ? (
+                                            <button
+                                              type="button"
+                                              className="focus-ring flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold text-primary-dark transition-[background-color,transform] duration-150 hover:bg-primary/10 active:scale-95"
+                                              onClick={() => openPreview(lesson.id)}
+                                            >
+                                              <Play className="h-3 w-3 fill-current" />
+                                              Học thử
+                                            </button>
+                                          ) : (
+                                            <LockKeyhole
+                                              className="h-4 w-4 text-muted"
+                                              aria-label="Bài học dành cho học viên đã đăng ký"
+                                            />
+                                          )}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
                     </section>
