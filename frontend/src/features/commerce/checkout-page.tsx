@@ -26,7 +26,10 @@ import { useAuthSession } from "@/lib/auth-session";
 export function CheckoutPage() {
   const { user, getAccessToken } = useAuthSession();
   const router = useRouter();
-  const [courses, setCourses] = useState<CartCourse[]>([]);
+  const [courses, setCourses] = useState<CartCourse[]>(() => {
+    if (typeof window === "undefined") return [];
+    return readCart();
+  });
   const [phoneNumber, setPhoneNumber] = useState("");
   const [promotionCode, setPromotionCode] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("MOMO");
@@ -35,13 +38,18 @@ export function CheckoutPage() {
   const [createdOrder, setCreatedOrder] = useState<CheckoutOrder | null>(null);
   const [copied, setCopied] = useState(false);
   useEffect(() => {
-    const timer = window.setTimeout(() => setCourses(readCart()), 0);
-    return () => window.clearTimeout(timer);
+    const sync = () => setCourses(readCart());
+    window.addEventListener("edualto:cart-changed", sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener("edualto:cart-changed", sync);
+      window.removeEventListener("storage", sync);
+    };
   }, []);
   const subtotal = courses.reduce((sum, course) => sum + course.price, 0);
 
   return (
-    <div className="flex min-h-screen flex-col bg-white">
+    <div suppressHydrationWarning className="flex min-h-screen flex-col bg-white">
       <div className="relative flex flex-1 flex-col bg-[linear-gradient(180deg,rgba(95,223,183,0.13)_0px,#fff_320px)] lg:bg-[linear-gradient(180deg,rgba(95,223,183,0.13)_0px,rgba(95,223,183,0.1)_320px,#fff_820px)]">
         <AppHeader transparent height="checkout" />
         <main className="relative mx-auto min-h-[610px] w-full max-w-[1440px] flex-1 px-5 py-8 sm:px-6 md:py-10 lg:px-20">

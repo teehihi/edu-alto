@@ -120,7 +120,7 @@ export function HomePage() {
                   width={520}
                   height={546}
                   priority
-                  className="translate-y-6 object-contain transition duration-500 hover:scale-105"
+                  className="translate-y-6 object-contain"
                 />
               </div>
 
@@ -131,7 +131,7 @@ export function HomePage() {
               />
 
               {/* Card 02: 5K+ Khóa học */}
-              <div className="absolute -right-2 top-4 hidden w-[188px] animate-float flex-col items-center rounded-[20px] border border-slate-100/90 bg-white/95 p-4 text-center shadow-soft backdrop-blur-sm transition hover:scale-105 sm:flex">
+              <div className="absolute -right-2 top-4 hidden w-[188px] animate-float flex-col items-center rounded-[20px] border border-slate-100/90 bg-white/95 p-4 text-center shadow-soft backdrop-blur-sm sm:flex">
                 <Image
                   src="/icons/home/Ring.svg"
                   alt=""
@@ -144,7 +144,7 @@ export function HomePage() {
               </div>
 
               {/* Card 03: 2K+ Video */}
-              <div className="absolute -left-6 top-1/3 hidden h-[88px] w-[220px] animate-floatSlow items-center gap-3.5 rounded-2xl border border-slate-100/90 bg-white/95 p-3.5 shadow-soft backdrop-blur-sm transition hover:scale-105 sm:flex">
+              <div className="absolute -left-6 top-1/3 hidden h-[88px] w-[220px] animate-floatSlow items-center gap-3.5 rounded-2xl border border-slate-100/90 bg-white/95 p-3.5 shadow-soft backdrop-blur-sm sm:flex">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary shadow-xs">
                   <Image
                     src="/icons/home/Online Education.svg"
@@ -161,7 +161,7 @@ export function HomePage() {
               </div>
 
               {/* Card 01: 250+ Giảng viên */}
-              <div className="absolute -right-2 bottom-6 hidden h-[84px] w-[176px] animate-float items-center gap-3 rounded-2xl border border-slate-100/90 bg-white/95 p-3.5 shadow-soft backdrop-blur-sm transition hover:scale-105 sm:flex">
+              <div className="absolute -right-2 bottom-6 hidden h-[84px] w-[176px] animate-float items-center gap-3 rounded-2xl border border-slate-100/90 bg-white/95 p-3.5 shadow-soft backdrop-blur-sm sm:flex">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary shadow-xs">
                   <Image
                     src="/icons/home/Board.svg"
@@ -192,28 +192,28 @@ export function HomePage() {
                   alt="duolingo"
                   width={153}
                   height={36}
-                  className="h-8 w-auto object-contain grayscale opacity-70 transition duration-300 hover:grayscale-0 hover:opacity-100 hover:scale-105"
+                  className="h-8 w-auto object-contain grayscale opacity-70"
                 />
                 <Image
                   src="/icons/home/Codecov (logo — Black).svg"
                   alt="Codecov"
                   width={186}
                   height={36}
-                  className="h-8 w-auto object-contain grayscale opacity-70 transition duration-300 hover:grayscale-0 hover:opacity-100 hover:scale-105"
+                  className="h-8 w-auto object-contain grayscale opacity-70"
                 />
                 <Image
                   src="/icons/home/UserTesting (logo — Black).svg"
                   alt="UserTesting"
                   width={140}
                   height={36}
-                  className="h-8 w-auto object-contain grayscale opacity-70 transition duration-300 hover:grayscale-0 hover:opacity-100 hover:scale-105"
+                  className="h-8 w-auto object-contain grayscale opacity-70"
                 />
                 <Image
                   src="/icons/home/Magic Leap (logo — Black).svg"
                   alt="Magic Leap"
                   width={234}
                   height={36}
-                  className="h-8 w-auto object-contain grayscale opacity-70 transition duration-300 hover:grayscale-0 hover:opacity-100 hover:scale-105"
+                  className="h-8 w-auto object-contain grayscale opacity-70"
                 />
               </div>
             </div>

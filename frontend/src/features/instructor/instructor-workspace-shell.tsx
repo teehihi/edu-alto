@@ -4,8 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { BookOpen, DollarSign, LayoutDashboard, MessageSquare, Settings } from "lucide-react";
-import { UserAvatar } from "@/components/ui/user-avatar";
-import { useAuth } from "@/features/auth/auth-client";
+import { UserMenu } from "@/components/layout/user-menu";
 
 type InstructorWorkspaceSection = "dashboard" | "courses" | "community" | "revenue";
 
@@ -38,8 +37,6 @@ export function InstructorWorkspaceShell({
   activeSection: InstructorWorkspaceSection;
   children: ReactNode;
 }) {
-  const { user } = useAuth();
-
   return (
     <div className="min-h-screen bg-[#f8fafc] text-ink lg:flex">
       <aside className="flex shrink-0 flex-col bg-[#101a2c] text-white lg:sticky lg:top-0 lg:h-screen lg:w-[261px]">
@@ -53,6 +50,9 @@ export function InstructorWorkspaceShell({
               priority
             />
           </Link>
+          <div className="lg:hidden">
+            <UserMenu align="right" dark />
+          </div>
           <span className="sr-only">Khu vực giảng viên</span>
         </div>
         <nav
@@ -81,11 +81,8 @@ export function InstructorWorkspaceShell({
             <Settings className="h-[18px] w-[18px]" aria-hidden="true" /> Cài đặt
           </span>
         </nav>
-        <div className="hidden items-center gap-3 border-t border-white/10 px-3 py-4 lg:flex">
-          <UserAvatar name={user?.fullName} avatarUrl={user?.avatarUrl} size="sm" />
-          <span className="truncate text-sm text-slate-200">
-            Chào, {user?.fullName || "Giảng viên"}
-          </span>
+        <div className="hidden items-center border-t border-white/10 px-2 py-3 lg:flex">
+          <UserMenu dropDirection="up" align="left" showNameTrigger dark />
         </div>
       </aside>
       <main className="min-w-0 flex-1">{children}</main>

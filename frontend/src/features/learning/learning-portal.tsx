@@ -18,7 +18,6 @@ import {
   Home,
   House,
   Menu,
-  LogOut,
   MessageCircle,
   NotebookPen,
   Plus,
@@ -29,10 +28,10 @@ import {
   Send,
   MoreHorizontal,
   SlidersHorizontal,
-  User as UserIcon,
 } from "lucide-react";
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { UserAvatar } from "@/components/ui/user-avatar";
+import { UserMenu } from "@/components/layout/user-menu";
 import { ApiClientError } from "@/lib/api";
 import { fetchMyAssignments, submitAssignment, type Assignment } from "@/lib/assignment-client";
 import {
@@ -174,7 +173,7 @@ const upcomingTasks = [
 ];
 
 export function LearningPortal({ view }: { view: PortalView }) {
-  const { user, isLoading, getAccessToken, logout } = useAuthSession();
+  const { user, isLoading, getAccessToken } = useAuthSession();
   const router = useRouter();
   const pathname = usePathname();
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
@@ -183,34 +182,6 @@ export function LearningPortal({ view }: { view: PortalView }) {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const userMenuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
-        setIsUserMenuOpen(false);
-      }
-    }
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setIsUserMenuOpen(false);
-    }
-    if (isUserMenuOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-      document.addEventListener("keydown", handleKeyDown);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isUserMenuOpen]);
-
-  async function handleLogout() {
-    setIsUserMenuOpen(false);
-    await logout();
-    router.push("/login");
-    router.refresh();
-  }
 
   useEffect(() => {
     if (isLoading) return;
@@ -381,92 +352,7 @@ export function LearningPortal({ view }: { view: PortalView }) {
                 />
               </label>
             </div>
-            <div className="relative" ref={userMenuRef}>
-              <button
-                type="button"
-                onClick={() => setIsUserMenuOpen((open) => !open)}
-                aria-expanded={isUserMenuOpen}
-                aria-haspopup="menu"
-                aria-label={`Menu người dùng: ${user?.fullName ?? "Học viên"}`}
-                className="focus-ring flex items-center gap-2 rounded-full p-1 transition hover:opacity-90"
-              >
-                <UserAvatar
-                  name={user?.fullName ?? "Học viên"}
-                  avatarUrl={user?.avatarUrl ?? null}
-                />
-                <span className="hidden max-w-44 truncate text-xs font-medium text-[#27332f] sm:inline">
-                  {user?.fullName ?? "Học viên"}
-                </span>
-                <ChevronDown
-                  className={cn(
-                    "h-4 w-4 text-primary transition-transform",
-                    isUserMenuOpen && "rotate-180",
-                  )}
-                />
-              </button>
-              {isUserMenuOpen && (
-                <div
-                  className="absolute right-0 z-50 mt-2 w-64 rounded-xl border border-slate-100 bg-white p-2 shadow-xl"
-                  role="menu"
-                  aria-orientation="vertical"
-                >
-                  <div className="mb-1 flex items-center gap-3 rounded-lg bg-slate-50 p-3">
-                    <UserAvatar
-                      name={user?.fullName ?? "Học viên"}
-                      avatarUrl={user?.avatarUrl ?? null}
-                      size="md"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-bold text-heading">
-                        {user?.fullName ?? "Học viên"}
-                      </p>
-                      <p className="truncate text-[11px] text-muted">{user?.email}</p>
-                      <span className="mt-1 inline-block rounded-md bg-primary-soft px-2 py-0.5 text-[10px] font-semibold text-primary">
-                        Học viên
-                      </span>
-                    </div>
-                  </div>
-                  <div className="my-1 h-px bg-slate-100" />
-                  <Link
-                    href="/profile"
-                    role="menuitem"
-                    onClick={() => setIsUserMenuOpen(false)}
-                    className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-primary"
-                  >
-                    <UserIcon className="h-4 w-4 text-slate-400" />
-                    Trang cá nhân
-                  </Link>
-                  <Link
-                    href="/learning/courses"
-                    role="menuitem"
-                    onClick={() => setIsUserMenuOpen(false)}
-                    className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-primary"
-                  >
-                    <GraduationCap className="h-4 w-4 text-slate-400" />
-                    Khóa học của tôi
-                  </Link>
-                  <Link
-                    href="/profile"
-                    role="menuitem"
-                    onClick={() => setIsUserMenuOpen(false)}
-                    className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-primary"
-                  >
-                    <Settings className="h-4 w-4 text-slate-400" />
-                    Cài đặt tài khoản
-                  </Link>
-                  <div className="my-1 h-px bg-slate-100" />
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={handleLogout}
-                    className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-semibold text-rose-600 transition hover:bg-rose-50"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    Đăng xuất
-                  </button>
-                </div>
-              )}
-            </div>
+            <UserMenu showNameTrigger />
           </div>
           <main className="learning-main mx-auto min-h-[calc(100vh-83px)] max-w-[1600px] px-4 py-5 md:px-7 md:py-6 xl:px-7">
             <div className="mb-5 flex items-center justify-between gap-4">

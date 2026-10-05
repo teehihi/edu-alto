@@ -19,12 +19,14 @@ import { formatVND } from "@/lib/format";
 import { readCart, removeCourseFromCart, type CartCourse } from "@/lib/cart";
 
 export function CartPage() {
-  const [courses, setCourses] = useState<CartCourse[]>([]);
+  const [courses, setCourses] = useState<CartCourse[]>(() => {
+    if (typeof window === "undefined") return [];
+    return readCart();
+  });
   const [coupon, setCoupon] = useState("");
   const [couponMessage, setCouponMessage] = useState("");
   useEffect(() => {
     const sync = () => setCourses(readCart());
-    sync();
     window.addEventListener("edualto:cart-changed", sync);
     window.addEventListener("storage", sync);
     return () => {
@@ -35,7 +37,7 @@ export function CartPage() {
   const subtotal = courses.reduce((total, course) => total + course.price, 0);
 
   return (
-    <div className="flex min-h-screen flex-col bg-white">
+    <div suppressHydrationWarning className="flex min-h-screen flex-col bg-white">
       <div className="bg-gradient-to-b from-[#e5f8f2] to-white">
         <AppHeader />
       </div>

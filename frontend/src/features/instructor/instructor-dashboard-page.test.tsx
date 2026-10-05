@@ -36,6 +36,11 @@ vi.mock("next/image", () => ({
   },
 }));
 
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/instructor/dashboard",
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+}));
+
 vi.mock("@/features/auth/auth-client", () => ({
   useAuth: () => ({
     user: { id: "teacher-1", fullName: "Giảng viên A", avatarUrl: null },

@@ -625,7 +625,7 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
 
   return (
     <div
-      className="flex min-h-screen flex-col justify-between animate-page"
+      className="flex min-h-screen flex-col justify-between"
       style={{
         background:
           "linear-gradient(180deg, #E6F7F2 0%, #F2FAF7 320px, #FFFFFF 680px, #FFFFFF 100%)",

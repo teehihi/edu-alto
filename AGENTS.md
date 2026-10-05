@@ -130,18 +130,22 @@ Không biến EduAlto thành website AI/neon/futuristic. AI là extension tươn
 - **Backend Maven Wrapper**: Luôn dùng `./backend/mvnw` (hoặc root script `pnpm backend:...`), không phụ thuộc vào Maven cài đặt toàn cục trên máy.
 - **Đồng bộ dependencies sau khi Git pull/fetch**: Khi `git pull`, `git fetch`, checkout chuyển nhánh hoặc clone mới repository, bắt buộc phải chạy `pnpm install` trước khi bắt đầu viết code để đảm bảo `node_modules` và lockfile đồng bộ hoàn toàn.
 
-### Verification workflow (Trước khi có ý định commit)
+### Verification workflow (Chỉ chạy khi có chỉ thị commit)
 
-Sau khi chỉnh sửa mã nguồn, trước khi có ý định commit code, bắt buộc phải chạy đầy đủ bộ kiểm tra sau và đảm bảo 100% vượt qua:
+- **Nguyên tắc tiết kiệm thời gian**: Trong quá trình phát triển thông thường hoặc chỉnh sửa từng tính năng nhỏ, **tuyệt đối không tự ý chạy bộ kiểm tra lint, format, test liên tục** gây lãng phí thời gian và làm gián đoạn luồng làm việc.
+- **Thời điểm kích hoạt**: Chỉ khi **người dùng đưa ra chỉ thị hoặc yêu cầu commit code**, Agent mới bắt đầu kích hoạt toàn bộ bộ kiểm tra theo thứ tự:
 
 1. **Kiểm tra lint siêu tốc**: `pnpm frontend:lint:fast` (Oxlint. Bắt buộc 0 error, 0 warning).
 2. **Kiểm tra lint chi tiết**: `pnpm frontend:lint` (ESLint 9).
 3. **Kiểm tra định dạng code**: `pnpm frontend:fmt:check` (dùng `pnpm frontend:fmt` để tự động sửa bằng Oxfmt).
 4. **Kiểm tra kiểu dữ liệu TypeScript**: `pnpm frontend:typecheck` (`tsc --noEmit`).
 5. **Chạy Unit & Component tests frontend**: `pnpm --dir frontend test` (Vitest).
-6. **Chạy Integration tests backend**: `./backend/mvnw test` (hoặc `pnpm backend:test`. Chạy Testcontainers PostgreSQL 16 cô lập).
+6. **Chạy Integration tests backend**: `./backend/mvnw test` (hoặc `pnpm backend:test`. Chạy Testcontainers PostgreSQL 16 cô lập khi có chỉnh sửa backend).
 
-Tuyệt đối không commit hay merge code nếu bất kỳ bước kiểm tra nào bị thất bại.
+- **Xử lý lỗi & Báo cáo trước khi commit**:
+  - Nếu xảy ra lỗi ở bất kỳ bước nào: Agent phải tự động phân tích và khắc phục (fix) lỗi triệt để, sau đó chạy lại kiểm tra cho đến khi 100% vượt qua.
+  - Sau khi toàn bộ các bước kiểm tra đều đạt 100%: Agent lập báo cáo tóm tắt kết quả kiểm tra và các điểm đã sửa (nếu có) cho người dùng.
+  - Sau khi báo cáo, Agent xin phép người dùng xác nhận để tiến hành commit. Tuyệt đối không tự tiện commit khi chưa có xác nhận đồng ý rõ ràng.
 
 ### Git & Commit conventions
 
@@ -150,7 +154,10 @@ Tuyệt đối không commit hay merge code nếu bất kỳ bước kiểm tra 
   - Ví dụ: `feat(auth): support httponly cookie for refresh token`, `fix(profile): validate bio length`, `chore(deps): bump next to 16.3.1`, `refactor(course): clean explicit imports`.
 - **Atomic commit**: Mỗi commit giải quyết một mục đích cụ thể, tách biệt giữa logic tính năng, sửa lỗi và format code.
 - **Bảo mật & Vệ sinh repository**: Tuyệt đối không commit file `.env`, file cấu hình chứa secrets/credentials, artifacts build (`target/`, `.next/`, `dist/`), thư mục `node_modules/` hay cấu hình IDE cá nhân (`.idea/`, `.vscode/`, `.DS_Store`).
-- **Quy tắc cho Agent**: Agent chỉ thực hiện commit khi người dùng đưa ra chỉ thị hoặc xác nhận đồng ý rõ ràng. Mọi thay đổi phải được giữ ở trạng thái unstaged để người dùng chủ động review trước.
+- **Quy tắc cho Agent**: 
+  - Mọi thay đổi bình thường phải được giữ ở trạng thái unstaged để người dùng chủ động review.
+  - Không tự ý chạy lint/fmt/test sau từng bước làm nhỏ.
+  - Khi người dùng ra lệnh commit: Chạy kiểm tra -> Fix lỗi nếu có -> Báo cáo kết quả -> Xin phép người dùng xác nhận lần cuối -> Thực hiện commit.
 
 ## Agent workflow
 
