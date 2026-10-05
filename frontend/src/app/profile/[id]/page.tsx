@@ -1,3 +1,4 @@
+export const instant = false;
 import { createPrivatePageMetadata } from "@/lib/page-metadata";
 import { ProfilePage } from "@/features/profile/profile-page";
 

@@ -1,3 +1,4 @@
+export const instant = false;
 import { Suspense } from "react";
 import { LearningLessonPage } from "@/features/learning/learning-lesson-page";
 

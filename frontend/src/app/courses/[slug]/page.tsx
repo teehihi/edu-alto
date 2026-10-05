@@ -1,3 +1,4 @@
+export const instant = false;
 import { CourseDetailPage } from "@/features/course/course-detail-page";
 
 export const metadata = { title: "Chi tiết khóa học" };

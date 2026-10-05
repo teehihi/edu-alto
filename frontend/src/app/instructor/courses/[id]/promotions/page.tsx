@@ -1,3 +1,4 @@
+export const instant = false;
 import { createPrivatePageMetadata } from "@/lib/page-metadata";
 import { InstructorCourseWorkspace } from "@/features/instructor/instructor-course-workspace";
 import { InstructorCoursePromotionsPage } from "@/features/instructor/instructor-course-promotions-page";

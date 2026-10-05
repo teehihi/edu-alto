@@ -1,3 +1,4 @@
+export const instant = false;
 import { CourseCertificatePage } from "@/features/learning/course-certificate-page";
 
 export const metadata = { title: "Chứng nhận hoàn thành" };

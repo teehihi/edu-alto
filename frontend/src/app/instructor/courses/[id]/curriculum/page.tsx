@@ -1,3 +1,4 @@
+export const instant = false;
 import { createPrivatePageMetadata } from "@/lib/page-metadata";
 import { Suspense } from "react";
 import { InstructorCourseCurriculumPage } from "@/features/instructor/instructor-course-curriculum-page";

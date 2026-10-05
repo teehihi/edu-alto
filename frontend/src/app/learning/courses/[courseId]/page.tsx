@@ -1,3 +1,4 @@
+export const instant = false;
 import { LearningCoursePage } from "@/features/learning/learning-course-page";
 
 export const metadata = { title: "Giáo trình của tôi" };

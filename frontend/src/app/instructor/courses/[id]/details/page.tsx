@@ -1,3 +1,5 @@
+export const instant = false;
+
 import { createPrivatePageMetadata } from "@/lib/page-metadata";
 import { InstructorCourseDetailsTab } from "@/features/instructor/instructor-course-details-tab";
 import { InstructorCourseWorkspace } from "@/features/instructor/instructor-course-workspace";

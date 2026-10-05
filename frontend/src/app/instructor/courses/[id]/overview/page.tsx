@@ -7,6 +7,7 @@ interface CourseOverviewPageProps {
 }
 
 export const metadata = createPrivatePageMetadata("Tổng quan khóa học");
+export const instant = false;
 
 export default async function Page({ params }: CourseOverviewPageProps) {
   const { id } = await params;

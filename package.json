@@ -11,6 +11,7 @@
     "frontend:fmt": "pnpm --dir frontend fmt",
     "frontend:fmt:check": "pnpm --dir frontend fmt:check",
     "frontend:typecheck": "CI=true pnpm --dir frontend typecheck",
+    "build": "pnpm --dir frontend build",
     "frontend:build": "CI=true pnpm --dir frontend build",
     "backend:test": "./backend/mvnw -f backend/pom.xml test",
     "backend:build": "./backend/mvnw -f backend/pom.xml package",
