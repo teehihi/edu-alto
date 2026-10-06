@@ -10,6 +10,7 @@ import { useAuthSession } from "@/lib/auth-session";
 import { CourseCardSkeleton } from "@/components/ui/skeleton";
 import {
   fetchFavoriteCourses,
+  getFavoriteCoursesServerSnapshot,
   loadFavoriteCoursesForUser,
   readFavoriteCourses,
   subscribeToFavoriteCourses,
@@ -23,10 +24,12 @@ export function FavoriteCoursesPage() {
   const guestCourses = useSyncExternalStore(
     subscribeToFavoriteCourses,
     readFavoriteCourses,
-    () => [],
+    getFavoriteCoursesServerSnapshot,
   );
-  const [remoteCourses, setRemoteCourses] = useState<FavoriteCourse[]>([]);
-  const [loading, setLoading] = useState(Boolean(userId));
+  const [remoteCourses, setRemoteCourses] = useState<FavoriteCourse[]>(() => readFavoriteCourses());
+  const [loading, setLoading] = useState(
+    () => Boolean(userId) && readFavoriteCourses().length === 0,
+  );
   const [error, setError] = useState("");
 
   const courses = userId ? remoteCourses : guestCourses;
@@ -34,7 +37,6 @@ export function FavoriteCoursesPage() {
   useEffect(() => {
     if (authLoading || !userId) return;
     let active = true;
-    setLoading(true);
     void getAccessToken()
       .then(async (token) => {
         if (!token) throw new Error("Vui lòng đăng nhập lại để xem khóa học đã lưu.");

@@ -32,23 +32,42 @@ const FAVORITES_EVENT = "edualto:favorites-changed";
 const remoteIdsByUser = new Map<string, Set<string>>();
 const remoteLoadsByUser = new Map<string, Promise<Set<string>>>();
 
+const EMPTY_FAVORITES: FavoriteCourse[] = [];
+let cachedRawValue: string | null = null;
+let cachedFavoriteCourses: FavoriteCourse[] = EMPTY_FAVORITES;
+
+export function getFavoriteCoursesServerSnapshot(): FavoriteCourse[] {
+  return EMPTY_FAVORITES;
+}
+
 export function readFavoriteCourses(): FavoriteCourse[] {
-  if (typeof window === "undefined") return [];
+  if (typeof window === "undefined") return EMPTY_FAVORITES;
 
   try {
     const stored = window.localStorage.getItem(FAVORITES_KEY);
-    if (!stored) return [];
+    if (!stored) {
+      cachedRawValue = null;
+      cachedFavoriteCourses = EMPTY_FAVORITES;
+      return EMPTY_FAVORITES;
+    }
+    if (stored === cachedRawValue) {
+      return cachedFavoriteCourses;
+    }
     const parsed: unknown = JSON.parse(stored);
-    return Array.isArray(parsed)
+    cachedRawValue = stored;
+    cachedFavoriteCourses = Array.isArray(parsed)
       ? parsed.filter((course): course is FavoriteCourse => isFavoriteCourse(course))
-      : [];
+      : EMPTY_FAVORITES;
+    return cachedFavoriteCourses;
   } catch {
-    return [];
+    cachedRawValue = null;
+    cachedFavoriteCourses = EMPTY_FAVORITES;
+    return EMPTY_FAVORITES;
   }
 }
 
 export function toggleFavoriteCourse(course: FavoriteCourse): FavoriteCourse[] {
-  if (typeof window === "undefined") return [];
+  if (typeof window === "undefined") return EMPTY_FAVORITES;
 
   const current = readFavoriteCourses();
   const next = current.some((favorite) => favorite.id === course.id)
@@ -56,10 +75,14 @@ export function toggleFavoriteCourse(course: FavoriteCourse): FavoriteCourse[] {
     : [course, ...current];
 
   try {
-    window.localStorage.setItem(FAVORITES_KEY, JSON.stringify(next));
+    const raw = JSON.stringify(next);
+    window.localStorage.setItem(FAVORITES_KEY, raw);
+    cachedRawValue = raw;
+    cachedFavoriteCourses = next;
     window.dispatchEvent(new Event(FAVORITES_EVENT));
   } catch {
     // Keep the in-memory interaction usable when storage is unavailable.
+    cachedFavoriteCourses = next;
   }
 
   return next;
@@ -104,6 +127,8 @@ export async function loadFavoriteCoursesForUser(
     if (guestFavorites.length > 0) {
       try {
         window.localStorage.removeItem(FAVORITES_KEY);
+        cachedRawValue = null;
+        cachedFavoriteCourses = EMPTY_FAVORITES;
       } catch {
         // The server copy remains authoritative when local storage is unavailable.
       }

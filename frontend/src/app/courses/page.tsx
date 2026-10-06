@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import { CourseCatalogPage } from "@/features/course/course-catalog-page";
-import { CourseCatalogSkeleton } from "@/components/ui/skeleton";
 
 export const instant = false;
 
@@ -11,7 +10,7 @@ export const metadata = {
 
 export default function Page() {
   return (
-    <Suspense fallback={<CourseCatalogSkeleton />}>
+    <Suspense fallback={null}>
       <CourseCatalogPage />
     </Suspense>
   );

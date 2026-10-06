@@ -4,15 +4,19 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  ArrowRight,
   ArrowUpRight,
   BookOpen,
   BookmarkCheck,
   CalendarDays,
   Check,
+  CheckCircle2,
   ChevronDown,
   ChevronRight,
   ChevronLeft,
   ClipboardList,
+  Clock,
+  Flame,
   FolderClosed,
   FileText,
   GraduationCap,
@@ -22,6 +26,7 @@ import {
   Menu,
   MessageCircle,
   NotebookPen,
+  Play,
   Plus,
   Search,
   Settings,
@@ -33,7 +38,7 @@ import {
 } from "lucide-react";
 import { Fragment, useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { UserAvatar } from "@/components/ui/user-avatar";
-import { AppHeader } from "@/components/layout/app-header";
+import { UserMenu } from "@/components/layout/user-menu";
 import { ApiClientError } from "@/lib/api";
 import { fetchInstructorCourses, type InstructorCourse } from "@/lib/instructor-course-client";
 import { fetchMyAssignments, submitAssignment, type Assignment } from "@/lib/assignment-client";
@@ -76,14 +81,14 @@ type PortalView =
 
 const navGroups = [
   {
-    title: "HỌC TẬP",
+    title: "KHÔNG GIAN HỌC",
     links: [
       { label: "Tổng quan", href: "/learning", view: "overview" as const, icon: Home },
       {
-        label: "Bài tập",
-        href: "/learning/assignments",
-        view: "assignments" as const,
-        icon: ClipboardList,
+        label: "Khóa học của tôi",
+        href: "/learning/courses",
+        view: "courses" as const,
+        icon: BookOpen,
       },
       {
         label: "Thời khóa biểu",
@@ -91,52 +96,45 @@ const navGroups = [
         view: "calendar" as const,
         icon: CalendarDays,
       },
+    ],
+  },
+  {
+    title: "TƯƠNG TÁC & BÀI TẬP",
+    links: [
+      {
+        label: "Bài tập",
+        href: "/learning/assignments",
+        view: "assignments" as const,
+        icon: ClipboardList,
+      },
       {
         label: "Thảo luận",
         href: "/learning/discussion",
         view: "discussion" as const,
         icon: MessageCircle,
       },
-      {
-        label: "Tài liệu",
-        href: "/learning/resources",
-        view: "resources" as const,
-        icon: FolderClosed,
-      },
-      { label: "Ghi chú", href: "/learning/notes", view: "notes" as const, icon: NotebookPen },
-      {
-        label: "Khóa học của tôi",
-        href: "/learning/courses",
-        view: "courses" as const,
-        icon: GraduationCap,
-      },
-      {
-        label: "Chứng chỉ của tôi",
-        href: "/learning/certificates",
-        view: "certificates" as const,
-        icon: GraduationCap,
-      },
+    ],
+  },
+  {
+    title: "LƯU TRỮ & THÀNH TÍCH",
+    links: [
       {
         label: "Bài học đã lưu",
         href: "/learning/saved-lessons",
         view: "savedLessons" as const,
         icon: BookmarkCheck,
       },
-    ],
-  },
-  {
-    title: "KHÁM PHÁ",
-    links: [
+      { label: "Ghi chú", href: "/learning/notes", view: "notes" as const, icon: NotebookPen },
       {
-        label: "Giảng viên",
-        href: "/learning/teachers",
-        view: "teachers" as const,
-        icon: GraduationCap,
+        label: "Tài liệu",
+        href: "/learning/resources",
+        view: "resources" as const,
+        icon: FolderClosed,
       },
       {
-        label: "Đánh giá của tôi",
-        href: "/learning/reviews",
-        view: "reviews" as const,
+        label: "Chứng chỉ của tôi",
+        href: "/learning/certificates",
+        view: "certificates" as const,
         icon: Sparkles,
       },
     ],
@@ -256,9 +254,10 @@ export function LearningPortal({ view }: { view: PortalView }) {
         try {
           const page = await fetchMyEnrollments(token);
           if (!active) return;
-          setEnrollments(page.data);
+          const courseList = page.data ?? [];
+          setEnrollments(courseList);
           const entries = await Promise.all(
-            page.data
+            courseList
               .filter((item) => item.courseStatus === "PUBLISHED")
               .map(async (item) => {
                 try {
@@ -331,183 +330,303 @@ export function LearningPortal({ view }: { view: PortalView }) {
     );
   }, [enrollments, search]);
   return (
-    <div className="learning-app min-h-screen bg-[#f8fbfa] text-[#101a2c]">
-      <AppHeader />
-
-      {/* Mobile bar for toggling learning drawer */}
-      <div className="flex h-12 items-center justify-between border-b border-slate-200/80 bg-white px-4 lg:hidden">
+    <div className="learning-app min-h-screen bg-[#f8fafc] text-ink lg:flex">
+      {/* Mobile Backdrop */}
+      {mobileNavOpen && (
         <button
           type="button"
-          onClick={() => setMobileNavOpen(true)}
-          aria-label="Mở menu học tập"
-          className="focus-ring flex items-center gap-2 rounded-lg p-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 active:scale-[0.98] transition"
-        >
-          <Menu className="h-4 w-4 text-primary" />
-          <span>Menu học tập</span>
-        </button>
-        <span className="text-xs font-semibold text-slate-600">{viewTitles[view]}</span>
-      </div>
+          aria-label="Đóng menu"
+          onClick={() => setMobileNavOpen(false)}
+          className="fixed inset-0 z-40 bg-[#101a2c]/40 backdrop-blur-xs lg:hidden"
+        />
+      )}
 
-      <div className="mx-auto flex min-h-[calc(100vh-73px)] max-w-[1600px]">
-        <aside
-          className={cn(
-            "learning-sidebar fixed inset-y-0 left-0 z-40 w-[240px] border-r border-slate-200/80 bg-white shadow-[1px_0_3px_rgba(0,0,0,0.02)] transition-transform duration-200 lg:sticky lg:top-[73px] lg:z-20 lg:h-[calc(100vh-73px)] lg:translate-x-0 overflow-y-auto",
-            mobileNavOpen ? "translate-x-0" : "-translate-x-full",
-          )}
-        >
-          {/* Mobile drawer header */}
-          <div className="flex h-14 items-center justify-between border-b border-slate-100 px-4 lg:hidden">
-            <Link href="/" aria-label="EduAlto - Trang chủ" className="focus-ring rounded">
-              <Image
-                src="/images/logo-w-text.png"
-                alt="EduAlto"
-                width={112}
-                height={40}
-                className="h-7 w-auto object-contain"
-                priority
-              />
-            </Link>
-            <button
-              type="button"
-              onClick={() => setMobileNavOpen(false)}
-              aria-label="Đóng menu"
-              className="focus-ring rounded-md p-1.5 text-slate-500 hover:bg-slate-100"
+      {/* Sidebar */}
+      <aside
+        className={cn(
+          "learning-sidebar fixed inset-y-0 left-0 z-50 flex w-[261px] shrink-0 flex-col border-r border-slate-200/90 bg-white text-slate-800 shadow-[1px_0_3px_rgba(0,0,0,0.02)] transition-transform duration-200 lg:sticky lg:top-0 lg:z-20 lg:h-screen lg:translate-x-0",
+          mobileNavOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
+        )}
+      >
+        {/* Mobile Header in Drawer */}
+        <div className="flex h-[58px] shrink-0 items-center justify-between border-b border-slate-100 px-4 lg:hidden">
+          <Link
+            href="/"
+            onClick={() => setMobileNavOpen(false)}
+            className="focus-ring flex items-center gap-2.5 rounded-lg transition active:scale-[0.98]"
+            aria-label="EduAlto, về trang chủ"
+          >
+            <Image
+              src="/images/logo-w-text.png"
+              alt="EduAlto"
+              width={128}
+              height={42}
+              className="h-8 w-auto object-contain"
+              priority
+            />
+            <span
+              className={cn(
+                "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold border",
+                isInstructor
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-200/80"
+                  : "bg-blue-50 text-blue-700 border-blue-200/80",
+              )}
             >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-          {/* Desktop sidebar header */}
-          <div className="hidden h-14 items-center gap-2.5 border-b border-slate-100 px-4 lg:flex">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
-              <GraduationCap className="h-4 w-4 stroke-[1.8]" />
-            </div>
-            <div>
-              <p className="text-xs font-bold text-[#101A2C]">Khu vực học tập</p>
-              <p className="text-[10px] text-slate-400">Không gian của bạn</p>
-            </div>
-          </div>
-          <nav aria-label="Điều hướng học tập" className="space-y-5 px-3 py-4">
-            {navGroups
-              .filter((group) => group.title !== "KHÁM PHÁ")
-              .map((group) => (
-                <div key={group.title}>
-                  <p className="mb-2 px-3 text-[10px] font-bold tracking-[.12em] text-slate-400 uppercase">
-                    {group.title}
-                  </p>
-                  <ul className="space-y-1">
-                    {group.links.map((item) => {
-                      const Icon = item.icon;
-                      const selected =
-                        item.view === view || (view === "messages" && item.view === "discussion");
-                      return (
-                        <li key={item.href}>
-                          <Link
-                            href={item.href}
-                            onClick={() => setMobileNavOpen(false)}
-                            aria-current={selected ? "page" : undefined}
-                            className={cn(
-                              "focus-ring flex h-9 items-center gap-2.5 rounded-xl px-3 text-xs font-medium transition active:scale-[0.98]",
-                              selected
-                                ? "bg-primary font-semibold text-white shadow-xs shadow-primary/25"
-                                : "text-slate-600 hover:bg-[#edf7f3] hover:text-emerald-700 active:bg-[#e1f3eb]",
-                            )}
-                          >
-                            <Icon className="h-4 w-4 shrink-0 stroke-[1.8]" />
-                            <span>{item.label}</span>
-                          </Link>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              ))}
-            <div className="border-t border-slate-100 pt-3">
-              <Link
-                href="/"
-                className="focus-ring flex h-9 items-center gap-2.5 rounded-xl px-3 text-xs font-medium text-slate-600 transition hover:bg-[#edf7f3] hover:text-emerald-700 active:scale-[0.98]"
-              >
-                <House className="h-4 w-4 stroke-[1.8]" />
-                Về trang chủ
-              </Link>
-              <Link
-                href="/profile"
-                className="focus-ring mt-1 flex h-9 items-center gap-2.5 rounded-xl px-3 text-xs font-medium text-slate-600 transition hover:bg-[#edf7f3] hover:text-emerald-700 active:scale-[0.98]"
-              >
-                <Settings className="h-4 w-4 stroke-[1.8]" />
-                Cài đặt tài khoản
-              </Link>
-            </div>
-          </nav>
-        </aside>
-        {mobileNavOpen && (
+              {isInstructor ? "Giảng viên" : "Học viên"}
+            </span>
+          </Link>
           <button
             type="button"
-            aria-label="Đóng menu"
             onClick={() => setMobileNavOpen(false)}
-            className="fixed inset-0 z-30 bg-[#101a2c]/40 backdrop-blur-xs lg:hidden"
-          />
-        )}
-        <section className="min-w-0 flex-1">
-          <main className="learning-main mx-auto min-h-[calc(100vh-73px)] max-w-[1600px] px-4 py-6 md:px-7 md:py-8">
-            <div
+            aria-label="Đóng menu"
+            className="focus-ring rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Desktop Header in Sidebar */}
+        <div className="hidden h-[83px] shrink-0 items-center justify-between border-b border-slate-100 px-5 lg:flex">
+          <Link
+            href="/"
+            className="focus-ring flex items-center gap-2.5 rounded-lg transition active:scale-[0.98]"
+            aria-label="EduAlto, về trang chủ"
+          >
+            <Image
+              src="/images/logo-w-text.png"
+              alt="EduAlto"
+              width={130}
+              height={44}
+              className="h-8 w-auto object-contain"
+              priority
+            />
+            <span
               className={cn(
-                "mb-5 flex items-center justify-between gap-4",
-                (view === "overview" || view === "calendar" || view === "messages") && "sr-only",
-                view === "courses" && isInstructor && "hidden",
+                "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold border",
+                isInstructor
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-200/80"
+                  : "bg-blue-50 text-blue-700 border-blue-200/80",
               )}
             >
-              <div>
-                <h1 className="text-xl font-semibold text-[#079367] md:text-[18px]">
-                  {view === "assignments" ? "Bài tập" : viewTitles[view]}
-                </h1>
-                {view === "assignments" && (
-                  <p className="mt-0.5 text-sm text-[#8c9297]">
-                    Xem và quản lý bài tập trong khóa học của bạn
-                  </p>
-                )}
+              {isInstructor ? "Giảng viên" : "Học viên"}
+            </span>
+          </Link>
+        </div>
+
+        {/* Navigation Items (Scrollable area) */}
+        <nav
+          aria-label="Điều hướng học tập"
+          className="flex-1 overflow-y-auto space-y-5 px-3 py-4 scrollbar-thin scrollbar-thumb-slate-200 hover:scrollbar-thumb-slate-300"
+        >
+          {navGroups.map((group) => (
+            <div key={group.title} className="space-y-1">
+              <p className="px-3 pb-1 text-[10px] font-bold tracking-[.12em] text-slate-400 uppercase">
+                {group.title}
+              </p>
+              <ul className="space-y-1">
+                {group.links.map((item) => {
+                  const Icon = item.icon;
+                  const selected =
+                    item.view === view || (view === "messages" && item.view === "discussion");
+                  const count =
+                    item.view === "courses"
+                      ? isInstructor
+                        ? instructorCourses.length
+                        : enrollments.length
+                      : undefined;
+                  return (
+                    <li key={item.href}>
+                      <Link
+                        href={item.href}
+                        onClick={() => setMobileNavOpen(false)}
+                        aria-current={selected ? "page" : undefined}
+                        className={cn(
+                          "group relative focus-ring flex h-9.5 items-center gap-2.5 rounded-xl px-3 text-xs transition-all active:scale-[0.98]",
+                          selected
+                            ? "bg-emerald-50/90 font-semibold text-emerald-800 border border-emerald-200/80 shadow-xs shadow-emerald-950/5"
+                            : "font-medium text-slate-600 hover:bg-slate-100/70 hover:text-heading",
+                        )}
+                      >
+                        <Icon
+                          className={cn(
+                            "h-4 w-4 shrink-0 transition-colors stroke-[1.8]",
+                            selected
+                              ? "text-primary stroke-[2]"
+                              : "text-slate-400 group-hover:text-slate-700",
+                          )}
+                        />
+                        <span className="truncate">{item.label}</span>
+                        {count !== undefined && count > 0 && (
+                          <span
+                            className={cn(
+                              "ml-auto rounded-full px-2 py-0.5 text-[10px] font-bold tabular-nums transition-colors",
+                              selected
+                                ? "bg-emerald-100/90 text-emerald-800 border border-emerald-200/70"
+                                : "bg-slate-100 text-slate-500 group-hover:bg-slate-200/70 group-hover:text-slate-700",
+                            )}
+                          >
+                            {count}
+                          </span>
+                        )}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
+
+          {/* Instructor Quick Hub mini card */}
+          {isInstructor && (
+            <div className="mx-0.5 mt-2 rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50/70 via-white to-teal-50/40 p-3 shadow-2xs">
+              <div className="flex items-center justify-between">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-800">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                  </span>
+                  Giảng viên Hub
+                </span>
+                <span className="rounded-md bg-emerald-100/80 px-1.5 py-0.5 text-[10px] font-bold text-emerald-800 border border-emerald-200/60 tabular-nums">
+                  {instructorCourses.length} khóa
+                </span>
               </div>
-              {view === "courses" && !isInstructor && (
+              <p className="mt-1 text-[11px] text-muted leading-snug">
+                Quản lý khóa học & giáo trình
+              </p>
+              <div className="mt-2.5 flex items-center gap-1.5">
                 <Link
-                  href="/courses"
-                  className="focus-ring hidden h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-white hover:bg-[#159e75] sm:inline-flex"
+                  href="/instructor"
+                  className="focus-ring flex-1 inline-flex h-7.5 items-center justify-center gap-1.5 rounded-xl bg-primary px-2 text-[11px] font-semibold text-white shadow-xs shadow-primary/20 hover:bg-primary-dark transition active:scale-[0.98]"
                 >
-                  <BookOpen className="h-4 w-4" />
-                  Khám phá khóa học
+                  <LayoutDashboard className="h-3 w-3" />
+                  <span>Bảng điều khiển</span>
                 </Link>
+                <Link
+                  href="/instructor/courses/overview"
+                  title="Tạo khóa học mới"
+                  className="focus-ring inline-flex h-7.5 w-7.5 items-center justify-center rounded-xl border border-slate-200/80 bg-white text-slate-600 hover:border-emerald-300 hover:text-primary shadow-2xs transition active:scale-[0.98]"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </Link>
+              </div>
+            </div>
+          )}
+        </nav>
+
+        {/* Sidebar Footer */}
+        <div className="mt-auto border-t border-slate-100 p-3 space-y-1">
+          <Link
+            href="/"
+            onClick={() => setMobileNavOpen(false)}
+            className="focus-ring flex h-9 items-center gap-2.5 rounded-xl px-3 text-xs font-medium text-slate-600 transition hover:bg-slate-100 hover:text-heading active:scale-[0.98]"
+          >
+            <House className="h-4 w-4 stroke-[1.8]" />
+            <span>Về trang chủ</span>
+          </Link>
+          <Link
+            href="/profile"
+            onClick={() => setMobileNavOpen(false)}
+            className="focus-ring flex h-9 items-center gap-2.5 rounded-xl px-3 text-xs font-medium text-slate-600 transition hover:bg-slate-100 hover:text-heading active:scale-[0.98]"
+          >
+            <Settings className="h-4 w-4 stroke-[1.8]" />
+            <span>Cài đặt tài khoản</span>
+          </Link>
+        </div>
+      </aside>
+
+      {/* Main Content Area */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        {/* Synchronized Topbar */}
+        <header className="sticky top-0 z-30 flex h-[58px] items-center justify-between border-b border-slate-200 bg-white px-4 md:px-6 lg:h-[83px]">
+          <div className="flex min-w-0 items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setMobileNavOpen(true)}
+              className="focus-ring rounded-md p-2 text-slate-600 transition hover:bg-slate-100 lg:hidden"
+              aria-label="Mở menu học tập"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+            <label className="hidden h-11 w-[367px] items-center gap-2 rounded-lg border border-[#b7e4d7] bg-white px-3 sm:flex">
+              <Search className="h-4 w-4 text-[#94a39e]" />
+              <span className="sr-only">Tìm kiếm</span>
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="min-w-0 flex-1 border-0 bg-transparent text-xs outline-none placeholder:text-[#98a39e]"
+                placeholder="Tìm kiếm khóa học..."
+              />
+            </label>
+            <span className="text-sm font-bold text-slate-800 lg:hidden">{viewTitles[view]}</span>
+          </div>
+          <div className="flex items-center gap-3">
+            {isInstructor ? (
+              <Link
+                href="/instructor"
+                className="focus-ring hidden items-center gap-1.5 rounded-lg border border-[#b7e4d7] bg-[#f0fbf7] px-3 py-2 text-xs font-semibold text-[#079367] transition hover:bg-[#dff5ec] sm:inline-flex"
+              >
+                <GraduationCap className="h-4 w-4" />
+                Khu vực Giảng viên
+              </Link>
+            ) : null}
+            <UserMenu showNameTrigger />
+          </div>
+        </header>
+
+        <main className="learning-main mx-auto min-h-[calc(100vh-83px)] w-full max-w-[1440px] px-4 py-6 md:px-7 md:py-8 flex-1">
+          <div
+            className={cn(
+              "mb-5 flex items-center justify-between gap-4",
+              (view === "overview" ||
+                view === "calendar" ||
+                view === "messages" ||
+                view === "courses") &&
+                "sr-only",
+            )}
+          >
+            <div>
+              <h1 className="text-xl font-bold tracking-tight text-heading md:text-2xl">
+                {view === "assignments" ? "Bài tập" : viewTitles[view]}
+              </h1>
+              {view === "assignments" && (
+                <p className="mt-1 text-sm text-muted">
+                  Xem và quản lý bài tập trong khóa học của bạn
+                </p>
               )}
             </div>
-            {loading ? (
-              <PortalLoading />
-            ) : error ? (
-              <ErrorPanel message={error} onRetry={() => window.location.reload()} />
-            ) : view === "overview" ? (
-              <Overview
-                userName={user?.fullName ?? "bạn"}
-                enrollments={visibleCourses}
-                progress={progressByCourse}
-                isInstructor={isInstructor}
-              />
-            ) : view === "courses" ? (
-              <MyCourses
-                courses={visibleCourses}
-                progress={progressByCourse}
-                search={search}
-                onSearch={setSearch}
-                isInstructor={isInstructor}
-                instructorCourses={instructorCourses}
-                instructorCoursesLoading={instructorCoursesLoading}
-                instructorTab={instructorTab}
-                onInstructorTabChange={setInstructorTab}
-              />
-            ) : view === "savedLessons" ? (
-              <SavedLessonsView />
-            ) : view === "certificates" ? (
-              <CertificateListView />
-            ) : (
-              <UtilityView view={view} />
-            )}
-          </main>
-        </section>
+          </div>
+          {loading ? (
+            <PortalLoading />
+          ) : error ? (
+            <ErrorPanel message={error} onRetry={() => window.location.reload()} />
+          ) : view === "overview" ? (
+            <Overview
+              userName={user?.fullName ?? "bạn"}
+              enrollments={visibleCourses}
+              progress={progressByCourse}
+              isInstructor={isInstructor}
+            />
+          ) : view === "courses" ? (
+            <MyCourses
+              courses={visibleCourses}
+              progress={progressByCourse}
+              search={search}
+              onSearch={setSearch}
+              isInstructor={isInstructor}
+              instructorCourses={instructorCourses}
+              instructorCoursesLoading={instructorCoursesLoading}
+              instructorTab={instructorTab}
+              onInstructorTabChange={setInstructorTab}
+            />
+          ) : view === "savedLessons" ? (
+            <SavedLessonsView />
+          ) : view === "certificates" ? (
+            <CertificateListView />
+          ) : (
+            <UtilityView view={view} />
+          )}
+        </main>
       </div>
     </div>
   );
@@ -554,247 +673,815 @@ function Overview({
   progress: Record<string, CourseProgress>;
   isInstructor?: boolean;
 }) {
+  const { getAccessToken } = useAuthSession();
+  const [tasks, setTasks] = useState(upcomingTasks);
+  const [instructorBannerDismissed, setInstructorBannerDismissed] = useState(false);
+  const [activityMetric, setActivityMetric] = useState<"hours" | "lessons">("hours");
+  const [selectedDate, setSelectedDate] = useState<number>(new Date().getDate());
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+
   const recent = enrollments.slice(0, 3);
+  const primaryCourse = recent[0];
+  const primaryProgress = primaryCourse ? progress[primaryCourse.courseId] : undefined;
+
   const totalCompleted = Object.values(progress).reduce(
     (sum, item) => sum + item.completedLessons,
     0,
   );
   const totalLessons = Object.values(progress).reduce((sum, item) => sum + item.totalLessons, 0);
-  const [tasks, setTasks] = useState(upcomingTasks);
   const completion = totalLessons ? Math.round((totalCompleted / totalLessons) * 100) : 0;
-  const days = Array.from({ length: new Date().getDate() }, (_, index) => index + 1);
-  const firstWeekday = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getDay();
-  const monthName = new Intl.DateTimeFormat("vi-VN", { month: "long", year: "numeric" }).format(
-    new Date(),
-  );
+
+  // Calendar setup with primitive values for React Compiler safety
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth();
+  const currentDay = new Date().getDate();
+  const totalDaysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+  const firstWeekday = new Date(currentYear, currentMonth, 1).getDay(); // 0 is Sunday
+  const days = Array.from({ length: totalDaysInMonth }, (_, index) => index + 1);
+  const monthName = new Intl.DateTimeFormat("vi-VN", {
+    month: "long",
+    year: "numeric",
+  }).format(new Date(currentYear, currentMonth, 1));
+
+  // Fetch calendar events and assignments asynchronously for real data
+  useEffect(() => {
+    let active = true;
+    void getAccessToken().then(async (token) => {
+      if (!token) return;
+      try {
+        const from = new Date(currentYear, currentMonth, 1);
+        const to = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59);
+        const evs = await fetchCalendarEvents(token, from, to);
+        if (active) setCalendarEvents(evs.filter((e) => e.status !== "CANCELLED"));
+      } catch {
+        // Safe fallback for student calendar
+      }
+
+      try {
+        const assigns = await fetchMyAssignments(token);
+        if (active) setAssignments(assigns);
+      } catch {
+        // Safe fallback for assignments
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [getAccessToken, currentYear, currentMonth]);
+
+  // Events grouped by day of current month
+  const eventsByDay: Record<number, CalendarEvent[]> = {};
+  for (const ev of calendarEvents) {
+    const d = new Date(ev.startsAt);
+    if (d.getFullYear() === currentYear && d.getMonth() === currentMonth) {
+      const day = d.getDate();
+      if (!eventsByDay[day]) eventsByDay[day] = [];
+      eventsByDay[day].push(ev);
+    }
+  }
+
+  // Pending count calculation
+  const pendingAssignmentsCount = assignments.filter(
+    (a) => a.status === "PUBLISHED" && !a.submittedAt,
+  ).length;
+  const pendingTasksCount = tasks.filter((t) => !t.done).length + pendingAssignmentsCount;
+
+  // 7-day weekly activity dataset
+  const dayOfWeek = new Date().getDay();
+  const todayIndex = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // 0..6 (Mon..Sun)
+  const baseHours = [0.8, 1.4, 1.2, 0.6, 1.8, 0.4, 0.0];
+  const baseLessons = [1, 2, 2, 1, 3, 1, 0];
+  const dayLabels = [
+    { key: "T2", full: "Thứ 2" },
+    { key: "T3", full: "Thứ 3" },
+    { key: "T4", full: "Thứ 4" },
+    { key: "T5", full: "Thứ 5" },
+    { key: "T6", full: "Thứ 6" },
+    { key: "T7", full: "Thứ 7" },
+    { key: "CN", full: "Chủ nhật" },
+  ];
+  const weeklyActivity = dayLabels.map((item, idx) => ({
+    day: item.key,
+    full: item.full,
+    hours: idx <= todayIndex ? baseHours[idx] : 0,
+    lessons: idx <= todayIndex ? baseLessons[idx] : 0,
+    isToday: idx === todayIndex,
+  }));
+
+  const totalWeeklyHours = weeklyActivity.reduce((acc, curr) => acc + curr.hours, 0).toFixed(1);
+
+  // SVG Gauge calculations
+  const gaugeRadius = 42;
+  const gaugeCircumference = 2 * Math.PI * gaugeRadius;
+  const strokeDashoffset = gaugeCircumference - (gaugeCircumference * completion) / 100;
+
+  // Selected date events
+  const selectedDateEvents = eventsByDay[selectedDate] || [];
+
   return (
-    <div className="space-y-4">
-      <section className="px-1 pb-1">
-        <h1 className="text-[25px] font-semibold tracking-[-0.02em] text-[#101a2c]">
-          Chào, <span className="text-[#079367]">{userName}</span>{" "}
-          <span aria-hidden="true">👋🏻</span>
-        </h1>
-        <p className="mt-0.5 text-sm text-[#858b91]">
-          Hôm nay chúng ta hãy cùng học điều gì đó mới mẻ nhé!
-        </p>
+    <div className="space-y-6">
+      {/* 1. Header Greeting & Quick Stats Bar */}
+      <section className="space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-heading md:text-[28px]">
+              Chào mừng trở lại, <span className="text-primary">{userName}</span>{" "}
+              <span
+                aria-hidden="true"
+                className="inline-block transition-transform hover:rotate-12 cursor-default"
+              >
+                👋
+              </span>
+            </h1>
+            <p className="mt-1 text-sm text-muted">
+              Hôm nay chúng ta hãy cùng học điều gì đó mới mẻ nhé!
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Link
+              href="/courses"
+              className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white px-3.5 text-xs font-semibold text-heading shadow-xs transition hover:border-emerald-200 hover:bg-emerald-50/30 active:scale-[0.98]"
+            >
+              <Search className="h-3.5 w-3.5 text-slate-500" />
+              <span>Khám phá khóa học</span>
+            </Link>
+          </div>
+        </div>
+
+        {/* 4 Quick Stat Cards */}
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs transition hover:border-emerald-200 hover:shadow-soft">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-muted">Khóa học của bạn</span>
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                <BookOpen className="h-4 w-4 stroke-[1.8]" />
+              </div>
+            </div>
+            <p className="mt-2 text-2xl font-bold tracking-tight text-heading tabular-nums">
+              {enrollments.length}
+            </p>
+            <p className="mt-0.5 text-[11px] text-muted">
+              {enrollments.length > 0 ? "Đang tiến hành học" : "Chưa đăng ký khóa nào"}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs transition hover:border-emerald-200 hover:shadow-soft">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-muted">Bài hoàn thành</span>
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-teal-50 text-teal-600">
+                <CheckCircle2 className="h-4 w-4 stroke-[1.8]" />
+              </div>
+            </div>
+            <p className="mt-2 text-2xl font-bold tracking-tight text-heading tabular-nums">
+              {totalCompleted}
+              <span className="text-sm font-normal text-muted">/{totalLessons || 0}</span>
+            </p>
+            <p className="mt-0.5 text-[11px] text-muted">{completion}% tổng lộ trình</p>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs transition hover:border-amber-200 hover:shadow-soft">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-muted">Chuỗi học tập</span>
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
+                <Flame className="h-4 w-4 stroke-[1.8]" />
+              </div>
+            </div>
+            <p className="mt-2 text-2xl font-bold tracking-tight text-heading tabular-nums">
+              3 <span className="text-sm font-normal text-amber-600">ngày</span>
+            </p>
+            <p className="mt-0.5 text-[11px] text-muted">Duy trì rất tốt hôm nay 🔥</p>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs transition hover:border-blue-200 hover:shadow-soft">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-muted">Việc cần làm</span>
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                <ClipboardList className="h-4 w-4 stroke-[1.8]" />
+              </div>
+            </div>
+            <p className="mt-2 text-2xl font-bold tracking-tight text-heading tabular-nums">
+              {pendingTasksCount}
+            </p>
+            <p className="mt-0.5 text-[11px] text-muted">
+              {pendingTasksCount > 0 ? "Cần hoàn thành sớm" : "Đã xong toàn bộ"}
+            </p>
+          </div>
+        </div>
       </section>
-      {isInstructor && (
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-xl border border-emerald-200/80 bg-gradient-to-r from-emerald-50/80 to-[#f0fbf7] p-4 shadow-xs">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-white shadow-xs">
+
+      {/* 2. Instructor Mode Alert (Streamlined & Dismissible) */}
+      {isInstructor && !instructorBannerDismissed && (
+        <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5 rounded-2xl border border-emerald-200/80 bg-gradient-to-r from-emerald-50/90 via-white to-emerald-50/40 p-4 sm:p-5 shadow-xs">
+          <div className="flex items-center gap-3.5 pr-8">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-white shadow-xs">
               <GraduationCap className="h-5 w-5 stroke-[1.8]" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-[#101a2c]">
-                Bạn đang sử dụng tài khoản Giảng viên
-              </p>
-              <p className="text-xs text-slate-500">
-                Truy cập Bảng điều khiển để quản lý khóa học, giáo trình và tương tác với học viên
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-semibold text-heading">
+                  Bạn đang sử dụng tài khoản Giảng viên
+                </p>
+                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
+                  Giảng dạy
+                </span>
+              </div>
+              <p className="mt-0.5 text-xs text-muted">
+                Truy cập Bảng điều khiển Giảng viên để quản lý khóa học, giáo trình và tương tác với
+                học viên.
               </p>
             </div>
           </div>
-          <Link
-            href="/instructor"
-            className="focus-ring inline-flex h-9 shrink-0 items-center gap-2 rounded-lg bg-primary px-3.5 text-xs font-semibold text-white shadow-xs transition hover:bg-primary-dark active:scale-[0.98]"
-          >
-            <LayoutDashboard className="h-3.5 w-3.5" />
-            <span>Bảng điều khiển Giảng viên</span>
-          </Link>
+          <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+            <Link
+              href="/instructor"
+              className="focus-ring inline-flex h-9 items-center gap-2 rounded-xl bg-primary px-4 text-xs font-semibold text-white shadow-xs transition hover:bg-primary-dark active:scale-[0.98]"
+            >
+              <LayoutDashboard className="h-3.5 w-3.5" />
+              <span>Bảng điều khiển Giảng viên</span>
+            </Link>
+            <button
+              type="button"
+              onClick={() => setInstructorBannerDismissed(true)}
+              aria-label="Đóng thông báo giảng viên"
+              className="focus-ring rounded-lg p-1.5 text-slate-400 hover:bg-emerald-100/60 hover:text-slate-600 transition"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       )}
-      <div className="grid gap-4 xl:grid-cols-[1fr_1.35fr_1fr]">
-        <section className="portal-card">
-          <SectionHeading
-            title="Khóa học đã đăng ký gần đây"
-            action="Xem tất cả"
-            href="/learning/courses"
-          />
-          {recent[0] ? (
-            <div className="mt-3">
-              <RecentCourse course={recent[0]} progress={progress[recent[0].courseId]} />
-            </div>
-          ) : (
-            <SmallEmpty
-              icon={<BookOpen className="h-5 w-5" />}
-              title="Bắt đầu hành trình học tập"
-              detail="Khám phá khóa học và lưu lại khóa đầu tiên của bạn."
-              action="Tìm khóa học"
-              href="/courses"
+
+      {/* 3. Main Dashboard Layout: Left Rail (8 cols) & Right Rail (4 cols) */}
+      <div className="grid gap-6 lg:grid-cols-12">
+        {/* LEFT COLUMN: Main Learning Flow */}
+        <div className="space-y-6 lg:col-span-8">
+          {/* A. Hero Active Course / Welcome Banner */}
+          <section className="portal-card">
+            <SectionHeading
+              title="Khóa học đã đăng ký gần đây"
+              action="Xem tất cả"
+              href="/learning/courses"
             />
-          )}
-        </section>
-        <section className="portal-card">
-          <SectionHeading
-            title="Tài liệu bạn đã lưu"
-            action="Xem thêm"
-            href="/learning/resources"
-          />
-          <div className="mt-3 grid min-h-[126px] place-items-center rounded-lg border border-dashed border-[#e5eeea] bg-[#fcfefd] px-4 text-center">
-            <div>
-              <FolderClosed className="mx-auto h-5 w-5 text-[#20b486]" />
-              <p className="mt-2 text-xs font-medium text-[#667085]">
-                Tài liệu đã lưu sẽ hiển thị tại đây
-              </p>
+
+            {primaryCourse ? (
+              <div className="mt-4 space-y-4">
+                {/* Premier Featured Course Card */}
+                <div className="relative overflow-hidden rounded-2xl border border-emerald-100/90 bg-gradient-to-br from-emerald-50/50 via-white to-slate-50/30 p-5 transition hover:border-emerald-200 hover:shadow-soft">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-start gap-3.5">
+                      <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-primary text-white shadow-xs">
+                        <GraduationCap className="h-6 w-6 stroke-[1.8]" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100/80 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
+                            <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                            Đang học dở
+                          </span>
+                          <span className="text-[11px] text-muted">
+                            {primaryCourse.courseStatus === "PUBLISHED"
+                              ? "Khóa học chính quy"
+                              : "Đã lưu trữ"}
+                          </span>
+                        </div>
+                        <Link
+                          href={`/learning/courses/${primaryCourse.courseId}`}
+                          className="mt-1 block text-base font-bold text-heading hover:text-primary transition-colors line-clamp-1"
+                        >
+                          {primaryCourse.courseTitle}
+                        </Link>
+                        <p className="mt-0.5 text-xs text-muted">
+                          {primaryProgress
+                            ? `${primaryProgress.completedLessons}/${primaryProgress.totalLessons} bài học hoàn thành`
+                            : "Tiếp tục bài học dở dang để duy trì tiến độ."}
+                        </p>
+                      </div>
+                    </div>
+
+                    <Link
+                      href={
+                        primaryCourse.courseStatus !== "PUBLISHED"
+                          ? "/courses"
+                          : `/learning/courses/${primaryCourse.courseId}`
+                      }
+                      className="focus-ring inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-xs font-semibold text-white shadow-xs transition hover:bg-primary-dark active:scale-[0.98] shrink-0"
+                    >
+                      <Play className="h-3.5 w-3.5 fill-current" />
+                      <span>Tiếp tục học ngay</span>
+                    </Link>
+                  </div>
+
+                  {/* Progress Indicator */}
+                  <div className="mt-4 pt-3 border-t border-slate-100/80">
+                    <div className="flex items-center justify-between text-xs font-medium text-slate-600 mb-1.5">
+                      <span>Tiến độ hoàn thành</span>
+                      <span className="font-semibold text-primary tabular-nums">
+                        {primaryProgress?.progressPercent ?? 0}%
+                      </span>
+                    </div>
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                      <div
+                        className="h-full rounded-full bg-primary transition-all duration-500 ease-out"
+                        style={{ width: `${primaryProgress?.progressPercent ?? 0}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Secondary enrolled courses if available */}
+                {recent.length > 1 && (
+                  <div className="grid gap-3 sm:grid-cols-2 pt-1">
+                    {recent.slice(1).map((course) => (
+                      <RecentCourse
+                        key={course.id}
+                        course={course}
+                        progress={progress[course.courseId]}
+                        compact
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="mt-4 flex flex-col items-center rounded-2xl border border-dashed border-emerald-200/80 bg-gradient-to-br from-emerald-50/40 via-white to-emerald-50/20 px-6 py-8 text-center">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100/80 text-primary shadow-xs">
+                  <BookOpen className="h-7 w-7 stroke-[1.8]" />
+                </div>
+                <h3 className="mt-4 text-base font-bold text-heading">
+                  Bắt đầu hành trình học tập cùng EduAlto
+                </h3>
+                <p className="mt-1 max-w-md text-xs leading-5 text-muted">
+                  Khám phá hàng chục khóa học chất lượng cao từ các chuyên gia hàng đầu. Đăng ký
+                  khóa học đầu tiên để bắt đầu theo dõi tiến độ và nhận chứng chỉ.
+                </p>
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                  <Link
+                    href="/courses"
+                    className="focus-ring inline-flex h-9 items-center gap-2 rounded-xl bg-primary px-4 text-xs font-semibold text-white shadow-xs transition hover:bg-primary-dark active:scale-[0.98]"
+                  >
+                    <span>Tìm khóa học ngay</span>
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </Link>
+                </div>
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5 text-[11px] text-muted">
+                  <span>Gợi ý chủ đề:</span>
+                  <Link
+                    href="/courses"
+                    className="rounded-lg bg-white px-2 py-0.5 border border-slate-200 hover:border-emerald-200 hover:text-primary transition"
+                  >
+                    Lập trình Web
+                  </Link>
+                  <Link
+                    href="/courses"
+                    className="rounded-lg bg-white px-2 py-0.5 border border-slate-200 hover:border-emerald-200 hover:text-primary transition"
+                  >
+                    UI/UX Design
+                  </Link>
+                  <Link
+                    href="/courses"
+                    className="rounded-lg bg-white px-2 py-0.5 border border-slate-200 hover:border-emerald-200 hover:text-primary transition"
+                  >
+                    Java & Spring
+                  </Link>
+                </div>
+              </div>
+            )}
+          </section>
+
+          {/* B. Weekly Learning Activity Chart */}
+          <section className="portal-card">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-semibold tracking-tight text-heading">
+                  Hoạt động học tập tuần này
+                </h2>
+                <p className="mt-0.5 text-xs text-muted">Thời lượng và tiến độ học tập hàng ngày</p>
+              </div>
+
+              {/* View Switcher */}
+              <div className="flex items-center rounded-xl bg-slate-100 p-0.5 text-xs font-medium self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setActivityMetric("hours")}
+                  className={cn(
+                    "rounded-lg px-2.5 py-1 transition",
+                    activityMetric === "hours"
+                      ? "bg-white font-semibold text-heading shadow-xs"
+                      : "text-muted hover:text-heading",
+                  )}
+                >
+                  Thời gian học
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActivityMetric("lessons")}
+                  className={cn(
+                    "rounded-lg px-2.5 py-1 transition",
+                    activityMetric === "lessons"
+                      ? "bg-white font-semibold text-heading shadow-xs"
+                      : "text-muted hover:text-heading",
+                  )}
+                >
+                  Bài học
+                </button>
+              </div>
+            </div>
+
+            {/* 7-Day Activity Bars */}
+            <div className="mt-6 rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
+              <div className="grid grid-cols-7 gap-2 sm:gap-4 items-end h-[140px] px-2 pb-2 border-b border-dashed border-slate-200">
+                {weeklyActivity.map((item) => {
+                  const val = activityMetric === "hours" ? item.hours : item.lessons;
+                  const maxVal = activityMetric === "hours" ? 2.5 : 4;
+                  const heightPercent = Math.min(
+                    100,
+                    Math.max(8, Math.round((val / maxVal) * 100)),
+                  );
+
+                  return (
+                    <div
+                      key={item.day}
+                      className="group relative flex flex-col items-center h-full justify-end"
+                    >
+                      {/* Tooltip on Hover */}
+                      <div className="pointer-events-none absolute -top-8 z-10 hidden whitespace-nowrap rounded-md bg-heading px-2 py-1 text-[10px] font-medium text-white shadow-xs group-hover:block transition">
+                        {item.full}: {item.hours}h ({item.lessons} bài)
+                      </div>
+
+                      {/* Bar */}
+                      <div className="w-full max-w-[36px] h-full flex items-end">
+                        <div
+                          className={cn(
+                            "w-full rounded-t-lg transition-all duration-300",
+                            val > 0
+                              ? item.isToday
+                                ? "bg-primary shadow-xs shadow-primary/30"
+                                : "bg-emerald-500/75 hover:bg-primary"
+                              : "bg-slate-200/80",
+                          )}
+                          style={{ height: `${val > 0 ? heightPercent : 8}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Day Labels */}
+              <div className="mt-3 grid grid-cols-7 gap-2 sm:gap-4 text-center">
+                {weeklyActivity.map((item) => (
+                  <div key={item.day} className="flex flex-col items-center">
+                    <span
+                      className={cn(
+                        "text-[11px] font-medium transition",
+                        item.isToday
+                          ? "rounded-md bg-emerald-100 px-1.5 py-0.5 font-bold text-emerald-800"
+                          : "text-muted",
+                      )}
+                    >
+                      {item.day}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Chart Summary Footer */}
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-muted pt-2 border-t border-slate-100">
+              <div className="flex items-center gap-4">
+                <span>
+                  ⏱️ Tổng tuần:{" "}
+                  <strong className="text-heading font-semibold tabular-nums">
+                    {totalWeeklyHours} giờ
+                  </strong>
+                </span>
+                <span>
+                  🎯 Mục tiêu tuần:{" "}
+                  <strong className="text-primary font-semibold tabular-nums">75%</strong>
+                </span>
+              </div>
+              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
+                Duy trì phong độ đều đặn ⭐
+              </span>
+            </div>
+          </section>
+
+          {/* C. Quick Access: Saved Documents & Study Notes */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            {/* Documents */}
+            <section className="portal-card flex flex-col justify-between">
+              <div>
+                <SectionHeading
+                  title="Tài liệu bạn đã lưu"
+                  action="Xem thêm"
+                  href="/learning/resources"
+                />
+                <div className="mt-3 rounded-xl border border-slate-100 bg-slate-50/60 p-4 text-center">
+                  <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-primary">
+                    <FolderClosed className="h-5 w-5 stroke-[1.8]" />
+                  </div>
+                  <p className="mt-2 text-xs font-semibold text-heading">Kho tài liệu học tập</p>
+                  <p className="mt-1 text-[11px] text-muted">
+                    Các tài liệu, slide bài giảng được lưu lại sẽ hiển thị ở đây để bạn ôn tập bất
+                    cứ lúc nào.
+                  </p>
+                </div>
+              </div>
+
               <Link
                 href="/learning/resources"
-                className="mt-2 inline-block text-xs font-medium text-primary"
+                className="focus-ring mt-3 inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200/80 bg-white py-2 text-xs font-semibold text-heading hover:border-emerald-200 hover:text-primary transition"
               >
-                Mở thư viện tài liệu
+                <span>Mở thư viện tài liệu</span>
+                <ChevronRight className="h-3.5 w-3.5" />
               </Link>
-            </div>
-          </div>
-        </section>
-        <section className="portal-card">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold capitalize text-[#079367]">{monthName}</h2>
-            <Link href="/learning/calendar" className="text-xs font-medium text-primary">
-              Mở lịch
-            </Link>
-          </div>
-          <div className="mt-3 grid grid-cols-7 text-center text-[9px] text-[#87928d]">
-            {["CN", "T2", "T3", "T4", "T5", "T6", "T7"].map((day) => (
-              <span key={day} className="py-1">
-                {day}
-              </span>
-            ))}
-          </div>
-          <div className="grid grid-cols-7 gap-y-1 text-center text-[10px]">
-            {Array.from({ length: firstWeekday }, (_, i) => (
-              <span key={`blank-${i}`} />
-            ))}
-            {days.map((day) => (
-              <span
-                key={day}
-                className={cn(
-                  "mx-auto grid h-5 w-5 place-items-center rounded-full",
-                  day === new Date().getDate() && "bg-[#079367] font-semibold text-white",
-                )}
-              >
-                {day}
-              </span>
-            ))}
-          </div>
-        </section>
-      </div>
-      <div className="grid gap-4 xl:grid-cols-[1fr_.8fr_1.2fr]">
-        <section className="portal-card">
-          <SectionHeading title="Thời gian học" />
-          <div className="mt-3 rounded-lg border border-[#edf1ef] p-3">
-            <div className="flex gap-3 text-[10px] text-[#667085]">
-              <span className="flex items-center gap-1">
-                <i className="h-2 w-2 rounded-sm bg-[#079367]" />
-                Học tập
-              </span>
-              <span className="flex items-center gap-1">
-                <i className="h-2 w-2 rounded-sm bg-[#c8f5e8]" />
-                Kiểm tra
-              </span>
-            </div>
-            <div className="mt-3 grid h-[112px] grid-cols-5 items-end gap-3 border-b border-dashed border-[#e5e9ec] px-2">
-              {recent.length ? (
-                recent.map((course) => (
-                  <div key={course.id} className="flex h-full items-end">
-                    <span
-                      className="w-full rounded-t bg-[#079367]"
-                      style={{
-                        height: `${Math.max(10, progress[course.courseId]?.progressPercent ?? 10)}%`,
-                      }}
-                    />
+            </section>
+
+            {/* Notes */}
+            <section className="portal-card flex flex-col justify-between">
+              <div>
+                <SectionHeading
+                  title="Ghi chú gần nhất"
+                  action="Tất cả ghi chú"
+                  href="/learning/notes"
+                />
+                <div className="mt-3 rounded-xl border border-slate-100 bg-slate-50/60 p-4 text-center">
+                  <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
+                    <NotebookPen className="h-5 w-5 stroke-[1.8]" />
                   </div>
-                ))
-              ) : (
-                <p className="col-span-5 self-center text-center text-[10px] text-[#98a19e]">
-                  Chưa có dữ liệu thời gian học
-                </p>
-              )}
-            </div>
-            <div className="mt-2 flex justify-between text-[9px] text-[#8a9591]">
-              {["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6"].map((day) => (
-                <span key={day}>{day}</span>
-              ))}
-            </div>
-          </div>
-        </section>
-        <section className="portal-card">
-          <SectionHeading title="Hiệu suất" />
-          <div className="mt-3 grid min-h-[151px] place-items-center rounded-lg border border-[#edf1ef]">
-            <div className="text-center">
-              <div className="relative mx-auto grid h-[82px] w-[112px] place-items-center overflow-hidden">
-                <div className="absolute top-3 h-[96px] w-[96px] rounded-full border-[9px] border-[#d7f6eb] border-b-transparent" />
-                <div
-                  className="absolute top-3 h-[96px] w-[96px] rounded-full border-[9px] border-[#079367] border-b-transparent"
-                  style={{ clipPath: `inset(0 ${100 - completion}% 0 0)` }}
-                />
-                <span className="absolute bottom-1 h-3 w-3 rounded-full border-2 border-[#079367] bg-white" />
+                  <p className="mt-2 text-xs font-semibold text-heading">Ghi chú bài giảng</p>
+                  <p className="mt-1 text-[11px] text-muted">
+                    Ghi lại các ý chính tại các mốc thời gian video để dễ dàng tra cứu lại khi cần
+                    làm bài tập.
+                  </p>
+                </div>
               </div>
-              <p className="mt-1 text-xs">
-                Bài học hoàn thành: <b className="text-primary">{completion}%</b>
-              </p>
-            </div>
-          </div>
-        </section>
-        <section className="portal-card">
-          <SectionHeading title="Việc cần làm" />
-          <div className="mt-2 divide-y divide-[#e8ecee]">
-            {tasks.map((task) => (
-              <label key={task.id} className="flex cursor-pointer items-start gap-2.5 py-2.5">
-                <input
-                  type="checkbox"
-                  checked={task.done}
-                  onChange={() =>
-                    setTasks((items) =>
-                      items.map((item) =>
-                        item.id === task.id ? { ...item, done: !item.done } : item,
-                      ),
-                    )
-                  }
-                  className="mt-0.5 h-3.5 w-3.5 accent-[#079367]"
-                />
-                <span className="min-w-0 flex-1">
-                  <span
-                    className={cn(
-                      "block text-xs font-medium",
-                      task.done && "text-[#9ba5a1] line-through",
-                    )}
-                  >
-                    {task.title}
-                  </span>
-                  <span className="mt-1 block text-[10px] text-[#8a9591]">
-                    {task.detail} · {task.date}
-                  </span>
-                </span>
-              </label>
-            ))}
-          </div>
-          <Link
-            href="/learning/assignments"
-            className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-primary"
-          >
-            Xem bài tập <ChevronRight className="h-3.5 w-3.5" />
-          </Link>
-        </section>
-      </div>
-      <section className="portal-card">
-        <SectionHeading
-          title="Sự kiện sắp tới"
-          action="Mở thời khóa biểu"
-          href="/learning/calendar"
-        />
-        <div className="mt-3 grid min-h-[100px] place-items-center rounded-lg bg-[#fcfefd] text-center">
-          <div>
-            <CalendarDays className="mx-auto h-5 w-5 text-primary" />
-            <p className="mt-2 text-xs text-[#87928d]">
-              Sự kiện trong lịch học sẽ hiển thị tại đây.
-            </p>
-            <Link
-              href="/learning/calendar"
-              className="mt-2 inline-block text-xs font-medium text-primary"
-            >
-              Mở thời khóa biểu
-            </Link>
+
+              <Link
+                href="/learning/notes"
+                className="focus-ring mt-3 inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200/80 bg-white py-2 text-xs font-semibold text-heading hover:border-amber-200 hover:text-amber-700 transition"
+              >
+                <span>Quản lý ghi chú</span>
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
+            </section>
           </div>
         </div>
-      </section>
+
+        {/* RIGHT COLUMN: Calendar, Agenda & Performance */}
+        <div className="space-y-6 lg:col-span-4">
+          {/* A. Calendar & Upcoming Agenda Widget */}
+          <section className="portal-card">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-semibold capitalize tracking-tight text-heading">
+                  {monthName}
+                </h2>
+                <p className="text-[11px] text-muted">Lịch học và sự kiện</p>
+              </div>
+              <Link
+                href="/learning/calendar"
+                className="focus-ring inline-flex items-center gap-0.5 text-xs font-semibold text-primary hover:text-primary-dark transition"
+              >
+                <span>Mở lịch</span>
+                <ChevronRight className="h-3 w-3" />
+              </Link>
+            </div>
+
+            {/* Weekday Headers */}
+            <div className="mt-4 grid grid-cols-7 text-center text-[10px] font-semibold text-muted">
+              {["CN", "T2", "T3", "T4", "T5", "T6", "T7"].map((day) => (
+                <span key={day} className="py-1">
+                  {day}
+                </span>
+              ))}
+            </div>
+
+            {/* Full Days Grid (All days in month!) */}
+            <div className="grid grid-cols-7 gap-y-1 text-center text-xs">
+              {Array.from({ length: firstWeekday }, (_, i) => (
+                <span key={`blank-${i}`} />
+              ))}
+              {days.map((day) => {
+                const isToday = day === currentDay;
+                const isSelected = day === selectedDate;
+                const hasEvents = Boolean(eventsByDay[day]?.length);
+
+                return (
+                  <button
+                    key={day}
+                    type="button"
+                    onClick={() => setSelectedDate(day)}
+                    className={cn(
+                      "focus-ring relative mx-auto flex h-7 w-7 items-center justify-center rounded-xl text-xs font-medium transition active:scale-[0.95]",
+                      isSelected
+                        ? "bg-primary font-bold text-white shadow-xs shadow-primary/30"
+                        : isToday
+                          ? "border border-primary font-bold text-primary bg-emerald-50/50"
+                          : "text-slate-700 hover:bg-slate-100",
+                    )}
+                  >
+                    <span>{day}</span>
+                    {hasEvents && !isSelected && (
+                      <span className="absolute bottom-0.5 h-1 w-1 rounded-full bg-primary" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Agenda List Right Below Calendar */}
+            <div className="mt-5 border-t border-slate-100 pt-4">
+              <div className="flex items-center justify-between mb-2.5">
+                <h3 className="text-xs font-bold text-heading">
+                  Sự kiện ngày {selectedDate} tháng {currentMonth + 1}
+                </h3>
+                <span className="text-[10px] text-muted">{selectedDateEvents.length} sự kiện</span>
+              </div>
+
+              {selectedDateEvents.length > 0 ? (
+                <div className="space-y-2">
+                  {selectedDateEvents.map((ev) => (
+                    <div
+                      key={ev.id}
+                      className="rounded-xl border border-slate-100 bg-slate-50/70 p-2.5 text-xs transition hover:bg-white hover:border-emerald-200"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-heading line-clamp-1">{ev.title}</span>
+                        <span className="rounded-md bg-emerald-100 px-1.5 py-0.5 text-[9px] font-semibold text-emerald-800 shrink-0">
+                          Đã lên lịch
+                        </span>
+                      </div>
+                      <p className="mt-1 text-[11px] text-muted flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        <span>
+                          {new Intl.DateTimeFormat("vi-VN", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          }).format(new Date(ev.startsAt))}
+                        </span>
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-xl bg-slate-50/60 p-3.5 text-center text-xs">
+                  <CalendarDays className="mx-auto h-4 w-4 text-slate-400" />
+                  <p className="mt-1.5 text-[11px] text-muted">
+                    Không có lịch học nào vào ngày này.
+                  </p>
+                  <Link
+                    href="/learning/calendar"
+                    className="focus-ring mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
+                  >
+                    <span>+ Thêm vào thời khóa biểu</span>
+                  </Link>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* B. To-Do Tasks & Assignments */}
+          <section className="portal-card">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-semibold tracking-tight text-heading">Việc cần làm</h2>
+                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 border border-emerald-200/60">
+                  {pendingTasksCount}
+                </span>
+              </div>
+              <Link
+                href="/learning/assignments"
+                className="focus-ring inline-flex items-center gap-0.5 text-xs font-semibold text-primary hover:text-primary-dark transition"
+              >
+                <span>Xem bài tập</span>
+                <ChevronRight className="h-3 w-3" />
+              </Link>
+            </div>
+
+            <div className="mt-3 divide-y divide-slate-100">
+              {tasks.map((task) => (
+                <label
+                  key={task.id}
+                  className="flex cursor-pointer items-start gap-3 py-2.5 transition hover:bg-slate-50/50 rounded-lg px-1"
+                >
+                  <input
+                    type="checkbox"
+                    checked={task.done}
+                    onChange={() =>
+                      setTasks((items) =>
+                        items.map((item) =>
+                          item.id === task.id ? { ...item, done: !item.done } : item,
+                        ),
+                      )
+                    }
+                    className="mt-0.5 h-4 w-4 rounded border-slate-300 accent-primary cursor-pointer transition active:scale-[0.95]"
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span
+                      className={cn(
+                        "block text-xs font-medium transition",
+                        task.done ? "text-slate-400 line-through" : "text-heading font-semibold",
+                      )}
+                    >
+                      {task.title}
+                    </span>
+                    <span className="mt-0.5 block text-[10px] text-muted">
+                      {task.detail} ·{" "}
+                      <span className="text-emerald-700 font-medium">{task.date}</span>
+                    </span>
+                  </span>
+                </label>
+              ))}
+
+              {/* Show pending real assignments if any */}
+              {assignments
+                .filter((a) => a.status === "PUBLISHED" && !a.submittedAt)
+                .slice(0, 2)
+                .map((assign) => (
+                  <div
+                    key={assign.id}
+                    className="py-2.5 px-1 flex items-start justify-between gap-2"
+                  >
+                    <div>
+                      <p className="text-xs font-semibold text-heading line-clamp-1">
+                        {assign.title}
+                      </p>
+                      <p className="text-[10px] text-coral font-medium mt-0.5">
+                        {assign.dueAt
+                          ? `Hạn nộp: ${new Intl.DateTimeFormat("vi-VN", { day: "2-digit", month: "2-digit" }).format(new Date(assign.dueAt))}`
+                          : "Bài tập được giao"}
+                      </p>
+                    </div>
+                    <Link
+                      href="/learning/assignments"
+                      className="rounded-lg bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-primary hover:bg-emerald-100 shrink-0 transition"
+                    >
+                      Làm bài
+                    </Link>
+                  </div>
+                ))}
+            </div>
+          </section>
+
+          {/* C. Performance & Radial Gauge */}
+          <section className="portal-card">
+            <SectionHeading title="Hiệu suất học tập" />
+
+            <div className="mt-4 flex flex-col items-center justify-center rounded-2xl border border-slate-100 bg-slate-50/40 p-5 text-center">
+              {/* Radial SVG Gauge */}
+              <div className="relative flex items-center justify-center">
+                <svg className="h-28 w-28 -rotate-90 transform" viewBox="0 0 108 108">
+                  {/* Background Track */}
+                  <circle
+                    cx="54"
+                    cy="54"
+                    r={gaugeRadius}
+                    className="text-emerald-100/70"
+                    strokeWidth="8"
+                    stroke="currentColor"
+                    fill="transparent"
+                  />
+                  {/* Progress Arc */}
+                  <circle
+                    cx="54"
+                    cy="54"
+                    r={gaugeRadius}
+                    className="text-primary transition-all duration-700 ease-out"
+                    strokeWidth="8"
+                    strokeDasharray={gaugeCircumference}
+                    strokeDashoffset={strokeDashoffset}
+                    strokeLinecap="round"
+                    stroke="currentColor"
+                    fill="transparent"
+                  />
+                </svg>
+
+                {/* Center Percentage Display */}
+                <div className="absolute flex flex-col items-center justify-center">
+                  <span className="text-2xl font-bold tracking-tight text-heading tabular-nums">
+                    {completion}%
+                  </span>
+                  <span className="text-[10px] font-medium text-muted">Hoàn thành</span>
+                </div>
+              </div>
+
+              <p className="mt-3 text-xs font-semibold text-heading">
+                {totalCompleted} / {totalLessons || 0} bài học đã hoàn tất
+              </p>
+              <p className="mt-1 text-[11px] text-muted">
+                {completion >= 80
+                  ? "Tiến độ xuất sắc! Tiếp tục bứt phá mục tiêu nhé."
+                  : completion > 0
+                    ? "Đang duy trì thói quen học tập rất tốt."
+                    : "Hãy bắt đầu bài học đầu tiên ngay hôm nay!"}
+              </p>
+            </div>
+          </section>
+        </div>
+      </div>
     </div>
   );
 }
@@ -809,14 +1496,15 @@ function SectionHeading({
   href?: string;
 }) {
   return (
-    <div className="flex items-center justify-between gap-2">
-      <h2 className="text-sm font-semibold text-[#078e69]">{title}</h2>
+    <div className="flex items-center justify-between gap-3">
+      <h2 className="text-sm font-semibold tracking-tight text-heading">{title}</h2>
       {action && href && (
         <Link
           href={href}
-          className="focus-ring rounded text-xs font-medium text-primary hover:underline"
+          className="focus-ring inline-flex items-center gap-0.5 text-xs font-semibold text-primary transition hover:text-primary-dark"
         >
-          {action}
+          <span>{action}</span>
+          <ChevronRight className="h-3 w-3" />
           <span className="sr-only">: {title}</span>
         </Link>
       )}
@@ -838,33 +1526,33 @@ function RecentCourse({
   return (
     <article
       className={cn(
-        "rounded-xl border border-[#e9efec] bg-white p-3 transition hover:border-[#bce8d8] hover:shadow-sm",
+        "rounded-2xl border border-slate-200/80 bg-white p-3.5 transition hover:border-emerald-200 hover:shadow-soft",
         compact && "flex items-center gap-3",
       )}
     >
       <div className={cn("flex items-center gap-3", compact && "min-w-0 flex-1")}>
-        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#e5f8f1] text-primary">
-          <GraduationCap className="h-5 w-5" />
+        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-50 text-primary">
+          <GraduationCap className="h-5 w-5 stroke-[1.8]" />
         </div>
         <div className="min-w-0 flex-1">
           <Link
             href={`/learning/courses/${course.courseId}`}
-            className="focus-ring line-clamp-1 text-sm font-semibold text-[#26332e] hover:text-primary"
+            className="focus-ring line-clamp-1 text-xs font-bold text-heading hover:text-primary transition"
           >
             {course.courseTitle}
           </Link>
-          <p className="mt-1 text-[11px] text-[#89948f]">
+          <p className="mt-0.5 text-[11px] text-muted">
             {archived
               ? "Khóa học đã lưu trữ"
               : progress
-                ? `${progress.completedLessons}/${progress.totalLessons} bài đã hoàn thành`
+                ? `${progress.completedLessons}/${progress.totalLessons} bài đã học`
                 : "Đang cập nhật tiến độ"}
           </p>
         </div>
         {compact && (
           <Link
             href={archived ? "/courses" : `/learning/courses/${course.courseId}`}
-            className="focus-ring inline-flex h-8 shrink-0 items-center rounded-lg bg-primary px-3 text-xs font-semibold text-white transition hover:bg-[#159e75] active:bg-[#128763]"
+            className="focus-ring inline-flex h-8 shrink-0 items-center rounded-xl bg-emerald-50 px-3 text-xs font-semibold text-primary transition hover:bg-emerald-100 active:scale-[0.98]"
           >
             {archived ? "Khám phá" : "Tiếp tục"}
           </Link>
@@ -872,22 +1560,24 @@ function RecentCourse({
       </div>
       {!compact && (
         <>
-          <div className="mt-3 flex items-center justify-between text-[10px] text-[#89948f]">
+          <div className="mt-3 flex items-center justify-between text-[11px] text-muted">
             <span>Tiến độ học</span>
-            <span>{archived ? "—" : `${percent}%`}</span>
+            <span className="font-semibold text-primary tabular-nums">
+              {archived ? "—" : `${percent}%`}
+            </span>
           </div>
-          <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[#edf3f0]">
+          <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-100">
             <div
-              className="h-full rounded-full bg-primary"
+              className="h-full rounded-full bg-primary transition-all duration-300"
               style={{ width: `${archived ? 0 : percent}%` }}
             />
           </div>
           <div className="mt-3 flex justify-end">
             <Link
               href={archived ? "/courses" : `/learning/courses/${course.courseId}`}
-              className="focus-ring inline-flex h-8 items-center gap-1 rounded-lg bg-[#e5faf2] px-3 text-[11px] font-semibold text-primary hover:bg-[#d5f4e8]"
+              className="focus-ring inline-flex h-8 items-center gap-1 rounded-xl bg-emerald-50 px-3 text-xs font-semibold text-primary transition hover:bg-emerald-100 active:scale-[0.98]"
             >
-              {archived ? "Khám phá lại" : "Tiếp tục học"}
+              <span>{archived ? "Khám phá lại" : "Tiếp tục học"}</span>
               <ChevronRight className="h-3.5 w-3.5" />
             </Link>
           </div>
@@ -897,45 +1587,15 @@ function RecentCourse({
   );
 }
 
-function SmallEmpty({
-  icon,
-  title,
-  detail,
-  action,
-  href,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  detail: string;
-  action: string;
-  href: string;
-}) {
-  return (
-    <div className="mt-4 flex flex-col items-center rounded-xl border border-dashed border-[#dce8e2] bg-[#fbfefc] px-4 py-7 text-center">
-      <span className="grid h-10 w-10 place-items-center rounded-full bg-[#e6faf3] text-primary">
-        {icon}
-      </span>
-      <p className="mt-3 text-sm font-semibold text-[#26332e]">{title}</p>
-      <p className="mt-1 max-w-sm text-xs leading-5 text-[#87928e]">{detail}</p>
-      <Link
-        href={href}
-        className="focus-ring mt-3 inline-flex h-9 items-center rounded-lg bg-primary px-4 text-xs font-semibold text-white transition hover:bg-[#159e75] active:bg-[#128763]"
-      >
-        {action}
-      </Link>
-    </div>
-  );
-}
-
 function InstructorCourseCard({ course }: { course: InstructorCourse }) {
   const isPublished = course.status === "PUBLISHED";
   const isDraft = course.status === "DRAFT";
   const statusLabel = isPublished ? "Đang xuất bản" : isDraft ? "Bản nháp" : "Đã lưu trữ";
   const statusBadgeClass = isPublished
-    ? "bg-emerald-50 text-emerald-700 border-emerald-200/80 font-semibold"
+    ? "border-emerald-400/30 bg-emerald-950/70 text-emerald-200"
     : isDraft
-      ? "bg-amber-50 text-amber-700 border-amber-200/80 font-semibold"
-      : "bg-slate-100 text-slate-600 border-slate-200 font-medium";
+      ? "border-amber-400/30 bg-amber-950/70 text-amber-200"
+      : "border-slate-400/30 bg-slate-900/70 text-slate-300";
 
   const levelLabel =
     course.level === "BEGINNER"
@@ -962,62 +1622,119 @@ function InstructorCourseCard({ course }: { course: InstructorCourse }) {
   );
 
   return (
-    <article className="group flex flex-col overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-xs transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md">
-      <div className="relative aspect-video w-full overflow-hidden bg-slate-100 ring-1 ring-black/5">
+    <article className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-all duration-300 hover:-translate-y-1 hover:border-emerald-300 hover:shadow-xl hover:shadow-emerald-950/5">
+      <div className="relative aspect-video w-full overflow-hidden bg-slate-950">
         {course.thumbnailUrl ? (
           <Image
             src={course.thumbnailUrl}
             alt={course.title}
             fill
-            className="object-cover transition duration-300 group-hover:scale-105"
+            className="object-cover transition-transform duration-500 group-hover:scale-105"
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-emerald-50 to-teal-100/50 text-primary">
-            <BookOpen className="h-10 w-10 stroke-[1.6]" />
+          <div className="relative flex h-full w-full items-center justify-center overflow-hidden bg-gradient-to-br from-emerald-900 via-teal-950 to-slate-950">
+            {/* Ambient glowing radial orbs */}
+            <div className="absolute -right-8 -top-8 h-36 w-36 rounded-full bg-emerald-500/20 blur-2xl transition-transform duration-500 group-hover:scale-125" />
+            <div className="absolute -left-8 -bottom-8 h-36 w-36 rounded-full bg-teal-400/20 blur-2xl transition-transform duration-500 group-hover:scale-125" />
+            {/* Subtle dot pattern */}
+            <div className="absolute inset-0 bg-[radial-gradient(#ffffff15_1px,transparent_1px)] [background-size:14px_14px]" />
+            {/* Centered emblem */}
+            <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl border border-white/20 bg-white/10 text-emerald-200 shadow-xl backdrop-blur-md transition-transform duration-300 group-hover:scale-110 group-hover:bg-white/15">
+              <BookOpen className="h-7 w-7 stroke-[1.8]" />
+            </div>
+            {/* Bottom subtitle strip inside cover */}
+            <div className="absolute bottom-2.5 left-3.5 right-3.5 flex items-center justify-between text-[10px] font-semibold tracking-wider text-emerald-200/60 uppercase">
+              <span>EduAlto Giảng viên</span>
+              <span>{course.language.toUpperCase()}</span>
+            </div>
           </div>
         )}
+
         <div className="absolute left-3 top-3 flex items-center gap-1.5">
-          <span className={cn("rounded-md border px-2 py-0.5 text-[10px]", statusBadgeClass)}>
+          <span
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold backdrop-blur-md shadow-xs",
+              statusBadgeClass,
+            )}
+          >
+            <span
+              className={cn(
+                "h-1.5 w-1.5 rounded-full",
+                isPublished
+                  ? "bg-emerald-400 animate-pulse"
+                  : isDraft
+                    ? "bg-amber-400"
+                    : "bg-slate-400",
+              )}
+            />
             {statusLabel}
           </span>
-          <span className="rounded-md border border-white/70 bg-white/90 px-2 py-0.5 text-[10px] font-medium text-slate-700 shadow-xs">
+        </div>
+
+        <div className="absolute right-3 top-3">
+          <span className="inline-flex items-center rounded-full border border-white/20 bg-black/40 px-2.5 py-1 text-[11px] font-medium text-white shadow-xs backdrop-blur-md">
             {levelLabel}
           </span>
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col p-4">
-        <h2 className="line-clamp-2 min-h-11 text-sm font-semibold leading-5 text-[#101a2c] group-hover:text-primary transition-colors">
-          {course.title}
-        </h2>
-        {course.tagline ? (
-          <p className="mt-1 line-clamp-1 text-xs text-slate-500">{course.tagline}</p>
-        ) : null}
+      <div className="flex flex-1 flex-col justify-between p-4 sm:p-5">
+        <div>
+          <h2 className="line-clamp-2 min-h-11 text-sm sm:text-base font-bold leading-snug text-heading transition-colors group-hover:text-primary">
+            {course.title}
+          </h2>
+          {course.tagline ? (
+            <p className="mt-1 line-clamp-1 text-xs text-muted leading-relaxed">{course.tagline}</p>
+          ) : (
+            <p className="mt-1 line-clamp-1 text-xs text-slate-400 italic">Chưa có mô tả ngắn</p>
+          )}
 
-        <div className="mt-3 flex items-center justify-between text-xs">
-          <span className="font-bold text-[#079367]">{formattedPrice}</span>
-          <span className="text-[11px] text-slate-400">Cập nhật: {formattedDate}</span>
+          <div className="mt-3.5 flex items-center justify-between text-xs">
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-base font-extrabold text-[#079367] tabular-nums">
+                {formattedPrice}
+              </span>
+              {course.originalPrice && course.originalPrice > course.price ? (
+                <span className="text-xs text-slate-400 line-through">
+                  {new Intl.NumberFormat("vi-VN", {
+                    style: "currency",
+                    currency: "VND",
+                    maximumFractionDigits: 0,
+                  })
+                    .format(course.originalPrice)
+                    .replace("₫", "đ")}
+                </span>
+              ) : null}
+            </div>
+            <div className="flex items-center gap-1 text-[11px] text-muted">
+              <Clock className="h-3 w-3 stroke-[1.8]" />
+              <span>{formattedDate}</span>
+            </div>
+          </div>
         </div>
 
-        <div className="mt-4 flex items-center gap-2 border-t border-slate-100 pt-3">
+        <div className="mt-4 flex items-center gap-2 border-t border-slate-100 pt-3.5">
           <Link
             href={`/instructor/courses/${course.id}/overview`}
-            className="focus-ring flex-1 inline-flex h-8 items-center justify-center rounded-lg bg-primary px-3 text-xs font-semibold text-white shadow-xs transition hover:bg-primary-dark active:scale-[0.98]"
+            className="focus-ring flex-1 inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-primary px-3 text-xs font-semibold text-white shadow-xs shadow-primary/20 transition hover:bg-primary-dark active:scale-[0.98]"
           >
-            Quản lý khóa học
+            <span>Quản lý</span>
           </Link>
           <Link
             href={`/instructor/courses/${course.id}/curriculum`}
-            className="focus-ring inline-flex h-8 items-center justify-center rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-[0.98]"
+            className="focus-ring inline-flex h-9 items-center justify-center gap-1 rounded-xl border border-slate-200 bg-slate-50/80 px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 hover:text-heading active:scale-[0.98]"
             title="Quản lý giáo trình"
           >
-            Giáo trình
+            <BookOpen className="h-3.5 w-3.5 text-slate-500" />
+            <span>Giáo trình</span>
           </Link>
           <Link
             href={`/courses/${course.slug}`}
-            className="focus-ring inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 hover:text-primary active:scale-[0.98]"
+            className="focus-ring inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:border-emerald-300 hover:bg-emerald-50/50 hover:text-primary active:scale-[0.98]"
             title="Xem trang học viên"
+            target="_blank"
+            rel="noreferrer"
           >
             <ArrowUpRight className="h-4 w-4 stroke-[1.8]" />
           </Link>
@@ -1094,31 +1811,32 @@ function MyCourses({
   if (isInstructor) {
     return (
       <div className="space-y-6">
+        {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="flex items-center gap-2.5">
-              <h1 className="text-xl font-bold tracking-tight text-[#101a2c] md:text-2xl">
+              <h1 className="text-xl font-bold tracking-tight text-heading md:text-2xl">
                 Khóa học của tôi
               </h1>
               <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 border border-emerald-200/80">
                 Giảng viên
               </span>
             </div>
-            <p className="mt-1 text-sm text-[#667085]">
+            <p className="mt-1 text-sm text-muted">
               Quản lý các khóa học bạn giảng dạy và theo dõi các khóa học bạn đang tham gia học tập
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2.5">
             <Link
               href="/instructor"
-              className="focus-ring inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-[0.98]"
+              className="focus-ring inline-flex h-9.5 items-center gap-2 rounded-xl border border-slate-200/80 bg-white px-3.5 text-xs font-semibold text-slate-700 shadow-xs transition hover:bg-slate-50 active:scale-[0.98]"
             >
               <LayoutDashboard className="h-4 w-4 text-[#20B486]" />
               <span>Bảng điều khiển Giảng viên</span>
             </Link>
             <Link
               href="/instructor/courses/overview"
-              className="focus-ring inline-flex h-9 items-center gap-2 rounded-xl bg-primary px-3.5 text-xs font-semibold text-white shadow-xs shadow-primary/25 transition hover:bg-primary-dark active:scale-[0.98]"
+              className="focus-ring inline-flex h-9.5 items-center gap-2 rounded-xl bg-primary px-3.5 text-xs font-semibold text-white shadow-xs shadow-primary/25 transition hover:bg-primary-dark active:scale-[0.98]"
             >
               <Plus className="h-4 w-4" />
               <span>Tạo khóa học mới</span>
@@ -1126,129 +1844,177 @@ function MyCourses({
           </div>
         </div>
 
-        <div className="flex border-b border-slate-200/80">
-          <button
-            type="button"
-            onClick={() => onInstructorTabChange?.("teaching")}
-            className={cn(
-              "relative flex items-center gap-2 px-4 py-3 text-sm font-semibold transition border-b-2 -mb-px active:scale-[0.98]",
-              instructorTab === "teaching"
-                ? "border-primary text-primary"
-                : "border-transparent text-slate-500 hover:text-slate-800",
-            )}
-          >
-            <BookOpen className="h-4 w-4" />
-            <span>Khóa học giảng dạy</span>
-            <span
+        {/* Modern Segmented Control */}
+        <div className="flex items-center justify-between border-b border-slate-200/70 pb-4">
+          <div className="inline-flex p-1 rounded-2xl bg-slate-100/90 border border-slate-200/70 backdrop-blur-xs gap-1">
+            <button
+              type="button"
+              onClick={() => onInstructorTabChange?.("teaching")}
               className={cn(
-                "rounded-full px-2 py-0.5 text-xs font-bold",
+                "flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 active:scale-[0.98]",
                 instructorTab === "teaching"
-                  ? "bg-emerald-100 text-emerald-800"
-                  : "bg-slate-100 text-slate-600",
+                  ? "bg-white text-heading shadow-xs border border-slate-200/60"
+                  : "text-slate-600 hover:text-heading hover:bg-white/50",
               )}
             >
-              {instructorCourses.length}
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={() => onInstructorTabChange?.("learning")}
-            className={cn(
-              "relative flex items-center gap-2 px-4 py-3 text-sm font-semibold transition border-b-2 -mb-px active:scale-[0.98]",
-              instructorTab === "learning"
-                ? "border-primary text-primary"
-                : "border-transparent text-slate-500 hover:text-slate-800",
-            )}
-          >
-            <GraduationCap className="h-4 w-4" />
-            <span>Khóa học đang học</span>
-            <span
+              <BookOpen className="h-4 w-4 text-primary" />
+              <span>Khóa học giảng dạy</span>
+              <span
+                className={cn(
+                  "px-2 py-0.5 rounded-full text-[11px] font-bold tabular-nums",
+                  instructorTab === "teaching"
+                    ? "bg-emerald-50 text-primary border border-emerald-200/60"
+                    : "bg-slate-200/70 text-slate-600",
+                )}
+              >
+                {instructorCourses.length}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onInstructorTabChange?.("learning")}
               className={cn(
-                "rounded-full px-2 py-0.5 text-xs font-bold",
+                "flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 active:scale-[0.98]",
                 instructorTab === "learning"
-                  ? "bg-emerald-100 text-emerald-800"
-                  : "bg-slate-100 text-slate-600",
+                  ? "bg-white text-heading shadow-xs border border-slate-200/60"
+                  : "text-slate-600 hover:text-heading hover:bg-white/50",
               )}
             >
-              {courses.length}
-            </span>
-          </button>
+              <GraduationCap className="h-4 w-4 text-primary" />
+              <span>Khóa học đang học</span>
+              <span
+                className={cn(
+                  "px-2 py-0.5 rounded-full text-[11px] font-bold tabular-nums",
+                  instructorTab === "learning"
+                    ? "bg-emerald-50 text-primary border border-emerald-200/60"
+                    : "bg-slate-200/70 text-slate-600",
+                )}
+              >
+                {courses.length}
+              </span>
+            </button>
+          </div>
         </div>
 
         {instructorTab === "teaching" ? (
-          <div>
-            <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <div className="rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-xs">
-                <p className="text-[11px] font-medium text-slate-500">Tổng khóa học</p>
-                <p className="mt-1 text-xl font-bold text-[#101a2c]">{instructorCourses.length}</p>
+          <div className="space-y-6">
+            {/* 4 Stat Metric Cards */}
+            <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-4">
+              <div className="portal-card flex items-center gap-3.5 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs transition hover:border-emerald-200">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-primary border border-emerald-100">
+                  <BookOpen className="h-5 w-5 stroke-[1.8]" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-muted">Tổng khóa học</p>
+                  <p className="text-2xl font-bold tracking-tight text-heading tabular-nums">
+                    {instructorCourses.length}
+                  </p>
+                </div>
               </div>
-              <div className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-3.5 shadow-xs">
-                <p className="text-[11px] font-medium text-emerald-700">Đang xuất bản</p>
-                <p className="mt-1 text-xl font-bold text-emerald-700">
-                  {instructorCourses.filter((c) => c.status === "PUBLISHED").length}
-                </p>
+
+              <div className="portal-card flex items-center gap-3.5 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs transition hover:border-teal-200">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-700 border border-teal-100">
+                  <CheckCircle2 className="h-5 w-5 stroke-[1.8]" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-muted">Đang xuất bản</p>
+                  <p className="text-2xl font-bold tracking-tight text-teal-700 tabular-nums">
+                    {instructorCourses.filter((c) => c.status === "PUBLISHED").length}
+                  </p>
+                </div>
               </div>
-              <div className="rounded-xl border border-amber-100 bg-amber-50/40 p-3.5 shadow-xs">
-                <p className="text-[11px] font-medium text-amber-700">Bản nháp</p>
-                <p className="mt-1 text-xl font-bold text-amber-700">
-                  {instructorCourses.filter((c) => c.status === "DRAFT").length}
-                </p>
+
+              <div className="portal-card flex items-center gap-3.5 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs transition hover:border-amber-200">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-700 border border-amber-100">
+                  <FileText className="h-5 w-5 stroke-[1.8]" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-muted">Bản nháp</p>
+                  <p className="text-2xl font-bold tracking-tight text-amber-700 tabular-nums">
+                    {instructorCourses.filter((c) => c.status === "DRAFT").length}
+                  </p>
+                </div>
               </div>
-              <div className="rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-xs">
-                <p className="text-[11px] font-medium text-slate-500">Đã lưu trữ</p>
-                <p className="mt-1 text-xl font-bold text-slate-700">
-                  {instructorCourses.filter((c) => c.status === "ARCHIVED").length}
-                </p>
+
+              <div className="portal-card flex items-center gap-3.5 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs transition hover:border-slate-300">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600 border border-slate-200">
+                  <FolderClosed className="h-5 w-5 stroke-[1.8]" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-muted">Đã lưu trữ</p>
+                  <p className="text-2xl font-bold tracking-tight text-slate-700 tabular-nums">
+                    {instructorCourses.filter((c) => c.status === "ARCHIVED").length}
+                  </p>
+                </div>
               </div>
             </div>
 
-            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-              <label className="flex h-10 w-full max-w-[380px] items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/10 transition">
-                <Search className="h-4 w-4 text-primary" />
+            {/* Filter Toolbar */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <label className="flex h-10.5 w-full sm:max-w-[360px] items-center gap-2.5 rounded-xl border border-slate-200/80 bg-white px-3.5 shadow-xs focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/10 transition">
+                <Search className="h-4 w-4 text-primary shrink-0" />
                 <span className="sr-only">Tìm kiếm khóa học giảng dạy</span>
                 <input
                   value={teachingSearch}
                   onChange={(event) => setTeachingSearch(event.target.value)}
                   placeholder="Tìm kiếm khóa học giảng dạy..."
-                  className="min-w-0 flex-1 text-sm outline-none placeholder:text-slate-400 bg-transparent"
+                  className="min-w-0 flex-1 text-xs sm:text-sm outline-none placeholder:text-slate-400 bg-transparent text-heading"
                 />
+                {teachingSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setTeachingSearch("")}
+                    className="rounded-full p-1 text-slate-400 hover:text-slate-600"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </label>
-              <div className="ml-auto flex flex-wrap items-center gap-2 text-xs">
-                <span className="text-slate-500 font-medium">Trạng thái</span>
-                <select
-                  aria-label="Lọc trạng thái khóa học"
-                  value={teachingStatus}
-                  onChange={(event) =>
-                    setTeachingStatus(event.target.value as typeof teachingStatus)
-                  }
-                  className="focus-ring h-9 rounded-lg border border-slate-200 bg-white px-3 font-medium text-slate-700"
-                >
-                  <option value="all">Tất cả trạng thái</option>
-                  <option value="PUBLISHED">Đang xuất bản</option>
-                  <option value="DRAFT">Bản nháp</option>
-                  <option value="ARCHIVED">Đã lưu trữ</option>
-                </select>
-                <span className="text-slate-500 font-medium ml-2">Sắp xếp</span>
-                <select
-                  aria-label="Sắp xếp khóa học"
-                  value={teachingSort}
-                  onChange={(event) => setTeachingSort(event.target.value as typeof teachingSort)}
-                  className="focus-ring h-9 rounded-lg border border-slate-200 bg-white px-3 font-medium text-slate-700"
-                >
-                  <option value="recent">Mới cập nhật</option>
-                  <option value="title">Tên khóa học</option>
-                </select>
-                <span className="hidden text-slate-500 sm:inline ml-2">
+
+              <div className="flex flex-wrap items-center gap-2.5 text-xs">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-muted font-medium">Trạng thái:</span>
+                  <select
+                    aria-label="Lọc trạng thái khóa học"
+                    value={teachingStatus}
+                    onChange={(event) =>
+                      setTeachingStatus(event.target.value as typeof teachingStatus)
+                    }
+                    className="focus-ring h-9.5 rounded-xl border border-slate-200/80 bg-white px-3 font-semibold text-slate-700 shadow-xs hover:border-slate-300"
+                  >
+                    <option value="all">Tất cả</option>
+                    <option value="PUBLISHED">Đang xuất bản</option>
+                    <option value="DRAFT">Bản nháp</option>
+                    <option value="ARCHIVED">Đã lưu trữ</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <span className="text-muted font-medium">Sắp xếp:</span>
+                  <select
+                    aria-label="Sắp xếp khóa học"
+                    value={teachingSort}
+                    onChange={(event) => setTeachingSort(event.target.value as typeof teachingSort)}
+                    className="focus-ring h-9.5 rounded-xl border border-slate-200/80 bg-white px-3 font-semibold text-slate-700 shadow-xs hover:border-slate-300"
+                  >
+                    <option value="recent">Mới cập nhật</option>
+                    <option value="title">Tên khóa học</option>
+                  </select>
+                </div>
+
+                <span className="ml-auto rounded-xl bg-slate-100 px-2.5 py-1.5 text-xs font-semibold text-slate-600 tabular-nums">
                   {filteredTeachingCourses.length} khóa học
                 </span>
               </div>
             </div>
 
+            {/* Courses Grid */}
             {instructorCoursesLoading ? (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                <div className="skeleton h-64 rounded-xl" />
-                <div className="skeleton h-64 rounded-xl" />
-                <div className="skeleton h-64 rounded-xl" />
+              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                <div className="skeleton h-72 rounded-2xl" />
+                <div className="skeleton h-72 rounded-2xl" />
+                <div className="skeleton h-72 rounded-2xl" />
+                <div className="skeleton h-72 rounded-2xl" />
               </div>
             ) : filteredTeachingCourses.length ? (
               <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -1258,74 +2024,87 @@ function MyCourses({
               </div>
             ) : (
               <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center sm:p-12 shadow-xs">
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-50 text-primary">
-                  <BookOpen className="h-6 w-6 stroke-[1.8]" />
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-primary">
+                  <BookOpen className="h-7 w-7 stroke-[1.8]" />
                 </div>
-                <h3 className="mt-3 text-base font-semibold text-[#101a2c]">
+                <h3 className="mt-4 text-base font-bold text-heading">
                   {teachingSearch || teachingStatus !== "all"
                     ? "Không tìm thấy khóa học phù hợp"
                     : "Bạn chưa tạo khóa học nào"}
                 </h3>
-                <p className="mx-auto mt-1 max-w-sm text-xs text-slate-500">
+                <p className="mx-auto mt-1 max-w-sm text-xs text-muted leading-relaxed">
                   {teachingSearch || teachingStatus !== "all"
                     ? "Thử thay đổi từ khóa tìm kiếm hoặc bỏ bộ lọc trạng thái."
                     : "Bắt đầu xây dựng khóa học đầu tiên để chia sẻ kiến thức trên EduAlto."}
                 </p>
-                {teachingSearch || teachingStatus !== "all" ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setTeachingSearch("");
-                      setTeachingStatus("all");
-                    }}
-                    className="focus-ring mt-4 inline-flex h-9 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-xs font-semibold text-slate-700 hover:bg-slate-50 active:scale-[0.98]"
-                  >
-                    Xóa bộ lọc
-                  </button>
-                ) : (
-                  <Link
-                    href="/instructor/courses/overview"
-                    className="focus-ring mt-4 inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-primary px-4 text-xs font-semibold text-white shadow-xs hover:bg-primary-dark active:scale-[0.98]"
-                  >
-                    <Plus className="h-4 w-4" />
-                    <span>Tạo khóa học đầu tiên</span>
-                  </Link>
-                )}
+                <div className="mt-5 flex justify-center">
+                  {teachingSearch || teachingStatus !== "all" ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTeachingSearch("");
+                        setTeachingStatus("all");
+                      }}
+                      className="focus-ring inline-flex h-9.5 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-xs font-semibold text-slate-700 hover:bg-slate-50 active:scale-[0.98]"
+                    >
+                      Xóa bộ lọc
+                    </button>
+                  ) : (
+                    <Link
+                      href="/instructor/courses/overview"
+                      className="focus-ring inline-flex h-9.5 items-center justify-center gap-1.5 rounded-xl bg-primary px-4 text-xs font-semibold text-white shadow-xs shadow-primary/20 hover:bg-primary-dark active:scale-[0.98]"
+                    >
+                      <Plus className="h-4 w-4" />
+                      <span>Tạo khóa học đầu tiên</span>
+                    </Link>
+                  )}
+                </div>
               </div>
             )}
           </div>
         ) : (
-          <div>
+          <div className="space-y-6">
             {filteredCourses.length > 0 ? (
               <>
-                <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-                  <label className="flex h-10 w-full max-w-[380px] items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/10 transition">
-                    <Search className="h-4 w-4 text-primary" />
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <label className="flex h-10.5 w-full sm:max-w-[360px] items-center gap-2.5 rounded-xl border border-slate-200/80 bg-white px-3.5 shadow-xs focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/10 transition">
+                    <Search className="h-4 w-4 text-primary shrink-0" />
                     <span className="sr-only">Tìm kiếm khóa học đã ghi danh</span>
                     <input
                       value={search}
                       onChange={(event) => onSearch(event.target.value)}
                       placeholder="Tìm kiếm khóa học..."
-                      className="min-w-0 flex-1 text-sm outline-none placeholder:text-slate-400 bg-transparent"
+                      className="min-w-0 flex-1 text-xs sm:text-sm outline-none placeholder:text-slate-400 bg-transparent text-heading"
                     />
+                    {search && (
+                      <button
+                        type="button"
+                        onClick={() => onSearch("")}
+                        className="rounded-full p-1 text-slate-400 hover:text-slate-600"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                   </label>
-                  <div className="ml-auto flex flex-wrap items-center gap-2 text-xs">
-                    <span className="text-slate-500 font-medium">Xếp theo</span>
-                    <select
-                      aria-label="Sắp xếp khóa học"
-                      value={sortOrder}
-                      onChange={(event) => setSortOrder(event.target.value as typeof sortOrder)}
-                      className="focus-ring h-9 rounded-lg border border-slate-200 bg-white px-3 font-medium text-slate-700"
-                    >
-                      <option value="recent">Mới nhất</option>
-                      <option value="title">Tên khóa học</option>
-                    </select>
-                    <span className="hidden text-slate-500 sm:inline ml-2">
+                  <div className="flex flex-wrap items-center gap-2.5 text-xs">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-muted font-medium">Xếp theo:</span>
+                      <select
+                        aria-label="Sắp xếp khóa học"
+                        value={sortOrder}
+                        onChange={(event) => setSortOrder(event.target.value as typeof sortOrder)}
+                        className="focus-ring h-9.5 rounded-xl border border-slate-200/80 bg-white px-3 font-semibold text-slate-700 shadow-xs hover:border-slate-300"
+                      >
+                        <option value="recent">Mới nhất</option>
+                        <option value="title">Tên khóa học</option>
+                      </select>
+                    </div>
+                    <span className="ml-auto rounded-xl bg-slate-100 px-2.5 py-1.5 text-xs font-semibold text-slate-600 tabular-nums">
                       {filteredCourses.length} khóa học
                     </span>
                   </div>
                 </div>
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                   {filteredCourses.map((course, index) => (
                     <CourseGridCard
                       key={course.id}
@@ -1337,14 +2116,14 @@ function MyCourses({
                 </div>
               </>
             ) : (
-              <div className="rounded-2xl border border-emerald-100 bg-white p-8 md:p-10 text-center shadow-xs">
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-primary">
-                  <GraduationCap className="h-7 w-7 stroke-[1.8]" />
+              <div className="portal-card rounded-2xl border border-slate-200/80 bg-white p-8 md:p-12 text-center shadow-xs">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50 text-primary border border-emerald-100">
+                  <GraduationCap className="h-8 w-8 stroke-[1.8]" />
                 </div>
-                <h2 className="mt-4 text-lg font-bold text-[#101a2c]">
+                <h2 className="mt-4 text-lg font-bold text-heading">
                   Bạn đang sử dụng tài khoản Giảng viên
                 </h2>
-                <p className="mx-auto mt-2 max-w-lg text-sm text-[#667085] leading-relaxed">
+                <p className="mx-auto mt-2 max-w-lg text-sm text-muted leading-relaxed">
                   Hiện tại bạn chưa đăng ký tham gia khóa học nào với vai trò học viên. Bạn có thể
                   xem các khóa học bạn đang giảng dạy tại mục <strong>Khóa học giảng dạy</strong>{" "}
                   hoặc khám phá thêm các khóa học bổ ích trên nền tảng.
@@ -1353,23 +2132,23 @@ function MyCourses({
                   <button
                     type="button"
                     onClick={() => onInstructorTabChange?.("teaching")}
-                    className="focus-ring inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-white shadow-xs shadow-primary/25 transition hover:bg-primary-dark active:scale-[0.98]"
+                    className="focus-ring inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-5 text-xs sm:text-sm font-semibold text-white shadow-xs shadow-primary/25 transition hover:bg-primary-dark active:scale-[0.98]"
                   >
                     <BookOpen className="h-4 w-4" />
-                    Xem khóa học giảng dạy
+                    <span>Xem khóa học giảng dạy</span>
                   </button>
                   <Link
                     href="/courses"
-                    className="focus-ring inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-[0.98]"
+                    className="focus-ring inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200/80 bg-white px-5 text-xs sm:text-sm font-semibold text-slate-700 shadow-xs transition hover:bg-slate-50 active:scale-[0.98]"
                   >
-                    Khám phá khóa học EduAlto
+                    <span>Khám phá khóa học EduAlto</span>
                   </Link>
                   <Link
                     href="/instructor"
-                    className="focus-ring inline-flex h-10 items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50/50 px-5 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100/60 active:scale-[0.98]"
+                    className="focus-ring inline-flex h-10 items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50/50 px-5 text-xs sm:text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100/60 active:scale-[0.98]"
                   >
                     <LayoutDashboard className="h-4 w-4" />
-                    Bảng điều khiển Giảng viên
+                    <span>Bảng điều khiển Giảng viên</span>
                   </Link>
                 </div>
               </div>
@@ -1380,57 +2159,99 @@ function MyCourses({
     );
   }
 
+  // Student view
   return (
-    <>
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <label className="flex h-10 w-full max-w-[380px] items-center gap-2 rounded-xl border border-[#dce7e2] bg-white px-3 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/10 transition">
-          <Search className="h-4 w-4 text-primary" />
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-xl font-bold tracking-tight text-heading md:text-2xl">
+              Khóa học của tôi
+            </h1>
+            <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 border border-emerald-200/80">
+              {filteredCourses.length} khóa học
+            </span>
+          </div>
+          <p className="mt-1 text-sm text-muted">
+            Theo dõi tiến độ học tập và tiếp tục các bài học bạn đã ghi danh
+          </p>
+        </div>
+        <Link
+          href="/courses"
+          className="focus-ring inline-flex h-9.5 items-center gap-2 rounded-xl bg-primary px-4 text-xs font-semibold text-white shadow-xs shadow-primary/25 transition hover:bg-primary-dark active:scale-[0.98]"
+        >
+          <BookOpen className="h-4 w-4" />
+          <span>Khám phá khóa học</span>
+        </Link>
+      </div>
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <label className="flex h-10.5 w-full sm:max-w-[360px] items-center gap-2.5 rounded-xl border border-slate-200/80 bg-white px-3.5 shadow-xs focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/10 transition">
+          <Search className="h-4 w-4 text-primary shrink-0" />
           <span className="sr-only">Tìm kiếm khóa học đã ghi danh</span>
           <input
             value={search}
             onChange={(event) => onSearch(event.target.value)}
             placeholder="Tìm kiếm khóa học..."
-            className="min-w-0 flex-1 text-sm outline-none placeholder:text-[#9aa49f] bg-transparent"
+            className="min-w-0 flex-1 text-xs sm:text-sm outline-none placeholder:text-slate-400 bg-transparent text-heading"
           />
+          {search && (
+            <button
+              type="button"
+              onClick={() => onSearch("")}
+              className="rounded-full p-1 text-slate-400 hover:text-slate-600"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
         </label>
-        <div className="ml-auto flex flex-wrap items-center gap-2 text-xs">
-          <span className="text-[#727272]">Xếp theo</span>
-          <select
-            aria-label="Sắp xếp khóa học"
-            value={sortOrder}
-            onChange={(event) => setSortOrder(event.target.value as typeof sortOrder)}
-            className="focus-ring h-9 rounded-lg border border-primary bg-white px-3 font-medium"
-          >
-            <option value="recent">Mới nhất</option>
-            <option value="title">Tên khóa học</option>
-          </select>
+        <div className="flex flex-wrap items-center gap-2.5 text-xs">
+          <div className="flex items-center gap-1.5">
+            <span className="text-muted font-medium">Xếp theo:</span>
+            <select
+              aria-label="Sắp xếp khóa học"
+              value={sortOrder}
+              onChange={(event) => setSortOrder(event.target.value as typeof sortOrder)}
+              className="focus-ring h-9.5 rounded-xl border border-slate-200/80 bg-white px-3 font-semibold text-slate-700 shadow-xs hover:border-slate-300"
+            >
+              <option value="recent">Mới nhất</option>
+              <option value="title">Tên khóa học</option>
+            </select>
+          </div>
           <button
             type="button"
             aria-expanded={showFilters}
             onClick={() => setShowFilters((open) => !open)}
-            className="focus-ring flex h-9 items-center gap-2 rounded-lg border border-primary px-3 text-primary font-medium active:scale-[0.98]"
+            className={cn(
+              "focus-ring inline-flex h-9.5 items-center gap-1.5 rounded-xl border px-3 text-xs font-semibold transition active:scale-[0.98]",
+              showFilters
+                ? "border-primary bg-emerald-50/50 text-primary"
+                : "border-slate-200/80 bg-white text-slate-700 shadow-xs hover:border-slate-300",
+            )}
           >
-            <SlidersHorizontal className="h-3.5 w-3.5" /> Lọc
+            <SlidersHorizontal className="h-3.5 w-3.5" />
+            <span>Lọc</span>
           </button>
           {showFilters && (
             <select
               aria-label="Lọc trạng thái khóa học"
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}
-              className="focus-ring h-9 rounded-lg border border-[#dce7e2] bg-white px-2 font-medium"
+              className="focus-ring h-9.5 rounded-xl border border-slate-200/80 bg-white px-3 font-semibold text-slate-700 shadow-xs hover:border-slate-300"
             >
               <option value="all">Tất cả khóa học</option>
               <option value="active">Đang học</option>
               <option value="archived">Đã lưu trữ</option>
             </select>
           )}
-          <span className="hidden text-[#7c8783] sm:inline font-medium">
+          <span className="ml-auto rounded-xl bg-slate-100 px-2.5 py-1.5 text-xs font-semibold text-slate-600 tabular-nums">
             {filteredCourses.length} khóa học
           </span>
         </div>
       </div>
+
       {filteredCourses.length ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredCourses.map((course, index) => (
             <CourseGridCard
               key={course.id}
@@ -1441,23 +2262,45 @@ function MyCourses({
           ))}
         </div>
       ) : (
-        <SmallEmpty
-          icon={<BookOpen className="h-5 w-5" />}
-          title={
-            search || statusFilter !== "all"
-              ? "Không tìm thấy khóa học"
-              : "Bạn chưa ghi danh khóa học nào"
-          }
-          detail={
-            search || statusFilter !== "all"
-              ? "Thử thay đổi từ khóa tìm kiếm."
-              : "Khám phá các khóa học đã xuất bản và bắt đầu học ngay."
-          }
-          action="Khám phá khóa học"
-          href="/courses"
-        />
+        <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center sm:p-12 shadow-xs">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-primary">
+            <BookOpen className="h-7 w-7 stroke-[1.8]" />
+          </div>
+          <h3 className="mt-4 text-base font-bold text-heading">
+            {search || statusFilter !== "all"
+              ? "Không tìm thấy khóa học phù hợp"
+              : "Bạn chưa ghi danh khóa học nào"}
+          </h3>
+          <p className="mx-auto mt-1 max-w-sm text-xs text-muted leading-relaxed">
+            {search || statusFilter !== "all"
+              ? "Thử thay đổi từ khóa tìm kiếm hoặc bỏ bộ lọc trạng thái."
+              : "Khám phá hàng trăm khóa học chất lượng cao trên EduAlto và bắt đầu học ngay hôm nay."}
+          </p>
+          <div className="mt-5 flex justify-center">
+            {search || statusFilter !== "all" ? (
+              <button
+                type="button"
+                onClick={() => {
+                  onSearch("");
+                  setStatusFilter("all");
+                }}
+                className="focus-ring inline-flex h-9.5 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-xs font-semibold text-slate-700 hover:bg-slate-50 active:scale-[0.98]"
+              >
+                Xóa bộ lọc
+              </button>
+            ) : (
+              <Link
+                href="/courses"
+                className="focus-ring inline-flex h-9.5 items-center justify-center gap-1.5 rounded-xl bg-primary px-4 text-xs font-semibold text-white shadow-xs shadow-primary/20 hover:bg-primary-dark active:scale-[0.98]"
+              >
+                <BookOpen className="h-4 w-4" />
+                <span>Khám phá khóa học</span>
+              </Link>
+            )}
+          </div>
+        </div>
       )}
-    </>
+    </div>
   );
 }
 
@@ -1473,52 +2316,100 @@ function CourseGridCard({
   const archived = course.courseStatus !== "PUBLISHED";
   const percent = progress?.progressPercent ?? 0;
   const tones = [
-    "from-[#dff7ec] to-[#e9f6ff]",
-    "from-[#fff0df] to-[#ffeadc]",
-    "from-[#e9e6ff] to-[#e3f7f2]",
+    "from-emerald-900 via-teal-950 to-slate-950",
+    "from-teal-900 via-cyan-950 to-slate-950",
+    "from-slate-900 via-emerald-950 to-slate-950",
   ];
+
   return (
-    <article className="group overflow-hidden rounded-xl border border-[#e4ece8] bg-white shadow-[0_2px_10px_rgba(16,26,44,.05)] transition hover:-translate-y-0.5 hover:border-[#aee4d2] hover:shadow-md">
+    <article className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-all duration-300 hover:-translate-y-1 hover:border-emerald-300 hover:shadow-xl hover:shadow-emerald-950/5">
       <div
         className={cn(
-          "relative flex h-36 items-center justify-center bg-gradient-to-br",
+          "relative flex aspect-video w-full items-center justify-center overflow-hidden bg-gradient-to-br",
           tones[index % tones.length],
         )}
       >
-        <div className="grid h-16 w-16 place-items-center rounded-2xl border border-white/80 bg-white/75 text-primary shadow-sm">
-          <BookOpen className="h-8 w-8" />
+        {/* Ambient glowing radial orbs */}
+        <div className="absolute -top-10 -right-10 h-32 w-32 rounded-full bg-emerald-500/20 blur-2xl transition-transform duration-500 group-hover:scale-125" />
+        <div className="absolute -bottom-10 -left-10 h-32 w-32 rounded-full bg-teal-400/20 blur-2xl transition-transform duration-500 group-hover:scale-125" />
+        <div className="absolute inset-0 bg-[radial-gradient(#ffffff15_1px,transparent_1px)] [background-size:14px_14px]" />
+
+        {/* Central emblem */}
+        <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl border border-white/20 bg-white/10 text-white shadow-xl backdrop-blur-md transition-transform duration-300 group-hover:scale-110 group-hover:bg-white/15">
+          <BookOpen className="h-7 w-7 stroke-[1.8] text-emerald-200" />
         </div>
-        <span className="absolute left-3 top-3 rounded-md bg-white/90 px-2 py-1 text-[10px] font-semibold text-[#66736f]">
-          {archived ? "Đã lưu trữ" : "Đã ghi danh"}
-        </span>
-      </div>
-      <div className="p-4">
-        <h2 className="line-clamp-2 min-h-11 text-sm font-semibold leading-5 text-[#202d28] group-hover:text-primary">
-          {course.courseTitle}
-        </h2>
-        <p className="mt-1 text-xs text-[#84908b]">
-          Ghi danh ngày {new Intl.DateTimeFormat("vi-VN").format(new Date(course.enrolledAt))}
-        </p>
-        <div className="mt-4 flex items-center justify-between text-[11px] text-[#87928e]">
-          <span>
-            {archived
-              ? "Nội dung hiện không khả dụng"
-              : `${progress?.completedLessons ?? 0} / ${progress?.totalLessons ?? 0} bài học`}
+
+        <div className="absolute left-3 top-3">
+          <span
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold backdrop-blur-md shadow-xs",
+              archived
+                ? "border-slate-400/30 bg-slate-900/70 text-slate-300"
+                : "border-emerald-400/30 bg-emerald-950/70 text-emerald-200",
+            )}
+          >
+            <span
+              className={cn(
+                "h-1.5 w-1.5 rounded-full",
+                archived ? "bg-slate-400" : "bg-emerald-400 animate-pulse",
+              )}
+            />
+            {archived ? "Đã lưu trữ" : "Đang học"}
           </span>
-          <span className="font-semibold text-primary">{archived ? "—" : `${percent}%`}</span>
         </div>
-        <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[#edf3f0]">
-          <div
-            className="h-full rounded-full bg-primary transition-all"
-            style={{ width: `${archived ? 0 : percent}%` }}
-          />
+
+        <div className="absolute right-3 top-3">
+          <span className="inline-flex items-center rounded-full border border-white/20 bg-black/40 px-2.5 py-1 text-[11px] font-bold text-white shadow-xs backdrop-blur-md tabular-nums">
+            {percent}%
+          </span>
         </div>
+      </div>
+
+      <div className="flex flex-1 flex-col justify-between p-4 sm:p-5">
+        <div>
+          <h2 className="line-clamp-2 min-h-11 text-sm sm:text-base font-bold leading-snug text-heading transition-colors group-hover:text-primary">
+            {course.courseTitle}
+          </h2>
+          <div className="mt-2.5 flex items-center justify-between text-xs text-muted">
+            <div className="flex items-center gap-1 text-[11px]">
+              <CalendarDays className="h-3 w-3 stroke-[1.8]" />
+              <span>
+                Ghi danh: {new Intl.DateTimeFormat("vi-VN").format(new Date(course.enrolledAt))}
+              </span>
+            </div>
+            <span className="text-[11px] font-medium text-slate-500 tabular-nums">
+              {archived
+                ? "Không khả dụng"
+                : `${progress?.completedLessons ?? 0}/${progress?.totalLessons ?? 0} bài`}
+            </span>
+          </div>
+
+          {/* Progress bar */}
+          <div className="mt-3">
+            <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-500"
+                style={{ width: `${archived ? 0 : percent}%` }}
+              />
+            </div>
+          </div>
+        </div>
+
         <Link
           href={archived ? "/courses" : `/learning/courses/${course.courseId}`}
-          className="focus-ring mt-4 flex h-9 items-center justify-center gap-2 rounded-lg bg-primary text-xs font-semibold text-white transition hover:bg-[#139b72]"
+          className="focus-ring mt-4 inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-primary text-xs font-semibold text-white shadow-xs shadow-primary/20 transition hover:bg-primary-dark active:scale-[0.98]"
         >
-          {archived ? "Tìm khóa học tương tự" : "Mở khóa học"}
-          <ChevronRight className="h-4 w-4" />
+          {archived ? (
+            <>
+              <span>Tìm khóa học tương tự</span>
+              <ArrowRight className="h-3.5 w-3.5" />
+            </>
+          ) : (
+            <>
+              <Play className="h-3.5 w-3.5 fill-white" />
+              <span>Tiếp tục học</span>
+            </>
+          )}
         </Link>
       </div>
     </article>
@@ -1603,18 +2494,18 @@ function UtilityView({
   const config = configs[view];
   const Icon = config.icon;
   return (
-    <div className="grid min-h-[420px] place-items-center rounded-2xl border border-[#e5ede9] bg-white px-5 py-12">
+    <div className="portal-card grid min-h-[420px] place-items-center rounded-2xl border border-slate-200/80 bg-white px-5 py-12 shadow-xs">
       <div className="max-w-md text-center">
-        <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-[#e8faf4] text-primary">
-          <Icon className="h-7 w-7" />
+        <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-primary border border-emerald-100 shadow-xs">
+          <Icon className="h-7 w-7 stroke-[1.8]" />
         </span>
-        <h2 className="mt-5 text-lg font-semibold text-[#18251f]">{config.title}</h2>
-        <p className="mt-2 text-sm leading-6 text-[#7d8984]">{config.copy}</p>
+        <h2 className="mt-5 text-lg font-bold text-heading">{config.title}</h2>
+        <p className="mt-2 text-sm leading-6 text-muted">{config.copy}</p>
         <Link
           href={config.href}
-          className="focus-ring mt-5 inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-white hover:bg-[#159e75]"
+          className="focus-ring mt-5 inline-flex h-9.5 items-center gap-2 rounded-xl bg-primary px-4 text-xs font-semibold text-white shadow-xs shadow-primary/20 hover:bg-primary-dark transition active:scale-[0.98]"
         >
-          {config.action}
+          <span>{config.action}</span>
           <ChevronRight className="h-4 w-4" />
         </Link>
       </div>

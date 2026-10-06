@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  getFavoriteCoursesServerSnapshot,
   readFavoriteCourses,
   subscribeToFavoriteCourses,
   toggleFavoriteCourse,
@@ -48,5 +49,19 @@ describe("favorite courses", () => {
   it("ignores invalid stored data", () => {
     window.localStorage.setItem("edualto:favorite-courses", "{invalid");
     expect(readFavoriteCourses()).toEqual([]);
+  });
+
+  it("returns a stable snapshot reference when localStorage has not changed", () => {
+    toggleFavoriteCourse(course);
+    const snapshotA = readFavoriteCourses();
+    const snapshotB = readFavoriteCourses();
+    expect(snapshotA).toBe(snapshotB); // Exact reference equality to prevent infinite loops in useSyncExternalStore
+  });
+
+  it("returns a stable empty array for server snapshot", () => {
+    const serverSnapA = getFavoriteCoursesServerSnapshot();
+    const serverSnapB = getFavoriteCoursesServerSnapshot();
+    expect(serverSnapA).toBe(serverSnapB);
+    expect(serverSnapA).toHaveLength(0);
   });
 });

@@ -1,7 +1,6 @@
 export const instant = false;
 import { Suspense } from "react";
 import { LearningLessonPage } from "@/features/learning/learning-lesson-page";
-import { LessonSkeleton } from "@/components/ui/skeleton";
 
 export const metadata = { title: "Bài học" };
 
@@ -12,7 +11,7 @@ export default async function LearningLessonRoute({
 }) {
   const { lessonId } = await params;
   return (
-    <Suspense fallback={<LessonSkeleton />}>
+    <Suspense fallback={null}>
       <LearningLessonPage lessonId={lessonId} />
     </Suspense>
   );

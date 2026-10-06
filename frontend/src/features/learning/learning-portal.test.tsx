@@ -18,8 +18,8 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/learning/courses",
 }));
 
-vi.mock("@/components/layout/app-header", () => ({
-  AppHeader: () => <header data-testid="app-header">EduAlto Header</header>,
+vi.mock("@/components/layout/user-menu", () => ({
+  UserMenu: () => <div data-testid="user-menu">EduAlto UserMenu</div>,
 }));
 
 vi.mock("@/lib/auth-session", () => ({
@@ -74,11 +74,11 @@ describe("LearningPortal for instructors", () => {
     );
   });
 
-  it("renders the global AppHeader and displays instructor courses instead of crashing with 403", async () => {
+  it("renders the workspace topbar and displays instructor courses instead of crashing with 403", async () => {
     render(<LearningPortal view="courses" />);
 
-    // Global header is rendered
-    expect(screen.getByTestId("app-header")).toBeInTheDocument();
+    // Workspace topbar UserMenu is rendered
+    expect(screen.getByTestId("user-menu")).toBeInTheDocument();
 
     // The instructor teaching tab and course card are displayed
     await waitFor(() => {
@@ -105,6 +105,71 @@ describe("LearningPortal for instructors", () => {
     await waitFor(() => {
       expect(screen.getByText(/Bạn đang sử dụng tài khoản Giảng viên/i)).toBeInTheDocument();
       expect(screen.getByRole("button", { name: /Xem khóa học giảng dạy/i })).toBeInTheDocument();
+    });
+  });
+
+  it("renders redesigned overview with personalized greeting, stat cards, and allows dismissing instructor banner", async () => {
+    const user = userEvent.setup();
+    render(<LearningPortal view="overview" />);
+
+    // Renders welcoming header
+    await waitFor(() => {
+      expect(screen.getByText(/Chào mừng trở lại/i)).toBeInTheDocument();
+      expect(screen.getAllByText("Nguyễn Minh Anh").length).toBeGreaterThanOrEqual(1);
+    });
+
+    // 4 quick stat cards are displayed
+    expect(screen.getByText("Khóa học của bạn")).toBeInTheDocument();
+    expect(screen.getByText("Bài hoàn thành")).toBeInTheDocument();
+    expect(screen.getByText("Chuỗi học tập")).toBeInTheDocument();
+    expect(screen.getAllByText("Việc cần làm").length).toBeGreaterThanOrEqual(1);
+
+    // Redesigned empty state card
+    expect(screen.getByText(/Bắt đầu hành trình học tập cùng EduAlto/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Tìm khóa học ngay/i })).toBeInTheDocument();
+
+    // Weekly activity chart
+    expect(screen.getByText("Hoạt động học tập tuần này")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Thời gian học" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Bài học" })).toBeInTheDocument();
+
+    // Interactive instructor banner and dismiss action
+    expect(screen.getByText("Bạn đang sử dụng tài khoản Giảng viên")).toBeInTheDocument();
+    const dismissBtn = screen.getByRole("button", { name: "Đóng thông báo giảng viên" });
+    await user.click(dismissBtn);
+    expect(screen.queryByText("Bạn đang sử dụng tài khoản Giảng viên")).not.toBeInTheDocument();
+  });
+
+  it("renders active enrolled course card and progress when enrollments exist", async () => {
+    vi.spyOn(learningClient, "fetchMyEnrollments").mockResolvedValue({
+      data: [
+        {
+          id: "en-1",
+          courseId: "c-1",
+          courseTitle: "Next.js Thực Chiến Toàn Diện",
+          courseSlug: "nextjs-thuc-chien",
+          courseStatus: "PUBLISHED",
+          status: "ACTIVE",
+          enrolledAt: "2026-09-01T00:00:00Z",
+        },
+      ],
+      meta: { page: 0, size: 10, totalElements: 1, totalPages: 1 },
+    });
+
+    vi.spyOn(learningClient, "fetchCourseProgress").mockResolvedValue({
+      courseId: "c-1",
+      totalLessons: 12,
+      completedLessons: 6,
+      progressPercent: 50,
+      completed: false,
+    });
+
+    render(<LearningPortal view="overview" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Next.js Thực Chiến Toàn Diện")).toBeInTheDocument();
+      expect(screen.getByText(/6\/12 bài học hoàn thành/i)).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: /Tiếp tục học ngay/i })).toBeInTheDocument();
     });
   });
 });
