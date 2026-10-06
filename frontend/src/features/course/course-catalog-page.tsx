@@ -458,15 +458,18 @@ function CourseCatalogContent() {
   const totalPages = catalogData?.meta.totalPages ?? 0;
   const isSlowLoading = isFetching && !isLoading;
 
-  const catalog = {
-    courses,
-    totalPages,
-    error: isError,
-  };
+  const catalog = useMemo(
+    () => ({
+      courses,
+      totalPages,
+      error: isError,
+    }),
+    [courses, totalPages, isError],
+  );
 
   const displayCourses: FavoriteCourse[] = useMemo(
     () =>
-      (catalog?.courses ?? []).map((c) => ({
+      courses.map((c) => ({
         id: c.id,
         slug: c.slug,
         title: c.title,
@@ -488,7 +491,7 @@ function CourseCatalogContent() {
         originalPrice: c.originalPrice ?? undefined,
         image: c.thumbnailUrl || "/images/logo-with-text.png",
       })),
-    [catalog],
+    [courses],
   );
 
   function resetPage() {
