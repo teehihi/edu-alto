@@ -79,8 +79,7 @@ export function InstructorCourseWorkspace({
   }, [accessToken, authLoading, courseId]);
 
   useEffect(() => {
-    const timeout = window.setTimeout(() => void refreshCourse(), 0);
-    return () => window.clearTimeout(timeout);
+    void refreshCourse();
   }, [refreshCourse]);
 
   return (

@@ -81,6 +81,7 @@ export function PasswordField({
   label,
   error,
   hint,
+  className,
   ...props
 }: BaseFieldProps & Omit<InputHTMLAttributes<HTMLInputElement>, "type">) {
   const [visible, setVisible] = useState(false);
@@ -101,19 +102,26 @@ export function PasswordField({
             error
               ? "border-red-400 focus:border-red-500 focus:ring-1 focus:ring-red-500"
               : "border-[#D8E1ED] hover:border-slate-300 focus:border-primary focus:ring-1 focus:ring-primary",
+            className,
           )}
           {...props}
         />
         <button
           aria-label={visible ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
-          className="absolute right-1.5 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-muted transition hover:bg-slate-100 hover:text-heading active:bg-slate-200 focus:outline-none focus:ring-1 focus:ring-primary sm:right-2 sm:h-9 sm:w-9"
+          title={visible ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
           type="button"
+          tabIndex={-1}
+          disabled={props.disabled}
+          onMouseDown={(event) => {
+            event.preventDefault();
+          }}
           onClick={() => setVisible((current) => !current)}
+          className="absolute right-1.5 top-1/2 z-10 inline-flex h-8 w-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 active:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-40 sm:right-2 sm:h-9 sm:w-9"
         >
           {visible ? (
-            <EyeOff className="h-4 w-4" aria-hidden="true" />
+            <EyeOff className="h-4.5 w-4.5" aria-hidden="true" />
           ) : (
-            <Eye className="h-4 w-4" aria-hidden="true" />
+            <Eye className="h-4.5 w-4.5" aria-hidden="true" />
           )}
         </button>
       </div>

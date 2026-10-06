@@ -4,6 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import { EnsureQueryClient } from "@/lib/query-provider";
 import {
   Award,
   BookOpen,
@@ -35,10 +37,8 @@ import {
   fetchPublicCourses,
   fetchPublicCurriculum,
   fetchLessonPreview,
-  getCachedCourseDetail,
   getCachedCurriculum,
 } from "@/lib/course-client";
-import type { CourseDetail, CourseListItem, CourseCurriculum, LessonPreview } from "@/types/course";
 
 const levels = {
   ALL_LEVELS: "Tất cả trình độ",
@@ -185,28 +185,17 @@ function CourseThumbnail({
   );
 }
 
-export function CourseDetailPage({ slug }: { slug: string }) {
+export function CourseDetailPage(props: { slug: string }) {
+  return (
+    <EnsureQueryClient>
+      <CourseDetailPageInner {...props} />
+    </EnsureQueryClient>
+  );
+}
+
+function CourseDetailPageInner({ slug }: { slug: string }) {
   const router = useRouter();
   const { user, getAccessToken } = useAuthSession();
-  const [attempt, setAttempt] = useState(0);
-  const [result, setResult] = useState<{
-    attempt: number;
-    course?: CourseDetail;
-    error?: string;
-    missing?: boolean;
-  } | null>(() => {
-    const cached = getCachedCourseDetail(slug);
-    return cached ? { attempt: 0, course: cached } : null;
-  });
-  const [curriculum, setCurriculum] = useState<CourseCurriculum | null>(() =>
-    getCachedCurriculum(slug),
-  );
-  const [curriculumError, setCurriculumError] = useState(false);
-  const [openSectionIds, setOpenSectionIds] = useState<Set<string>>(() => {
-    const cached = getCachedCurriculum(slug);
-    return new Set(cached?.sections[0] ? [cached.sections[0].id] : []);
-  });
-  const [related, setRelated] = useState<CourseListItem[]>([]);
   const [activeSection, setActiveSection] = useState("description");
   const [copied, setCopied] = useState(false);
   const [buyingNow, setBuyingNow] = useState(false);
@@ -219,39 +208,42 @@ export function CourseDetailPage({ slug }: { slug: string }) {
   const cartAnimationTimeoutRef = useRef<number | null>(null);
   const copyTimeoutRef = useRef<number | null>(null);
 
+  const {
+    data: course,
+    isLoading: courseLoading,
+    error: courseError,
+    refetch: refetchCourse,
+  } = useQuery({
+    queryKey: ["course", slug],
+    queryFn: () => fetchPublicCourseBySlug(slug),
+  });
+
+  const {
+    data: curriculum,
+    isError: curriculumError,
+    refetch: refetchCurriculum,
+  } = useQuery({
+    queryKey: ["curriculum", slug],
+    queryFn: () => fetchPublicCurriculum(slug),
+  });
+
+  const [openSectionIds, setOpenSectionIds] = useState<Set<string>>(() => {
+    const cached = getCachedCurriculum(slug);
+    return new Set(cached?.sections[0] ? [cached.sections[0].id] : []);
+  });
+
+  const { data: related = [] } = useQuery({
+    queryKey: ["related-courses", slug],
+    queryFn: async () => {
+      const data = await fetchPublicCourses({ size: 5 });
+      return data.filter((c) => c.slug !== slug).slice(0, 4);
+    },
+  });
+
   useEffect(() => {
-    let active = true;
-    fetchPublicCourseBySlug(slug)
-      .then((course) => {
-        if (active) setResult({ attempt, course });
-      })
-      .catch((error) => {
-        if (active)
-          setResult({
-            attempt,
-            missing: error instanceof ApiClientError && error.status === 404,
-            error: "Không thể tải khóa học. Vui lòng thử lại.",
-          });
-      });
-    fetchPublicCurriculum(slug)
-      .then((data) => {
-        if (active) {
-          setCurriculum(data);
-          setCurriculumError(false);
-        }
-      })
-      .catch(() => {
-        if (active) setCurriculumError(true);
-      });
-    fetchPublicCourses({ size: 5 })
-      .then((data) => {
-        if (active) setRelated(data.filter((course) => course.slug !== slug).slice(0, 4));
-      })
-      .catch(() => {
-        if (active) setRelated([]);
-      });
+    router.prefetch?.("/checkout");
+    router.prefetch?.("/cart");
     return () => {
-      active = false;
       if (cartAnimationTimeoutRef.current !== null) {
         window.clearTimeout(cartAnimationTimeoutRef.current);
       }
@@ -259,15 +251,10 @@ export function CourseDetailPage({ slug }: { slug: string }) {
         window.clearTimeout(copyTimeoutRef.current);
       }
     };
-  }, [slug, attempt]);
-
-  useEffect(() => {
-    router.prefetch?.("/checkout");
-    router.prefetch?.("/cart");
   }, [router]);
 
-  const loading = !result || result.attempt !== attempt;
-  const course = result?.course;
+  const isMissing = courseError instanceof ApiClientError && courseError.status === 404;
+  const loading = courseLoading;
   const lessons = curriculum?.sections.flatMap((section) => section.lessons) ?? [];
   const totalSeconds = lessons.reduce((total, lesson) => total + (lesson.durationSeconds ?? 0), 0);
 
@@ -404,16 +391,14 @@ export function CourseDetailPage({ slug }: { slug: string }) {
           ) : !course ? (
             <div className="mx-auto max-w-7xl px-6 py-24 text-center">
               <h1 className="text-2xl font-bold text-heading">
-                {result?.missing ? "Không tìm thấy khóa học" : "Chưa thể tải khóa học"}
+                {isMissing ? "Không tìm thấy khóa học" : "Chưa thể tải khóa học"}
               </h1>
               <p role="alert" className="my-5 text-muted">
-                {result?.missing
+                {isMissing
                   ? "Khóa học không tồn tại hoặc chưa được công khai."
-                  : result?.error}
+                  : "Không thể tải khóa học. Vui lòng thử lại."}
               </p>
-              {!result?.missing && (
-                <Button onClick={() => setAttempt((value) => value + 1)}>Thử lại</Button>
-              )}
+              {!isMissing && <Button onClick={() => void refetchCourse()}>Thử lại</Button>}
               <Link className="focus-ring ml-4 rounded-lg text-primary underline" href="/courses">
                 Khám phá khóa học
               </Link>
@@ -788,7 +773,7 @@ export function CourseDetailPage({ slug }: { slug: string }) {
                           <Button
                             variant="outline"
                             className="mt-4"
-                            onClick={() => setAttempt((value) => value + 1)}
+                            onClick={() => void refetchCurriculum()}
                           >
                             Tải lại giáo trình
                           </Button>
@@ -988,23 +973,13 @@ export function CourseDetailPage({ slug }: { slug: string }) {
 }
 
 function PreviewContent({ slug, lessonId }: { slug: string; lessonId: string }) {
-  const [data, setData] = useState<LessonPreview | null>(null);
-  const [error, setError] = useState(false);
-  useEffect(() => {
-    let active = true;
-    fetchLessonPreview(slug, lessonId)
-      .then((value) => {
-        if (active) setData(value);
-      })
-      .catch(() => {
-        if (active) setError(true);
-      });
-    return () => {
-      active = false;
-    };
-  }, [slug, lessonId]);
-  if (error) return <p role="alert">Không thể mở bài học thử. Vui lòng đóng và thử lại.</p>;
-  if (!data) return <p role="status">Đang tải bài học thử…</p>;
+  const { data, isError, isLoading } = useQuery({
+    queryKey: ["lesson-preview", slug, lessonId],
+    queryFn: () => fetchLessonPreview(slug, lessonId),
+  });
+
+  if (isError) return <p role="alert">Không thể mở bài học thử. Vui lòng đóng và thử lại.</p>;
+  if (isLoading || !data) return <p role="status">Đang tải bài học thử…</p>;
   return (
     <article>
       <h3 className="mb-4 text-xl font-semibold text-primary">{data.title}</h3>

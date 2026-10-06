@@ -55,13 +55,17 @@ export function VerifyEmailPage() {
       return undefined;
     }
 
-    const timer = window.setInterval(() => setSeconds((current) => Math.max(0, current - 1)), 1000);
+    const timer = window.setInterval(() => {
+      setSeconds((current) => {
+        if (current <= 1) {
+          router.push("/login");
+          return 0;
+        }
+        return current - 1;
+      });
+    }, 1000);
     return () => window.clearInterval(timer);
   }, [router, showSuccessModal]);
-
-  useEffect(() => {
-    if (showSuccessModal && seconds === 0) router.push("/login");
-  }, [router, showSuccessModal, seconds]);
 
   function validate() {
     const nextErrors: FieldErrors<VerifyEmailFields> = {};

@@ -49,20 +49,16 @@ export function InstructorCourseDetailsTab() {
   const [success, setSuccess] = useState("");
 
   useEffect(() => {
-    const timeout = window.setTimeout(() => {
-      setForm(toCourseForm(course));
-      setThumbnailPreview(course.thumbnailUrl);
-      setThumbnailFile(null);
-    }, 0);
-    return () => window.clearTimeout(timeout);
+    setForm(toCourseForm(course));
+    setThumbnailPreview(course.thumbnailUrl);
+    setThumbnailFile(null);
   }, [course]);
 
   useEffect(() => {
     if (!thumbnailFile) return;
     const previewUrl = URL.createObjectURL(thumbnailFile);
-    const timeout = window.setTimeout(() => setThumbnailPreview(previewUrl), 0);
+    setThumbnailPreview(previewUrl);
     return () => {
-      window.clearTimeout(timeout);
       URL.revokeObjectURL(previewUrl);
     };
   }, [thumbnailFile]);

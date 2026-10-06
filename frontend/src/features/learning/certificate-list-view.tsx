@@ -38,8 +38,7 @@ export function CertificateListView() {
   }, [getAccessToken]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => void load(), 0);
-    return () => window.clearTimeout(timer);
+    void load();
   }, [load]);
 
   if (loading) {

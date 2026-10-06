@@ -46,8 +46,7 @@ export function CourseCertificatePage({ courseId }: { courseId: string }) {
       router.replace(`/login?next=${encodeURIComponent(`/learning/certificates/${courseId}`)}`);
       return;
     }
-    const timer = window.setTimeout(() => void load(), 0);
-    return () => window.clearTimeout(timer);
+    void load();
   }, [courseId, load, router, sessionLoading, user]);
 
   return (

@@ -1,53 +1,68 @@
 "use client";
 
-import { Facebook, Instagram, Mail, MapPin, Phone, Twitter, Youtube } from "lucide-react";
-import React, { useState } from "react";
+import { Mail, MapPin, Phone } from "lucide-react";
+import { Facebook, Instagram, Twitter, Youtube } from "@/components/ui/social-icons";
+import { useActionState, useEffect, useState } from "react";
 import { AppHeader } from "@/components/layout/app-header";
 import { Footer } from "@/components/layout/footer";
 import { Button } from "@/components/ui/button";
 import { FeedbackModal } from "@/components/ui/feedback-modal";
 
+interface ContactFormState {
+  success: boolean;
+  errors: Record<string, string>;
+}
+
+const initialContactState: ContactFormState = {
+  success: false,
+  errors: {},
+};
+
+async function submitContactAction(
+  _prevState: ContactFormState,
+  formData: FormData,
+): Promise<ContactFormState> {
+  const fullName = String(formData.get("fullName") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim();
+  const message = String(formData.get("message") ?? "").trim();
+  const errors: Record<string, string> = {};
+
+  if (!fullName) {
+    errors.fullName = "Vui lòng nhập họ và tên của bạn";
+  }
+  if (!email) {
+    errors.email = "Vui lòng nhập email";
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    errors.email = "Email không đúng định dạng";
+  }
+  if (!message) {
+    errors.message = "Vui lòng nhập nội dung lời nhắn";
+  }
+
+  if (Object.keys(errors).length > 0) {
+    return { success: false, errors };
+  }
+
+  // Simulate sending contact message
+  await new Promise((resolve) => setTimeout(resolve, 600));
+  return { success: true, errors: {} };
+}
+
 export function ContactPage() {
+  const [state, formAction, isPending] = useActionState(submitContactAction, initialContactState);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submittedModalOpen, setSubmittedModalOpen] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const errors: Record<string, string> = {};
-
-    if (!fullName.trim()) {
-      errors.fullName = "Vui lòng nhập họ và tên của bạn";
+  useEffect(() => {
+    if (state.success) {
+      setSubmittedModalOpen(true);
+      setFullName("");
+      setEmail("");
+      setMessage("");
     }
-    if (!email.trim()) {
-      errors.email = "Vui lòng nhập email";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      errors.email = "Email không đúng định dạng";
-    }
-    if (!message.trim()) {
-      errors.message = "Vui lòng nhập nội dung lời nhắn";
-    }
-
-    if (Object.keys(errors).length > 0) {
-      setFieldErrors(errors);
-      return;
-    }
-
-    setFieldErrors({});
-    setLoading(true);
-
-    // Simulate sending contact message
-    await new Promise((resolve) => setTimeout(resolve, 600));
-
-    setLoading(false);
-    setSubmittedModalOpen(true);
-    setFullName("");
-    setEmail("");
-    setMessage("");
-  };
+  }, [state.success]);
 
   return (
     <div className="flex min-h-screen flex-col bg-[#F5FBF9] text-ink antialiased">
@@ -110,7 +125,7 @@ export function ContactPage() {
               <div className="lg:col-span-7">
                 <h2 className="text-base font-bold text-heading">Để lại lời nhắn cho chúng tôi</h2>
 
-                <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+                <form action={formAction} className="mt-5 space-y-4">
                   {/* Name */}
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
@@ -118,13 +133,14 @@ export function ContactPage() {
                     </label>
                     <input
                       type="text"
+                      name="fullName"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       placeholder="Ví dụ: Nguyễn Nhật Thiên"
                       className="mt-1.5 w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-heading shadow-2xs placeholder:text-slate-400 focus:border-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
                     />
-                    {fieldErrors.fullName && (
-                      <p className="mt-1 text-xs text-rose-500">{fieldErrors.fullName}</p>
+                    {state.errors.fullName && (
+                      <p className="mt-1 text-xs text-rose-500">{state.errors.fullName}</p>
                     )}
                   </div>
 
@@ -135,13 +151,14 @@ export function ContactPage() {
                     </label>
                     <input
                       type="email"
+                      name="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="toahith@vng.com.vn"
                       className="mt-1.5 w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-heading shadow-2xs placeholder:text-slate-400 focus:border-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
                     />
-                    {fieldErrors.email && (
-                      <p className="mt-1 text-xs text-rose-500">{fieldErrors.email}</p>
+                    {state.errors.email && (
+                      <p className="mt-1 text-xs text-rose-500">{state.errors.email}</p>
                     )}
                   </div>
 
@@ -152,13 +169,14 @@ export function ContactPage() {
                     </label>
                     <textarea
                       rows={4}
+                      name="message"
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
                       placeholder="Nhập nội dung thắc mắc hoặc câu hỏi cần giải đáp..."
                       className="mt-1.5 w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-heading shadow-2xs placeholder:text-slate-400 focus:border-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
                     />
-                    {fieldErrors.message && (
-                      <p className="mt-1 text-xs text-rose-500">{fieldErrors.message}</p>
+                    {state.errors.message && (
+                      <p className="mt-1 text-xs text-rose-500">{state.errors.message}</p>
                     )}
                   </div>
 
@@ -166,7 +184,7 @@ export function ContactPage() {
                   <div className="pt-2">
                     <Button
                       type="submit"
-                      loading={loading}
+                      loading={isPending}
                       className="w-full rounded-xl bg-primary py-3 font-bold text-white shadow-xs transition hover:bg-primary-dark active:scale-[0.98]"
                     >
                       <span>Send</span>

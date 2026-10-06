@@ -4,11 +4,20 @@ import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ChevronDown, Heart, RotateCcw, SlidersHorizontal, Star, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import {
+  startTransition,
+  useEffect,
+  useMemo,
+  useOptimistic,
+  useState,
+  useSyncExternalStore,
+} from "react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { EnsureQueryClient } from "@/lib/query-provider";
 import { AppHeader } from "@/components/layout/app-header";
 import { Footer } from "@/components/layout/footer";
 import { CustomSelect, type CustomSelectOption } from "@/components/ui/custom-select";
-import { fetchPublicCoursePage, getCachedCoursePage } from "@/lib/course-client";
+import { fetchPublicCoursePage } from "@/lib/course-client";
 import { useAuthSession } from "@/lib/auth-session";
 import {
   getCachedFavoriteCourseIds,
@@ -353,6 +362,14 @@ function CourseCardSkeleton() {
 }
 
 export function CourseCatalogPage() {
+  return (
+    <EnsureQueryClient>
+      <CourseCatalogContent />
+    </EnsureQueryClient>
+  );
+}
+
+function CourseCatalogContent() {
   const searchParams = useSearchParams();
   const queryParam = searchParams.get("q") ?? searchParams.get("keyword") ?? "";
 
@@ -371,7 +388,16 @@ export function CourseCatalogPage() {
   const [selectedPriceRange, setSelectedPriceRange] = useState<string>("ALL");
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [retry, setRetry] = useState(0);
+  const { user, getAccessToken } = useAuthSession();
+  const userId = user?.roles.includes("STUDENT") ? user.id : null;
+
+  useEffect(() => {
+    if (!userId) return;
+    void getAccessToken().then((token) => {
+      if (token) void loadFavoriteCoursesForUser(userId, token);
+    });
+  }, [getAccessToken, userId]);
+
   const { minPrice, maxPrice, isFree } = useMemo(() => {
     switch (selectedPriceRange) {
       case "FREE":
@@ -386,57 +412,9 @@ export function CourseCatalogPage() {
         return { isFree: undefined, minPrice: undefined, maxPrice: undefined };
     }
   }, [selectedPriceRange]);
-  const requestKey = `${keyword}:${selectedSort}:${currentPage}:${selectedLevel}:${selectedLanguage}:${selectedPriceRange}:${retry}`;
-  const [catalog, setCatalog] = useState<{
-    key: string;
-    courses: CourseListItem[];
-    totalPages: number;
-    error: boolean;
-  } | null>(() => {
-    const cached = getCachedCoursePage({
-      keyword: keyword.trim() || undefined,
-      level: selectedLevel ? (selectedLevel as CourseListItem["level"]) : undefined,
-      language: selectedLanguage || undefined,
-      minPrice,
-      maxPrice,
-      isFree,
-      sort:
-        selectedSort === "price_desc"
-          ? "price_desc"
-          : selectedSort === "price_asc"
-            ? "price_asc"
-            : "newest",
-      page: currentPage - 1,
-      size: 12,
-    });
-    if (cached) {
-      return {
-        key: requestKey,
-        courses: cached.data,
-        totalPages: cached.meta.totalPages,
-        error: false,
-      };
-    }
-    return null;
-  });
-  const loading = catalog?.key !== requestKey;
-  const [isSlowLoadingState, setIsSlowLoadingState] = useState(false);
-  const isSlowLoading = loading && isSlowLoadingState;
 
-  useEffect(() => {
-    if (!loading) return;
-    const timer = setTimeout(() => {
-      setIsSlowLoadingState(true);
-    }, 180);
-    return () => {
-      clearTimeout(timer);
-      setIsSlowLoadingState(false);
-    };
-  }, [loading]);
-
-  useEffect(() => {
-    let active = true;
-    const queryParams = {
+  const queryParams = useMemo(
+    () => ({
       keyword: keyword.trim() || undefined,
       level: selectedLevel ? (selectedLevel as CourseListItem["level"]) : undefined,
       language: selectedLanguage || undefined,
@@ -451,50 +429,40 @@ export function CourseCatalogPage() {
             : ("newest" as const),
       page: currentPage - 1,
       size: 12,
-    };
+    }),
+    [
+      keyword,
+      selectedLevel,
+      selectedLanguage,
+      minPrice,
+      maxPrice,
+      isFree,
+      selectedSort,
+      currentPage,
+    ],
+  );
 
-    const cached = getCachedCoursePage(queryParams);
-    if (cached) {
-      Promise.resolve().then(() => {
-        if (active) {
-          setCatalog({
-            key: requestKey,
-            courses: cached.data,
-            totalPages: cached.meta.totalPages,
-            error: false,
-          });
-        }
-      });
-      return;
-    }
+  const {
+    data: catalogData,
+    isLoading,
+    isError,
+    isFetching,
+    refetch,
+  } = useQuery({
+    queryKey: ["courses", queryParams],
+    queryFn: () => fetchPublicCoursePage(queryParams),
+    placeholderData: keepPreviousData,
+  });
 
-    fetchPublicCoursePage(queryParams)
-      .then((data) => {
-        if (active)
-          setCatalog({
-            key: requestKey,
-            courses: data.data,
-            totalPages: data.meta.totalPages,
-            error: false,
-          });
-      })
-      .catch(() => {
-        if (active) setCatalog({ key: requestKey, courses: [], totalPages: 0, error: true });
-      });
-    return () => {
-      active = false;
-    };
-  }, [
-    keyword,
-    selectedSort,
-    currentPage,
-    requestKey,
-    selectedLevel,
-    selectedLanguage,
-    minPrice,
-    maxPrice,
-    isFree,
-  ]);
+  const courses = catalogData?.data ?? [];
+  const totalPages = catalogData?.meta.totalPages ?? 0;
+  const isSlowLoading = isFetching && !isLoading;
+
+  const catalog = {
+    courses,
+    totalPages,
+    error: isError,
+  };
 
   const displayCourses: FavoriteCourse[] = useMemo(
     () =>
@@ -809,7 +777,7 @@ export function CourseCatalogPage() {
                   <p>Không thể tải danh mục khóa học. Vui lòng thử lại.</p>
                   <button
                     className="focus-ring mt-4 rounded-lg border border-primary px-4 py-2 text-primary"
-                    onClick={() => setRetry((value) => value + 1)}
+                    onClick={() => void refetch()}
                   >
                     Thử lại
                   </button>
@@ -898,41 +866,24 @@ export function CourseCatalogPage() {
 // Figma Course Card with VND Currency
 // ==========================================
 export function FigmaCourseCard({ course }: { course: FavoriteCourse }) {
-  const [isFavorited, setIsFavorited] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
-  const [favoriteReady, setFavoriteReady] = useState(false);
   const [favoriteError, setFavoriteError] = useState("");
   const { user, getAccessToken } = useAuthSession();
   const userId = user?.roles.includes("STUDENT") ? user.id : null;
 
-  useEffect(() => {
-    let active = true;
-    const syncFavorite = () =>
-      setIsFavorited(
-        userId
-          ? (getCachedFavoriteCourseIds(userId)?.has(course.id) ?? false)
-          : readFavoriteCourses().some((favorite) => favorite.id === course.id),
-      );
-    syncFavorite();
-    const unsubscribe = subscribeToFavoriteCourses(syncFavorite);
-    if (userId) {
-      void getAccessToken()
-        .then((token) => (token ? loadFavoriteCoursesForUser(userId, token) : new Set<string>()))
-        .then((ids) => {
-          if (active) setIsFavorited(ids.has(course.id));
-        })
-        .catch(() => {
-          if (active) setFavoriteError("Không thể tải danh sách yêu thích.");
-        })
-        .finally(() => {
-          if (active) setFavoriteReady(true);
-        });
-    }
-    return () => {
-      active = false;
-      unsubscribe();
-    };
-  }, [course.id, getAccessToken, userId]);
+  const isFavorited = useSyncExternalStore(
+    subscribeToFavoriteCourses,
+    () =>
+      userId
+        ? (getCachedFavoriteCourseIds(userId)?.has(course.id) ?? false)
+        : readFavoriteCourses().some((favorite) => favorite.id === course.id),
+    () => false,
+  );
+
+  const [optimisticFavorited, setOptimisticFavorited] = useOptimistic(
+    isFavorited,
+    (_current, nextState: boolean) => nextState,
+  );
 
   return (
     <article className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-100/90 bg-white p-3.5 shadow-xs transform-gpu">
@@ -951,31 +902,36 @@ export function FigmaCourseCard({ course }: { course: FavoriteCourse }) {
         <button
           type="button"
           aria-label={
-            isFavorited ? `Bỏ yêu thích ${course.title}` : `Lưu ${course.title} vào yêu thích`
+            optimisticFavorited
+              ? `Bỏ yêu thích ${course.title}`
+              : `Lưu ${course.title} vào yêu thích`
           }
-          aria-pressed={isFavorited}
+          aria-pressed={optimisticFavorited}
           onClick={(e) => {
             e.preventDefault();
             setFavoriteError("");
             if (userId) {
-              setFavoriteLoading(true);
-              void getAccessToken()
-                .then((token) => {
+              startTransition(async () => {
+                setOptimisticFavorited(!isFavorited);
+                setFavoriteLoading(true);
+                try {
+                  const token = await getAccessToken();
                   if (!token) throw new Error("Vui lòng đăng nhập lại để lưu khóa học.");
-                  return setRemoteFavoriteCourse(userId, course.id, token, !isFavorited);
-                })
-                .catch(() =>
-                  setFavoriteError("Không thể cập nhật danh sách yêu thích. Vui lòng thử lại."),
-                )
-                .finally(() => setFavoriteLoading(false));
+                  await setRemoteFavoriteCourse(userId, course.id, token, !isFavorited);
+                } catch {
+                  setFavoriteError("Không thể cập nhật danh sách yêu thích. Vui lòng thử lại.");
+                } finally {
+                  setFavoriteLoading(false);
+                }
+              });
             } else {
               toggleFavoriteCourse(course);
             }
           }}
-          disabled={favoriteLoading || (userId !== null && !favoriteReady)}
+          disabled={favoriteLoading}
           className="focus-ring absolute right-2.5 top-2.5 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-slate-600 backdrop-blur-xs shadow-xs transition hover:bg-white hover:text-rose-500 active:scale-90 disabled:cursor-wait disabled:opacity-60"
         >
-          <Heart className={cn("h-4 w-4", isFavorited && "fill-rose-500 text-rose-500")} />
+          <Heart className={cn("h-4 w-4", optimisticFavorited && "fill-rose-500 text-rose-500")} />
         </button>
         {favoriteError ? (
           <span

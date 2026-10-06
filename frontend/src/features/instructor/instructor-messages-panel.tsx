@@ -66,10 +66,7 @@ export function InstructorMessagesPanel() {
   }, [accessToken, isAuthenticated]);
 
   useEffect(() => {
-    const timeout = window.setTimeout(() => {
-      if (!authLoading) void loadConversations();
-    }, 0);
-    return () => window.clearTimeout(timeout);
+    if (!authLoading) void loadConversations();
   }, [authLoading, loadConversations]);
 
   useEffect(() => {
@@ -77,35 +74,31 @@ export function InstructorMessagesPanel() {
       return;
     }
     let active = true;
-    const timeout = window.setTimeout(() => {
-      if (!active) return;
-      setLoadingMessages(true);
-      setMessageError("");
-      void fetchInstructorMessages(selectedId, accessToken)
-        .then((page) => {
-          if (!active) return;
-          setMessages(
-            [...page.data].sort(
-              (first, second) => Date.parse(first.createdAt) - Date.parse(second.createdAt),
-            ),
+    setLoadingMessages(true);
+    setMessageError("");
+    void fetchInstructorMessages(selectedId, accessToken)
+      .then((page) => {
+        if (!active) return;
+        setMessages(
+          [...page.data].sort(
+            (first, second) => Date.parse(first.createdAt) - Date.parse(second.createdAt),
+          ),
+        );
+        setConversations((current) =>
+          current.map((item) => (item.id === selectedId ? { ...item, unreadCount: 0 } : item)),
+        );
+      })
+      .catch((loadError) => {
+        if (active)
+          setMessageError(
+            loadError instanceof ApiClientError ? loadError.message : "Không thể tải tin nhắn.",
           );
-          setConversations((current) =>
-            current.map((item) => (item.id === selectedId ? { ...item, unreadCount: 0 } : item)),
-          );
-        })
-        .catch((loadError) => {
-          if (active)
-            setMessageError(
-              loadError instanceof ApiClientError ? loadError.message : "Không thể tải tin nhắn.",
-            );
-        })
-        .finally(() => {
-          if (active) setLoadingMessages(false);
-        });
-    }, 0);
+      })
+      .finally(() => {
+        if (active) setLoadingMessages(false);
+      });
     return () => {
       active = false;
-      window.clearTimeout(timeout);
     };
   }, [accessToken, selectedId]);
 

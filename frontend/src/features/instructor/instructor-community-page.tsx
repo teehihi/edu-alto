@@ -106,10 +106,7 @@ export default function InstructorCommunityPage() {
   }, [accessToken, isAuthenticated]);
 
   useEffect(() => {
-    const timeout = window.setTimeout(() => {
-      if (!authLoading) void loadReviews();
-    }, 0);
-    return () => window.clearTimeout(timeout);
+    if (!authLoading) void loadReviews();
   }, [authLoading, loadReviews]);
 
   useEffect(() => {

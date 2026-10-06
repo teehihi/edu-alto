@@ -2,9 +2,12 @@ import type { Metadata, Viewport } from "next";
 import { AuthSessionProvider } from "@/lib/auth-session";
 import { LearningAssistant } from "@/components/learning-assistant";
 import { CookieConsentManager } from "@/components/layout/cookie-consent-manager";
+import { QueryProvider } from "@/lib/query-provider";
 import "./globals.css";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://edu-alto.vercel.app";
+
+export const instant = false;
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -52,11 +55,13 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="vi" data-scroll-behavior="smooth" suppressHydrationWarning>
       <body className="font-sans antialiased" suppressHydrationWarning>
-        <AuthSessionProvider>
-          {children}
-          <LearningAssistant />
-          <CookieConsentManager />
-        </AuthSessionProvider>
+        <QueryProvider>
+          <AuthSessionProvider>
+            {children}
+            <LearningAssistant />
+            <CookieConsentManager />
+          </AuthSessionProvider>
+        </QueryProvider>
       </body>
     </html>
   );

@@ -44,8 +44,7 @@ export function LearningQuizContent({ lessonId, getAccessToken, onPassed }: Prop
   }, [getAccessToken, lessonId]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => void loadQuiz(), 0);
-    return () => window.clearTimeout(timer);
+    void loadQuiz();
   }, [loadQuiz, retryCount]);
 
   async function submitAnswers() {

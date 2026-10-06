@@ -69,8 +69,7 @@ export function AdminPaymentsPage() {
   }, [authLoading, getAccessToken, page, user?.roles]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => void loadOrders(), 0);
-    return () => window.clearTimeout(timer);
+    void loadOrders();
   }, [loadOrders]);
 
   async function handleConfirm(orderId: string) {

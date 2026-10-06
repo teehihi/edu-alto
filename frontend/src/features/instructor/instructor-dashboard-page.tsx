@@ -216,17 +216,33 @@ const emptyCourseForm: InstructorCoursePayload = {
   thumbnailKey: null,
 };
 
+let instructorDashboardCache: {
+  courses: InstructorCourse[];
+  reviewSummary: InstructorReviewSummary | null;
+  revenueSummary: InstructorRevenueSummary | null;
+} | null = null;
+
+export function clearInstructorDashboardCache() {
+  instructorDashboardCache = null;
+}
+
 export function InstructorDashboardPage() {
   const { accessToken, loading: authLoading } = useAuth();
-  const [courses, setCourses] = useState<InstructorCourse[]>([]);
+  const [courses, setCourses] = useState<InstructorCourse[]>(
+    () => instructorDashboardCache?.courses ?? [],
+  );
   const [courseStats, setCourseStats] = useState<Record<string, InstructorCourseMetrics>>({});
-  const [reviewSummary, setReviewSummary] = useState<InstructorReviewSummary | null>(null);
-  const [revenueSummary, setRevenueSummary] = useState<InstructorRevenueSummary | null>(null);
+  const [reviewSummary, setReviewSummary] = useState<InstructorReviewSummary | null>(
+    () => instructorDashboardCache?.reviewSummary ?? null,
+  );
+  const [revenueSummary, setRevenueSummary] = useState<InstructorRevenueSummary | null>(
+    () => instructorDashboardCache?.revenueSummary ?? null,
+  );
   const [revenueSummaryLoading, setRevenueSummaryLoading] = useState(false);
   const [revenueSummaryAvailable, setRevenueSummaryAvailable] = useState(true);
   const [reviewSummaryLoading, setReviewSummaryLoading] = useState(false);
   const [reviewSummaryAvailable, setReviewSummaryAvailable] = useState(true);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !instructorDashboardCache);
   const [error, setError] = useState<string | null>(null);
   const [courseFormOpen, setCourseFormOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState<InstructorCourse | null>(null);
@@ -243,126 +259,87 @@ export function InstructorDashboardPage() {
   const [publishError, setPublishError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const loadCourses = useCallback(async () => {
+  const loadDashboardData = useCallback(async () => {
     if (authLoading) return;
     if (!accessToken) {
       setError("Vui lòng đăng nhập để xem khóa học của bạn.");
       setLoading(false);
+      setReviewSummaryAvailable(false);
+      setRevenueSummaryAvailable(false);
       return;
     }
-    setLoading(true);
+    if (!instructorDashboardCache || instructorDashboardCache.courses.length === 0) {
+      setLoading(true);
+    }
     setError(null);
+    setReviewSummaryLoading(true);
+    setRevenueSummaryLoading(true);
+
     try {
-      const result = await fetchInstructorCourses(accessToken);
-      setCourses(result.data);
-    } catch (cause) {
-      setError(
-        cause instanceof ApiClientError
-          ? cause.message
-          : "Không thể tải danh sách khóa học. Vui lòng thử lại.",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [accessToken, authLoading]);
+      const [coursesRes, metricsRes, reviewRes, revenueRes] = await Promise.allSettled([
+        fetchInstructorCourses(accessToken),
+        fetchInstructorCourseMetrics(accessToken),
+        fetchInstructorReviewSummary(accessToken),
+        fetchInstructorRevenueSummary(accessToken, {}),
+      ]);
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => void loadCourses(), 0);
-    return () => window.clearTimeout(timer);
-  }, [loadCourses]);
+      let fetchedCourses: InstructorCourse[] = [];
+      if (coursesRes.status === "fulfilled") {
+        fetchedCourses = coursesRes.value.data;
+        setCourses(fetchedCourses);
+      } else {
+        setError(
+          coursesRes.reason instanceof ApiClientError
+            ? coursesRes.reason.message
+            : "Không thể tải danh sách khóa học. Vui lòng thử lại.",
+        );
+      }
 
-  useEffect(() => {
-    let cancelled = false;
-    if (!accessToken || courses.length === 0) {
-      const timeout = window.setTimeout(() => setCourseStats({}), 0);
-      return () => {
-        cancelled = true;
-        window.clearTimeout(timeout);
-      };
-    }
+      if (metricsRes.status === "fulfilled" && fetchedCourses.length > 0) {
+        setCourseStats(indexInstructorCourseMetrics(metricsRes.value));
+      } else {
+        setCourseStats({});
+      }
 
-    void fetchInstructorCourseMetrics(accessToken)
-      .then((result) => {
-        if (!cancelled) setCourseStats(indexInstructorCourseMetrics(result));
-      })
-      .catch(() => {
-        if (!cancelled) setCourseStats({});
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [accessToken, courses]);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!accessToken || courses.length === 0) {
-      const timeout = window.setTimeout(() => {
+      let nextReview: InstructorReviewSummary | null = null;
+      if (reviewRes.status === "fulfilled" && fetchedCourses.length > 0) {
+        nextReview = reviewRes.value;
+        setReviewSummary(nextReview);
+        setReviewSummaryAvailable(true);
+      } else {
         setReviewSummary(null);
-        setReviewSummaryLoading(false);
-        setReviewSummaryAvailable(Boolean(accessToken) && !error);
-      }, 0);
-      return () => {
-        cancelled = true;
-        window.clearTimeout(timeout);
-      };
-    }
+        setReviewSummaryAvailable(Boolean(accessToken) && coursesRes.status === "fulfilled");
+      }
 
-    const timeout = window.setTimeout(() => {
-      setReviewSummaryLoading(true);
-      void fetchInstructorReviewSummary(accessToken)
-        .then((summary) => {
-          if (cancelled) return;
-          setReviewSummary(summary);
-          setReviewSummaryAvailable(true);
-        })
-        .catch(() => {
-          if (cancelled) return;
-          setReviewSummary(null);
-          setReviewSummaryAvailable(false);
-        })
-        .finally(() => {
-          if (!cancelled) setReviewSummaryLoading(false);
-        });
-    }, 0);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timeout);
-    };
-  }, [accessToken, courses, error]);
-
-  useEffect(() => {
-    if (authLoading) return;
-    let cancelled = false;
-    const timeout = window.setTimeout(() => {
-      if (!accessToken) {
+      let nextRevenue: InstructorRevenueSummary | null = null;
+      if (revenueRes.status === "fulfilled") {
+        nextRevenue = revenueRes.value;
+        setRevenueSummary(nextRevenue);
+        setRevenueSummaryAvailable(true);
+      } else {
         setRevenueSummary(null);
         setRevenueSummaryAvailable(false);
-        setRevenueSummaryLoading(false);
-        return;
       }
-      setRevenueSummaryLoading(true);
-      void fetchInstructorRevenueSummary(accessToken, {})
-        .then((summary) => {
-          if (cancelled) return;
-          setRevenueSummary(summary);
-          setRevenueSummaryAvailable(true);
-        })
-        .catch(() => {
-          if (cancelled) return;
-          setRevenueSummary(null);
-          setRevenueSummaryAvailable(false);
-        })
-        .finally(() => {
-          if (!cancelled) setRevenueSummaryLoading(false);
-        });
-    }, 0);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timeout);
-    };
+
+      if (coursesRes.status === "fulfilled") {
+        instructorDashboardCache = {
+          courses: fetchedCourses,
+          reviewSummary: nextReview,
+          revenueSummary: nextRevenue,
+        };
+      }
+    } finally {
+      setLoading(false);
+      setReviewSummaryLoading(false);
+      setRevenueSummaryLoading(false);
+    }
   }, [accessToken, authLoading]);
+
+  const loadCourses = loadDashboardData;
+
+  useEffect(() => {
+    void loadDashboardData();
+  }, [loadDashboardData]);
 
   const revenueMetrics = [
     {
@@ -554,7 +531,7 @@ export function InstructorDashboardPage() {
 
   return (
     <InstructorWorkspaceShell activeSection="dashboard">
-      <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-10 lg:py-6 xl:pr-[38px] xl:pl-[61px]">
+      <div className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-10 lg:py-6 xl:pr-[38px] xl:pl-[61px]">
         <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-2xl font-semibold text-primary">Tổng quan</h1>
           <div className="flex items-center gap-2 self-end sm:self-auto">
@@ -825,7 +802,7 @@ export function InstructorDashboardPage() {
             </div>
           )}
         </section>
-      </main>
+      </div>
 
       {courseFormOpen ? (
         <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-slate-950/40 p-3 sm:p-6">

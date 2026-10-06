@@ -38,6 +38,9 @@ export function CheckoutResultPage() {
           if (!active) return;
           setOrder(result);
           setError("");
+          if (result.status === "PAID") {
+            for (const item of result.items) removeCourseFromCart(item.courseId);
+          }
           if (result.status === "PENDING_PAYMENT" || result.status === "PAYMENT_REVIEW") {
             timer = setTimeout(checkOrder, 10_000);
           }
@@ -58,11 +61,6 @@ export function CheckoutResultPage() {
 
   const paid = order?.status === "PAID";
   const pending = order?.status === "PENDING_PAYMENT" || order?.status === "PAYMENT_REVIEW";
-  useEffect(() => {
-    if (order?.status === "PAID") {
-      for (const item of order.items) removeCourseFromCart(item.courseId);
-    }
-  }, [order]);
   return (
     <main className="container-page grid min-h-[65vh] place-items-center py-12">
       <section className="w-full max-w-xl rounded-2xl border border-[#e4ece8] bg-white p-7 text-center shadow-sm md:p-10">

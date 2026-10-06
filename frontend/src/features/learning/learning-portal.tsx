@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  ArrowUpRight,
   BookOpen,
   BookmarkCheck,
   CalendarDays,
@@ -17,6 +18,7 @@ import {
   GraduationCap,
   Home,
   House,
+  LayoutDashboard,
   Menu,
   MessageCircle,
   NotebookPen,
@@ -31,8 +33,9 @@ import {
 } from "lucide-react";
 import { Fragment, useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { UserAvatar } from "@/components/ui/user-avatar";
-import { UserMenu } from "@/components/layout/user-menu";
+import { AppHeader } from "@/components/layout/app-header";
 import { ApiClientError } from "@/lib/api";
+import { fetchInstructorCourses, type InstructorCourse } from "@/lib/instructor-course-client";
 import { fetchMyAssignments, submitAssignment, type Assignment } from "@/lib/assignment-client";
 import {
   createLearningNote,
@@ -172,13 +175,46 @@ const upcomingTasks = [
   },
 ];
 
+interface LearningDataCache {
+  userId: string;
+  enrollments: Enrollment[];
+  progressByCourse: Record<string, CourseProgress>;
+  instructorCourses: InstructorCourse[];
+  timestamp: number;
+}
+
+let learningDataCache: LearningDataCache | null = null;
+
+export function resetLearningPortalCache() {
+  learningDataCache = null;
+}
+
 export function LearningPortal({ view }: { view: PortalView }) {
   const { user, isLoading, getAccessToken } = useAuthSession();
   const router = useRouter();
   const pathname = usePathname();
-  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
-  const [progressByCourse, setProgressByCourse] = useState<Record<string, CourseProgress>>({});
-  const [loading, setLoading] = useState(true);
+  const isInstructor = Boolean(
+    user?.roles?.some((r) => r === "INSTRUCTOR" || r === "ROLE_INSTRUCTOR"),
+  );
+
+  const isDataView = view === "overview" || view === "courses";
+  const hasValidCache = Boolean(learningDataCache && user && learningDataCache.userId === user.id);
+
+  const [enrollments, setEnrollments] = useState<Enrollment[]>(() =>
+    hasValidCache ? learningDataCache!.enrollments : [],
+  );
+  const [progressByCourse, setProgressByCourse] = useState<Record<string, CourseProgress>>(() =>
+    hasValidCache ? learningDataCache!.progressByCourse : {},
+  );
+  const [instructorCourses, setInstructorCourses] = useState<InstructorCourse[]>(() =>
+    hasValidCache ? learningDataCache!.instructorCourses : [],
+  );
+  const [instructorCoursesLoading, setInstructorCoursesLoading] = useState(false);
+  const [instructorTab, setInstructorTab] = useState<"teaching" | "learning">("teaching");
+  const [loading, setLoading] = useState(() => {
+    if (!isDataView) return false;
+    return !hasValidCache;
+  });
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -189,18 +225,36 @@ export function LearningPortal({ view }: { view: PortalView }) {
       router.replace(`/login?next=${encodeURIComponent(pathname)}`);
       return;
     }
-    if (view !== "overview" && view !== "courses") {
-      const timer = window.setTimeout(() => {
-        setError("");
-        setLoading(false);
-      }, 0);
-      return () => window.clearTimeout(timer);
+    if (!isDataView) {
+      setError("");
+      setLoading(false);
+      return;
     }
     let active = true;
     void getAccessToken()
-      .then((token) => {
+      .then(async (token) => {
         if (!token) throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
-        return fetchMyEnrollments(token).then(async (page) => {
+
+        let fetchedInstructorCourses: InstructorCourse[] = [];
+        if (isInstructor) {
+          if (!hasValidCache) {
+            setInstructorCoursesLoading(true);
+          }
+          try {
+            const instPage = await fetchInstructorCourses(token);
+            if (active) {
+              fetchedInstructorCourses = instPage.data;
+              setInstructorCourses(instPage.data);
+            }
+          } catch {
+            // Non-critical if instructor course fetch fails
+          } finally {
+            if (active) setInstructorCoursesLoading(false);
+          }
+        }
+
+        try {
+          const page = await fetchMyEnrollments(token);
           if (!active) return;
           setEnrollments(page.data);
           const entries = await Promise.all(
@@ -214,9 +268,45 @@ export function LearningPortal({ view }: { view: PortalView }) {
                 }
               }),
           );
-          if (active)
-            setProgressByCourse(Object.fromEntries(entries.filter((item) => item !== null)));
-        });
+          if (active) {
+            const nextProgress = Object.fromEntries(entries.filter((item) => item !== null));
+            setProgressByCourse(nextProgress);
+            learningDataCache = {
+              userId: user.id,
+              enrollments: page.data,
+              progressByCourse: nextProgress,
+              instructorCourses:
+                fetchedInstructorCourses.length > 0
+                  ? fetchedInstructorCourses
+                  : (learningDataCache?.instructorCourses ?? []),
+              timestamp: Date.now(),
+            };
+          }
+        } catch (fetchErr) {
+          if (
+            isInstructor &&
+            fetchErr instanceof ApiClientError &&
+            (fetchErr.status === 403 || fetchErr.code === "STUDENT_REQUIRED")
+          ) {
+            // Instructor does not have student enrollments; treat as 0 enrolled courses
+            if (active) {
+              setEnrollments([]);
+              setProgressByCourse({});
+              learningDataCache = {
+                userId: user.id,
+                enrollments: [],
+                progressByCourse: {},
+                instructorCourses:
+                  fetchedInstructorCourses.length > 0
+                    ? fetchedInstructorCourses
+                    : (learningDataCache?.instructorCourses ?? []),
+                timestamp: Date.now(),
+              };
+            }
+            return;
+          }
+          throw fetchErr;
+        }
       })
       .catch((reason: unknown) => {
         if (active)
@@ -232,7 +322,7 @@ export function LearningPortal({ view }: { view: PortalView }) {
     return () => {
       active = false;
     };
-  }, [getAccessToken, isLoading, pathname, router, user, view]);
+  }, [getAccessToken, hasValidCache, isDataView, isInstructor, isLoading, pathname, router, user]);
 
   const visibleCourses = useMemo(() => {
     const query = search.trim().toLocaleLowerCase("vi");
@@ -241,42 +331,67 @@ export function LearningPortal({ view }: { view: PortalView }) {
     );
   }, [enrollments, search]);
   return (
-    <div className="learning-app min-h-screen bg-white text-[#101a2c]">
-      <div className="mx-auto flex min-h-screen max-w-[1600px]">
+    <div className="learning-app min-h-screen bg-[#f8fbfa] text-[#101a2c]">
+      <AppHeader />
+
+      {/* Mobile bar for toggling learning drawer */}
+      <div className="flex h-12 items-center justify-between border-b border-slate-200/80 bg-white px-4 lg:hidden">
+        <button
+          type="button"
+          onClick={() => setMobileNavOpen(true)}
+          aria-label="Mở menu học tập"
+          className="focus-ring flex items-center gap-2 rounded-lg p-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 active:scale-[0.98] transition"
+        >
+          <Menu className="h-4 w-4 text-primary" />
+          <span>Menu học tập</span>
+        </button>
+        <span className="text-xs font-semibold text-slate-600">{viewTitles[view]}</span>
+      </div>
+
+      <div className="mx-auto flex min-h-[calc(100vh-73px)] max-w-[1600px]">
         <aside
           className={cn(
-            "learning-sidebar fixed inset-y-0 left-0 z-50 w-[223px] border-r border-[#e4e4e4] bg-[#f9f9f9] transition-transform duration-200 lg:sticky lg:top-0 lg:z-20 lg:h-screen lg:translate-x-0",
+            "learning-sidebar fixed inset-y-0 left-0 z-40 w-[240px] border-r border-slate-200/80 bg-white shadow-[1px_0_3px_rgba(0,0,0,0.02)] transition-transform duration-200 lg:sticky lg:top-[73px] lg:z-20 lg:h-[calc(100vh-73px)] lg:translate-x-0 overflow-y-auto",
             mobileNavOpen ? "translate-x-0" : "-translate-x-full",
           )}
         >
-          <div className="flex h-[58px] items-center justify-between border-b border-[#e4e4e4] px-4 lg:hidden">
+          {/* Mobile drawer header */}
+          <div className="flex h-14 items-center justify-between border-b border-slate-100 px-4 lg:hidden">
             <Link href="/" aria-label="EduAlto - Trang chủ" className="focus-ring rounded">
-              <Image src="/images/logo-w-text.png" alt="EduAlto" width={112} height={54} priority />
+              <Image
+                src="/images/logo-w-text.png"
+                alt="EduAlto"
+                width={112}
+                height={40}
+                className="h-7 w-auto object-contain"
+                priority
+              />
             </Link>
             <button
               type="button"
               onClick={() => setMobileNavOpen(false)}
               aria-label="Đóng menu"
-              className="focus-ring rounded-md p-2"
+              className="focus-ring rounded-md p-1.5 text-slate-500 hover:bg-slate-100"
             >
               <X className="h-5 w-5" />
             </button>
           </div>
-          <div className="hidden h-[83px] items-center border-b border-[#e4e4e4] px-[15px] lg:flex">
-            <Link
-              href="/"
-              className="focus-ring inline-flex items-center rounded"
-              aria-label="EduAlto - Trang chủ"
-            >
-              <Image src="/images/logo-w-text.png" alt="EduAlto" width={127} height={71} priority />
-            </Link>
+          {/* Desktop sidebar header */}
+          <div className="hidden h-14 items-center gap-2.5 border-b border-slate-100 px-4 lg:flex">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+              <GraduationCap className="h-4 w-4 stroke-[1.8]" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-[#101A2C]">Khu vực học tập</p>
+              <p className="text-[10px] text-slate-400">Không gian của bạn</p>
+            </div>
           </div>
-          <nav aria-label="Điều hướng học tập" className="space-y-5 px-[14px] py-[15px]">
+          <nav aria-label="Điều hướng học tập" className="space-y-5 px-3 py-4">
             {navGroups
               .filter((group) => group.title !== "KHÁM PHÁ")
               .map((group) => (
                 <div key={group.title}>
-                  <p className="mb-2 px-3 text-[10px] font-bold tracking-[.12em] text-[#a2a2a2]">
+                  <p className="mb-2 px-3 text-[10px] font-bold tracking-[.12em] text-slate-400 uppercase">
                     {group.title}
                   </p>
                   <ul className="space-y-1">
@@ -291,13 +406,13 @@ export function LearningPortal({ view }: { view: PortalView }) {
                             onClick={() => setMobileNavOpen(false)}
                             aria-current={selected ? "page" : undefined}
                             className={cn(
-                              "focus-ring flex h-8 items-center gap-3 rounded px-[7px] text-[12px] font-medium transition",
+                              "focus-ring flex h-9 items-center gap-2.5 rounded-xl px-3 text-xs font-medium transition active:scale-[0.98]",
                               selected
-                                ? "bg-[#079367] text-white"
-                                : "text-[#727272] hover:bg-[#eeeeee] hover:text-[#078d67]",
+                                ? "bg-primary font-semibold text-white shadow-xs shadow-primary/25"
+                                : "text-slate-600 hover:bg-[#edf7f3] hover:text-emerald-700 active:bg-[#e1f3eb]",
                             )}
                           >
-                            <Icon className="h-4 w-4 shrink-0" strokeWidth={1.8} />
+                            <Icon className="h-4 w-4 shrink-0 stroke-[1.8]" />
                             <span>{item.label}</span>
                           </Link>
                         </li>
@@ -306,19 +421,19 @@ export function LearningPortal({ view }: { view: PortalView }) {
                   </ul>
                 </div>
               ))}
-            <div className="border-t border-[#edf1ef] pt-4">
+            <div className="border-t border-slate-100 pt-3">
               <Link
                 href="/"
-                className="focus-ring flex h-10 items-center gap-3 rounded-lg px-3 text-[13px] font-medium text-[#66736f] hover:bg-[#eefaf6] hover:text-primary"
+                className="focus-ring flex h-9 items-center gap-2.5 rounded-xl px-3 text-xs font-medium text-slate-600 transition hover:bg-[#edf7f3] hover:text-emerald-700 active:scale-[0.98]"
               >
-                <House className="h-4 w-4" />
+                <House className="h-4 w-4 stroke-[1.8]" />
                 Về trang chủ
               </Link>
               <Link
                 href="/profile"
-                className="focus-ring mt-1 flex h-10 items-center gap-3 rounded-lg px-3 text-[13px] font-medium text-[#66736f] hover:bg-[#eefaf6] hover:text-primary"
+                className="focus-ring mt-1 flex h-9 items-center gap-2.5 rounded-xl px-3 text-xs font-medium text-slate-600 transition hover:bg-[#edf7f3] hover:text-emerald-700 active:scale-[0.98]"
               >
-                <Settings className="h-4 w-4" />
+                <Settings className="h-4 w-4 stroke-[1.8]" />
                 Cài đặt tài khoản
               </Link>
             </div>
@@ -329,38 +444,19 @@ export function LearningPortal({ view }: { view: PortalView }) {
             type="button"
             aria-label="Đóng menu"
             onClick={() => setMobileNavOpen(false)}
-            className="fixed inset-0 z-40 bg-[#101a2c]/30 lg:hidden"
+            className="fixed inset-0 z-30 bg-[#101a2c]/40 backdrop-blur-xs lg:hidden"
           />
         )}
         <section className="min-w-0 flex-1">
-          <div className="learning-topbar sticky top-0 z-30 flex h-[58px] items-center justify-between border-b border-[#e4e4e4] bg-[#f9f9f9] px-4 md:px-6 lg:h-[83px]">
-            <div className="flex min-w-0 items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setMobileNavOpen(true)}
-                className="focus-ring rounded-md p-2 text-[#64716e] lg:hidden"
-                aria-label="Mở menu"
-              >
-                <Menu className="h-5 w-5" />
-              </button>
-              <label className="hidden h-11 w-[367px] items-center gap-2 rounded-lg border border-[#b7e4d7] bg-white px-3 sm:flex">
-                <Search className="h-4 w-4 text-[#94a39e]" />
-                <span className="sr-only">Tìm kiếm</span>
-                <input
-                  className="min-w-0 flex-1 border-0 bg-transparent text-xs outline-none placeholder:text-[#98a39e]"
-                  placeholder="Bạn muốn học gì?"
-                />
-              </label>
-            </div>
-            <UserMenu showNameTrigger />
-          </div>
-          <main className="learning-main mx-auto min-h-[calc(100vh-83px)] max-w-[1600px] px-4 py-5 md:px-7 md:py-6 xl:px-7">
-            <div className="mb-5 flex items-center justify-between gap-4">
-              <div
-                className={
-                  view === "overview" || view === "calendar" || view === "messages" ? "sr-only" : ""
-                }
-              >
+          <main className="learning-main mx-auto min-h-[calc(100vh-73px)] max-w-[1600px] px-4 py-6 md:px-7 md:py-8">
+            <div
+              className={cn(
+                "mb-5 flex items-center justify-between gap-4",
+                (view === "overview" || view === "calendar" || view === "messages") && "sr-only",
+                view === "courses" && isInstructor && "hidden",
+              )}
+            >
+              <div>
                 <h1 className="text-xl font-semibold text-[#079367] md:text-[18px]">
                   {view === "assignments" ? "Bài tập" : viewTitles[view]}
                 </h1>
@@ -370,7 +466,7 @@ export function LearningPortal({ view }: { view: PortalView }) {
                   </p>
                 )}
               </div>
-              {view === "courses" && (
+              {view === "courses" && !isInstructor && (
                 <Link
                   href="/courses"
                   className="focus-ring hidden h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-white hover:bg-[#159e75] sm:inline-flex"
@@ -389,6 +485,7 @@ export function LearningPortal({ view }: { view: PortalView }) {
                 userName={user?.fullName ?? "bạn"}
                 enrollments={visibleCourses}
                 progress={progressByCourse}
+                isInstructor={isInstructor}
               />
             ) : view === "courses" ? (
               <MyCourses
@@ -396,6 +493,11 @@ export function LearningPortal({ view }: { view: PortalView }) {
                 progress={progressByCourse}
                 search={search}
                 onSearch={setSearch}
+                isInstructor={isInstructor}
+                instructorCourses={instructorCourses}
+                instructorCoursesLoading={instructorCoursesLoading}
+                instructorTab={instructorTab}
+                onInstructorTabChange={setInstructorTab}
               />
             ) : view === "savedLessons" ? (
               <SavedLessonsView />
@@ -445,10 +547,12 @@ function Overview({
   userName,
   enrollments,
   progress,
+  isInstructor = false,
 }: {
   userName: string;
   enrollments: Enrollment[];
   progress: Record<string, CourseProgress>;
+  isInstructor?: boolean;
 }) {
   const recent = enrollments.slice(0, 3);
   const totalCompleted = Object.values(progress).reduce(
@@ -474,6 +578,30 @@ function Overview({
           Hôm nay chúng ta hãy cùng học điều gì đó mới mẻ nhé!
         </p>
       </section>
+      {isInstructor && (
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-xl border border-emerald-200/80 bg-gradient-to-r from-emerald-50/80 to-[#f0fbf7] p-4 shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-white shadow-xs">
+              <GraduationCap className="h-5 w-5 stroke-[1.8]" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-[#101a2c]">
+                Bạn đang sử dụng tài khoản Giảng viên
+              </p>
+              <p className="text-xs text-slate-500">
+                Truy cập Bảng điều khiển để quản lý khóa học, giáo trình và tương tác với học viên
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/instructor"
+            className="focus-ring inline-flex h-9 shrink-0 items-center gap-2 rounded-lg bg-primary px-3.5 text-xs font-semibold text-white shadow-xs transition hover:bg-primary-dark active:scale-[0.98]"
+          >
+            <LayoutDashboard className="h-3.5 w-3.5" />
+            <span>Bảng điều khiển Giảng viên</span>
+          </Link>
+        </div>
+      )}
       <div className="grid gap-4 xl:grid-cols-[1fr_1.35fr_1fr]">
         <section className="portal-card">
           <SectionHeading
@@ -799,44 +927,470 @@ function SmallEmpty({
   );
 }
 
+function InstructorCourseCard({ course }: { course: InstructorCourse }) {
+  const isPublished = course.status === "PUBLISHED";
+  const isDraft = course.status === "DRAFT";
+  const statusLabel = isPublished ? "Đang xuất bản" : isDraft ? "Bản nháp" : "Đã lưu trữ";
+  const statusBadgeClass = isPublished
+    ? "bg-emerald-50 text-emerald-700 border-emerald-200/80 font-semibold"
+    : isDraft
+      ? "bg-amber-50 text-amber-700 border-amber-200/80 font-semibold"
+      : "bg-slate-100 text-slate-600 border-slate-200 font-medium";
+
+  const levelLabel =
+    course.level === "BEGINNER"
+      ? "Cơ bản"
+      : course.level === "INTERMEDIATE"
+        ? "Trung cấp"
+        : course.level === "ADVANCED"
+          ? "Nâng cao"
+          : "Tất cả cấp độ";
+
+  const formattedPrice =
+    course.price === 0
+      ? "Miễn phí"
+      : new Intl.NumberFormat("vi-VN", {
+          style: "currency",
+          currency: "VND",
+          maximumFractionDigits: 0,
+        })
+          .format(course.price)
+          .replace("₫", "đ");
+
+  const formattedDate = new Intl.DateTimeFormat("vi-VN", { dateStyle: "medium" }).format(
+    new Date(course.updatedAt),
+  );
+
+  return (
+    <article className="group flex flex-col overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-xs transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md">
+      <div className="relative aspect-video w-full overflow-hidden bg-slate-100 ring-1 ring-black/5">
+        {course.thumbnailUrl ? (
+          <Image
+            src={course.thumbnailUrl}
+            alt={course.title}
+            fill
+            className="object-cover transition duration-300 group-hover:scale-105"
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-emerald-50 to-teal-100/50 text-primary">
+            <BookOpen className="h-10 w-10 stroke-[1.6]" />
+          </div>
+        )}
+        <div className="absolute left-3 top-3 flex items-center gap-1.5">
+          <span className={cn("rounded-md border px-2 py-0.5 text-[10px]", statusBadgeClass)}>
+            {statusLabel}
+          </span>
+          <span className="rounded-md border border-white/70 bg-white/90 px-2 py-0.5 text-[10px] font-medium text-slate-700 shadow-xs">
+            {levelLabel}
+          </span>
+        </div>
+      </div>
+
+      <div className="flex flex-1 flex-col p-4">
+        <h2 className="line-clamp-2 min-h-11 text-sm font-semibold leading-5 text-[#101a2c] group-hover:text-primary transition-colors">
+          {course.title}
+        </h2>
+        {course.tagline ? (
+          <p className="mt-1 line-clamp-1 text-xs text-slate-500">{course.tagline}</p>
+        ) : null}
+
+        <div className="mt-3 flex items-center justify-between text-xs">
+          <span className="font-bold text-[#079367]">{formattedPrice}</span>
+          <span className="text-[11px] text-slate-400">Cập nhật: {formattedDate}</span>
+        </div>
+
+        <div className="mt-4 flex items-center gap-2 border-t border-slate-100 pt-3">
+          <Link
+            href={`/instructor/courses/${course.id}/overview`}
+            className="focus-ring flex-1 inline-flex h-8 items-center justify-center rounded-lg bg-primary px-3 text-xs font-semibold text-white shadow-xs transition hover:bg-primary-dark active:scale-[0.98]"
+          >
+            Quản lý khóa học
+          </Link>
+          <Link
+            href={`/instructor/courses/${course.id}/curriculum`}
+            className="focus-ring inline-flex h-8 items-center justify-center rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-[0.98]"
+            title="Quản lý giáo trình"
+          >
+            Giáo trình
+          </Link>
+          <Link
+            href={`/courses/${course.slug}`}
+            className="focus-ring inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 hover:text-primary active:scale-[0.98]"
+            title="Xem trang học viên"
+          >
+            <ArrowUpRight className="h-4 w-4 stroke-[1.8]" />
+          </Link>
+        </div>
+      </div>
+    </article>
+  );
+}
+
 function MyCourses({
   courses,
   progress,
   search,
   onSearch,
+  isInstructor = false,
+  instructorCourses = [],
+  instructorCoursesLoading = false,
+  instructorTab = "teaching",
+  onInstructorTabChange,
 }: {
   courses: Enrollment[];
   progress: Record<string, CourseProgress>;
   search: string;
   onSearch: (value: string) => void;
+  isInstructor?: boolean;
+  instructorCourses?: InstructorCourse[];
+  instructorCoursesLoading?: boolean;
+  instructorTab?: "teaching" | "learning";
+  onInstructorTabChange?: (tab: "teaching" | "learning") => void;
 }) {
   const [sortOrder, setSortOrder] = useState<"recent" | "title">("recent");
   const [showFilters, setShowFilters] = useState(false);
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "archived">("all");
-  const filteredCourses = [...courses]
-    .filter(
-      (course) =>
-        statusFilter === "all" ||
-        (statusFilter === "archived"
-          ? course.courseStatus !== "PUBLISHED"
-          : course.courseStatus === "PUBLISHED"),
-    )
-    .sort((left, right) =>
-      sortOrder === "title"
-        ? left.courseTitle.localeCompare(right.courseTitle, "vi")
-        : new Date(right.enrolledAt).getTime() - new Date(left.enrolledAt).getTime(),
+
+  const [teachingSearch, setTeachingSearch] = useState("");
+  const [teachingStatus, setTeachingStatus] = useState<"all" | "PUBLISHED" | "DRAFT" | "ARCHIVED">(
+    "all",
+  );
+  const [teachingSort, setTeachingSort] = useState<"recent" | "title">("recent");
+
+  const filteredTeachingCourses = useMemo(() => {
+    const q = teachingSearch.trim().toLocaleLowerCase("vi");
+    return instructorCourses
+      .filter((course) => {
+        const matchesQuery =
+          !q ||
+          course.title.toLocaleLowerCase("vi").includes(q) ||
+          (course.tagline?.toLocaleLowerCase("vi").includes(q) ?? false);
+        const matchesStatus = teachingStatus === "all" || course.status === teachingStatus;
+        return matchesQuery && matchesStatus;
+      })
+      .sort((a, b) => {
+        if (teachingSort === "title") return a.title.localeCompare(b.title, "vi");
+        return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+      });
+  }, [instructorCourses, teachingSearch, teachingStatus, teachingSort]);
+
+  const filteredCourses = useMemo(() => {
+    return [...courses]
+      .filter(
+        (course) =>
+          statusFilter === "all" ||
+          (statusFilter === "archived"
+            ? course.courseStatus !== "PUBLISHED"
+            : course.courseStatus === "PUBLISHED"),
+      )
+      .sort((left, right) =>
+        sortOrder === "title"
+          ? left.courseTitle.localeCompare(right.courseTitle, "vi")
+          : new Date(right.enrolledAt).getTime() - new Date(left.enrolledAt).getTime(),
+      );
+  }, [courses, sortOrder, statusFilter]);
+
+  if (isInstructor) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-xl font-bold tracking-tight text-[#101a2c] md:text-2xl">
+                Khóa học của tôi
+              </h1>
+              <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 border border-emerald-200/80">
+                Giảng viên
+              </span>
+            </div>
+            <p className="mt-1 text-sm text-[#667085]">
+              Quản lý các khóa học bạn giảng dạy và theo dõi các khóa học bạn đang tham gia học tập
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <Link
+              href="/instructor"
+              className="focus-ring inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-[0.98]"
+            >
+              <LayoutDashboard className="h-4 w-4 text-[#20B486]" />
+              <span>Bảng điều khiển Giảng viên</span>
+            </Link>
+            <Link
+              href="/instructor/courses/overview"
+              className="focus-ring inline-flex h-9 items-center gap-2 rounded-xl bg-primary px-3.5 text-xs font-semibold text-white shadow-xs shadow-primary/25 transition hover:bg-primary-dark active:scale-[0.98]"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Tạo khóa học mới</span>
+            </Link>
+          </div>
+        </div>
+
+        <div className="flex border-b border-slate-200/80">
+          <button
+            type="button"
+            onClick={() => onInstructorTabChange?.("teaching")}
+            className={cn(
+              "relative flex items-center gap-2 px-4 py-3 text-sm font-semibold transition border-b-2 -mb-px active:scale-[0.98]",
+              instructorTab === "teaching"
+                ? "border-primary text-primary"
+                : "border-transparent text-slate-500 hover:text-slate-800",
+            )}
+          >
+            <BookOpen className="h-4 w-4" />
+            <span>Khóa học giảng dạy</span>
+            <span
+              className={cn(
+                "rounded-full px-2 py-0.5 text-xs font-bold",
+                instructorTab === "teaching"
+                  ? "bg-emerald-100 text-emerald-800"
+                  : "bg-slate-100 text-slate-600",
+              )}
+            >
+              {instructorCourses.length}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onInstructorTabChange?.("learning")}
+            className={cn(
+              "relative flex items-center gap-2 px-4 py-3 text-sm font-semibold transition border-b-2 -mb-px active:scale-[0.98]",
+              instructorTab === "learning"
+                ? "border-primary text-primary"
+                : "border-transparent text-slate-500 hover:text-slate-800",
+            )}
+          >
+            <GraduationCap className="h-4 w-4" />
+            <span>Khóa học đang học</span>
+            <span
+              className={cn(
+                "rounded-full px-2 py-0.5 text-xs font-bold",
+                instructorTab === "learning"
+                  ? "bg-emerald-100 text-emerald-800"
+                  : "bg-slate-100 text-slate-600",
+              )}
+            >
+              {courses.length}
+            </span>
+          </button>
+        </div>
+
+        {instructorTab === "teaching" ? (
+          <div>
+            <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-xs">
+                <p className="text-[11px] font-medium text-slate-500">Tổng khóa học</p>
+                <p className="mt-1 text-xl font-bold text-[#101a2c]">{instructorCourses.length}</p>
+              </div>
+              <div className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-3.5 shadow-xs">
+                <p className="text-[11px] font-medium text-emerald-700">Đang xuất bản</p>
+                <p className="mt-1 text-xl font-bold text-emerald-700">
+                  {instructorCourses.filter((c) => c.status === "PUBLISHED").length}
+                </p>
+              </div>
+              <div className="rounded-xl border border-amber-100 bg-amber-50/40 p-3.5 shadow-xs">
+                <p className="text-[11px] font-medium text-amber-700">Bản nháp</p>
+                <p className="mt-1 text-xl font-bold text-amber-700">
+                  {instructorCourses.filter((c) => c.status === "DRAFT").length}
+                </p>
+              </div>
+              <div className="rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-xs">
+                <p className="text-[11px] font-medium text-slate-500">Đã lưu trữ</p>
+                <p className="mt-1 text-xl font-bold text-slate-700">
+                  {instructorCourses.filter((c) => c.status === "ARCHIVED").length}
+                </p>
+              </div>
+            </div>
+
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+              <label className="flex h-10 w-full max-w-[380px] items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/10 transition">
+                <Search className="h-4 w-4 text-primary" />
+                <span className="sr-only">Tìm kiếm khóa học giảng dạy</span>
+                <input
+                  value={teachingSearch}
+                  onChange={(event) => setTeachingSearch(event.target.value)}
+                  placeholder="Tìm kiếm khóa học giảng dạy..."
+                  className="min-w-0 flex-1 text-sm outline-none placeholder:text-slate-400 bg-transparent"
+                />
+              </label>
+              <div className="ml-auto flex flex-wrap items-center gap-2 text-xs">
+                <span className="text-slate-500 font-medium">Trạng thái</span>
+                <select
+                  aria-label="Lọc trạng thái khóa học"
+                  value={teachingStatus}
+                  onChange={(event) =>
+                    setTeachingStatus(event.target.value as typeof teachingStatus)
+                  }
+                  className="focus-ring h-9 rounded-lg border border-slate-200 bg-white px-3 font-medium text-slate-700"
+                >
+                  <option value="all">Tất cả trạng thái</option>
+                  <option value="PUBLISHED">Đang xuất bản</option>
+                  <option value="DRAFT">Bản nháp</option>
+                  <option value="ARCHIVED">Đã lưu trữ</option>
+                </select>
+                <span className="text-slate-500 font-medium ml-2">Sắp xếp</span>
+                <select
+                  aria-label="Sắp xếp khóa học"
+                  value={teachingSort}
+                  onChange={(event) => setTeachingSort(event.target.value as typeof teachingSort)}
+                  className="focus-ring h-9 rounded-lg border border-slate-200 bg-white px-3 font-medium text-slate-700"
+                >
+                  <option value="recent">Mới cập nhật</option>
+                  <option value="title">Tên khóa học</option>
+                </select>
+                <span className="hidden text-slate-500 sm:inline ml-2">
+                  {filteredTeachingCourses.length} khóa học
+                </span>
+              </div>
+            </div>
+
+            {instructorCoursesLoading ? (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                <div className="skeleton h-64 rounded-xl" />
+                <div className="skeleton h-64 rounded-xl" />
+                <div className="skeleton h-64 rounded-xl" />
+              </div>
+            ) : filteredTeachingCourses.length ? (
+              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {filteredTeachingCourses.map((course) => (
+                  <InstructorCourseCard key={course.id} course={course} />
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center sm:p-12 shadow-xs">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-50 text-primary">
+                  <BookOpen className="h-6 w-6 stroke-[1.8]" />
+                </div>
+                <h3 className="mt-3 text-base font-semibold text-[#101a2c]">
+                  {teachingSearch || teachingStatus !== "all"
+                    ? "Không tìm thấy khóa học phù hợp"
+                    : "Bạn chưa tạo khóa học nào"}
+                </h3>
+                <p className="mx-auto mt-1 max-w-sm text-xs text-slate-500">
+                  {teachingSearch || teachingStatus !== "all"
+                    ? "Thử thay đổi từ khóa tìm kiếm hoặc bỏ bộ lọc trạng thái."
+                    : "Bắt đầu xây dựng khóa học đầu tiên để chia sẻ kiến thức trên EduAlto."}
+                </p>
+                {teachingSearch || teachingStatus !== "all" ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTeachingSearch("");
+                      setTeachingStatus("all");
+                    }}
+                    className="focus-ring mt-4 inline-flex h-9 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-xs font-semibold text-slate-700 hover:bg-slate-50 active:scale-[0.98]"
+                  >
+                    Xóa bộ lọc
+                  </button>
+                ) : (
+                  <Link
+                    href="/instructor/courses/overview"
+                    className="focus-ring mt-4 inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-primary px-4 text-xs font-semibold text-white shadow-xs hover:bg-primary-dark active:scale-[0.98]"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span>Tạo khóa học đầu tiên</span>
+                  </Link>
+                )}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div>
+            {filteredCourses.length > 0 ? (
+              <>
+                <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+                  <label className="flex h-10 w-full max-w-[380px] items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/10 transition">
+                    <Search className="h-4 w-4 text-primary" />
+                    <span className="sr-only">Tìm kiếm khóa học đã ghi danh</span>
+                    <input
+                      value={search}
+                      onChange={(event) => onSearch(event.target.value)}
+                      placeholder="Tìm kiếm khóa học..."
+                      className="min-w-0 flex-1 text-sm outline-none placeholder:text-slate-400 bg-transparent"
+                    />
+                  </label>
+                  <div className="ml-auto flex flex-wrap items-center gap-2 text-xs">
+                    <span className="text-slate-500 font-medium">Xếp theo</span>
+                    <select
+                      aria-label="Sắp xếp khóa học"
+                      value={sortOrder}
+                      onChange={(event) => setSortOrder(event.target.value as typeof sortOrder)}
+                      className="focus-ring h-9 rounded-lg border border-slate-200 bg-white px-3 font-medium text-slate-700"
+                    >
+                      <option value="recent">Mới nhất</option>
+                      <option value="title">Tên khóa học</option>
+                    </select>
+                    <span className="hidden text-slate-500 sm:inline ml-2">
+                      {filteredCourses.length} khóa học
+                    </span>
+                  </div>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {filteredCourses.map((course, index) => (
+                    <CourseGridCard
+                      key={course.id}
+                      course={course}
+                      progress={progress[course.courseId]}
+                      index={index}
+                    />
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="rounded-2xl border border-emerald-100 bg-white p-8 md:p-10 text-center shadow-xs">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-primary">
+                  <GraduationCap className="h-7 w-7 stroke-[1.8]" />
+                </div>
+                <h2 className="mt-4 text-lg font-bold text-[#101a2c]">
+                  Bạn đang sử dụng tài khoản Giảng viên
+                </h2>
+                <p className="mx-auto mt-2 max-w-lg text-sm text-[#667085] leading-relaxed">
+                  Hiện tại bạn chưa đăng ký tham gia khóa học nào với vai trò học viên. Bạn có thể
+                  xem các khóa học bạn đang giảng dạy tại mục <strong>Khóa học giảng dạy</strong>{" "}
+                  hoặc khám phá thêm các khóa học bổ ích trên nền tảng.
+                </p>
+                <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => onInstructorTabChange?.("teaching")}
+                    className="focus-ring inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-white shadow-xs shadow-primary/25 transition hover:bg-primary-dark active:scale-[0.98]"
+                  >
+                    <BookOpen className="h-4 w-4" />
+                    Xem khóa học giảng dạy
+                  </button>
+                  <Link
+                    href="/courses"
+                    className="focus-ring inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-[0.98]"
+                  >
+                    Khám phá khóa học EduAlto
+                  </Link>
+                  <Link
+                    href="/instructor"
+                    className="focus-ring inline-flex h-10 items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50/50 px-5 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100/60 active:scale-[0.98]"
+                  >
+                    <LayoutDashboard className="h-4 w-4" />
+                    Bảng điều khiển Giảng viên
+                  </Link>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     );
+  }
+
   return (
     <>
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <label className="flex h-10 w-full max-w-[380px] items-center gap-2 rounded-lg border border-[#dce7e2] px-3">
+        <label className="flex h-10 w-full max-w-[380px] items-center gap-2 rounded-xl border border-[#dce7e2] bg-white px-3 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/10 transition">
           <Search className="h-4 w-4 text-primary" />
           <span className="sr-only">Tìm kiếm khóa học đã ghi danh</span>
           <input
             value={search}
             onChange={(event) => onSearch(event.target.value)}
             placeholder="Tìm kiếm khóa học..."
-            className="min-w-0 flex-1 text-sm outline-none placeholder:text-[#9aa49f]"
+            className="min-w-0 flex-1 text-sm outline-none placeholder:text-[#9aa49f] bg-transparent"
           />
         </label>
         <div className="ml-auto flex flex-wrap items-center gap-2 text-xs">
@@ -845,7 +1399,7 @@ function MyCourses({
             aria-label="Sắp xếp khóa học"
             value={sortOrder}
             onChange={(event) => setSortOrder(event.target.value as typeof sortOrder)}
-            className="focus-ring h-9 rounded-md border border-primary bg-white px-3"
+            className="focus-ring h-9 rounded-lg border border-primary bg-white px-3 font-medium"
           >
             <option value="recent">Mới nhất</option>
             <option value="title">Tên khóa học</option>
@@ -854,7 +1408,7 @@ function MyCourses({
             type="button"
             aria-expanded={showFilters}
             onClick={() => setShowFilters((open) => !open)}
-            className="focus-ring flex h-9 items-center gap-2 rounded-md border border-primary px-3 text-primary"
+            className="focus-ring flex h-9 items-center gap-2 rounded-lg border border-primary px-3 text-primary font-medium active:scale-[0.98]"
           >
             <SlidersHorizontal className="h-3.5 w-3.5" /> Lọc
           </button>
@@ -863,14 +1417,16 @@ function MyCourses({
               aria-label="Lọc trạng thái khóa học"
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}
-              className="focus-ring h-9 rounded-md border border-[#dce7e2] bg-white px-2"
+              className="focus-ring h-9 rounded-lg border border-[#dce7e2] bg-white px-2 font-medium"
             >
               <option value="all">Tất cả khóa học</option>
               <option value="active">Đang học</option>
               <option value="archived">Đã lưu trữ</option>
             </select>
           )}
-          <span className="hidden text-[#7c8783] sm:inline">{filteredCourses.length} khóa học</span>
+          <span className="hidden text-[#7c8783] sm:inline font-medium">
+            {filteredCourses.length} khóa học
+          </span>
         </div>
       </div>
       {filteredCourses.length ? (
@@ -1297,8 +1853,7 @@ function AssignmentsView() {
     }
   }, [getAccessToken]);
   useEffect(() => {
-    const timer = window.setTimeout(() => void loadAssignments(), 0);
-    return () => window.clearTimeout(timer);
+    void loadAssignments();
   }, [loadAssignments]);
   const visibleAssignments = assignments.filter((item) => {
     const matchesStatus =
@@ -2076,8 +2631,7 @@ function NotesView() {
   }, [getAccessToken]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => void loadNotes(), 0);
-    return () => window.clearTimeout(timer);
+    void loadNotes();
   }, [loadNotes]);
 
   async function saveNote(event: FormEvent<HTMLFormElement>) {

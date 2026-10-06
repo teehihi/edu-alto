@@ -39,8 +39,7 @@ export function InstructorCourseOverviewTab() {
   }, [accessToken, course.id]);
 
   useEffect(() => {
-    const timeout = window.setTimeout(() => void loadSummary(), 0);
-    return () => window.clearTimeout(timeout);
+    void loadSummary();
   }, [loadSummary]);
 
   const periods = summary?.periods ?? [];

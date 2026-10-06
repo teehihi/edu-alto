@@ -120,10 +120,7 @@ export function InstructorNotificationsPanel() {
   }, [accessToken, isAuthenticated]);
 
   useEffect(() => {
-    const timeout = window.setTimeout(() => {
-      if (!authLoading) void load();
-    }, 0);
-    return () => window.clearTimeout(timeout);
+    if (!authLoading) void load();
   }, [authLoading, load]);
 
   const closeForm = () => {

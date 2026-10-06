@@ -146,12 +146,6 @@ export function OtpInput({ value, onChange, disabled, error, autoFocus = true }:
   const [focused, setFocused] = useState(false);
   const [cursor, setCursor] = useState(0);
 
-  useEffect(() => {
-    if (autoFocus && inputRef.current && !disabled) {
-      inputRef.current.focus();
-    }
-  }, [autoFocus, disabled]);
-
   const activeIndex = focused ? Math.min(cursor, Math.min(value.length, 5)) : -1;
 
   return (

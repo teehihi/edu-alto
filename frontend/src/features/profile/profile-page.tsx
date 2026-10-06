@@ -6,9 +6,7 @@ import {
   BookOpen,
   CheckCircle2,
   ExternalLink,
-  Facebook,
   Globe,
-  Linkedin,
   Mail,
   Pencil,
   Search,
@@ -16,8 +14,8 @@ import {
   SlidersHorizontal,
   Star,
   UploadCloud,
-  Youtube,
 } from "lucide-react";
+import { Facebook, Linkedin, Youtube } from "@/components/ui/social-icons";
 import {
   type ChangeEvent,
   type FormEvent,

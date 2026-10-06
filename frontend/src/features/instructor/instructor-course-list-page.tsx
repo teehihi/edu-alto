@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { EnsureQueryClient } from "@/lib/query-provider";
 import { BookOpen, CircleAlert, MoreHorizontal, RefreshCw } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InstructorWorkspaceShell } from "@/features/instructor/instructor-workspace-shell";
@@ -124,61 +126,45 @@ function CourseCard({
 }
 
 export function InstructorCourseListPage() {
+  return (
+    <EnsureQueryClient>
+      <InstructorCourseListContent />
+    </EnsureQueryClient>
+  );
+}
+
+function InstructorCourseListContent() {
   const { accessToken, loading: authLoading } = useAuth();
-  const [courses, setCourses] = useState<InstructorCourse[]>([]);
-  const [courseStats, setCourseStats] = useState<Record<string, InstructorCourseMetrics>>({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [optionsOpen, setOptionsOpen] = useState(false);
 
-  const loadCourses = useCallback(async () => {
-    if (authLoading) return;
-    if (!accessToken) {
-      setError("Vui lòng đăng nhập để xem khóa học của bạn.");
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await fetchInstructorCourses(accessToken);
-      setCourses(result.data);
-    } catch (cause) {
-      setError(
-        cause instanceof ApiClientError
-          ? cause.message
-          : "Không thể tải danh sách khóa học. Vui lòng thử lại.",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [accessToken, authLoading]);
+  const {
+    data: courses = [],
+    isLoading: coursesLoading,
+    error: coursesError,
+    refetch: refetchCourses,
+  } = useQuery({
+    queryKey: ["instructor", "courses", accessToken],
+    queryFn: () => fetchInstructorCourses(accessToken!).then((r) => r.data),
+    enabled: Boolean(accessToken && !authLoading),
+  });
 
-  useEffect(() => {
-    const timeout = window.setTimeout(() => void loadCourses(), 0);
-    return () => window.clearTimeout(timeout);
-  }, [loadCourses]);
+  const { data: metrics = [] } = useQuery({
+    queryKey: ["instructor", "metrics", accessToken],
+    queryFn: () => fetchInstructorCourseMetrics(accessToken!),
+    enabled: Boolean(accessToken && !authLoading && courses.length > 0),
+  });
 
-  useEffect(() => {
-    let cancelled = false;
-    if (!accessToken || courses.length === 0) {
-      const timeout = window.setTimeout(() => setCourseStats({}), 0);
-      return () => {
-        cancelled = true;
-        window.clearTimeout(timeout);
-      };
-    }
-    void fetchInstructorCourseMetrics(accessToken)
-      .then((metrics) => {
-        if (!cancelled) setCourseStats(indexInstructorCourseMetrics(metrics));
-      })
-      .catch(() => {
-        if (!cancelled) setCourseStats({});
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [accessToken, courses]);
+  const courseStats = useMemo(() => indexInstructorCourseMetrics(metrics), [metrics]);
+  const loading = coursesLoading;
+  const error = coursesError
+    ? coursesError instanceof ApiClientError
+      ? coursesError.message
+      : "Không thể tải danh sách khóa học. Vui lòng thử lại."
+    : !accessToken && !authLoading
+      ? "Vui lòng đăng nhập để xem khóa học của bạn."
+      : null;
+
+  const loadCourses = () => void refetchCourses();
 
   function downloadCourseList() {
     if (courses.length === 0) return;

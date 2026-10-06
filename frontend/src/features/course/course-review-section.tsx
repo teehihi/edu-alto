@@ -44,33 +44,29 @@ export function CourseReviewSection({ courseId }: { courseId: string }) {
 
   useEffect(() => {
     let active = true;
-    const timer = window.setTimeout(async () => {
-      setLoading(true);
-      try {
-        const [page, aggregate] = await Promise.all([
-          fetchCourseReviews(courseId),
-          fetchCourseReviewSummary(courseId),
-        ]);
+    setLoading(true);
+    void Promise.all([fetchCourseReviews(courseId), fetchCourseReviewSummary(courseId)])
+      .then(([page, aggregate]) => {
         if (active) {
           setReviews(page.data);
           setSummary(aggregate);
           setError("");
         }
-      } catch (reason) {
+      })
+      .catch((reason) => {
         if (active) {
           setError(
             reason instanceof ApiClientError ? reason.message : "Không thể tải đánh giá lúc này.",
           );
         }
-      } finally {
+      })
+      .finally(() => {
         if (active) {
           setLoading(false);
         }
-      }
-    }, 0);
+      });
     return () => {
       active = false;
-      window.clearTimeout(timer);
     };
   }, [courseId]);
 

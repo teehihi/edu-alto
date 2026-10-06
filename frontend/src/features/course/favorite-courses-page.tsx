@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { Heart } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { AppHeader } from "@/components/layout/app-header";
 import { Footer } from "@/components/layout/footer";
 import { FigmaCourseCard } from "@/features/course/course-catalog-page";
 import { useAuthSession } from "@/lib/auth-session";
+import { CourseCardSkeleton } from "@/components/ui/skeleton";
 import {
   fetchFavoriteCourses,
   loadFavoriteCoursesForUser,
@@ -16,46 +17,44 @@ import {
 } from "@/lib/favorites";
 
 export function FavoriteCoursesPage() {
-  const [courses, setCourses] = useState<FavoriteCourse[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const { user, getAccessToken, isLoading: authLoading } = useAuthSession();
   const userId = user?.roles.includes("STUDENT") ? user.id : null;
 
+  const guestCourses = useSyncExternalStore(
+    subscribeToFavoriteCourses,
+    readFavoriteCourses,
+    () => [],
+  );
+  const [remoteCourses, setRemoteCourses] = useState<FavoriteCourse[]>([]);
+  const [loading, setLoading] = useState(Boolean(userId));
+  const [error, setError] = useState("");
+
+  const courses = userId ? remoteCourses : guestCourses;
+
   useEffect(() => {
-    if (authLoading) return;
+    if (authLoading || !userId) return;
     let active = true;
-    const sync = () => {
-      if (!userId) {
-        setCourses(readFavoriteCourses());
+    setLoading(true);
+    void getAccessToken()
+      .then(async (token) => {
+        if (!token) throw new Error("Vui lòng đăng nhập lại để xem khóa học đã lưu.");
+        await loadFavoriteCoursesForUser(userId, token);
+        return fetchFavoriteCourses(token);
+      })
+      .then((favorites) => {
+        if (!active) return;
+        setRemoteCourses(favorites);
         setError("");
-        setLoading(false);
-        return;
-      }
-      void getAccessToken()
-        .then(async (token) => {
-          if (!token) throw new Error("Vui lòng đăng nhập lại để xem khóa học đã lưu.");
-          await loadFavoriteCoursesForUser(userId, token);
-          return fetchFavoriteCourses(token);
-        })
-        .then((favorites) => {
-          if (!active) return;
-          setCourses(favorites);
-          setError("");
-        })
-        .catch(() => {
-          if (!active) return;
-          setError("Không thể tải danh sách yêu thích. Vui lòng thử lại.");
-        })
-        .finally(() => {
-          if (active) setLoading(false);
-        });
-    };
-    const unsubscribe = subscribeToFavoriteCourses(sync);
-    sync();
+      })
+      .catch(() => {
+        if (!active) return;
+        setError("Không thể tải danh sách yêu thích. Vui lòng thử lại.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
     return () => {
       active = false;
-      unsubscribe();
     };
   }, [authLoading, getAccessToken, userId]);
 
@@ -69,9 +68,14 @@ export function FavoriteCoursesPage() {
         <p className="mt-2 text-sm text-[#667085]">Những khóa học bạn đã lưu để xem lại sau.</p>
 
         {loading ? (
-          <p className="mt-8 text-sm text-[#667085]" role="status">
-            Đang tải khóa học đã lưu…
-          </p>
+          <div
+            className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3"
+            aria-label="Đang tải danh sách khóa học yêu thích"
+          >
+            {Array.from({ length: 6 }).map((_, i) => (
+              <CourseCardSkeleton key={i} />
+            ))}
+          </div>
         ) : error ? (
           <section
             className="mt-8 rounded-xl border border-rose-200 bg-rose-50 px-5 py-8 text-center text-sm text-rose-700"

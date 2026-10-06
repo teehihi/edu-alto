@@ -2,56 +2,59 @@
 
 import Link from "next/link";
 import { BookmarkCheck, BookOpen, Clock3, LoaderCircle, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { EnsureQueryClient } from "@/lib/query-provider";
 import { useAuthSession } from "@/lib/auth-session";
-import { fetchSavedLessons, unsaveLearningLesson, type SavedLesson } from "@/lib/learning-client";
+import { fetchSavedLessons, unsaveLearningLesson } from "@/lib/learning-client";
 
 export function SavedLessonsView() {
-  const { getAccessToken } = useAuthSession();
-  const [lessons, setLessons] = useState<SavedLesson[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [busyLesson, setBusyLesson] = useState("");
-  const [error, setError] = useState("");
-  const [pageNumber, setPageNumber] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
-  const [totalLessons, setTotalLessons] = useState(0);
+  return (
+    <EnsureQueryClient>
+      <SavedLessonsContent />
+    </EnsureQueryClient>
+  );
+}
 
-  const loadLessons = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
+function SavedLessonsContent() {
+  const { getAccessToken } = useAuthSession();
+  const [pageNumber, setPageNumber] = useState(0);
+  const [busyLesson, setBusyLesson] = useState("");
+  const [actionError, setActionError] = useState("");
+
+  const queryClient = useQueryClient();
+  const {
+    data: pageData,
+    isLoading: loading,
+    error: queryError,
+    refetch,
+  } = useQuery({
+    queryKey: ["saved-lessons", pageNumber],
+    queryFn: async () => {
       const token = await getAccessToken();
       if (!token) throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
-      const page = await fetchSavedLessons(token, pageNumber);
-      setLessons(page.data);
-      setTotalPages(page.meta.totalPages);
-      setTotalLessons(page.meta.totalElements);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Chưa thể tải bài học đã lưu.");
-    } finally {
-      setLoading(false);
-    }
-  }, [getAccessToken, pageNumber]);
+      return fetchSavedLessons(token, pageNumber);
+    },
+  });
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => void loadLessons(), 0);
-    return () => window.clearTimeout(timer);
-  }, [loadLessons]);
+  const lessons = pageData?.data ?? [];
+  const totalPages = pageData?.meta.totalPages ?? 0;
+  const totalLessons = pageData?.meta.totalElements ?? 0;
+  const error = actionError || (queryError instanceof Error ? queryError.message : "");
 
   async function removeLesson(lessonId: string) {
     setBusyLesson(lessonId);
-    setError("");
+    setActionError("");
     try {
       const token = await getAccessToken();
       if (!token) throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
       await unsaveLearningLesson(token, lessonId);
       if (lessons.length === 1 && pageNumber > 0) {
         setPageNumber((current) => current - 1);
-      } else {
-        await loadLessons();
       }
+      await queryClient.invalidateQueries({ queryKey: ["saved-lessons"] });
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Chưa thể bỏ lưu bài học.");
+      setActionError(reason instanceof Error ? reason.message : "Chưa thể bỏ lưu bài học.");
     } finally {
       setBusyLesson("");
     }
@@ -76,7 +79,7 @@ export function SavedLessonsView() {
           <p>{error}</p>
           <button
             type="button"
-            onClick={() => void loadLessons()}
+            onClick={() => void refetch()}
             className="mt-2 font-semibold underline"
           >
             Thử lại

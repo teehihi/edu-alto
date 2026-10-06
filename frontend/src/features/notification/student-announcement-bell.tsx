@@ -27,39 +27,36 @@ export function StudentAnnouncementBell() {
   useEffect(() => {
     if (!open || loaded || !isAuthenticated) return;
     let active = true;
-    const timeout = window.setTimeout(() => {
-      setLoading(true);
-      setError("");
-      void getAccessToken()
-        .then((token) => {
-          if (!active) return null;
-          if (!token) throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
-          return fetchStudentInstructorAnnouncements(token);
-        })
-        .then((page) => {
-          if (active && page) {
-            setItems(page.data);
-            setLoaded(true);
-          }
-        })
-        .catch((loadError) => {
-          if (active) {
-            setError(
-              loadError instanceof ApiClientError
+    setLoading(true);
+    setError("");
+    void getAccessToken()
+      .then((token) => {
+        if (!active) return null;
+        if (!token) throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+        return fetchStudentInstructorAnnouncements(token);
+      })
+      .then((page) => {
+        if (active && page) {
+          setItems(page.data);
+          setLoaded(true);
+        }
+      })
+      .catch((loadError) => {
+        if (active) {
+          setError(
+            loadError instanceof ApiClientError
+              ? loadError.message
+              : loadError instanceof Error
                 ? loadError.message
-                : loadError instanceof Error
-                  ? loadError.message
-                  : "Không thể tải thông báo.",
-            );
-          }
-        })
-        .finally(() => {
-          if (active) setLoading(false);
-        });
-    }, 0);
+                : "Không thể tải thông báo.",
+          );
+        }
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
     return () => {
       active = false;
-      window.clearTimeout(timeout);
     };
   }, [getAccessToken, isAuthenticated, loaded, open]);
 

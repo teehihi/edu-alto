@@ -50,8 +50,7 @@ export function InstructorCourseReviewsTab() {
   }, [accessToken, course.id]);
 
   useEffect(() => {
-    const timeout = window.setTimeout(() => void loadReviews(), 0);
-    return () => window.clearTimeout(timeout);
+    void loadReviews();
   }, [loadReviews]);
 
   const changeVisibility = async (review: CourseReview) => {
