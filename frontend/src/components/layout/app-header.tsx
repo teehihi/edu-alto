@@ -35,30 +35,29 @@ const authLinkClass =
   "focus-ring inline-flex h-10 items-center justify-center rounded-xl border border-primary bg-primary px-5 text-sm font-semibold text-white shadow-xs transition duration-200 hover:bg-primary-dark active:bg-primary-dark";
 const subscribeToMount = () => () => {};
 
+function subscribeCart(callback: () => void) {
+  window.addEventListener("edualto:cart-changed", callback);
+  window.addEventListener("storage", callback);
+  return () => {
+    window.removeEventListener("edualto:cart-changed", callback);
+    window.removeEventListener("storage", callback);
+  };
+}
+
+function getCartSnapshot() {
+  return readCart().length;
+}
+
+function getCartServerSnapshot() {
+  return 0;
+}
+
 export const HeaderCartButton = memo(function HeaderCartButton({
   isMobile = false,
 }: {
   isMobile?: boolean;
 }) {
-  const mounted = useSyncExternalStore(
-    subscribeToMount,
-    () => true,
-    () => false,
-  );
-  const [cartCount, setCartCount] = useState(0);
-
-  useEffect(() => {
-    const updateCartCount = () => setCartCount(readCart().length);
-    updateCartCount();
-    window.addEventListener("edualto:cart-changed", updateCartCount);
-    window.addEventListener("storage", updateCartCount);
-    return () => {
-      window.removeEventListener("edualto:cart-changed", updateCartCount);
-      window.removeEventListener("storage", updateCartCount);
-    };
-  }, []);
-
-  const count = mounted ? cartCount : 0;
+  const count = useSyncExternalStore(subscribeCart, getCartSnapshot, getCartServerSnapshot);
 
   if (isMobile) {
     return (
@@ -148,7 +147,7 @@ export const AppHeader = memo(function AppHeader({
     () => false,
   );
   const [isOpen, setIsOpen] = useState(false);
-  const { user, isAuthenticated, logout } = useAuthSession();
+  const { user, isAuthenticated, isLoading: isAuthLoading, logout } = useAuthSession();
 
   const handleLogout = useCallback(async () => {
     setIsOpen(false);
@@ -208,7 +207,7 @@ export const AppHeader = memo(function AppHeader({
   return (
     <header
       className={cn(
-        "z-[70] transition-all duration-300 ease-in-out",
+        "z-[70] transition-transform duration-200 ease-in-out",
         isSticky
           ? cn(
               "sticky top-0",
@@ -289,6 +288,10 @@ export const AppHeader = memo(function AppHeader({
               <StudentAnnouncementBell />
 
               <UserMenu />
+            </div>
+          ) : !mounted || isAuthLoading ? (
+            <div className="flex items-center gap-2">
+              <div className="h-10 w-24 animate-pulse rounded-xl bg-slate-100/70" />
             </div>
           ) : (
             <div className="flex items-center gap-2">
@@ -449,6 +452,8 @@ export const AppHeader = memo(function AppHeader({
                   <span>Đăng xuất</span>
                 </button>
               </div>
+            ) : !mounted || isAuthLoading ? (
+              <div className="h-11 animate-pulse rounded-xl bg-slate-100/70" />
             ) : (
               <div className="grid gap-2 sm:grid-cols-2">
                 <Link

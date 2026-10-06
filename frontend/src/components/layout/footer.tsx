@@ -1,7 +1,8 @@
 import { memo } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Facebook, Github, Linkedin, Mail } from "lucide-react";
+import { Mail } from "lucide-react";
+import { Facebook, Github, Linkedin } from "@/components/ui/social-icons";
 import { CookieSettingsButton } from "@/components/layout/cookie-settings-button";
 
 const footerColumns = [

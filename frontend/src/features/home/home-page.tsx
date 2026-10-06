@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Twitter } from "lucide-react";
+import { Twitter } from "@/components/ui/social-icons";
 import { AppHeader } from "@/components/layout/app-header";
 import { Footer } from "@/components/layout/footer";
 import { CourseCard } from "@/components/course/course-card";

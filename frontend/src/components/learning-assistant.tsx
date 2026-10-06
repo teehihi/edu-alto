@@ -5,7 +5,16 @@ import { BorderBeam } from "border-beam";
 import { Liquid } from "liquid-gooey";
 import Image from "next/image";
 import { ArrowUp, BookOpen, ChevronDown, Clock3, MessageCircle, Plus, X } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+
+const HIDDEN_PATHNAMES = new Set([
+  "/login",
+  "/register",
+  "/forgot-password",
+  "/reset-password",
+  "/verify-email",
+]);
 
 type ChatMessage = { id: number; role: "user" | "assistant"; text: string };
 
@@ -41,6 +50,8 @@ const suggestions = [
 ];
 
 export function LearningAssistant() {
+  const pathname = usePathname();
+  const isAuthPage = Boolean(pathname && HIDDEN_PATHNAMES.has(pathname));
   const [isOpen, setIsOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -130,6 +141,10 @@ export function LearningAssistant() {
       <ArrowUp size={18} />
     </button>
   );
+
+  if (isAuthPage) {
+    return null;
+  }
 
   return (
     <div className="fixed bottom-5 right-5 z-[60] sm:bottom-7 sm:right-7">

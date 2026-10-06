@@ -51,8 +51,8 @@ export function Reveal({
     if (!node) return;
 
     if (typeof IntersectionObserver === "undefined") {
-      const timer = window.setTimeout(() => setIsVisible(true), 0);
-      return () => window.clearTimeout(timer);
+      setIsVisible(true);
+      return;
     }
 
     const observer = new IntersectionObserver(
