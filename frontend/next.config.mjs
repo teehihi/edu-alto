@@ -3,5 +3,11 @@ const nextConfig = {
   reactStrictMode: true,
   cacheComponents: true,
   partialPrefetching: true,
+  experimental: {
+    instantInsights: {
+      validationLevel: "manual-warning",
+    },
+  },
 };
+
 export default nextConfig;

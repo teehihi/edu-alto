@@ -1,5 +1,6 @@
 import { LearningPortal } from "@/features/learning/learning-portal";
 
+export const instant = false;
 export const metadata = { title: "Tổng quan học tập" };
 
 export default function LearningPage() {
