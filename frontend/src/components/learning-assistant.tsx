@@ -147,7 +147,7 @@ export function LearningAssistant() {
   }
 
   return (
-    <div className="fixed bottom-5 right-5 z-[60] sm:bottom-7 sm:right-7">
+    <div className="pointer-events-none fixed bottom-5 right-5 z-[60] sm:bottom-7 sm:right-7">
       <section
         aria-label="Trợ lý học tập EduAlto"
         aria-hidden={!isOpen}
@@ -437,7 +437,7 @@ export function LearningAssistant() {
         onClick={() => setIsOpen((open) => !open)}
         aria-label={isOpen ? "Đóng trợ lý học tập" : "Mở trợ lý học tập"}
         aria-expanded={isOpen}
-        className={`assistant-launcher focus-ring ml-auto flex h-[60px] w-[60px] items-center justify-center rounded-full border-4 border-white bg-[#20b486] text-white shadow-[0_8px_24px_rgba(32,180,134,0.35)] transition hover:scale-105 hover:bg-[#169b70] active:scale-95 ${isOpen ? "rotate-90" : ""}`}
+        className={`assistant-launcher focus-ring pointer-events-auto ml-auto flex h-[60px] w-[60px] items-center justify-center rounded-full border-4 border-white bg-[#20b486] text-white shadow-[0_8px_24px_rgba(32,180,134,0.35)] transition hover:scale-105 hover:bg-[#169b70] active:scale-95 ${isOpen ? "rotate-90" : ""}`}
       >
         {isOpen ? (
           <X size={22} />
