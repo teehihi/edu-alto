@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { ArrowUpRight, Clock3, Star } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Course } from "@/types/course";
 import { cn } from "@/lib/cn";
 
@@ -14,6 +14,25 @@ const accentClass: Record<Course["accent"], string> = {
 
 export function CourseCard({ course }: { course: Course }) {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
+  useEffect(() => {
+    if (!isPreviewOpen) return;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsPreviewOpen(false);
+      }
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isPreviewOpen]);
 
   return (
     <article className="group flex h-full flex-col overflow-hidden rounded-xl bg-white shadow-card transition-all duration-300 hover:-translate-y-1.5 hover:shadow-cardHover">
@@ -79,7 +98,9 @@ export function CourseCard({ course }: { course: Course }) {
           </div>
 
           <div className="text-right">
-            <p className="whitespace-nowrap text-[26px] font-bold text-[#3fc89e]">{course.price}</p>
+            <p className="whitespace-nowrap text-[26px] font-bold tabular-nums text-ink">
+              {course.price}
+            </p>
             <button
               type="button"
               onClick={() => setIsPreviewOpen(true)}

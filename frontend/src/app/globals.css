@@ -205,6 +205,91 @@ input::-ms-clear {
   }
 }
 
+@keyframes popoverIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes popoverOut {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+@keyframes backdropFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes resultCardIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes marqueeLeft {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes marqueeRight {
+  0% {
+    transform: translateX(-50%);
+  }
+  100% {
+    transform: translateX(0%);
+  }
+}
+
+.marquee-track-left {
+  display: flex;
+  width: max-content;
+  animation: marqueeLeft 42s linear infinite;
+}
+
+.marquee-track-right {
+  display: flex;
+  width: max-content;
+  animation: marqueeRight 46s linear infinite;
+}
+
+.marquee-container:hover .marquee-track-left,
+.marquee-container:hover .marquee-track-right {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track-left,
+  .marquee-track-right {
+    animation: none;
+    overflow-x: auto;
+  }
+}
+
 @layer components {
   .focus-ring {
     @apply focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/20 focus-visible:ring-offset-2;
@@ -224,6 +309,22 @@ input::-ms-clear {
 
   .animate-modal-content {
     animation: modalContentPopIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .animate-popover-in {
+    animation: popoverIn 0.16s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+  }
+
+  .animate-popover-out {
+    animation: popoverOut 0.14s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+  }
+
+  .animate-backdrop-fade {
+    animation: backdropFadeIn 0.2s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+  }
+
+  .animate-result-card {
+    animation: resultCardIn 0.24s cubic-bezier(0.23, 1, 0.32, 1) forwards;
   }
 
   .animate-icon-pulse {

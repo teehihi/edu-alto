@@ -10,17 +10,17 @@ export const courseCategories = [
 export const popularCourses: Course[] = [
   {
     id: "ui-design-foundation",
-    title: "Figma UI UX Design..",
+    title: "Figma UI UX Design Cơ Bản Đến Nâng Cao",
     category: "Design",
     description:
       "Sử dụng Figma chuyên nghiệp để sẵn sàng làm việc trong lĩnh vực UI/UX Design, thiết kế giao diện và trải nghiệm người dùng.",
     image: "/images/home/course-figma.png",
     duration: "08 giờ 12 phút",
-    rating: 4.3,
+    rating: 4.8,
     reviewCount: "(16,325)",
-    instructor: "Phạm văn Hậu",
+    instructor: "Phạm Văn Hậu",
     instructorAvatar: "/images/home/author-hau.png",
-    joinedAt: "Tham gia từ 2020",
+    joinedAt: "Tham gia từ 2022",
     price: "500.000đ",
     accent: "design",
   },
@@ -36,23 +36,23 @@ export const popularCourses: Course[] = [
     reviewCount: "(832)",
     instructor: "Tee",
     instructorAvatar: "/images/home/author-tee.png",
-    joinedAt: "Tham gia từ 2005",
+    joinedAt: "Tham gia từ 2021",
     price: "1.000.000đ",
     accent: "coding",
   },
   {
     id: "vibe-coding",
-    title: "Kỹ năng Vibe Coder",
+    title: "Kỹ Năng Vibe Coder Với AI",
     category: "VibeCoding",
     description:
       "Làm chủ AI Agent hiện đại, tối ưu hiệu suất lập trình và sẵn sàng dẫn đầu xu hướng công nghệ tương lai.",
     image: "/images/home/course-vibe.png",
     duration: "01 giờ 2 phút",
-    rating: 4.2,
+    rating: 4.7,
     reviewCount: "(125)",
     instructor: "Công Ank",
     instructorAvatar: "/images/home/author-ank.png",
-    joinedAt: "Tham gia từ 2020",
+    joinedAt: "Tham gia từ 2023",
     price: "360.000đ",
     accent: "vibe",
   },
@@ -62,26 +62,62 @@ export const testimonials = [
   {
     id: "review-1",
     quote:
-      "Các khóa học thật tuyệt vời! Đây là nền tảng hoàn hảo cho những ai muốn bắt đầu một sự nghiệp mới hoặc cần ôn lại kiến thức.",
+      "Nội dung khóa học Figma rất thực tế. Sau 2 tháng học mình đã tự tin ứng tuyển vị trí UI Designer tại công ty công nghệ.",
     author: "Lê Quốc Khánh",
-    role: "Sinh Viên, Đại học Kinh tế TP.HCM",
+    role: "Sinh Viên ĐH Kinh Tế TP.HCM",
+    course: "Khóa Figma UI/UX",
+    rating: 5,
     avatar: "/images/home/testimonial-khanh.png",
   },
   {
     id: "review-2",
     quote:
-      "Giao diện trực quan, bài giảng cô đọng và thực tế giúp mình nhanh chóng áp dụng vào các dự án công việc hàng ngày.",
+      "Bài giảng cô đọng, đi thẳng vào ứng dụng thực tế giúp mình áp dụng được ngay vào các dự án phần mềm hàng ngày.",
     author: "Nguyễn Nhật Thiên",
     role: "Software Engineer, EduAlto",
+    course: "Khóa Web Fullstack",
+    rating: 5,
     avatar: "/images/home/author-tee.png",
   },
   {
     id: "review-3",
     quote:
-      "Nội dung khóa học Figma và UI/UX được chuẩn bị rất kỹ lưỡng, mentor hỗ trợ nhiệt tình và giải đáp mọi thắc mắc.",
+      "Mentor sửa bài rất chi tiết, giải đáp từng thắc mắc thiết kế. Nền tảng học tập mượt mà nhất mình từng trải nghiệm.",
     author: "Phạm Văn Hậu",
     role: "Product Designer, EduAlto",
+    course: "Khóa Thiết Kế Giao Diện",
+    rating: 5,
     avatar: "/images/home/author-hau.png",
+  },
+  {
+    id: "review-4",
+    quote:
+      "Khóa Vibe Coding giúp mình tiếp cận AI Agent cực kỳ nhanh, tăng gấp đôi tốc độ phát triển sản phẩm cá nhân.",
+    author: "Nguyễn Công Anh",
+    role: "Tech Lead • AI Enthusiast",
+    course: "Khóa AI & Vibe Coding",
+    rating: 5,
+    avatar: "/images/home/author-ank.png",
+  },
+  {
+    id: "review-5",
+    quote:
+      "Các bài kiểm tra trắc nghiệm và thử thách code thực hành sau mỗi bài học giúp người mới bắt đầu không bị ngợp kiến thức.",
+    author: "Hoàng Mai Anh",
+    role: "Frontend Developer",
+    course: "Khóa 300 Bài Code Thiếu Nhi",
+    rating: 5,
+    avatar: "",
+  },
+  {
+    id: "review-6",
+    quote:
+      "Giao diện học tập tối ưu, theo dõi tiến độ rõ ràng và hệ thống cấp chứng chỉ chuẩn chỉnh sau khi hoàn tất khóa học.",
+    author: "Trần Đăng Khoa",
+    role: "Học viên EduAlto",
+    course: "Khóa Thiết Kế Đồ Họa",
+    rating: 5,
+    avatar: "",
   },
 ];
 
@@ -109,57 +145,57 @@ export const features = [
 
 export const instructors = [
   {
-    name: "PSG. TS. Hoàng Văn Dũng",
+    name: "PGS. TS. Hoàng Văn Dũng",
     role: "Phó Trưởng khoa CNTT",
-    description: "Các thông tin liên quan về PSG TS Hoàng Văn Dũng",
+    description: "Chuyên gia đầu ngành về Trí tuệ nhân tạo và Khoa học máy tính.",
     image: "/images/home/instructor-dung.png",
   },
   {
     name: "TS. Nguyễn Thành Sơn",
-    role: "Trùm cuối CSDL",
-    description: "Lead engineering teams at Figma, Pitch, and Protocol Labs.",
+    role: "Chuyên Gia Cơ Sở Dữ Liệu",
+    description: "Kinh nghiệm nghiên cứu và phát triển hệ thống dữ liệu quy mô lớn.",
     image: "/images/home/instructor-son.png",
   },
   {
     name: "ThS. Trần Mạnh Hùng",
-    role: "Trùm Thể chất",
-    description: "Former PM for Linear, Lambda School, and On Deck.",
+    role: "Giảng Viên Kỹ Năng & Thể Chất",
+    description: "Huấn luyện viên thể chất và kỹ năng quản trị năng lượng học tập.",
     image: "/images/home/instructor-hung.png",
   },
   {
     name: "TS. Đặng Thị Minh Tuấn",
-    role: "Bà Trùm Triết Học",
-    description: "Former frontend dev for Linear, Coinbase, and Postscript.",
+    role: "Tiến Sĩ Triết Học & Tư Duy",
+    description: "Nghiên cứu phương pháp luận tư duy phản biện và đạo đức công nghệ.",
     image: "/images/home/instructor-tuan.png",
   },
 ] as const;
 
 export const blogPosts = [
   {
-    title: "Ba Yếu Tố tạo nên Sự Hài Lòng của Người Dùng",
-    date: "24 tháng 11, 2006",
+    title: "Ba Yếu Tố Tạo Nên Sự Hài Lòng Của Người Dùng Trong Thiết Kế",
+    date: "15 tháng 08, 2025",
     description:
-      "Niềm vui có thể được cảm nhận một cách trực quan, qua hành vi và qua suy nghĩ. Một thiết kế tuyệt vời là...",
+      "Niềm vui và sự gắn bó của người dùng được xây dựng từ trực giác, hành vi tương tác và cảm xúc phản chiếu. Một thiết kế xuất sắc cần kết hợp cả ba yếu tố này.",
     image: "/images/home/blog-featured.png",
-    tags: ["Programming", "Research", "Developments"],
+    tags: ["Thiết Kế", "Nghiên Cứu", "Trải Nghiệm"],
     featured: true,
   },
   {
-    title: "Three Pillars of User Delight",
-    date: "21 tháng 05, 2005",
+    title: "Ba Trụ Cột Tạo Nên Trải Nghiệm Người Dùng Thú Vị",
+    date: "02 tháng 09, 2025",
     description:
-      "Delight can be experienced viscerally, behaviourally, and reflectively. A great design is ...",
+      "Khám phá các nguyên lý tâm lý học ứng dụng vào giao diện sản phẩm số, giúp giữ chân người dùng và nâng cao giá trị thương hiệu.",
     image: "/images/home/blog-delight.png",
-    tags: ["Research", "UI UX"],
+    tags: ["Nghiên Cứu", "UI/UX"],
     featured: false,
   },
   {
-    title: "UX Mapping Methods",
-    date: "30 tháng 4, 2021",
+    title: "Phương Pháp Xây Dựng Bản Đồ Trải Nghiệm (UX Mapping)",
+    date: "20 tháng 09, 2025",
     description:
-      "Visual-design principles can be applied consistently throughout the process of creating a polished UX map...",
+      "Hướng dẫn từng bước thiết lập sơ đồ hành trình người dùng (User Journey Map) chuẩn quốc tế nhằm phát hiện điểm nghẽn và cải tiến luồng nghiệp vụ.",
     image: "/images/home/blog-workspace.png",
-    tags: ["Research", "UI Design"],
+    tags: ["Quy Trình", "Thiết Kế UI"],
     featured: false,
   },
 ] as const;
