@@ -119,7 +119,10 @@ export function LearningQuizContent({ lessonId, getAccessToken, onPassed }: Prop
 
   if (attempt) {
     return (
-      <section aria-live="polite" className="px-5 py-8 md:px-8">
+      <section
+        aria-live="polite"
+        className="px-5 py-8 md:px-8 animate-result-card motion-reduce:animate-none"
+      >
         <div
           className={`rounded-xl border p-5 ${attempt.passed ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}
         >

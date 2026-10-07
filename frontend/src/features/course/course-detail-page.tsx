@@ -207,6 +207,7 @@ function CourseDetailPageInner({ slug }: { slug: string }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const cartAnimationTimeoutRef = useRef<number | null>(null);
   const copyTimeoutRef = useRef<number | null>(null);
+  const buyNowTimeoutRef = useRef<number | null>(null);
 
   const {
     data: course,
@@ -243,12 +244,24 @@ function CourseDetailPageInner({ slug }: { slug: string }) {
   useEffect(() => {
     router.prefetch?.("/checkout");
     router.prefetch?.("/cart");
+
+    // Reset buying state on mount and when returning from bfcache (browser back/forward button)
+    setBuyingNow(false);
+    const handlePageShow = () => {
+      setBuyingNow(false);
+    };
+    window.addEventListener("pageshow", handlePageShow);
+
     return () => {
+      window.removeEventListener("pageshow", handlePageShow);
       if (cartAnimationTimeoutRef.current !== null) {
         window.clearTimeout(cartAnimationTimeoutRef.current);
       }
       if (copyTimeoutRef.current !== null) {
         window.clearTimeout(copyTimeoutRef.current);
+      }
+      if (buyNowTimeoutRef.current !== null) {
+        window.clearTimeout(buyNowTimeoutRef.current);
       }
     };
   }, [router]);
@@ -368,6 +381,13 @@ function CourseDetailPageInner({ slug }: { slug: string }) {
       durationSeconds: totalSeconds,
     });
     router.push("/checkout");
+    if (buyNowTimeoutRef.current !== null) {
+      window.clearTimeout(buyNowTimeoutRef.current);
+    }
+    buyNowTimeoutRef.current = window.setTimeout(() => {
+      setBuyingNow(false);
+      buyNowTimeoutRef.current = null;
+    }, 800);
   }
 
   function openPreview(id: string) {
@@ -824,51 +844,58 @@ function CourseDetailPageInner({ slug }: { slug: string }) {
                                   </div>
                                 </button>
 
-                                {isOpen && (
-                                  <div
-                                    id={`section-content-${section.id}`}
-                                    role="region"
-                                    aria-labelledby={`section-header-${section.id}`}
-                                    className="bg-slate-50/50 px-5 pb-3 pt-1 divide-y divide-slate-100"
-                                  >
-                                    {sectionLessons.map((lesson) => (
-                                      <div
-                                        key={lesson.id}
-                                        className="flex flex-wrap items-center gap-3 py-3 text-sm text-slate-700"
-                                      >
-                                        {lesson.lessonType === "VIDEO" ? (
-                                          <Play className="h-4 w-4 shrink-0 text-slate-400" />
-                                        ) : (
-                                          <FileText className="h-4 w-4 shrink-0 text-slate-400" />
-                                        )}
-                                        <span className="min-w-0 flex-1 font-medium text-slate-800 truncate">
-                                          {lesson.title}
-                                        </span>
-                                        {lesson.durationSeconds !== null &&
-                                          lesson.durationSeconds > 0 && (
-                                            <span className="text-xs text-muted">
-                                              {duration(lesson.durationSeconds)}
-                                            </span>
+                                <div
+                                  id={`section-content-${section.id}`}
+                                  role="region"
+                                  aria-labelledby={`section-header-${section.id}`}
+                                  className={cn(
+                                    "grid transition-all duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none",
+                                    isOpen
+                                      ? "grid-rows-[1fr] opacity-100"
+                                      : "grid-rows-[0fr] opacity-0 pointer-events-none",
+                                  )}
+                                >
+                                  <div className="overflow-hidden">
+                                    <div className="bg-slate-50/50 px-5 pb-3 pt-1 divide-y divide-slate-100">
+                                      {sectionLessons.map((lesson) => (
+                                        <div
+                                          key={lesson.id}
+                                          className="flex flex-wrap items-center gap-3 py-3 text-sm text-slate-700"
+                                        >
+                                          {lesson.lessonType === "VIDEO" ? (
+                                            <Play className="h-4 w-4 shrink-0 text-slate-400" />
+                                          ) : (
+                                            <FileText className="h-4 w-4 shrink-0 text-slate-400" />
                                           )}
-                                        {lesson.preview ? (
-                                          <button
-                                            type="button"
-                                            className="focus-ring inline-flex items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary transition hover:bg-primary hover:text-white active:scale-95"
-                                            onClick={() => openPreview(lesson.id)}
-                                          >
-                                            <Play className="h-3 w-3 fill-current" />
-                                            Học thử
-                                          </button>
-                                        ) : (
-                                          <LockKeyhole
-                                            className="h-4 w-4 text-slate-400"
-                                            aria-label="Bài học dành cho học viên đã đăng ký"
-                                          />
-                                        )}
-                                      </div>
-                                    ))}
+                                          <span className="min-w-0 flex-1 font-medium text-slate-800 truncate">
+                                            {lesson.title}
+                                          </span>
+                                          {lesson.durationSeconds !== null &&
+                                            lesson.durationSeconds > 0 && (
+                                              <span className="text-xs text-muted">
+                                                {duration(lesson.durationSeconds)}
+                                              </span>
+                                            )}
+                                          {lesson.preview ? (
+                                            <button
+                                              type="button"
+                                              className="focus-ring inline-flex items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary transition hover:bg-primary hover:text-white active:scale-95"
+                                              onClick={() => openPreview(lesson.id)}
+                                            >
+                                              <Play className="h-3 w-3 fill-current" />
+                                              Học thử
+                                            </button>
+                                          ) : (
+                                            <LockKeyhole
+                                              className="h-4 w-4 text-slate-400"
+                                              aria-label="Bài học dành cho học viên đã đăng ký"
+                                            />
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
                                   </div>
-                                )}
+                                </div>
                               </div>
                             );
                           })}

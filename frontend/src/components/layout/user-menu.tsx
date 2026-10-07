@@ -35,57 +35,128 @@ export function UserMenu({
   const pathname = usePathname();
   const router = useRouter();
 
+  const [isRendered, setIsRendered] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isPinned, setIsPinned] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const userMenuLeaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const userMenuExitTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastHoverTimeRef = useRef(0);
 
-  const closeMenu = useCallback(() => {
+  const openMenu = useCallback((pinned = false) => {
     if (userMenuLeaveTimerRef.current) {
       clearTimeout(userMenuLeaveTimerRef.current);
       userMenuLeaveTimerRef.current = null;
     }
-    setIsUserMenuOpen(false);
+    if (userMenuExitTimerRef.current) {
+      clearTimeout(userMenuExitTimerRef.current);
+      userMenuExitTimerRef.current = null;
+    }
+    setIsRendered(true);
+    setIsUserMenuOpen(true);
+    if (pinned) {
+      setIsPinned(true);
+    }
   }, []);
 
-  const handlePointerEnter = useCallback((event: React.PointerEvent) => {
-    if (!event.pointerType || event.pointerType === "mouse") {
-      lastHoverTimeRef.current = Date.now();
+  const closeMenu = useCallback(
+    (force: boolean | React.SyntheticEvent = false) => {
+      const isForced = typeof force === "boolean" ? force : true;
       if (userMenuLeaveTimerRef.current) {
         clearTimeout(userMenuLeaveTimerRef.current);
         userMenuLeaveTimerRef.current = null;
       }
-      setIsUserMenuOpen(true);
-    }
-  }, []);
+      if (userMenuExitTimerRef.current) {
+        clearTimeout(userMenuExitTimerRef.current);
+      }
+      if (isPinned && !isForced) {
+        return;
+      }
+      setIsPinned(false);
+      setIsUserMenuOpen(false);
+      userMenuExitTimerRef.current = setTimeout(() => {
+        setIsRendered(false);
+        userMenuExitTimerRef.current = null;
+      }, 140);
+    },
+    [isPinned],
+  );
 
-  const handlePointerLeave = useCallback((event: React.PointerEvent) => {
+  const handlePointerEnter = useCallback(
+    (event: React.PointerEvent) => {
+      if (!event.pointerType || event.pointerType === "mouse") {
+        if (userMenuLeaveTimerRef.current) {
+          clearTimeout(userMenuLeaveTimerRef.current);
+          userMenuLeaveTimerRef.current = null;
+        }
+        lastHoverTimeRef.current = Date.now();
+        openMenu();
+      }
+    },
+    [openMenu],
+  );
+
+  const handlePointerLeave = useCallback(
+    (event: React.PointerEvent) => {
+      if (!event.pointerType || event.pointerType === "mouse") {
+        if (isPinned) return;
+        if (userMenuLeaveTimerRef.current) {
+          clearTimeout(userMenuLeaveTimerRef.current);
+        }
+        // 120ms golden grace period: allows smooth diagonal transit to the left without feeling sluggish
+        userMenuLeaveTimerRef.current = setTimeout(() => {
+          closeMenu();
+          userMenuLeaveTimerRef.current = null;
+        }, 120);
+      }
+    },
+    [closeMenu, isPinned],
+  );
+
+  const handlePointerMove = useCallback((event: React.PointerEvent) => {
     if (!event.pointerType || event.pointerType === "mouse") {
       if (userMenuLeaveTimerRef.current) {
         clearTimeout(userMenuLeaveTimerRef.current);
+        userMenuLeaveTimerRef.current = null;
       }
-      userMenuLeaveTimerRef.current = setTimeout(() => {
-        setIsUserMenuOpen(false);
-      }, 350);
+      if (userMenuExitTimerRef.current) {
+        clearTimeout(userMenuExitTimerRef.current);
+        userMenuExitTimerRef.current = null;
+      }
     }
   }, []);
 
-  const handleToggleClick = useCallback((event: React.MouseEvent) => {
-    event.stopPropagation();
-    if (userMenuLeaveTimerRef.current) {
-      clearTimeout(userMenuLeaveTimerRef.current);
-      userMenuLeaveTimerRef.current = null;
-    }
-    const timeSinceHover = Date.now() - lastHoverTimeRef.current;
-    if (timeSinceHover < 350) {
-      setIsUserMenuOpen(true);
-    } else {
-      setIsUserMenuOpen((open) => !open);
-    }
-  }, []);
+  const handleFocus = useCallback(() => {
+    openMenu();
+  }, [openMenu]);
+
+  const handleBlur = useCallback(
+    (event: React.FocusEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.relatedTarget as Node)) {
+        closeMenu(true);
+      }
+    },
+    [closeMenu],
+  );
+
+  const handleToggleClick = useCallback(
+    (event: React.MouseEvent) => {
+      event.stopPropagation();
+      if (userMenuLeaveTimerRef.current) {
+        clearTimeout(userMenuLeaveTimerRef.current);
+        userMenuLeaveTimerRef.current = null;
+      }
+      if (isUserMenuOpen) {
+        closeMenu(true);
+      } else {
+        openMenu(true);
+      }
+    },
+    [closeMenu, isUserMenuOpen, openMenu],
+  );
 
   const handleLogout = useCallback(async () => {
-    closeMenu();
+    closeMenu(true);
     if (logout) {
       await logout();
     }
@@ -97,13 +168,13 @@ export function UserMenu({
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
-        closeMenu();
+        closeMenu(true);
       }
     }
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        closeMenu();
+        closeMenu(true);
       }
     }
 
@@ -122,6 +193,8 @@ export function UserMenu({
   if (prevPathname !== pathname) {
     setPrevPathname(pathname);
     setIsUserMenuOpen(false);
+    setIsRendered(false);
+    setIsPinned(false);
   }
 
   // Clean up timer on unmount
@@ -129,6 +202,9 @@ export function UserMenu({
     return () => {
       if (userMenuLeaveTimerRef.current) {
         clearTimeout(userMenuLeaveTimerRef.current);
+      }
+      if (userMenuExitTimerRef.current) {
+        clearTimeout(userMenuExitTimerRef.current);
       }
     };
   }, []);
@@ -148,6 +224,9 @@ export function UserMenu({
       ref={userMenuRef}
       onPointerEnter={handlePointerEnter}
       onPointerLeave={handlePointerLeave}
+      onPointerMove={handlePointerMove}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
     >
       {/* Trigger Pill: Avatar (Click to Profile) + Toggle Button */}
       <div
@@ -214,25 +293,22 @@ export function UserMenu({
       </div>
 
       {/* Popover Dropdown */}
-      {isUserMenuOpen && (
+      {isRendered && (
         <div
           className={cn(
-            "absolute z-50",
+            "absolute z-50 motion-reduce:animate-none",
+            isUserMenuOpen ? "animate-popover-in" : "animate-popover-out pointer-events-none",
             dropDirection === "up" ? "bottom-full pb-2" : "top-full pt-2",
-            align === "left" ? "left-0 origin-top-left" : "right-0 origin-top-right",
+            dropDirection === "up"
+              ? align === "left"
+                ? "left-0 origin-bottom-left"
+                : "right-0 origin-bottom-right"
+              : align === "left"
+                ? "left-0 origin-top-left"
+                : "right-0 origin-top-right",
             showNameTrigger ? "w-72 min-w-full" : "w-64",
           )}
-          onPointerEnter={handlePointerEnter}
-          onPointerLeave={handlePointerLeave}
         >
-          {/* Invisible hit-area bridge connecting trigger and dropdown */}
-          <div
-            className={cn(
-              "absolute left-0 right-0 h-3",
-              dropDirection === "up" ? "-bottom-3" : "-top-3",
-            )}
-            aria-hidden="true"
-          />
           <div
             className="w-full rounded-2xl border border-slate-100 bg-white p-2 shadow-xl ring-1 ring-black/5"
             role="menu"

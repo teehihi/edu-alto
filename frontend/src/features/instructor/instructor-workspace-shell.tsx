@@ -80,7 +80,7 @@ export function InstructorWorkspaceShell({
             type="button"
             aria-label="Đóng menu"
             onClick={() => setMobileNavOpen(false)}
-            className="fixed inset-0 z-40 bg-[#101a2c]/40 backdrop-blur-xs lg:hidden"
+            className="fixed inset-0 z-40 bg-[#101a2c]/40 backdrop-blur-xs lg:hidden animate-backdrop-fade motion-reduce:animate-none"
           />
         )}
 
