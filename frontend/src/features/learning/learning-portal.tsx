@@ -39,6 +39,7 @@ import {
 import { Fragment, useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { UserMenu } from "@/components/layout/user-menu";
+import { PortalBrand } from "@/components/layout/portal-brand";
 import { ApiClientError } from "@/lib/api";
 import { fetchInstructorCourses, type InstructorCourse } from "@/lib/instructor-course-client";
 import { fetchMyAssignments, submitAssignment, type Assignment } from "@/lib/assignment-client";
@@ -350,31 +351,10 @@ export function LearningPortal({ view }: { view: PortalView }) {
       >
         {/* Mobile Header in Drawer */}
         <div className="flex h-[58px] shrink-0 items-center justify-between border-b border-slate-100 px-4 lg:hidden">
-          <Link
-            href="/"
-            onClick={() => setMobileNavOpen(false)}
-            className="focus-ring flex items-center gap-2.5 rounded-lg transition active:scale-[0.98]"
-            aria-label="EduAlto, về trang chủ"
-          >
-            <Image
-              src="/images/logo-w-text.png"
-              alt="EduAlto"
-              width={128}
-              height={42}
-              className="h-8 w-auto object-contain"
-              priority
-            />
-            <span
-              className={cn(
-                "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold border",
-                isInstructor
-                  ? "bg-emerald-50 text-emerald-700 border-emerald-200/80"
-                  : "bg-blue-50 text-blue-700 border-blue-200/80",
-              )}
-            >
-              {isInstructor ? "Giảng viên" : "Học viên"}
-            </span>
-          </Link>
+          <PortalBrand
+            roleLabel={isInstructor ? "Giảng viên" : "Học viên"}
+            onNavigate={() => setMobileNavOpen(false)}
+          />
           <button
             type="button"
             onClick={() => setMobileNavOpen(false)}
@@ -387,30 +367,7 @@ export function LearningPortal({ view }: { view: PortalView }) {
 
         {/* Desktop Header in Sidebar */}
         <div className="hidden h-[83px] shrink-0 items-center justify-between border-b border-slate-100 px-5 lg:flex">
-          <Link
-            href="/"
-            className="focus-ring flex items-center gap-2.5 rounded-lg transition active:scale-[0.98]"
-            aria-label="EduAlto, về trang chủ"
-          >
-            <Image
-              src="/images/logo-w-text.png"
-              alt="EduAlto"
-              width={130}
-              height={44}
-              className="h-8 w-auto object-contain"
-              priority
-            />
-            <span
-              className={cn(
-                "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold border",
-                isInstructor
-                  ? "bg-emerald-50 text-emerald-700 border-emerald-200/80"
-                  : "bg-blue-50 text-blue-700 border-blue-200/80",
-              )}
-            >
-              {isInstructor ? "Giảng viên" : "Học viên"}
-            </span>
-          </Link>
+          <PortalBrand roleLabel={isInstructor ? "Giảng viên" : "Học viên"} />
         </div>
 
         {/* Navigation Items (Scrollable area) */}

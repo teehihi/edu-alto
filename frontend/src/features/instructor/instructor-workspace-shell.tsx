@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createContext, useContext, useState, type ReactNode } from "react";
@@ -16,6 +15,7 @@ import {
   Settings,
   X,
 } from "lucide-react";
+import { PortalBrand } from "@/components/layout/portal-brand";
 import { UserMenu } from "@/components/layout/user-menu";
 import { cn } from "@/lib/cn";
 
@@ -93,24 +93,7 @@ export function InstructorWorkspaceShell({
         >
           {/* Mobile Header in Drawer */}
           <div className="flex h-[58px] shrink-0 items-center justify-between border-b border-slate-100 px-4 lg:hidden">
-            <Link
-              href="/"
-              onClick={() => setMobileNavOpen(false)}
-              className="focus-ring flex items-center gap-2.5 rounded-lg transition active:scale-[0.98]"
-              aria-label="EduAlto, về trang chủ"
-            >
-              <Image
-                src="/images/logo-w-text.png"
-                alt="EduAlto"
-                width={128}
-                height={42}
-                className="h-8 w-auto object-contain"
-                priority
-              />
-              <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 border border-emerald-200/80">
-                Giảng viên
-              </span>
-            </Link>
+            <PortalBrand roleLabel="Giảng viên" onNavigate={() => setMobileNavOpen(false)} />
             <button
               type="button"
               onClick={() => setMobileNavOpen(false)}
@@ -123,23 +106,7 @@ export function InstructorWorkspaceShell({
 
           {/* Desktop Header in Sidebar */}
           <div className="hidden h-[83px] shrink-0 items-center justify-between border-b border-slate-100 px-5 lg:flex">
-            <Link
-              href="/"
-              className="focus-ring flex items-center gap-2.5 rounded-lg transition active:scale-[0.98]"
-              aria-label="EduAlto, về trang chủ"
-            >
-              <Image
-                src="/images/logo-w-text.png"
-                alt="EduAlto"
-                width={130}
-                height={44}
-                className="h-8 w-auto object-contain"
-                priority
-              />
-              <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 border border-emerald-200/80">
-                Giảng viên
-              </span>
-            </Link>
+            <PortalBrand roleLabel="Giảng viên" />
           </div>
 
           {/* Navigation */}
