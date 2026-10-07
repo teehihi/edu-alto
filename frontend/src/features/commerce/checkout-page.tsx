@@ -22,14 +22,13 @@ import { readCart, type CartCourse } from "@/lib/cart";
 import { ApiClientError } from "@/lib/api";
 import { formatVND } from "@/lib/format";
 import { useAuthSession } from "@/lib/auth-session";
+import { cn } from "@/lib/cn";
 
 export function CheckoutPage() {
   const { user, getAccessToken } = useAuthSession();
   const router = useRouter();
-  const [courses, setCourses] = useState<CartCourse[]>(() => {
-    if (typeof window === "undefined") return [];
-    return readCart();
-  });
+  const [isMounted, setIsMounted] = useState(false);
+  const [courses, setCourses] = useState<CartCourse[]>([]);
   const [phoneNumber, setPhoneNumber] = useState("");
   const [promotionCode, setPromotionCode] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("MOMO");
@@ -37,7 +36,10 @@ export function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [createdOrder, setCreatedOrder] = useState<CheckoutOrder | null>(null);
   const [copied, setCopied] = useState(false);
+
   useEffect(() => {
+    setIsMounted(true);
+    setCourses(readCart());
     const sync = () => setCourses(readCart());
     window.addEventListener("edualto:cart-changed", sync);
     window.addEventListener("storage", sync);
@@ -49,35 +51,46 @@ export function CheckoutPage() {
   const subtotal = courses.reduce((sum, course) => sum + course.price, 0);
 
   return (
-    <div suppressHydrationWarning className="flex min-h-screen flex-col bg-white">
-      <div className="relative flex flex-1 flex-col bg-[linear-gradient(180deg,rgba(95,223,183,0.13)_0px,#fff_320px)] lg:bg-[linear-gradient(180deg,rgba(95,223,183,0.13)_0px,rgba(95,223,183,0.1)_320px,#fff_820px)]">
+    <div suppressHydrationWarning className="flex min-h-screen flex-col bg-[#f8fafc]">
+      <div className="relative flex flex-1 flex-col">
         <AppHeader transparent height="checkout" />
         <main className="relative mx-auto min-h-[610px] w-full max-w-[1440px] flex-1 px-5 py-8 sm:px-6 md:py-10 lg:px-20">
-          <Image
-            src="/images/payment/checkout-dots.svg"
-            alt=""
-            aria-hidden="true"
-            width={153}
-            height={153}
-            className="pointer-events-none absolute right-[43px] top-[62px] hidden h-[153.438px] w-[153.438px] lg:block"
-          />
           <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-baseline sm:gap-6">
-            <h1 className="text-3xl font-semibold text-primary md:text-[32px]">Thanh toán</h1>
-            <nav aria-label="Đường dẫn" className="flex items-center gap-2 text-sm text-[#7f8a86]">
-              <Link href="/courses" className="focus-ring rounded hover:text-primary">
+            <h1 className="text-2xl font-bold tracking-tight text-[#101a2c] sm:text-3xl">
+              Thanh toán
+            </h1>
+            <nav aria-label="Đường dẫn" className="flex items-center gap-2 text-sm text-slate-500">
+              <Link href="/courses" className="focus-ring rounded transition hover:text-primary">
                 Chi tiết
               </Link>
               <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
-              <Link href="/cart" className="focus-ring rounded hover:text-primary">
+              <Link href="/cart" className="focus-ring rounded transition hover:text-primary">
                 Giỏ hàng
               </Link>
               <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
-              <span className="text-primary" aria-current="page">
+              <span className="font-semibold text-primary" aria-current="page">
                 Thanh toán đơn hàng
               </span>
             </nav>
           </div>
-          {courses.length ? (
+          {!isMounted ? (
+            <div className="mt-6 grid items-start gap-8 lg:gap-10 lg:grid-cols-[minmax(0,1fr)_400px]">
+              <div className="rounded-2xl border border-slate-200/90 bg-white p-6 sm:p-8 shadow-xs animate-pulse space-y-6">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="h-12 rounded-xl bg-slate-100" />
+                  <div className="h-12 rounded-xl bg-slate-100" />
+                </div>
+                <div className="h-12 rounded-xl bg-slate-100" />
+                <div className="h-36 rounded-xl bg-slate-100" />
+              </div>
+              <div className="rounded-2xl border border-slate-200/90 bg-white p-6 shadow-xs animate-pulse space-y-5">
+                <div className="h-6 w-36 rounded bg-slate-200" />
+                <div className="h-28 rounded-xl bg-slate-100" />
+                <div className="h-24 rounded-xl bg-slate-100" />
+                <div className="h-12 rounded-xl bg-slate-200" />
+              </div>
+            </div>
+          ) : courses.length ? (
             <div className="mt-6 grid items-start gap-8 lg:gap-10 lg:grid-cols-[minmax(0,1fr)_400px]">
               <form
                 id="checkout-form"
@@ -120,21 +133,21 @@ export function CheckoutPage() {
                     setSubmitting(false);
                   }
                 }}
-                className="rounded-2xl border border-[#e2eaf0] p-[15px] md:min-h-[862px] md:p-[15px]"
+                className="rounded-2xl border border-slate-200/90 bg-white p-6 sm:p-8 shadow-xs space-y-6"
               >
-                <div className="mb-5 grid gap-4 sm:grid-cols-2">
-                  <label className="flex flex-col gap-2 text-lg font-semibold text-primary">
-                    Họ và Tên
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="flex flex-col gap-2 text-sm font-semibold text-slate-700">
+                    Họ và tên
                     <input
                       type="text"
                       value={user?.fullName ?? ""}
                       readOnly
                       placeholder="Tên tài khoản"
-                      className="h-[58px] min-w-0 rounded-lg border border-[#e2e8f0] bg-white px-3 text-base font-normal text-[#334155] outline-none placeholder:text-[#94a3b8]"
+                      className="h-12 min-w-0 rounded-xl border border-slate-200 bg-slate-50/80 px-4 text-sm font-medium text-slate-700 outline-none placeholder:text-slate-400 cursor-not-allowed"
                     />
                   </label>
-                  <label className="flex flex-col gap-2 text-lg font-semibold text-primary">
-                    Số Điện Thoại
+                  <label className="flex flex-col gap-2 text-sm font-semibold text-slate-700">
+                    Số điện thoại
                     <input
                       type="tel"
                       name="phoneNumber"
@@ -147,11 +160,11 @@ export function CheckoutPage() {
                       title="Nhập số điện thoại gồm 10 chữ số và bắt đầu bằng 0"
                       placeholder="Nhập số điện thoại"
                       autoComplete="tel"
-                      className="h-[58px] min-w-0 rounded-lg border border-[#e2e8f0] bg-white px-3 text-base font-normal text-[#334155] outline-none placeholder:text-[#94a3b8] focus:border-primary focus:ring-2 focus:ring-primary/15"
+                      className="h-12 min-w-0 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-800 outline-none placeholder:text-slate-400 focus:border-primary focus:ring-4 focus:ring-primary/10 transition"
                     />
                   </label>
                 </div>
-                <label className="mb-5 flex flex-col gap-2 text-sm font-semibold text-primary">
+                <label className="flex flex-col gap-2 text-sm font-semibold text-slate-700">
                   Mã giảm giá
                   <input
                     type="text"
@@ -161,17 +174,17 @@ export function CheckoutPage() {
                     maxLength={32}
                     autoComplete="off"
                     placeholder="Nhập mã ưu đãi (nếu có)"
-                    className="h-12 min-w-0 rounded-lg border border-[#e2e8f0] bg-white px-3 text-sm font-normal uppercase text-[#334155] outline-none placeholder:normal-case placeholder:text-[#94a3b8] focus:border-primary focus:ring-2 focus:ring-primary/15 disabled:bg-slate-50"
+                    className="h-12 min-w-0 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium uppercase text-slate-800 outline-none placeholder:normal-case placeholder:text-slate-400 focus:border-primary focus:ring-4 focus:ring-primary/10 disabled:bg-slate-50 transition"
                   />
                   <span className="text-xs font-normal text-slate-500">
                     Mã sẽ được kiểm tra theo khóa học trong giỏ hàng khi bạn tạo đơn.
                   </span>
                 </label>
                 <fieldset>
-                  <legend className="text-lg font-semibold text-primary">
-                    Phương thức Thanh toán
+                  <legend className="text-sm font-semibold text-slate-700">
+                    Phương thức thanh toán
                   </legend>
-                  <div className="mt-3 space-y-2">
+                  <div className="mt-3 space-y-2.5">
                     {(
                       [
                         ["VNPAY", "VNPay Sandbox", "Thanh toán trực tuyến"],
@@ -181,11 +194,12 @@ export function CheckoutPage() {
                     ).map(([method, label, detail]) => (
                       <label
                         key={method}
-                        className={`flex min-h-14 cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 transition ${
+                        className={cn(
+                          "flex min-h-14 cursor-pointer items-center gap-3.5 rounded-xl border p-4 transition",
                           paymentMethod === method
-                            ? "border-[#b7e4d7] bg-[#f2fbf7]"
-                            : "border-transparent bg-[#f6f8fa] hover:bg-[#eff8f5]"
-                        }`}
+                            ? "border-primary bg-primary/5 text-slate-900 shadow-xs"
+                            : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50 text-slate-700",
+                        )}
                       >
                         <input
                           type="radio"
@@ -197,12 +211,12 @@ export function CheckoutPage() {
                             setCreatedOrder(null);
                             setMessage("");
                           }}
-                          className="h-5 w-5 shrink-0 appearance-none rounded-full border-2 border-[#929292] bg-white transition-colors checked:border-[#20b486] checked:bg-[radial-gradient(circle,#20b486_0_45%,white_48%)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#20b486]/30 focus-visible:ring-offset-2"
+                          className="h-5 w-5 shrink-0 appearance-none rounded-full border-2 border-slate-300 bg-white transition-colors checked:border-primary checked:bg-[radial-gradient(circle,#20b486_0_45%,white_48%)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-2"
                         />
-                        <span className="min-w-0 flex-1 text-sm font-semibold text-[#101a2c]">
+                        <span className="min-w-0 flex-1 text-sm font-semibold text-heading">
                           {label}
                         </span>
-                        <span className="flex-1 text-right text-xs text-[#74817b]">{detail}</span>
+                        <span className="flex-1 text-right text-xs text-muted">{detail}</span>
                         {method === "VNPAY" ? (
                           <Image
                             src="/images/payment/vnpay-logo.svg"
@@ -227,11 +241,13 @@ export function CheckoutPage() {
                     ))}
                   </div>
                 </fieldset>
-                <div className="mt-5 flex min-h-[60px] items-center gap-2 rounded-lg bg-[#f5faf8] p-4 text-sm leading-6 text-[#75817c]">
-                  <LockKeyhole className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                  {paymentMethod === "VNPAY"
-                    ? "Bạn sẽ được chuyển đến VNPay Sandbox. Khóa học chỉ mở sau khi hệ thống xác nhận IPN có chữ ký hợp lệ."
-                    : "Đơn chuyển khoản sẽ chờ quản trị viên đối soát. Không gửi mật khẩu, mã OTP hoặc thông tin đăng nhập ngân hàng."}
+                <div className="flex items-center gap-3 rounded-xl border border-slate-200/80 bg-slate-50/70 p-4 text-xs leading-5 text-slate-600">
+                  <LockKeyhole className="h-4 w-4 shrink-0 text-primary" />
+                  <span>
+                    {paymentMethod === "VNPAY"
+                      ? "Bạn sẽ được chuyển đến VNPay Sandbox. Khóa học chỉ mở sau khi hệ thống xác nhận IPN có chữ ký hợp lệ."
+                      : "Đơn chuyển khoản sẽ chờ quản trị viên đối soát. Không gửi mật khẩu, mã OTP hoặc thông tin đăng nhập ngân hàng."}
+                  </span>
                 </div>
                 {createdOrder?.instructions && (
                   <ManualPaymentInstructions
@@ -257,13 +273,13 @@ export function CheckoutPage() {
                   </p>
                 )}
               </form>
-              <aside>
-                <h2 className="text-xl font-semibold text-[#101a2c]">Chi tiết đơn hàng</h2>
-                <div className="mt-4 rounded-xl border border-[#e2e8f0] p-4">
-                  <article className="flex min-h-[163px] gap-3 rounded-lg border border-[#e7edeb] bg-[#f8fafc] p-3">
+              <aside className="sticky top-24 space-y-5 rounded-2xl border border-slate-200/90 bg-white p-6 shadow-xs">
+                <h2 className="text-lg font-bold text-[#101a2c]">Chi tiết đơn hàng</h2>
+                <div className="rounded-xl border border-slate-200/80 bg-slate-50/60 p-4">
+                  <article className="flex gap-3.5">
                     <Link
                       href={`/courses/${courses[0].slug}`}
-                      className="focus-ring relative h-[112px] w-[112px] shrink-0 overflow-hidden rounded-md bg-[#eaf8f3] sm:h-[131px] sm:w-[131px]"
+                      className="focus-ring relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-emerald-50 sm:h-24 sm:w-24"
                     >
                       {courses[0].thumbnailUrl ? (
                         <Image
@@ -271,42 +287,42 @@ export function CheckoutPage() {
                           alt={courses[0].title}
                           fill
                           unoptimized
-                          sizes="112px"
+                          sizes="96px"
                           className="object-cover"
                         />
                       ) : (
                         <span className="grid h-full place-items-center text-primary">
-                          <BookOpen className="h-7 w-7" aria-hidden="true" />
+                          <BookOpen className="h-6 w-6" aria-hidden="true" />
                         </span>
                       )}
                     </Link>
-                    <div className="min-w-0 self-center">
-                      <p className="line-clamp-2 text-sm font-semibold text-primary">
+                    <div className="min-w-0 flex-1 self-center">
+                      <p className="line-clamp-2 text-sm font-semibold text-[#101a2c] hover:text-primary transition-colors">
                         {courses[0].title}
                       </p>
-                      <p className="mt-1 line-clamp-1 text-xs text-[#7c8783]">
+                      <p className="mt-1 line-clamp-1 text-xs text-slate-500">
                         {courses[0].lessonCount && courses[0].durationSeconds
                           ? `${formatDuration(courses[0].durationSeconds)} · ${courses[0].lessonCount} bài học`
                           : courses[0].instructorName}
                       </p>
                       {courses[0].lessonCount && courses[0].durationSeconds ? (
-                        <p className="mt-1 line-clamp-1 text-xs text-[#7c8783]">
+                        <p className="mt-0.5 line-clamp-1 text-xs text-slate-500">
                           {courses[0].instructorName}
                         </p>
                       ) : null}
-                      <p className="mt-1 text-sm font-semibold text-[#101a2c]">
+                      <p className="mt-1.5 text-sm font-bold text-primary">
                         {formatVND(courses[0].price)}
                       </p>
                     </div>
                   </article>
                   {courses.length > 1 ? (
-                    <p className="mt-3 flex h-10 items-center gap-2 rounded-lg border border-[#e2e8f0] bg-[#f8fafc] px-3 text-xs text-[#344155]">
-                      <Percent className="h-4 w-4" aria-hidden="true" />
-                      {courses.length - 1} khóa học khác
+                    <p className="mt-3 flex h-9 items-center gap-2 rounded-lg border border-slate-200/90 bg-white px-3 text-xs font-medium text-slate-600">
+                      <Percent className="h-3.5 w-3.5 text-primary" aria-hidden="true" />+
+                      {courses.length - 1} khóa học khác trong đơn
                     </p>
                   ) : null}
                 </div>
-                <div className="mt-3 min-h-[213px] space-y-4 rounded-lg border border-[#e5ece9] bg-[#f8fbfa] p-[15px] text-base">
+                <div className="space-y-3 border-t border-slate-200/80 pt-4 text-sm">
                   <SummaryRow
                     label="Tạm tính"
                     value={formatVND(createdOrder?.subtotal ?? subtotal)}
@@ -323,10 +339,10 @@ export function CheckoutPage() {
                           : "Chưa áp dụng"
                     }
                   />
-                  <SummaryRow label="Thuế/Phí" value="Chưa tính" />
-                  <div className="border-t border-[#e5ece9] pt-3">
+                  <SummaryRow label="Thuế / Phí" value="Đã bao gồm" />
+                  <div className="border-t border-dashed border-slate-200 pt-3">
                     <SummaryRow
-                      label="Tổng tạm tính"
+                      label="Tổng thanh toán"
                       value={formatVND(createdOrder?.total ?? subtotal)}
                       strong
                     />
@@ -335,7 +351,7 @@ export function CheckoutPage() {
                 <button
                   form="checkout-form"
                   disabled={submitting || Boolean(createdOrder)}
-                  className="focus-ring mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-[#079b70] text-sm font-semibold text-white transition hover:bg-[#078561] disabled:cursor-wait disabled:opacity-60"
+                  className="focus-ring inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-semibold text-white shadow-xs transition hover:bg-primary-hover active:scale-[0.99] disabled:cursor-wait disabled:opacity-60"
                 >
                   {submitting && <LoaderCircle className="h-4 w-4 animate-spin" />}
                   {submitting
@@ -346,18 +362,21 @@ export function CheckoutPage() {
                         ? "Thanh toán qua VNPay Sandbox"
                         : "Tạo hướng dẫn chuyển khoản"}
                 </button>
-                <p className="mt-3 flex items-center gap-1.5 text-[11px] leading-5 text-[#84908b]">
+                <p className="flex items-center justify-center gap-1.5 text-xs text-slate-500">
                   <ShieldCheck className="h-4 w-4 shrink-0 text-primary" />
-                  {paymentMethod === "VNPAY" ? "Thanh toán VNPay Sandbox" : "Chuyển khoản thủ công"}
+                  {paymentMethod === "VNPAY"
+                    ? "Thanh toán VNPay Sandbox"
+                    : "Chuyển khoản thủ công"}{" "}
+                  · Bảo mật SSL
                 </p>
               </aside>
             </div>
           ) : (
-            <div className="mt-8 rounded-2xl border border-[#e5ede9] bg-[#fbfefc] px-5 py-10 text-center">
-              <p className="text-sm text-[#75817c]">Giỏ hàng của bạn đang trống.</p>
+            <div className="mt-8 rounded-2xl border border-slate-200/90 bg-white px-5 py-10 text-center shadow-xs">
+              <p className="text-sm text-slate-500">Giỏ hàng của bạn đang trống.</p>
               <Link
                 href="/courses"
-                className="focus-ring mt-4 inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-white"
+                className="focus-ring mt-4 inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-white shadow-xs hover:bg-primary-hover transition"
               >
                 Quay lại danh mục
                 <ChevronRight className="h-4 w-4" />
@@ -393,14 +412,14 @@ function ManualPaymentInstructions({
     : null;
 
   return (
-    <section className="mt-4 rounded-xl border border-[#cfe9df] bg-[#f5fbf8] p-4">
+    <section className="mt-4 rounded-xl border border-emerald-200/90 bg-emerald-50/50 p-4">
       <div className="flex items-start gap-3">
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#e1f7ee] text-primary">
-          <Check className="h-5 w-5" />
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-emerald-100 text-primary">
+          <Check className="h-4 w-4" />
         </span>
         <div>
           <h2 className="text-sm font-semibold text-[#101a2c]">Đơn hàng đang chờ đối soát</h2>
-          <p className="mt-1 text-xs leading-5 text-[#667085]">
+          <p className="mt-1 text-xs leading-5 text-slate-600">
             Chuyển đúng số tiền và nhập mã đơn hàng ở nội dung. Khóa học sẽ mở sau khi quản trị viên
             xác nhận giao dịch.
           </p>
@@ -418,10 +437,10 @@ function ManualPaymentInstructions({
           width={240}
           height={240}
           unoptimized
-          className="mx-auto mt-4 rounded-lg border border-[#e5ece9] bg-white p-2"
+          className="mx-auto mt-4 rounded-xl border border-slate-200/90 bg-white p-2.5 shadow-xs"
         />
       )}
-      <dl className="mt-4 grid gap-2 text-xs sm:grid-cols-2">
+      <dl className="mt-4 grid gap-2.5 text-xs sm:grid-cols-2">
         <PaymentDetail
           label="Ngân hàng / ví"
           value={details.bankName ?? (details.walletPhone ? "MoMo" : "")}
@@ -438,29 +457,35 @@ function ManualPaymentInstructions({
           <PaymentDetail label="Hạn chuyển khoản" value={reservationDeadline} />
         ) : null}
       </dl>
-      <button
-        type="button"
-        onClick={onCopy}
-        className="focus-ring mt-3 inline-flex h-9 items-center gap-2 rounded-lg border border-[#dce8e2] bg-white px-3 text-xs font-semibold text-[#52605a] hover:border-primary hover:text-primary"
-      >
-        {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-        {copied ? "Đã sao chép nội dung" : "Sao chép nội dung chuyển khoản"}
-      </button>
-      <Link
-        href={`/checkout/result?vnp_TxnRef=${encodeURIComponent(order.orderId)}`}
-        className="focus-ring ml-3 inline-flex h-9 items-center rounded-lg px-3 text-xs font-semibold text-primary hover:bg-[#eaf8f3]"
-      >
-        Xem trạng thái đơn hàng
-      </Link>
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={onCopy}
+          className="focus-ring inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 shadow-xs hover:border-primary hover:text-primary transition"
+        >
+          {copied ? (
+            <Check className="h-3.5 w-3.5 text-primary" />
+          ) : (
+            <Copy className="h-3.5 w-3.5" />
+          )}
+          {copied ? "Đã sao chép nội dung" : "Sao chép nội dung chuyển khoản"}
+        </button>
+        <Link
+          href={`/checkout/result?vnp_TxnRef=${encodeURIComponent(order.orderId)}`}
+          className="focus-ring inline-flex h-9 items-center rounded-lg px-3 text-xs font-semibold text-primary hover:bg-emerald-50 transition"
+        >
+          Xem trạng thái đơn hàng →
+        </Link>
+      </div>
     </section>
   );
 }
 
 function PaymentDetail({ label, value }: { label: string; value: string }) {
   return (
-    <div className="min-w-0 rounded-md bg-white px-2.5 py-2">
-      <dt className="text-[10px] text-[#87928d]">{label}</dt>
-      <dd className="mt-0.5 break-all font-semibold text-[#34413c]">{value}</dd>
+    <div className="min-w-0 rounded-lg border border-slate-200/70 bg-white px-3 py-2.5 shadow-2xs">
+      <dt className="text-[11px] font-medium text-slate-500">{label}</dt>
+      <dd className="mt-0.5 break-all font-semibold text-slate-800">{value}</dd>
     </div>
   );
 }
@@ -480,10 +505,22 @@ function SummaryRow({
 }) {
   return (
     <div
-      className={`flex items-center justify-between gap-3 ${strong ? "pt-1 text-xl font-semibold text-primary" : "text-[#34413c]"}`}
+      className={cn(
+        "flex items-center justify-between gap-3 text-sm",
+        strong ? "text-slate-900 font-bold" : "text-slate-600",
+      )}
     >
-      <span>{label}</span>
-      <span className="text-right font-semibold">{value}</span>
+      <span className={strong ? "font-bold text-slate-800" : "font-normal text-slate-600"}>
+        {label}
+      </span>
+      <span
+        className={cn(
+          "text-right font-semibold",
+          strong ? "text-xl font-bold text-primary" : "text-slate-800",
+        )}
+      >
+        {value}
+      </span>
     </div>
   );
 }

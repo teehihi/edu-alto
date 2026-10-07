@@ -19,13 +19,13 @@ import { formatVND } from "@/lib/format";
 import { readCart, removeCourseFromCart, type CartCourse } from "@/lib/cart";
 
 export function CartPage() {
-  const [courses, setCourses] = useState<CartCourse[]>(() => {
-    if (typeof window === "undefined") return [];
-    return readCart();
-  });
+  const [isMounted, setIsMounted] = useState(false);
+  const [courses, setCourses] = useState<CartCourse[]>([]);
   const [coupon, setCoupon] = useState("");
   const [couponMessage, setCouponMessage] = useState("");
   useEffect(() => {
+    setIsMounted(true);
+    setCourses(readCart());
     const sync = () => setCourses(readCart());
     window.addEventListener("edualto:cart-changed", sync);
     window.addEventListener("storage", sync);
@@ -54,10 +54,17 @@ export function CartPage() {
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1 className="text-3xl font-bold text-primary">Giỏ hàng</h1>
-            <p className="mt-2 text-xs text-[#75817c]">{courses.length} khóa học trong giỏ hàng</p>
+            <p className="mt-2 text-xs text-[#75817c]">
+              {isMounted ? `${courses.length} khóa học trong giỏ hàng` : "Đang tải giỏ hàng…"}
+            </p>
           </div>
         </div>
-        {courses.length ? (
+        {!isMounted ? (
+          <div className="mt-6 grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_330px]">
+            <div className="h-64 rounded-2xl border border-slate-200 bg-white p-6 shadow-xs animate-pulse" />
+            <div className="h-64 rounded-2xl border border-slate-200 bg-white p-6 shadow-xs animate-pulse" />
+          </div>
+        ) : courses.length ? (
           <div className="mt-6 grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_330px]">
             <section
               aria-label="Khóa học trong giỏ hàng"
