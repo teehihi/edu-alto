@@ -87,3 +87,28 @@ edualto:
       hash-secret: ${EDUALTO_PAYMENT_VNPAY_HASH_SECRET:}
       payment-url: ${EDUALTO_PAYMENT_VNPAY_URL:https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
       return-url: ${EDUALTO_PAYMENT_VNPAY_RETURN_URL:}
+    momo:
+      partner-code: ${EDUALTO_PAYMENT_MOMO_PARTNER_CODE:}
+      access-key: ${EDUALTO_PAYMENT_MOMO_ACCESS_KEY:}
+      secret-key: ${EDUALTO_PAYMENT_MOMO_SECRET_KEY:}
+      endpoint: ${EDUALTO_PAYMENT_MOMO_ENDPOINT:https://test-payment.momo.vn/v2/gateway/api/create}
+      redirect-url: ${EDUALTO_PAYMENT_MOMO_REDIRECT_URL:}
+      ipn-url: ${EDUALTO_PAYMENT_MOMO_IPN_URL:}
+    sepay:
+      merchant-id: ${EDUALTO_PAYMENT_SEPAY_MERCHANT_ID:}
+      secret-key: ${EDUALTO_PAYMENT_SEPAY_SECRET_KEY:}
+      checkout-url: ${EDUALTO_PAYMENT_SEPAY_CHECKOUT_URL:https://pay.sepay.vn/v1/checkout/init}
+      success-url: ${EDUALTO_PAYMENT_SEPAY_SUCCESS_URL:http://localhost:3002/checkout/result}
+      cancel-url: ${EDUALTO_PAYMENT_SEPAY_CANCEL_URL:http://localhost:3002/checkout/result}
+      error-url: ${EDUALTO_PAYMENT_SEPAY_ERROR_URL:http://localhost:3002/checkout/result}
+      api-key: ${EDUALTO_PAYMENT_SEPAY_API_KEY:}
+      account-number: ${EDUALTO_PAYMENT_SEPAY_ACCOUNT_NUMBER:1040489156}
+      bank-name: ${EDUALTO_PAYMENT_SEPAY_BANK_NAME:VCB}
+      account-holder: ${EDUALTO_PAYMENT_SEPAY_ACCOUNT_HOLDER:NGUYEN NHAT THIEN}
+      qr-template: ${EDUALTO_PAYMENT_SEPAY_QR_TEMPLATE:compact}
+    stripe:
+      api-key: ${EDUALTO_PAYMENT_STRIPE_API_KEY:}
+      webhook-secret: ${EDUALTO_PAYMENT_STRIPE_WEBHOOK_SECRET:}
+      success-url: ${EDUALTO_PAYMENT_STRIPE_SUCCESS_URL:}
+      cancel-url: ${EDUALTO_PAYMENT_STRIPE_CANCEL_URL:}
+

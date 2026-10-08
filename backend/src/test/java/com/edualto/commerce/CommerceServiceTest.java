@@ -284,6 +284,41 @@ class CommerceServiceTest {
         verify(promotions, never()).releaseReservation(any());
     }
 
+    @Test
+    void sepayOrderCreatesDynamicVietQrAndWebhookActivatesEnrollment() {
+        UUID studentId = UUID.randomUUID();
+        UUID courseId = UUID.randomUUID();
+        when(repository.lockCourse(courseId)).thenReturn(Optional.of(new CommerceRepository.CheckoutCourse(
+                courseId, UUID.randomUUID(), "Khóa học SePay", new BigDecimal("300000"), "PUBLISHED")));
+        when(repository.isEnrolled(studentId, courseId)).thenReturn(false);
+
+        OrderCreatedResponse order = service().createOrder(studentId,
+                new CreateOrderRequest(List.of(courseId), PaymentMethod.SEPAY, "0931652105", null), "127.0.0.1");
+
+        assertThat(order.paymentMethod()).isEqualTo("SEPAY");
+        assertThat(order.instructions()).isNotNull();
+        assertThat(order.instructions().qrUrl()).contains("https://qr.sepay.vn/img?");
+
+        String ref = order.instructions().transferReference();
+        UUID orderId = order.orderId();
+        when(repository.lockPaymentOrder(ref)).thenReturn(Optional.of(
+                new PaymentOrder(orderId, 30000000L, "PENDING", "SEPAY", "PENDING_PAYMENT", studentId)));
+
+        String webhookJson = """
+                {
+                    "gateway": "VCB",
+                    "accountNumber": "1040489156",
+                    "content": "Thanh toan %s",
+                    "transferType": "in",
+                    "transferAmount": 300000
+                }
+                """.formatted(ref);
+
+        Map<String, Object> result = service().processGatewayWebhook("SEPAY", webhookJson, Map.of(), Map.of());
+        assertThat(result.get("success")).isEqualTo(true);
+        verify(repository).markPaymentPaid(orderId, studentId);
+    }
+
     private CommerceService service() {
         return new CommerceService(repository, users,
                 new VnPayProperties("TESTTMNCODE", SECRET, "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html",

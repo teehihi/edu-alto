@@ -53,8 +53,13 @@ public class CommerceRepository {
     }
 
     public void insertPayment(UUID paymentId, UUID orderId, String provider, long amountMinorUnits) {
+        insertPayment(paymentId, orderId, provider, orderId.toString(), amountMinorUnits);
+    }
+
+    public void insertPayment(UUID paymentId, UUID orderId, String provider, String providerTxnRef, long amountMinorUnits) {
+        String effectiveTxnRef = providerTxnRef != null && !providerTxnRef.isBlank() ? providerTxnRef : orderId.toString();
         jdbc.update("insert into payments(id, order_id, provider, provider_txn_ref, amount_minor_units, status) values (?, ?, ?, ?, ?, 'PENDING')",
-                paymentId, orderId, provider, orderId.toString(), amountMinorUnits);
+                paymentId, orderId, provider, effectiveTxnRef, amountMinorUnits);
     }
 
     public Optional<OrderResponse> findOrder(UUID orderId, UUID studentId) {
@@ -85,11 +90,11 @@ public class CommerceRepository {
                 select p.order_id, p.amount_minor_units, p.status as payment_status, p.provider,
                        o.status as order_status, o.student_id
                 from payments p join orders o on o.id = p.order_id
-                where p.provider_txn_ref = ?
+                where p.provider_txn_ref = ? or cast(o.id as varchar) = ? or o.transfer_reference = ?
                 for update of p, o
                 """, (rs, rowNum) -> new PaymentOrder(rs.getObject("order_id", UUID.class),
                 rs.getLong("amount_minor_units"), rs.getString("payment_status"), rs.getString("provider"), rs.getString("order_status"),
-                rs.getObject("student_id", UUID.class)), txnRef);
+                rs.getObject("student_id", UUID.class)), txnRef, txnRef, txnRef);
         return rows.stream().findFirst();
     }
 

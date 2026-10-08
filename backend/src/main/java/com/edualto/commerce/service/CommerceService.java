@@ -1,5 +1,8 @@
 package com.edualto.commerce.service;
 
+import com.edualto.commerce.config.MoMoProperties;
+import com.edualto.commerce.config.SepayProperties;
+import com.edualto.commerce.config.StripeProperties;
 import com.edualto.commerce.config.VnPayProperties;
 import com.edualto.commerce.domain.PaymentMethod;
 import com.edualto.commerce.dto.AdminOrderResponse;
@@ -7,6 +10,17 @@ import com.edualto.commerce.dto.ConfirmManualPaymentRequest;
 import com.edualto.commerce.dto.CreateOrderRequest;
 import com.edualto.commerce.dto.OrderCreatedResponse;
 import com.edualto.commerce.dto.OrderResponse;
+import com.edualto.commerce.gateway.PaymentGateway;
+import com.edualto.commerce.gateway.PaymentGatewayRegistry;
+import com.edualto.commerce.gateway.PaymentInitCommand;
+import com.edualto.commerce.gateway.PaymentInitResult;
+import com.edualto.commerce.gateway.PaymentWebhookCommand;
+import com.edualto.commerce.gateway.PaymentWebhookResult;
+import com.edualto.commerce.gateway.provider.MoMoPaymentGateway;
+import com.edualto.commerce.gateway.provider.SepayPaymentGateway;
+import com.edualto.commerce.gateway.provider.StripePaymentGateway;
+import com.edualto.commerce.gateway.provider.VietQrPaymentGateway;
+import com.edualto.commerce.gateway.provider.VnPayPaymentGateway;
 import com.edualto.commerce.repository.CommerceRepository;
 import com.edualto.commerce.repository.CommerceRepository.CheckoutCourse;
 import com.edualto.commerce.repository.CommerceRepository.PaymentOrder;
@@ -14,56 +28,82 @@ import com.edualto.commerce.repository.PromotionRepository;
 import com.edualto.commerce.repository.PromotionRepository.PromotionRecord;
 import com.edualto.common.exception.BusinessException;
 import com.edualto.user.service.UserService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.time.OffsetDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Map;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.UUID;
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
-import org.springframework.http.HttpStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestClient;
 
 @Service
 public class CommerceService {
-    private static final DateTimeFormatter VNPAY_DATE = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
-    private static final ZoneId VIETNAM_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
+
     private final CommerceRepository repository;
     private final UserService users;
     private final VnPayProperties properties;
     private final PromotionRepository promotions;
+    private final PaymentGatewayRegistry gatewayRegistry;
 
-    public CommerceService(CommerceRepository repository, UserService users, VnPayProperties properties,
-                           PromotionRepository promotions) {
+    public CommerceService(
+            CommerceRepository repository,
+            UserService users,
+            VnPayProperties properties,
+            PromotionRepository promotions,
+            PaymentGatewayRegistry gatewayRegistry
+    ) {
         this.repository = repository;
         this.users = users;
         this.properties = properties;
         this.promotions = promotions;
+        this.gatewayRegistry = gatewayRegistry;
+    }
+
+    public CommerceService(
+            CommerceRepository repository,
+            UserService users,
+            VnPayProperties properties,
+            PromotionRepository promotions
+    ) {
+        this(repository, users, properties, promotions, createDefaultRegistry(properties));
+    }
+
+    private static PaymentGatewayRegistry createDefaultRegistry(VnPayProperties vnPayProperties) {
+        RestClient client = RestClient.builder().build();
+        ObjectMapper mapper = new ObjectMapper();
+        return new PaymentGatewayRegistry(List.of(
+                new VnPayPaymentGateway(vnPayProperties),
+                new MoMoPaymentGateway(new MoMoProperties(null, null, null, null, null, null), client, mapper),
+                new SepayPaymentGateway(new SepayProperties(null, null, null, null, null), mapper),
+                new StripePaymentGateway(new StripeProperties(null, null, null, null), client, mapper),
+                new VietQrPaymentGateway()
+        ));
     }
 
     @Transactional
     public OrderCreatedResponse createOrder(UUID studentId, CreateOrderRequest request, String clientIp) {
         users.requireActiveLearner(studentId);
-        if (request.paymentMethod() == PaymentMethod.VNPAY) {
-            requireGatewayConfigured();
+
+        PaymentGateway gateway = gatewayRegistry.getGateway(request.paymentMethod());
+        if (request.paymentMethod() == PaymentMethod.VNPAY && !gateway.isConfigured()) {
+            throw new BusinessException(HttpStatus.SERVICE_UNAVAILABLE, "PAYMENT_GATEWAY_NOT_CONFIGURED",
+                    "Thanh toán trực tuyến chưa được cấu hình");
         }
+
         if (request.courseIds().stream().distinct().count() != request.courseIds().size()) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "DUPLICATE_COURSE", "Giỏ hàng có khóa học bị trùng");
         }
+
         var courses = new ArrayList<CheckoutCourse>();
         for (UUID courseId : request.courseIds()) {
             CheckoutCourse course = repository.lockCourse(courseId)
@@ -82,6 +122,7 @@ public class CommerceService {
             }
             courses.add(course);
         }
+
         PromotionRecord promotion = null;
         CheckoutCourse promotionCourse = null;
         BigDecimal itemDiscount = BigDecimal.ZERO;
@@ -108,43 +149,104 @@ public class CommerceService {
                 throw new BusinessException(HttpStatus.BAD_REQUEST, "INVALID_PROMOTION_DISCOUNT", "Mức giảm phải lớn hơn 0 đồng");
             }
         }
+
         BigDecimal subtotal = courses.stream().map(CheckoutCourse::price).reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal discountTotal = itemDiscount;
         BigDecimal total = subtotal.subtract(discountTotal);
         if (total.signum() <= 0) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "INVALID_PROMOTION_TOTAL", "Tổng thanh toán phải lớn hơn 0 đồng");
         }
+
         long amountMinorUnits;
         try {
             amountMinorUnits = total.movePointRight(2).longValueExact();
-            if (request.paymentMethod() != PaymentMethod.VNPAY) {
+            if (request.paymentMethod() != PaymentMethod.VNPAY && request.paymentMethod() != PaymentMethod.STRIPE) {
                 total.setScale(0, RoundingMode.UNNECESSARY).longValueExact();
             }
         } catch (ArithmeticException exception) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "INVALID_COURSE_PRICE", "Giá khóa học không hợp lệ cho thanh toán VND");
         }
+
         UUID orderId = UUID.randomUUID();
         String transferReference = manualTransferReference(orderId);
-        boolean manual = request.paymentMethod() != PaymentMethod.VNPAY;
-        String orderStatus = manual ? "PAYMENT_REVIEW" : "PENDING_PAYMENT";
-        OffsetDateTime expiresAt = promotion == null ? null : OffsetDateTime.now().plusMinutes(manual ? 24 * 60 : 15);
-        repository.insertOrder(orderId, studentId, request.phoneNumber(), subtotal, discountTotal, total,
-                orderStatus, transferReference, expiresAt);
+
+        List<PaymentInitCommand.ItemInfo> itemInfos = courses.stream()
+                .map(course -> new PaymentInitCommand.ItemInfo(course.id(), course.title(), course.price()))
+                .toList();
+
+        boolean isManualReview = request.paymentMethod() == PaymentMethod.VIETQR;
+        OffsetDateTime expiresAt = promotion == null ? null : OffsetDateTime.now().plusMinutes(isManualReview ? 24 * 60 : 15);
+
+        PaymentInitCommand initCommand = new PaymentInitCommand(
+                orderId,
+                studentId,
+                total,
+                amountMinorUnits,
+                clientIp,
+                transferReference,
+                expiresAt,
+                itemInfos
+        );
+
+        PaymentInitResult initResult = gateway.initializePayment(initCommand);
+        String orderStatus = initResult.orderStatus();
+
+        repository.insertOrder(
+                orderId,
+                studentId,
+                request.phoneNumber(),
+                subtotal,
+                discountTotal,
+                total,
+                orderStatus,
+                transferReference,
+                expiresAt
+        );
+
         for (CheckoutCourse course : courses) {
             BigDecimal discount = course.equals(promotionCourse) ? itemDiscount : BigDecimal.ZERO;
-            UUID itemId = repository.insertOrderItem(orderId, course, course.price().subtract(discount), discount,
-                    discount.signum() > 0 ? promotion.id() : null, discount.signum() > 0 ? promotion.code() : null);
+            UUID itemId = repository.insertOrderItem(
+                    orderId,
+                    course,
+                    course.price().subtract(discount),
+                    discount,
+                    discount.signum() > 0 ? promotion.id() : null,
+                    discount.signum() > 0 ? promotion.code() : null
+            );
             if (discount.signum() > 0) {
                 promotions.insertReservation(promotion.id(), orderId, itemId, studentId, discount, expiresAt);
             }
         }
-        repository.insertPayment(UUID.randomUUID(), orderId, request.paymentMethod().name(), amountMinorUnits);
-        String paymentUrl = request.paymentMethod() == PaymentMethod.VNPAY
-                ? buildPaymentUrl(orderId, amountMinorUnits, clientIp, expiresAt) : null;
-        OrderCreatedResponse.ManualPaymentInstructions instructions = manual
-                ? createManualInstructions(request.paymentMethod(), total, transferReference) : null;
-        return new OrderCreatedResponse(orderId, orderStatus, "VND", subtotal, discountTotal, total,
-                request.paymentMethod().name(), paymentUrl, expiresAt, instructions);
+
+        if (initResult.providerTxnRef() != null) {
+            repository.insertPayment(
+                    UUID.randomUUID(),
+                    orderId,
+                    request.paymentMethod().name(),
+                    initResult.providerTxnRef(),
+                    amountMinorUnits
+            );
+        } else {
+            repository.insertPayment(
+                    UUID.randomUUID(),
+                    orderId,
+                    request.paymentMethod().name(),
+                    amountMinorUnits
+            );
+        }
+
+        return new OrderCreatedResponse(
+                orderId,
+                orderStatus,
+                "VND",
+                subtotal,
+                discountTotal,
+                total,
+                request.paymentMethod().name(),
+                initResult.paymentUrl(),
+                expiresAt,
+                initResult.instructions()
+        );
     }
 
     @Transactional(readOnly = true)
@@ -155,9 +257,7 @@ public class CommerceService {
     }
 
     @Transactional(readOnly = true)
-    public Page<AdminOrderResponse> listAdminOrders(
-            UUID adminId, int page, int size, String status
-    ) {
+    public Page<AdminOrderResponse> listAdminOrders(UUID adminId, int page, int size, String status) {
         users.requireActiveAdmin(adminId);
         if (page < 0 || size < 1 || size > 100) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "INVALID_PAGINATION", "Phân trang đơn hàng không hợp lệ");
@@ -175,8 +275,8 @@ public class CommerceService {
         users.requireActiveAdmin(adminId);
         PaymentOrder payment = repository.lockPaymentOrder(orderId.toString())
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "ORDER_NOT_FOUND", "Không tìm thấy đơn hàng"));
-        if ("VNPAY".equals(payment.provider())) {
-            throw new BusinessException(HttpStatus.CONFLICT, "GATEWAY_PAYMENT_CANNOT_BE_MANUAL", "Không thể xác nhận thủ công giao dịch VNPay");
+        if ("VNPAY".equals(payment.provider()) || "STRIPE".equals(payment.provider())) {
+            throw new BusinessException(HttpStatus.CONFLICT, "GATEWAY_PAYMENT_CANNOT_BE_MANUAL", "Không thể xác nhận thủ công giao dịch cổng thanh toán");
         }
         if (!"PAYMENT_REVIEW".equals(payment.orderStatus()) || !"PENDING".equals(payment.paymentStatus())) {
             throw new BusinessException(HttpStatus.CONFLICT, "ORDER_NOT_PENDING_REVIEW", "Đơn hàng không còn chờ xác nhận thủ công");
@@ -209,152 +309,77 @@ public class CommerceService {
 
     @Transactional
     public IpNResult processIpn(Map<String, String> parameters) {
-        if (!properties.isConfigured() || !isValidSignature(parameters)) {
-            return new IpNResult("97", "Checksum invalid");
+        PaymentWebhookCommand command = new PaymentWebhookCommand(null, Map.of(), parameters);
+        PaymentWebhookResult result = processWebhookInternal("VNPAY", command);
+        Map<String, Object> payload = result.responsePayload();
+        String rspCode = payload.getOrDefault("RspCode", result.responseCode()).toString();
+        String message = payload.getOrDefault("Message", result.message()).toString();
+        return new IpNResult(rspCode, message);
+    }
+
+    @Transactional
+    public Map<String, Object> processGatewayWebhook(
+            String provider,
+            String rawPayload,
+            Map<String, String> headers,
+            Map<String, String> parameters
+    ) {
+        PaymentWebhookCommand command = new PaymentWebhookCommand(rawPayload, headers, parameters);
+        PaymentWebhookResult result = processWebhookInternal(provider, command);
+        return result.responsePayload();
+    }
+
+    private PaymentWebhookResult processWebhookInternal(String provider, PaymentWebhookCommand command) {
+        PaymentGateway gateway = gatewayRegistry.requireGateway(provider);
+        PaymentWebhookResult result = gateway.processWebhook(command);
+
+        if (!result.signatureValid()) {
+            return result;
         }
-        String txnRef = parameters.get("vnp_TxnRef");
-        if (txnRef == null || txnRef.isBlank()) {
-            return new IpNResult("01", "Order not found");
+
+        String orderKey = result.orderLookupKey();
+        if (orderKey == null || orderKey.isBlank()) {
+            return result;
         }
-        PaymentOrder payment = repository.lockPaymentOrder(txnRef).orElse(null);
+
+        PaymentOrder payment = repository.lockPaymentOrder(orderKey).orElse(null);
         if (payment == null) {
-            return new IpNResult("01", "Order not found");
+            return PaymentWebhookResult.failed(orderKey, "Order not found", result.responsePayload());
         }
-        if (!"VNPAY".equals(payment.provider())) {
-            return new IpNResult("01", "Order not found");
+
+        if (result.amountMinorUnits() > 0 && result.amountMinorUnits() != payment.amountMinorUnits()) {
+            return PaymentWebhookResult.failed(orderKey, "Invalid amount", result.responsePayload());
         }
-        long callbackAmount;
-        try {
-            callbackAmount = Long.parseLong(parameters.getOrDefault("vnp_Amount", ""));
-        } catch (NumberFormatException exception) {
-            return new IpNResult("04", "Invalid amount");
-        }
-        if (callbackAmount != payment.amountMinorUnits()) {
-            return new IpNResult("04", "Invalid amount");
-        }
+
         if ("PAID".equals(payment.paymentStatus()) && "PAID".equals(payment.orderStatus())) {
-            return new IpNResult("00", "Confirm Success");
+            return result;
         }
-        if (!"PENDING".equals(payment.paymentStatus()) || !"PENDING_PAYMENT".equals(payment.orderStatus())) {
-            return new IpNResult("02", "Order already confirmed");
+
+        if (!"PENDING".equals(payment.paymentStatus()) && !"REVIEW".equals(payment.paymentStatus())) {
+            return result;
         }
-        boolean success = "00".equals(parameters.get("vnp_ResponseCode"))
-                && "00".equals(parameters.get("vnp_TransactionStatus"));
-        if (success) {
+
+        if (result.successful()) {
             if (repository.orderHasPromotion(payment.orderId()) && !promotions.reservationIsActive(payment.orderId())) {
                 repository.markPaymentReview(payment.orderId(), "PROMOTION_RESERVATION_EXPIRED");
                 promotions.releaseReservation(payment.orderId());
-                return new IpNResult("00", "Payment needs admin reconciliation");
+                return result;
             }
             if (repository.orderHasPromotion(payment.orderId()) && !promotions.redeemReservation(payment.orderId())) {
                 repository.markPaymentReview(payment.orderId(), "PROMOTION_RESERVATION_EXPIRED");
                 promotions.releaseReservation(payment.orderId());
-                return new IpNResult("00", "Payment needs admin reconciliation");
+                return result;
             }
             repository.markPaymentPaid(payment.orderId(), payment.studentId());
         } else {
             repository.markPaymentFailed(payment.orderId());
             promotions.releaseReservation(payment.orderId());
         }
-        return new IpNResult("00", "Confirm Success");
-    }
-
-    private String buildPaymentUrl(UUID orderId, long amountMinorUnits, String clientIp, OffsetDateTime reservationExpiresAt) {
-        ZonedDateTime now = ZonedDateTime.now(VIETNAM_ZONE);
-        ZonedDateTime expiresAt = reservationExpiresAt == null
-                ? now.plusMinutes(15) : reservationExpiresAt.atZoneSameInstant(VIETNAM_ZONE);
-        Map<String, String> params = new TreeMap<>();
-        params.put("vnp_Version", "2.1.0");
-        params.put("vnp_Command", "pay");
-        params.put("vnp_TmnCode", properties.tmnCode());
-        params.put("vnp_Amount", Long.toString(amountMinorUnits));
-        params.put("vnp_CurrCode", "VND");
-        params.put("vnp_TxnRef", orderId.toString());
-        params.put("vnp_OrderInfo", "Thanh toan don hang EduAlto " + orderId);
-        params.put("vnp_OrderType", "other");
-        params.put("vnp_Locale", "vn");
-        params.put("vnp_ReturnUrl", properties.returnUrl());
-        params.put("vnp_IpAddr", normalizeIp(clientIp));
-        params.put("vnp_CreateDate", now.format(VNPAY_DATE));
-        params.put("vnp_ExpireDate", expiresAt.format(VNPAY_DATE));
-        String hashData = toQuery(params);
-        params.put("vnp_SecureHash", hmacSha512(properties.hashSecret(), hashData));
-        return properties.paymentUrl() + "?" + toQuery(params);
-    }
-
-    private static OrderCreatedResponse.ManualPaymentInstructions createManualInstructions(
-            PaymentMethod method, BigDecimal amount, String transferReference
-    ) {
-        if (method == PaymentMethod.MOMO) {
-            return new OrderCreatedResponse.ManualPaymentInstructions("MOMO_TRANSFER", "NGUYEN NHAT THIEN",
-                    null, null, "0389037546", amount, transferReference, null);
-        }
-        String qrUrl = "https://img.vietqr.io/image/VCB-1040489156-compact2.png?amount="
-                + amount.setScale(0, RoundingMode.UNNECESSARY).toPlainString()
-                + "&addInfo=" + encode(transferReference)
-                + "&accountName=" + encode("NGUYEN NHAT THIEN");
-        return new OrderCreatedResponse.ManualPaymentInstructions("BANK_TRANSFER", "NGUYEN NHAT THIEN",
-                "Vietcombank (VCB)", "1040489156", null, amount, transferReference, qrUrl);
+        return result;
     }
 
     private static String manualTransferReference(UUID orderId) {
-        return "EA" + orderId.toString().replace("-", "").substring(0, 22).toUpperCase();
-    }
-
-    private boolean isValidSignature(Map<String, String> parameters) {
-        if (!properties.tmnCode().equals(parameters.get("vnp_TmnCode"))) {
-            return false;
-        }
-        String receivedHash = parameters.get("vnp_SecureHash");
-        if (receivedHash == null || receivedHash.isBlank()) {
-            return false;
-        }
-        Map<String, String> signedParams = new TreeMap<>(parameters);
-        signedParams.remove("vnp_SecureHash");
-        signedParams.remove("vnp_SecureHashType");
-        byte[] expected = hmacSha512(properties.hashSecret(), toQuery(signedParams)).getBytes(StandardCharsets.US_ASCII);
-        byte[] received = receivedHash.getBytes(StandardCharsets.US_ASCII);
-        return MessageDigest.isEqual(expected, received);
-    }
-
-    private static String toQuery(Map<String, String> params) {
-        return params.entrySet().stream()
-                .filter(entry -> entry.getValue() != null && !entry.getValue().isEmpty())
-                .map(entry -> encode(entry.getKey()) + "=" + encode(entry.getValue()))
-                .reduce((left, right) -> left + "&" + right).orElse("");
-    }
-
-    private static String encode(String value) {
-        return URLEncoder.encode(value, StandardCharsets.UTF_8);
-    }
-
-    private static String hmacSha512(String secret, String data) {
-        try {
-            Mac mac = Mac.getInstance("HmacSHA512");
-            mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA512"));
-            byte[] bytes = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
-            var result = new StringBuilder(bytes.length * 2);
-            for (byte value : bytes) {
-                result.append(String.format("%02x", value & 0xff));
-            }
-            return result.toString();
-        } catch (Exception exception) {
-            throw new IllegalStateException("Unable to sign payment request", exception);
-        }
-    }
-
-    private void requireGatewayConfigured() {
-        if (!properties.isConfigured()) {
-            throw new BusinessException(HttpStatus.SERVICE_UNAVAILABLE, "PAYMENT_GATEWAY_NOT_CONFIGURED",
-                    "Thanh toán trực tuyến chưa được cấu hình");
-        }
-    }
-
-    private static String normalizeIp(String ip) {
-        if (ip == null || ip.isBlank() || "0:0:0:0:0:0:0:1".equals(ip)) {
-            return "127.0.0.1";
-        }
-        return ip.length() > 45 ? ip.substring(0, 45) : ip;
+        return "EA" + orderId.toString().replace("-", "").substring(0, 22).toUpperCase(Locale.ROOT);
     }
 
     public record IpNResult(String rspCode, String message) {
