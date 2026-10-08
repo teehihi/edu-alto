@@ -40,13 +40,19 @@ const API_BASE_URL = normalizeBaseUrl(
 async function requestPayload(path: string, options: ApiRequestOptions = {}): Promise<unknown> {
   const { accessToken, body, headers, ...init } = options;
   const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
+  const isBinaryBody = typeof Blob !== "undefined" && body instanceof Blob;
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
       ...init,
       credentials: "include",
-      headers: buildHeaders(headers, body, accessToken, isFormData),
-      body: body === undefined ? undefined : isFormData ? body : JSON.stringify(body),
+      headers: buildHeaders(headers, body, accessToken, isFormData, isBinaryBody),
+      body:
+        body === undefined
+          ? undefined
+          : isFormData || isBinaryBody
+            ? (body as BodyInit)
+            : JSON.stringify(body),
     });
   } catch (error) {
     if (init.signal?.aborted || (error instanceof Error && error.name === "AbortError"))
@@ -91,9 +97,10 @@ function buildHeaders(
   body: unknown,
   accessToken: string | null | undefined,
   isFormData: boolean,
+  isBinaryBody: boolean,
 ): Headers {
   const nextHeaders = new Headers(headers);
-  if (body !== undefined && !isFormData && !nextHeaders.has("Content-Type")) {
+  if (body !== undefined && !isFormData && !isBinaryBody && !nextHeaders.has("Content-Type")) {
     nextHeaders.set("Content-Type", "application/json");
   }
   if (accessToken && !nextHeaders.has("Authorization")) {

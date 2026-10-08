@@ -54,19 +54,39 @@ describe("uploadLessonVideo", () => {
     );
   });
 
-  it("does not confirm storage when the direct upload fails", async () => {
+  it("falls back to the authenticated API when R2 blocks the direct upload", async () => {
     const file = new File(["video bytes"], "lesson.webm", { type: "video/webm" });
     const requestSpy = vi.mocked(apiRequest);
-    requestSpy.mockResolvedValueOnce({
-      uploadUrl: "https://storage.example/signed-upload",
-      objectKey: "course-videos/course-1/lesson-1/video.webm",
-      expiresAt: "2026-09-30T00:15:00Z",
-    });
+    requestSpy
+      .mockResolvedValueOnce({
+        uploadUrl: "https://storage.example/signed-upload",
+        objectKey: "course-videos/course-1/lesson-1/video.webm",
+        expiresAt: "2026-09-30T00:15:00Z",
+      })
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce(undefined);
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 500 }));
 
-    await expect(uploadLessonVideo("course-1", "section-1", "lesson-1", file)).rejects.toThrow(
-      "Không tải được video lên kho lưu trữ.",
+    await uploadLessonVideo("course-1", "section-1", "lesson-1", file, "token");
+
+    expect(requestSpy).toHaveBeenNthCalledWith(
+      2,
+      "/instructor/courses/course-1/sections/section-1/lessons/lesson-1/video-upload?objectKey=course-videos%2Fcourse-1%2Flesson-1%2Fvideo.webm",
+      expect.objectContaining({
+        method: "POST",
+        headers: { "Content-Type": "video/webm" },
+        body: file,
+        accessToken: "token",
+      }),
     );
-    expect(requestSpy).toHaveBeenCalledTimes(1);
+    expect(requestSpy).toHaveBeenNthCalledWith(
+      3,
+      "/instructor/courses/course-1/sections/section-1/lessons/lesson-1/video-upload-complete",
+      {
+        method: "POST",
+        body: { objectKey: "course-videos/course-1/lesson-1/video.webm" },
+        accessToken: "token",
+      },
+    );
   });
 });

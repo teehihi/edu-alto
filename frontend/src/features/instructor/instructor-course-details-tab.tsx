@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { CircleAlert, ImagePlus, LoaderCircle, PlaySquare, Upload } from "lucide-react";
+import { CircleAlert, ImagePlus, LoaderCircle, PlaySquare } from "lucide-react";
 import { useInstructorCourseWorkspace } from "@/features/instructor/instructor-course-workspace";
 import { ApiClientError } from "@/lib/api";
 import {
-  createCourseThumbnailUploadUrl,
   publishInstructorCourse,
   updateInstructorCourse,
   uploadCourseThumbnail,
@@ -19,6 +18,7 @@ const levelOptions: Array<{ value: InstructorCourseLevel; label: string }> = [
   { value: "INTERMEDIATE", label: "Trung cấp" },
   { value: "ADVANCED", label: "Nâng cao" },
 ];
+const allowedThumbnailTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 type CourseForm = InstructorCoursePayload;
 
@@ -68,16 +68,27 @@ export function InstructorCourseDetailsTab() {
     setSuccess("");
   };
 
+  const chooseThumbnail = (file: File | null) => {
+    if (!file) return;
+    if (!allowedThumbnailTypes.has(file.type)) {
+      setError("Vui lòng chọn ảnh JPG, PNG hoặc WebP.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Ảnh bìa không được vượt quá 5 MB.");
+      return;
+    }
+    setError("");
+    setSuccess("");
+    setThumbnailFile(file);
+  };
+
   const getPayload = async (): Promise<CourseForm> => {
     let thumbnailKey = form.thumbnailKey;
     if (thumbnailFile) {
       if (!accessToken) throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
-      const { uploadUrl, objectKey } = await createCourseThumbnailUploadUrl(
-        thumbnailFile,
-        accessToken,
-      );
-      await uploadCourseThumbnail(uploadUrl, thumbnailFile);
-      thumbnailKey = objectKey;
+      const uploaded = await uploadCourseThumbnail(thumbnailFile, accessToken);
+      thumbnailKey = uploaded.objectKey;
     }
     return {
       ...form,
@@ -125,11 +136,7 @@ export function InstructorCourseDetailsTab() {
       setSuccess("Đã lưu thông tin khóa học.");
       return true;
     } catch (cause) {
-      setError(
-        cause instanceof ApiClientError || cause instanceof Error
-          ? cause.message
-          : "Không thể lưu khóa học. Vui lòng thử lại.",
-      );
+      setError(getCourseActionError(cause, "Không thể lưu khóa học. Vui lòng thử lại."));
       return false;
     } finally {
       setSaving(false);
@@ -148,16 +155,13 @@ export function InstructorCourseDetailsTab() {
     setSuccess("");
     try {
       const updated = await updateInstructorCourse(course.id, await getPayload(), accessToken);
+      setCourse(updated);
+      setThumbnailFile(null);
       const published = await publishInstructorCourse(updated.id, accessToken);
       setCourse(published);
-      setThumbnailFile(null);
       setSuccess("Khóa học đã được xuất bản.");
     } catch (cause) {
-      setError(
-        cause instanceof ApiClientError || cause instanceof Error
-          ? cause.message
-          : "Không thể xuất bản khóa học. Vui lòng thử lại.",
-      );
+      setError(getCourseActionError(cause, "Không thể xuất bản khóa học. Vui lòng thử lại."));
     } finally {
       setPublishing(false);
     }
@@ -257,6 +261,55 @@ export function InstructorCourseDetailsTab() {
           </section>
 
           <section
+            aria-labelledby="course-thumbnail-title"
+            className="rounded-lg border border-slate-200 bg-white p-4"
+          >
+            <h3 id="course-thumbnail-title" className="text-sm font-semibold text-primary">
+              Tải lên ảnh bìa khóa học
+            </h3>
+            <div
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => {
+                event.preventDefault();
+                chooseThumbnail(event.dataTransfer.files.item(0));
+              }}
+              className="mt-3 flex min-h-40 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 bg-[#f8fafc] p-4 text-center"
+            >
+              {thumbnailPreview ? (
+                // Thumbnail URLs come from API or a local preview URL.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={thumbnailPreview}
+                  alt="Xem trước ảnh bìa khóa học"
+                  className="mb-1 aspect-video max-h-36 rounded-md object-cover"
+                />
+              ) : (
+                <ImagePlus className="h-6 w-6 text-slate-500" aria-hidden="true" />
+              )}
+              <p className="text-sm font-semibold text-heading">
+                Kéo thả vào đây hoặc{" "}
+                <label
+                  htmlFor="course-thumbnail"
+                  className="cursor-pointer text-primary hover:underline"
+                >
+                  Chọn tệp
+                </label>
+              </p>
+              <p className="text-xs text-slate-500">JPEG, PNG hoặc WebP · tối đa 5 MB</p>
+              <input
+                id="course-thumbnail"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={(event) => {
+                  chooseThumbnail(event.target.files?.item(0) ?? null);
+                  event.target.value = "";
+                }}
+                className="sr-only"
+              />
+            </div>
+          </section>
+
+          <section
             aria-labelledby="course-description-title"
             className="rounded-lg border border-slate-200 bg-white p-4"
           >
@@ -348,51 +401,16 @@ export function InstructorCourseDetailsTab() {
               ))}
             </select>
           </div>
-          <div>
-            <label htmlFor="course-thumbnail" className="block text-sm font-semibold text-primary">
-              Ảnh bìa khóa học
-            </label>
-            <div className="mt-2 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-              {thumbnailPreview ? (
-                // Thumbnail URLs come from API or a local preview URL.
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={thumbnailPreview}
-                  alt="Xem trước ảnh bìa khóa học"
-                  className="aspect-video w-full object-cover"
-                />
-              ) : (
-                <div className="flex aspect-video items-center justify-center text-slate-400">
-                  <ImagePlus className="h-8 w-8" aria-hidden="true" />
-                </div>
-              )}
-              <label className="focus-within:ring-2 focus-within:ring-primary/40 flex min-h-10 cursor-pointer items-center justify-center gap-2 border-t border-slate-200 px-3 text-sm font-medium text-slate-700 transition hover:bg-white">
-                <Upload className="h-4 w-4" aria-hidden="true" /> Chọn ảnh
-                <input
-                  id="course-thumbnail"
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  onChange={(event) => {
-                    const nextFile = event.target.files?.[0] ?? null;
-                    if (!nextFile) return;
-                    if (nextFile.size > 10 * 1024 * 1024) {
-                      setError("Ảnh bìa không được vượt quá 10 MB.");
-                      event.target.value = "";
-                      return;
-                    }
-                    setError("");
-                    setThumbnailFile(nextFile);
-                  }}
-                  className="sr-only"
-                />
-              </label>
-            </div>
-            <p className="mt-1 text-xs leading-5 text-slate-500">
-              Định dạng JPG, PNG hoặc WebP; tối đa 10 MB.
-            </p>
-          </div>
         </aside>
       </div>
     </form>
   );
+}
+
+function getCourseActionError(cause: unknown, fallback: string): string {
+  if (cause instanceof ApiClientError) return cause.message;
+  if (cause instanceof TypeError && /fetch/i.test(cause.message)) {
+    return "Không kết nối được máy chủ. Kiểm tra kết nối rồi thử lại.";
+  }
+  return cause instanceof Error ? cause.message : fallback;
 }

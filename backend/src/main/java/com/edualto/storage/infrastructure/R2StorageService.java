@@ -6,6 +6,7 @@ import com.edualto.storage.dto.PresignedDownloadUrl;
 import com.edualto.storage.dto.PresignedUploadUrl;
 import com.edualto.storage.service.StorageService;
 import jakarta.annotation.PostConstruct;
+import java.io.InputStream;
 import java.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -104,6 +105,18 @@ public class R2StorageService implements StorageService {
                 .cacheControl("public, max-age=31536000, immutable")
                 .build();
         s3Client.putObject(putRequest, RequestBody.fromBytes(data));
+    }
+
+    @Override
+    public void putObject(String objectKey, String contentType, InputStream data, long contentLength) {
+        PutObjectRequest putRequest = PutObjectRequest.builder()
+                .bucket(properties.bucketName())
+                .key(objectKey)
+                .contentType(contentType)
+                .contentLength(contentLength)
+                .cacheControl("private, no-store")
+                .build();
+        s3Client.putObject(putRequest, RequestBody.fromInputStream(data, contentLength));
     }
 
     @Override

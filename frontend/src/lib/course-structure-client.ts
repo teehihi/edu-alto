@@ -93,9 +93,15 @@ export async function createLesson(
   payload: CreateLessonPayload,
   accessToken?: string | null,
 ): Promise<Lesson> {
+  const { type, textContent, videoDurationSeconds, ...lessonFields } = payload;
   return apiRequest<Lesson>(`/instructor/courses/${courseId}/sections/${sectionId}/lessons`, {
     method: "POST",
-    body: payload,
+    body: {
+      ...lessonFields,
+      lessonType: type,
+      content: textContent,
+      durationSeconds: videoDurationSeconds,
+    },
     accessToken,
   });
 }
@@ -107,11 +113,17 @@ export async function updateLesson(
   payload: UpdateLessonPayload,
   accessToken?: string | null,
 ): Promise<Lesson> {
+  const { type, textContent, videoDurationSeconds, ...lessonFields } = payload;
   return apiRequest<Lesson>(
     `/instructor/courses/${courseId}/sections/${sectionId}/lessons/${lessonId}`,
     {
       method: "PUT",
-      body: payload,
+      body: {
+        ...lessonFields,
+        lessonType: type,
+        content: textContent,
+        durationSeconds: videoDurationSeconds,
+      },
       accessToken,
     },
   );

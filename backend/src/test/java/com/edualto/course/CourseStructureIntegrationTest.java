@@ -7,6 +7,7 @@ import com.edualto.auth.repository.RefreshTokenRepository;
 import com.edualto.course.domain.Course;
 import com.edualto.course.domain.CourseLevel;
 import com.edualto.course.domain.Lesson;
+import com.edualto.course.domain.LessonStatus;
 import com.edualto.course.domain.LessonType;
 import com.edualto.course.domain.Section;
 import com.edualto.course.repository.CourseRepository;
@@ -319,7 +320,7 @@ class CourseStructureIntegrationTest extends AbstractIntegrationTest {
         String previousKey = "course-videos/" + course.getId() + "/" + UUID.randomUUID() + "/" + UUID.randomUUID() + ".mp4";
         Lesson lesson = lessonRepository.save(Lesson.create(
                 section.getId(), "Video 1", "video-1", null, null,
-                LessonType.VIDEO, 1, 60, false, previousKey));
+                LessonType.VIDEO, 1, 60, false, previousKey, LessonStatus.DRAFT));
         String basePath = "/api/v1/instructor/courses/" + course.getId() + "/sections/"
                 + section.getId() + "/lessons/" + lesson.getId();
         when(storageService.generatePresignedUploadUrl(anyString(), eq("video/mp4"), eq(1024L), any(Duration.class),

@@ -5,10 +5,7 @@ import { Bell, ImagePlus, Megaphone, Pencil, Plus, Send, Trash2, X } from "lucid
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { useAuth } from "@/features/auth/auth-client";
 import { ApiClientError } from "@/lib/api";
-import {
-  createCourseThumbnailUploadUrl,
-  uploadCourseThumbnail,
-} from "@/lib/instructor-course-client";
+import { uploadCourseThumbnail } from "@/lib/instructor-course-client";
 import {
   createInstructorNotification,
   deleteInstructorNotification,
@@ -175,8 +172,7 @@ export function InstructorNotificationsPanel() {
     try {
       let imageKey = form.imageKey;
       if (imageFile) {
-        const upload = await createCourseThumbnailUploadUrl(imageFile, accessToken);
-        await uploadCourseThumbnail(upload.uploadUrl, imageFile);
+        const upload = await uploadCourseThumbnail(imageFile, accessToken);
         imageKey = upload.objectKey;
       }
       const payload = toPayload({ ...form, imageKey });

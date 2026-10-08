@@ -99,6 +99,7 @@ describe("InstructorCourseCurriculumPage", () => {
   });
 
   it("renders course structure, sections, and lessons accurately", async () => {
+    const user = userEvent.setup();
     vi.spyOn(structureClient, "fetchCourseStructure").mockResolvedValue(mockStructure);
 
     render(<InstructorCourseCurriculumPage courseId={mockStructure.courseId} />);
@@ -110,6 +111,9 @@ describe("InstructorCourseCurriculumPage", () => {
 
     expect(screen.getByText("Chương 1: Giới thiệu căn bản")).toBeInTheDocument();
     expect(screen.getByText("Chương 2: React Component Design")).toBeInTheDocument();
+    const expandButtons = screen.getAllByRole("button", { name: "Mở rộng chương" });
+    await user.click(expandButtons[0]);
+    await user.click(screen.getByRole("button", { name: "Mở rộng chương" }));
     expect(screen.getByText("Bài 1: Cài đặt NodeJS và Compiler")).toBeInTheDocument();
     expect(screen.getByText("Bài 2: Hooks chuyên sâu")).toBeInTheDocument();
   });
@@ -132,11 +136,11 @@ describe("InstructorCourseCurriculumPage", () => {
     const addSectionBtn = await screen.findByRole("button", { name: /thêm chương mới/i });
     await user.click(addSectionBtn);
 
-    expect(screen.getByText("Thêm chương học mới")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Thêm chương mới" })).toBeInTheDocument();
     const titleInput = screen.getByPlaceholderText(/giới thiệu khóa học/i);
     await user.type(titleInput, "Chương 3: State Management");
 
-    const submitBtn = screen.getByRole("button", { name: /tạo chương/i });
+    const submitBtn = screen.getByRole("button", { name: "Lưu chương" });
     await user.click(submitBtn);
 
     await waitFor(() => {
@@ -176,7 +180,7 @@ describe("InstructorCourseCurriculumPage", () => {
     const titleInput = screen.getByPlaceholderText(/giới thiệu cú pháp/i);
     await user.type(titleInput, "Bài mới: TypeScript Generics");
 
-    const submitBtn = screen.getByRole("button", { name: /tạo bài học/i });
+    const submitBtn = screen.getByRole("button", { name: "Lưu và xuất bản" });
     await user.click(submitBtn);
 
     await waitFor(() => {
@@ -206,6 +210,14 @@ describe("InstructorCourseCurriculumPage", () => {
       createdAt: "2026-09-23T00:00:00Z",
       updatedAt: "2026-09-23T00:00:00Z",
     });
+    const updateLessonSpy = vi.spyOn(structureClient, "updateLesson").mockResolvedValue({
+      ...mockStructure.sections[0].lessons[0],
+      id: "les-quiz",
+      title: "Kiểm tra TypeScript",
+      type: "QUIZ",
+      status: "PUBLISHED",
+      position: 2,
+    });
     const createQuizSpy = vi.spyOn(quizClient, "createInstructorQuiz").mockResolvedValue({
       id: "quiz-1",
       lessonId: "les-quiz",
@@ -218,17 +230,24 @@ describe("InstructorCourseCurriculumPage", () => {
     const addLessonButtons = await screen.findAllByRole("button", { name: /thêm bài học/i });
     await user.click(addLessonButtons[0]);
     await user.type(screen.getByPlaceholderText(/giới thiệu cú pháp/i), "Kiểm tra TypeScript");
-    await user.selectOptions(screen.getByRole("combobox", { name: "Loại bài học" }), "QUIZ");
+    await user.click(screen.getByRole("button", { name: "Quiz" }));
     await user.type(screen.getByLabelText("Nội dung câu hỏi"), "Kiểu nào dùng cho chuỗi?");
     await user.type(screen.getByPlaceholderText("Nhập phương án 1"), "string");
     await user.type(screen.getByPlaceholderText("Nhập phương án 2"), "boolean");
-    await user.click(screen.getByRole("button", { name: "Tạo bài học" }));
+    await user.click(screen.getByRole("button", { name: "Lưu và xuất bản" }));
 
     await waitFor(() => {
       expect(createLessonSpy).toHaveBeenCalledWith(
         mockStructure.courseId,
         "sec-1",
-        expect.objectContaining({ type: "QUIZ", title: "Kiểm tra TypeScript" }),
+        expect.objectContaining({ type: "QUIZ", title: "Kiểm tra TypeScript", status: "DRAFT" }),
+        "mock-token",
+      );
+      expect(updateLessonSpy).toHaveBeenCalledWith(
+        mockStructure.courseId,
+        "sec-1",
+        "les-quiz",
+        expect.objectContaining({ status: "PUBLISHED" }),
         "mock-token",
       );
       expect(createQuizSpy).toHaveBeenCalledWith(
@@ -260,10 +279,10 @@ describe("InstructorCourseCurriculumPage", () => {
     const addLessonButtons = await screen.findAllByRole("button", { name: /thêm bài học/i });
     await user.click(addLessonButtons[0]);
     await user.type(screen.getByPlaceholderText(/giới thiệu cú pháp/i), "Kiểm tra TypeScript");
-    await user.selectOptions(screen.getByRole("combobox", { name: "Loại bài học" }), "QUIZ");
+    await user.click(screen.getByRole("button", { name: "Quiz" }));
     await user.type(screen.getByLabelText("Nội dung câu hỏi"), "Kiểu nào dùng cho chuỗi?");
     await user.type(screen.getByPlaceholderText("Nhập phương án 1"), "string");
-    await user.click(screen.getByRole("button", { name: "Tạo bài học" }));
+    await user.click(screen.getByRole("button", { name: "Lưu và xuất bản" }));
 
     expect(
       await screen.findByText(/Câu 1 cần có nội dung, từ 2 đến 6 phương án hợp lệ/),
@@ -288,6 +307,14 @@ describe("InstructorCourseCurriculumPage", () => {
       createdAt: "2026-09-23T00:00:00Z",
       updatedAt: "2026-09-23T00:00:00Z",
     });
+    vi.spyOn(structureClient, "updateLesson").mockResolvedValue({
+      ...mockStructure.sections[0].lessons[0],
+      id: "les-quiz-retry",
+      title: "Kiểm tra TypeScript",
+      type: "QUIZ",
+      status: "PUBLISHED",
+      position: 2,
+    });
     const createQuizSpy = vi
       .spyOn(quizClient, "createInstructorQuiz")
       .mockRejectedValueOnce(new Error("Máy chủ đang bận."))
@@ -303,16 +330,16 @@ describe("InstructorCourseCurriculumPage", () => {
     const addLessonButtons = await screen.findAllByRole("button", { name: /thêm bài học/i });
     await user.click(addLessonButtons[0]);
     await user.type(screen.getByPlaceholderText(/giới thiệu cú pháp/i), "Kiểm tra TypeScript");
-    await user.selectOptions(screen.getByRole("combobox", { name: "Loại bài học" }), "QUIZ");
+    await user.click(screen.getByRole("button", { name: "Quiz" }));
     await user.type(screen.getByLabelText("Nội dung câu hỏi"), "Kiểu nào dùng cho chuỗi?");
     await user.type(screen.getByPlaceholderText("Nhập phương án 1"), "string");
     await user.type(screen.getByPlaceholderText("Nhập phương án 2"), "boolean");
-    await user.click(screen.getByRole("button", { name: "Tạo bài học" }));
+    await user.click(screen.getByRole("button", { name: "Lưu và xuất bản" }));
 
     expect(
       await screen.findByText(/Bài học đã được tạo, nhưng chưa lưu được câu hỏi/),
     ).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Thử lưu câu hỏi" }));
+    await user.click(screen.getByRole("button", { name: "Lưu và xuất bản" }));
 
     await waitFor(() => {
       expect(createLessonSpy).toHaveBeenCalledTimes(1);
@@ -329,8 +356,8 @@ describe("InstructorCourseCurriculumPage", () => {
     const addLessonButtons = await screen.findAllByRole("button", { name: /thêm bài học/i });
     await user.click(addLessonButtons[0]);
     await user.type(screen.getByPlaceholderText(/giới thiệu cú pháp/i), "Video bài 1");
-    await user.selectOptions(screen.getByRole("combobox", { name: "Loại bài học" }), "VIDEO");
-    await user.click(screen.getByRole("button", { name: "Tạo bài học" }));
+    await user.click(screen.getByRole("button", { name: "Video" }));
+    await user.click(screen.getByRole("button", { name: "Lưu và xuất bản" }));
 
     expect(
       await screen.findByText("Vui lòng chọn video MP4 hoặc WebM cho bài học."),
@@ -355,6 +382,14 @@ describe("InstructorCourseCurriculumPage", () => {
       createdAt: "2026-09-23T00:00:00Z",
       updatedAt: "2026-09-23T00:00:00Z",
     });
+    const updateLessonSpy = vi.spyOn(structureClient, "updateLesson").mockResolvedValue({
+      ...mockStructure.sections[0].lessons[0],
+      id: "les-video-upload",
+      title: "Video bài 1",
+      type: "VIDEO",
+      status: "PUBLISHED",
+      position: 2,
+    });
     const uploadSpy = vi
       .spyOn(videoClient, "uploadLessonVideo")
       .mockRejectedValueOnce(new Error("Kho lưu trữ tạm thời không khả dụng."))
@@ -364,20 +399,27 @@ describe("InstructorCourseCurriculumPage", () => {
     const addLessonButtons = await screen.findAllByRole("button", { name: /thêm bài học/i });
     await user.click(addLessonButtons[0]);
     await user.type(screen.getByPlaceholderText(/giới thiệu cú pháp/i), "Video bài 1");
-    await user.selectOptions(screen.getByRole("combobox", { name: "Loại bài học" }), "VIDEO");
+    await user.click(screen.getByRole("button", { name: "Video" }));
     await user.upload(
       screen.getByLabelText(/video bài giảng/i),
       new File(["sample video"], "bai-giang.mp4", { type: "video/mp4" }),
     );
-    await user.click(screen.getByRole("button", { name: "Tạo bài học" }));
+    await user.click(screen.getByRole("button", { name: "Lưu và xuất bản" }));
 
     expect(
       await screen.findByText(/Bài học đã được tạo nhưng video chưa tải xong/),
     ).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Thử lưu video" }));
+    await user.click(screen.getByRole("button", { name: "Lưu và xuất bản" }));
     await waitFor(() => {
       expect(createLessonSpy).toHaveBeenCalledTimes(1);
       expect(uploadSpy).toHaveBeenCalledTimes(2);
+      expect(updateLessonSpy).toHaveBeenCalledWith(
+        mockStructure.courseId,
+        "sec-1",
+        "les-video-upload",
+        expect.objectContaining({ status: "PUBLISHED" }),
+        "mock-token",
+      );
       expect(uploadSpy).toHaveBeenLastCalledWith(
         mockStructure.courseId,
         "sec-1",

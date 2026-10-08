@@ -1,8 +1,9 @@
 package com.edualto.storage.service;
 
 import com.edualto.storage.dto.ObjectMetadata;
-import com.edualto.storage.dto.PresignedUploadUrl;
 import com.edualto.storage.dto.PresignedDownloadUrl;
+import com.edualto.storage.dto.PresignedUploadUrl;
+import java.io.InputStream;
 import java.time.Duration;
 
 public interface StorageService {
@@ -15,6 +16,8 @@ public interface StorageService {
     PresignedDownloadUrl generatePresignedDownloadUrl(String objectKey, Duration expiration);
 
     void putObject(String objectKey, String contentType, byte[] data);
+
+    void putObject(String objectKey, String contentType, InputStream data, long contentLength);
 
     byte[] getObjectBytes(String objectKey);
 

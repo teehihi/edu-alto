@@ -299,7 +299,8 @@ public class CourseStructureService {
                 nextPosition,
                 request.durationSeconds(),
                 Boolean.TRUE.equals(request.isPreview()),
-                request.mediaKey()
+                request.mediaKey(),
+                request.status()
         );
 
         lesson = lessonRepository.save(lesson);

@@ -101,7 +101,8 @@ public class Lesson {
             int position,
             Integer durationSeconds,
             boolean isPreview,
-            String mediaKey
+            String mediaKey,
+            LessonStatus status
     ) {
         return new Lesson(
                 UUID.randomUUID(),
@@ -115,7 +116,7 @@ public class Lesson {
                 durationSeconds,
                 isPreview,
                 mediaKey,
-                LessonStatus.DRAFT
+                status != null ? status : LessonStatus.DRAFT
         );
     }
 

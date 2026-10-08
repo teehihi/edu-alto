@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import {
   BookOpen,
@@ -227,6 +228,7 @@ export function clearInstructorDashboardCache() {
 }
 
 export function InstructorDashboardPage() {
+  const router = useRouter();
   const { accessToken, loading: authLoading } = useAuth();
   const [courses, setCourses] = useState<InstructorCourse[]>(
     () => instructorDashboardCache?.courses ?? [],
@@ -420,7 +422,10 @@ export function InstructorDashboardPage() {
       if (editingCourse) {
         await updateInstructorCourse(editingCourse.id, payload, accessToken);
       } else {
-        await createInstructorCourse(payload, accessToken);
+        const createdCourse = await createInstructorCourse(payload, accessToken);
+        setCourseFormOpen(false);
+        router.push(`/instructor/courses/${encodeURIComponent(createdCourse.id)}/details`);
+        return;
       }
       setCourseFormOpen(false);
       await loadCourses();

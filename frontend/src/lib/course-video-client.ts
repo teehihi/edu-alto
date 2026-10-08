@@ -23,16 +23,28 @@ export async function uploadLessonVideo(
     },
   );
 
-  const uploadResponse = await fetch(uploadUrl, {
-    method: "PUT",
-    headers: {
-      "Content-Type": file.type,
-      "Cache-Control": "private, no-store",
-    },
-    body: file,
-  });
-  if (!uploadResponse.ok) {
-    throw new Error("Không tải được video lên kho lưu trữ. Vui lòng thử lại.");
+  let directUploadSucceeded = false;
+  try {
+    const uploadResponse = await fetch(uploadUrl, {
+      method: "PUT",
+      headers: {
+        "Content-Type": file.type,
+        "Cache-Control": "private, no-store",
+      },
+      body: file,
+    });
+    directUploadSucceeded = uploadResponse.ok;
+  } catch {
+    // R2 CORS may block browser uploads. Retry through the authenticated API, which streams to R2.
+  }
+
+  if (!directUploadSucceeded) {
+    await apiRequest<void>(`${basePath}/video-upload?objectKey=${encodeURIComponent(objectKey)}`, {
+      method: "POST",
+      headers: { "Content-Type": file.type },
+      body: file,
+      accessToken,
+    });
   }
 
   await apiRequest<void>(`${basePath}/video-upload-complete`, {

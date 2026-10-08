@@ -194,7 +194,8 @@ class CourseStructureServiceTest {
                 LessonType.TEXT,
                 600,
                 true,
-                null
+                null,
+                LessonStatus.PUBLISHED
         );
 
         LessonResponse response = courseStructureService.createLesson(instructorId, courseId, sectionId, request);
@@ -204,7 +205,7 @@ class CourseStructureServiceTest {
         assertThat(response.position()).isEqualTo(1);
         assertThat(response.durationSeconds()).isEqualTo(600);
         assertThat(response.isPreview()).isTrue();
-        assertThat(response.status()).isEqualTo(LessonStatus.DRAFT);
+        assertThat(response.status()).isEqualTo(LessonStatus.PUBLISHED);
     }
 
     @Test

@@ -56,32 +56,21 @@ export function fetchInstructorCourse(
   });
 }
 
-export type CourseThumbnailUploadUrl = {
-  uploadUrl: string;
+type CourseThumbnailUploadResponse = {
   objectKey: string;
-  expiresAt: string;
 };
 
-export function createCourseThumbnailUploadUrl(
-  file: Pick<File, "type" | "size">,
+export function uploadCourseThumbnail(
+  file: File,
   accessToken: string,
-): Promise<CourseThumbnailUploadUrl> {
-  return apiRequest<CourseThumbnailUploadUrl>("/instructor/courses/thumbnail-upload-url", {
+): Promise<CourseThumbnailUploadResponse> {
+  const body = new FormData();
+  body.append("file", file);
+  return apiRequest<CourseThumbnailUploadResponse>("/instructor/courses/thumbnail-upload", {
     method: "POST",
-    body: { contentType: file.type, contentLength: file.size },
+    body,
     accessToken,
   });
-}
-
-export async function uploadCourseThumbnail(uploadUrl: string, file: File): Promise<void> {
-  const response = await fetch(uploadUrl, {
-    method: "PUT",
-    headers: { "Content-Type": file.type },
-    body: file,
-  });
-  if (!response.ok) {
-    throw new Error("Không thể tải ảnh khóa học lên. Vui lòng thử lại.");
-  }
 }
 
 export function createInstructorCourse(

@@ -24,13 +24,16 @@ import com.edualto.user.domain.RoleName;
 import com.edualto.user.domain.User;
 import com.edualto.user.domain.UserStatus;
 import com.edualto.user.repository.UserRepository;
+import java.io.InputStream;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 public class LessonVideoService {
@@ -50,10 +53,12 @@ public class LessonVideoService {
     private final EnrollmentService enrollments;
     private final StorageService storage;
     private final StorageCleanupService storageCleanup;
+    private final TransactionTemplate readOnlyTransaction;
 
     public LessonVideoService(CourseRepository courses, SectionRepository sections,
             LessonRepository lessons, UserRepository users, EnrollmentService enrollments,
-            StorageService storage, StorageCleanupService storageCleanup) {
+            StorageService storage, StorageCleanupService storageCleanup,
+            PlatformTransactionManager transactionManager) {
         this.courses = courses;
         this.sections = sections;
         this.lessons = lessons;
@@ -61,6 +66,8 @@ public class LessonVideoService {
         this.enrollments = enrollments;
         this.storage = storage;
         this.storageCleanup = storageCleanup;
+        this.readOnlyTransaction = new TransactionTemplate(transactionManager);
+        this.readOnlyTransaction.setReadOnly(true);
     }
 
     @Transactional(readOnly = true)
@@ -76,6 +83,30 @@ public class LessonVideoService {
         PresignedUploadUrl signed = storage.generatePresignedUploadUrl(objectKey, request.contentType(),
                 request.contentLength(), UPLOAD_URL_TTL, "private, no-store");
         return new LessonVideoUploadUrlResponse(signed.uploadUrl(), signed.objectKey(), signed.expiresAt());
+    }
+
+    public void uploadThroughBackend(UUID instructorId, UUID courseId, UUID sectionId, UUID lessonId,
+            String objectKey, String contentType, long contentLength, InputStream inputStream) {
+        String extension = VIDEO_EXTENSIONS.get(contentType);
+        String keyPrefix = VIDEO_KEY_PREFIX + courseId + "/" + lessonId + "/";
+        String keySuffix = objectKey != null && objectKey.startsWith(keyPrefix)
+                ? objectKey.substring(keyPrefix.length())
+                : "";
+        readOnlyTransaction.executeWithoutResult(transactionStatus -> {
+            Lesson lesson = requireInstructorLesson(instructorId, courseId, sectionId, lessonId);
+            requireVideoLesson(lesson);
+            if (extension == null || contentLength < 1 || contentLength > MAX_VIDEO_SIZE_BYTES
+                    || keySuffix.isBlank() || keySuffix.contains("/")
+                    || !keySuffix.endsWith("." + extension)) {
+                throw new BusinessException(
+                        HttpStatus.BAD_REQUEST,
+                        "INVALID_VIDEO_UPLOAD",
+                        "Chỉ hỗ trợ video MP4 hoặc WebM tối đa 2 GB."
+                );
+            }
+        });
+
+        storage.putObject(objectKey, contentType, inputStream, contentLength);
     }
 
     @Transactional

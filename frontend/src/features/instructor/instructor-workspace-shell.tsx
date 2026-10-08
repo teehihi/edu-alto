@@ -6,7 +6,6 @@ import { createContext, useContext, useState, type ReactNode } from "react";
 import {
   BookOpen,
   DollarSign,
-  GraduationCap,
   Home,
   LayoutDashboard,
   Menu,
@@ -150,14 +149,6 @@ export function InstructorWorkspaceShell({
               Về trang chủ
             </Link>
             <Link
-              href="/learning"
-              onClick={() => setMobileNavOpen(false)}
-              className="focus-ring flex h-10 items-center gap-3 rounded-xl px-3 text-sm font-medium text-slate-600 transition hover:bg-[#edf7f3] hover:text-emerald-700 active:scale-[0.98]"
-            >
-              <GraduationCap className="h-4 w-4 stroke-[1.8]" />
-              Khu vực học tập
-            </Link>
-            <Link
               href="/profile"
               onClick={() => setMobileNavOpen(false)}
               className="focus-ring flex h-10 items-center gap-3 rounded-xl px-3 text-sm font-medium text-slate-600 transition hover:bg-[#edf7f3] hover:text-emerald-700 active:scale-[0.98]"
@@ -191,13 +182,6 @@ export function InstructorWorkspaceShell({
               </label>
             </div>
             <div className="flex items-center gap-3">
-              <Link
-                href="/learning"
-                className="focus-ring hidden items-center gap-1.5 rounded-lg border border-[#b7e4d7] bg-[#f0fbf7] px-3 py-2 text-xs font-semibold text-[#079367] transition hover:bg-[#dff5ec] sm:inline-flex"
-              >
-                <GraduationCap className="h-4 w-4" />
-                Khu vực học tập
-              </Link>
               <UserMenu showNameTrigger />
             </div>
           </header>

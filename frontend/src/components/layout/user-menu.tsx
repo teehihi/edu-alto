@@ -41,7 +41,6 @@ export function UserMenu({
   const userMenuRef = useRef<HTMLDivElement>(null);
   const userMenuLeaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const userMenuExitTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const lastHoverTimeRef = useRef(0);
 
   const openMenu = useCallback((pinned = false) => {
     if (userMenuLeaveTimerRef.current) {
@@ -89,7 +88,6 @@ export function UserMenu({
           clearTimeout(userMenuLeaveTimerRef.current);
           userMenuLeaveTimerRef.current = null;
         }
-        lastHoverTimeRef.current = Date.now();
         openMenu();
       }
     },
@@ -146,13 +144,15 @@ export function UserMenu({
         clearTimeout(userMenuLeaveTimerRef.current);
         userMenuLeaveTimerRef.current = null;
       }
-      if (isUserMenuOpen) {
+      if (isUserMenuOpen && isPinned) {
         closeMenu(true);
+      } else if (isUserMenuOpen) {
+        setIsPinned(true);
       } else {
         openMenu(true);
       }
     },
-    [closeMenu, isUserMenuOpen, openMenu],
+    [closeMenu, isPinned, isUserMenuOpen, openMenu],
   );
 
   const handleLogout = useCallback(async () => {

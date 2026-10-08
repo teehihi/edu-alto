@@ -1,5 +1,6 @@
 package com.edualto.course.dto;
 
+import com.edualto.course.domain.LessonStatus;
 import com.edualto.course.domain.LessonType;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -26,6 +27,8 @@ public record CreateLessonRequest(
         Boolean isPreview,
 
         @Size(max = 512, message = "Khóa phương tiện (mediaKey) không được vượt quá 512 ký tự")
-        String mediaKey
+        String mediaKey,
+
+        LessonStatus status
 ) {
 }

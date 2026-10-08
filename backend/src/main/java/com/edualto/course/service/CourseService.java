@@ -8,6 +8,7 @@ import com.edualto.course.domain.CourseStatus;
 import com.edualto.course.dto.CourseDetailResponse;
 import com.edualto.course.dto.CourseInstructorSummaryResponse;
 import com.edualto.course.dto.CourseListItemResponse;
+import com.edualto.course.dto.CourseThumbnailUploadResponse;
 import com.edualto.course.dto.CourseThumbnailUploadUrlRequest;
 import com.edualto.course.dto.CourseThumbnailUploadUrlResponse;
 import com.edualto.course.dto.CreateCourseRequest;
@@ -359,6 +360,36 @@ public class CourseService {
                 objectKey,
                 presigned.expiresAt()
         );
+    }
+
+    public CourseThumbnailUploadResponse uploadThumbnail(UUID instructorId, String requestedContentType, byte[] data) {
+        validateInstructor(instructorId);
+
+        String contentType = requestedContentType != null ? requestedContentType.trim().toLowerCase() : "";
+        if (!ALLOWED_THUMBNAIL_CONTENT_TYPES.contains(contentType)) {
+            throw new BusinessException(
+                    HttpStatus.BAD_REQUEST,
+                    "INVALID_CONTENT_TYPE",
+                    "Định dạng hình ảnh không được hỗ trợ. Vui lòng chọn JPEG, PNG hoặc WebP."
+            );
+        }
+        if (data == null || data.length == 0 || data.length > MAX_THUMBNAIL_SIZE_BYTES) {
+            throw new BusinessException(
+                    HttpStatus.BAD_REQUEST,
+                    "INVALID_FILE_SIZE",
+                    "Ảnh bìa khóa học phải có dung lượng từ 1 byte đến 5MB."
+            );
+        }
+
+        String extension = switch (contentType) {
+            case "image/jpeg" -> "jpg";
+            case "image/png" -> "png";
+            case "image/webp" -> "webp";
+            default -> throw new IllegalStateException("Validated thumbnail content type is unsupported");
+        };
+        String objectKey = "courses/thumbnails/" + instructorId + "/" + UUID.randomUUID() + "." + extension;
+        storageService.putObject(objectKey, contentType, data);
+        return new CourseThumbnailUploadResponse(objectKey);
     }
 
     // ==========================================
