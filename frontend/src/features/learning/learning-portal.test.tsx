@@ -55,6 +55,7 @@ describe("LearningPortal for instructors", () => {
           originalPrice: 899000,
           level: "ADVANCED",
           language: "vi",
+          subtitleLanguages: [],
           status: "PUBLISHED",
           createdAt: "2026-09-01T00:00:00Z",
           updatedAt: "2026-09-15T00:00:00Z",
