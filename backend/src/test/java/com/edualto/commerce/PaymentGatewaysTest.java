@@ -45,7 +45,7 @@ class PaymentGatewaysTest {
     void paymentGatewayRegistryResolvesAllConfiguredGateways() {
         VnPayProperties vnpayProps = new VnPayProperties("TMN", "SECRET", "https://url.test", "https://return.test");
         MoMoProperties momoProps = new MoMoProperties("MOMO", "KEY", "SECRET", "https://endpoint.test", "https://return.test", "https://ipn.test");
-        SepayProperties sepayProps = new SepayProperties("sepay-api-key", "123456", "VCB", "HOLDER", "compact");
+        SepayProperties sepayProps = SepayProperties.of("sepay-api-key", "123456", "VCB", "HOLDER", "compact");
         StripeProperties stripeProps = new StripeProperties("sk_test_123", "whsec_123", "https://success.test", "https://cancel.test");
 
         PaymentGatewayRegistry registry = new PaymentGatewayRegistry(List.of(
@@ -70,7 +70,7 @@ class PaymentGatewaysTest {
 
     @Test
     void sepayGatewayGeneratesDynamicVietQrAndProcessesWebhook() {
-        SepayProperties properties = new SepayProperties("my-secret-sepay-key", "1040489156", "VCB", "NGUYEN NHAT THIEN", "compact");
+        SepayProperties properties = SepayProperties.of("my-secret-sepay-key", "1040489156", "VCB", "NGUYEN NHAT THIEN", "compact");
         SepayPaymentGateway gateway = new SepayPaymentGateway(properties, objectMapper);
 
         UUID orderId = UUID.randomUUID();
@@ -123,7 +123,7 @@ class PaymentGatewaysTest {
 
     @Test
     void sepayGatewayRejectsInvalidApiKey() {
-        SepayProperties properties = new SepayProperties("my-secret-sepay-key", "1040489156", "VCB", "NGUYEN NHAT THIEN", "compact");
+        SepayProperties properties = SepayProperties.of("my-secret-sepay-key", "1040489156", "VCB", "NGUYEN NHAT THIEN", "compact");
         SepayPaymentGateway gateway = new SepayPaymentGateway(properties, objectMapper);
 
         PaymentWebhookCommand badAuth = new PaymentWebhookCommand(

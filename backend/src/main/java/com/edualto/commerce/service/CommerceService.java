@@ -38,6 +38,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -55,6 +56,7 @@ public class CommerceService {
     private final PromotionRepository promotions;
     private final PaymentGatewayRegistry gatewayRegistry;
 
+    @Autowired
     public CommerceService(
             CommerceRepository repository,
             UserService users,
@@ -84,7 +86,7 @@ public class CommerceService {
         return new PaymentGatewayRegistry(List.of(
                 new VnPayPaymentGateway(vnPayProperties),
                 new MoMoPaymentGateway(new MoMoProperties(null, null, null, null, null, null), client, mapper),
-                new SepayPaymentGateway(new SepayProperties(null, null, null, null, null), mapper),
+                new SepayPaymentGateway(SepayProperties.of(null, null, null, null, null), mapper),
                 new StripePaymentGateway(new StripeProperties(null, null, null, null), client, mapper),
                 new VietQrPaymentGateway()
         ));

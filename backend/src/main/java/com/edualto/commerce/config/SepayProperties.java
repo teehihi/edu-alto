@@ -34,8 +34,8 @@ public record SepayProperties(
         }
     }
 
-    public SepayProperties(String apiKey, String accountNumber, String bankName, String accountHolder, String qrTemplate) {
-        this(null, null, null, null, null, null, apiKey, accountNumber, bankName, accountHolder, qrTemplate);
+    public static SepayProperties of(String apiKey, String accountNumber, String bankName, String accountHolder, String qrTemplate) {
+        return new SepayProperties(null, null, null, null, null, null, apiKey, accountNumber, bankName, accountHolder, qrTemplate);
     }
 
     public boolean hasMerchantPg() {
