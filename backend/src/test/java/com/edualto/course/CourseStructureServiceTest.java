@@ -98,11 +98,20 @@ class CourseStructureServiceTest {
         when(sectionRepository.findTopByCourseIdOrderByPositionDesc(courseId)).thenReturn(Optional.empty());
         when(sectionRepository.save(any(Section.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        CreateSectionRequest request = new CreateSectionRequest("Chương 1: Tổng quan", "Giới thiệu cơ bản");
+        CreateSectionRequest request = new CreateSectionRequest(
+                "Chương 1: Tổng quan",
+                "Tổng quan ngắn",
+                "<p>Giới thiệu <strong>cơ bản</strong></p>",
+                "Tổng quan khóa học",
+                "Giới thiệu khóa học cơ bản"
+        );
         SectionResponse response = courseStructureService.createSection(instructorId, courseId, request);
 
         assertThat(response.title()).isEqualTo("Chương 1: Tổng quan");
-        assertThat(response.description()).isEqualTo("Giới thiệu cơ bản");
+        assertThat(response.introduction()).isEqualTo("Tổng quan ngắn");
+        assertThat(response.description()).isEqualTo("<p>Giới thiệu <strong>cơ bản</strong></p>");
+        assertThat(response.metaTitle()).isEqualTo("Tổng quan khóa học");
+        assertThat(response.metaDescription()).isEqualTo("Giới thiệu khóa học cơ bản");
         assertThat(response.position()).isEqualTo(1);
         verify(sectionRepository).save(any(Section.class));
     }
@@ -141,11 +150,20 @@ class CourseStructureServiceTest {
         when(sectionRepository.save(any(Section.class))).thenAnswer(inv -> inv.getArgument(0));
         when(lessonRepository.findAllBySectionIdOrderByPositionAsc(sectionId)).thenReturn(List.of());
 
-        UpdateSectionRequest request = new UpdateSectionRequest("Tiêu đề mới", "Mô tả mới");
+        UpdateSectionRequest request = new UpdateSectionRequest(
+                "Tiêu đề mới",
+                "Giới thiệu mới",
+                "<p>Mô tả <em>mới</em></p>",
+                "Tiêu đề SEO mới",
+                "Mô tả SEO mới"
+        );
         SectionResponse response = courseStructureService.updateSection(instructorId, courseId, sectionId, request);
 
         assertThat(response.title()).isEqualTo("Tiêu đề mới");
-        assertThat(response.description()).isEqualTo("Mô tả mới");
+        assertThat(response.introduction()).isEqualTo("Giới thiệu mới");
+        assertThat(response.description()).isEqualTo("<p>Mô tả <em>mới</em></p>");
+        assertThat(response.metaTitle()).isEqualTo("Tiêu đề SEO mới");
+        assertThat(response.metaDescription()).isEqualTo("Mô tả SEO mới");
     }
 
     @Test

@@ -66,6 +66,8 @@ export type CourseCurriculum = {
   sections: {
     id: string;
     title: string;
+    introduction?: string | null;
+    description?: string | null;
     lessons: {
       id: string;
       title: string;

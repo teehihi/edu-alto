@@ -6,7 +6,10 @@ import java.util.UUID;
 public record CourseStructureSectionResponse(
         UUID id,
         String title,
+        String introduction,
         String description,
+        String metaTitle,
+        String metaDescription,
         int position,
         int lessonCount,
         int totalDurationSeconds,

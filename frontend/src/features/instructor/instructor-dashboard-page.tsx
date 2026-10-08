@@ -539,7 +539,7 @@ export function InstructorDashboardPage() {
 
   return (
     <InstructorWorkspaceShell activeSection="dashboard">
-      <div className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-10 lg:py-6 xl:pr-[38px] xl:pl-[61px]">
+      <div className="min-w-0 flex-1 px-4 py-5 sm:px-5 lg:px-6 lg:py-6 xl:px-8">
         <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-2xl font-semibold text-primary">Tổng quan</h1>
           <div className="flex items-center gap-2 self-end sm:self-auto">

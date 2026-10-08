@@ -17,8 +17,11 @@ import { AppHeader } from "@/components/layout/app-header";
 import { Footer } from "@/components/layout/footer";
 import { formatVND } from "@/lib/format";
 import { readCart, removeCourseFromCart, type CartCourse } from "@/lib/cart";
+import { useAuthSession } from "@/lib/auth-session";
+import { InstructorPurchaseNotice } from "@/features/commerce/instructor-purchase-notice";
 
 export function CartPage() {
+  const { user, isLoading: authLoading } = useAuthSession();
   const [isMounted, setIsMounted] = useState(false);
   const [courses, setCourses] = useState<CartCourse[]>([]);
   const [coupon, setCoupon] = useState("");
@@ -35,6 +38,38 @@ export function CartPage() {
     };
   }, []);
   const subtotal = courses.reduce((total, course) => total + course.price, 0);
+  const isInstructor =
+    user?.roles.some((role) => role === "INSTRUCTOR" || role === "ROLE_INSTRUCTOR") ?? false;
+
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen flex-col bg-white">
+        <div className="bg-gradient-to-b from-[#e5f8f2] to-white">
+          <AppHeader />
+        </div>
+        <main className="container-page grid min-h-[560px] flex-1 place-items-center py-8">
+          <p role="status" className="text-sm text-muted">
+            Đang kiểm tra tài khoản...
+          </p>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (isInstructor) {
+    return (
+      <div className="flex min-h-screen flex-col bg-white">
+        <div className="bg-gradient-to-b from-[#e5f8f2] to-white">
+          <AppHeader />
+        </div>
+        <main className="container-page grid flex-1 place-items-center py-8">
+          <InstructorPurchaseNotice />
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div suppressHydrationWarning className="flex min-h-screen flex-col bg-white">

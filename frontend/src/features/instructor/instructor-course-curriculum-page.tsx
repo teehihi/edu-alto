@@ -13,8 +13,10 @@ import {
   Eye,
   FileCode,
   FileQuestion,
+  File as FileIcon,
   FileSpreadsheet,
   FileText,
+  ImagePlus,
   Layers,
   Pencil,
   Plus,
@@ -26,8 +28,15 @@ import { AppHeader } from "@/components/layout/app-header";
 import { Footer } from "@/components/layout/footer";
 import { Button } from "@/components/ui/button";
 import { FeedbackModal, type FeedbackTone } from "@/components/ui/feedback-modal";
-import { Skeleton } from "@/components/ui/skeleton";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
+import { CourseCurriculumSectionsSkeleton, Skeleton } from "@/components/ui/skeleton";
+import { CourseCurriculumSection } from "@/features/course/course-curriculum-section";
+import type { CourseCurriculumSectionData } from "@/features/course/course-curriculum-section";
 import { useAuth } from "@/features/auth/auth-client";
+import {
+  InstructorWorkspaceSidebar,
+  useInstructorWorkspaceSidebar,
+} from "@/features/instructor/instructor-workspace-shell";
 import { ApiClientError } from "@/lib/api";
 import {
   createLesson,
@@ -41,6 +50,7 @@ import {
   updateSection,
 } from "@/lib/course-structure-client";
 import { uploadLessonVideo } from "@/lib/course-video-client";
+import { courseDescriptionToText } from "@/lib/course-description";
 import {
   createInstructorQuiz,
   type CreateInstructorQuizRequest,
@@ -75,19 +85,23 @@ function formatDuration(seconds: number): string {
   return `${minutes} phút`;
 }
 
-function getLessonTypeIcon(type: LessonType) {
+function getLessonTypeIcon(type: LessonType, active = false) {
+  const iconClassName = (color: string) =>
+    active
+      ? "h-4 w-4 text-white transition-colors duration-150"
+      : `h-4 w-4 ${color} transition-colors duration-150 group-hover:text-primary`;
   switch (type) {
     case "VIDEO":
-      return <Video className="h-4 w-4 text-blue-500" />;
+      return <Video className={iconClassName("text-blue-500")} />;
     case "DOCUMENT":
-      return <FileSpreadsheet className="h-4 w-4 text-amber-500" />;
+      return <FileSpreadsheet className={iconClassName("text-amber-500")} />;
     case "QUIZ":
-      return <FileQuestion className="h-4 w-4 text-purple-500" />;
+      return <FileQuestion className={iconClassName("text-purple-500")} />;
     case "ASSIGNMENT":
-      return <FileCode className="h-4 w-4 text-indigo-500" />;
+      return <FileCode className={iconClassName("text-indigo-500")} />;
     case "TEXT":
     default:
-      return <FileText className="h-4 w-4 text-emerald-500" />;
+      return <FileText className={iconClassName("text-emerald-500")} />;
   }
 }
 
@@ -107,6 +121,46 @@ function getLessonTypeLabel(type: LessonType): string {
   }
 }
 
+function StudentChapterPreview({
+  section,
+  isExpanded,
+  onToggle,
+  onPreviewLesson,
+  note,
+}: {
+  section: CourseCurriculumSectionData;
+  isExpanded: boolean;
+  onToggle: () => void;
+  onPreviewLesson: (lessonId: string) => void;
+  note: string;
+}) {
+  return (
+    <aside
+      aria-label="Giao diện chương trên trang khóa học"
+      className="h-fit rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"
+    >
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold text-slate-900">Giao diện trên trang khóa học</h3>
+          <p className="mt-1 text-xs leading-5 text-slate-500">
+            Đây là cùng thành phần giáo trình mà học viên nhìn thấy.
+          </p>
+        </div>
+        <Eye className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+      </div>
+      <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-xs divide-y divide-slate-100">
+        <CourseCurriculumSection
+          section={section}
+          isOpen={isExpanded}
+          onToggle={onToggle}
+          onPreviewLesson={onPreviewLesson}
+        />
+      </div>
+      <p className="mt-3 text-[11px] leading-4 text-slate-500">{note}</p>
+    </aside>
+  );
+}
+
 const lessonTypeOptions: Array<{ value: LessonType; label: string }> = [
   { value: "VIDEO", label: "Video" },
   { value: "DOCUMENT", label: "PDF / Tài liệu" },
@@ -114,6 +168,105 @@ const lessonTypeOptions: Array<{ value: LessonType; label: string }> = [
   { value: "ASSIGNMENT", label: "Bài tập" },
   { value: "TEXT", label: "Bài đọc" },
 ];
+
+type LessonEditorTab = "details" | "resources" | "quiz" | "assignment";
+
+function LessonFileDropzone({
+  id,
+  label,
+  hint,
+  accept,
+  icon,
+  file,
+  disabled,
+  onFileChange,
+}: {
+  id: string;
+  label: string;
+  hint: string;
+  accept: string;
+  icon: React.ReactNode;
+  file: File | null;
+  disabled: boolean;
+  onFileChange: (file: File | null) => void;
+}) {
+  const [isDragging, setIsDragging] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const selectFile = (file: File | null) => {
+    onFileChange(file);
+    if (inputRef.current) inputRef.current.value = "";
+  };
+
+  return (
+    <div className="space-y-2">
+      <label htmlFor={id} className="block text-[13px] font-medium text-primary">
+        {label}
+      </label>
+      <label
+        htmlFor={id}
+        onDragOver={(event) => {
+          event.preventDefault();
+          if (!disabled) setIsDragging(true);
+        }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={(event) => {
+          event.preventDefault();
+          setIsDragging(false);
+          if (!disabled) selectFile(event.dataTransfer.files?.[0] ?? null);
+        }}
+        className={`flex min-h-40 cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-dashed bg-white px-4 text-center transition-colors ${
+          isDragging
+            ? "border-primary bg-emerald-50/70"
+            : "border-slate-200 hover:border-primary/60 hover:bg-emerald-50/30"
+        } ${disabled ? "cursor-not-allowed opacity-60" : ""}`}
+      >
+        <input
+          id={id}
+          ref={inputRef}
+          type="file"
+          accept={accept}
+          disabled={disabled}
+          aria-label={label}
+          aria-describedby={`${id}-hint`}
+          className="sr-only"
+          onChange={(event) => selectFile(event.currentTarget.files?.[0] ?? null)}
+        />
+        {file ? (
+          <>
+            <span className="text-primary">{icon}</span>
+            <span className="max-w-full truncate text-sm font-semibold text-heading">
+              {file.name}
+            </span>
+            <span className="text-xs text-muted">
+              {(file.size / (1024 * 1024)).toFixed(1)} MB · Nhấn để chọn tệp khác
+            </span>
+          </>
+        ) : (
+          <>
+            <span className="text-heading">{icon}</span>
+            <span className="text-sm font-semibold text-heading">
+              Kéo thả vào đây hoặc <span className="text-primary">Chọn tệp</span>
+            </span>
+            <span className="text-xs text-slate-400">{hint}</span>
+          </>
+        )}
+      </label>
+      {file ? (
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => onFileChange(null)}
+          className="focus-ring text-xs font-medium text-slate-500 transition hover:text-rose-600 disabled:opacity-50"
+        >
+          Bỏ tệp đã chọn
+        </button>
+      ) : null}
+      <span id={`${id}-hint`} className="sr-only">
+        {hint}
+      </span>
+    </div>
+  );
+}
 
 export interface InstructorCourseCurriculumPageProps {
   courseId: string;
@@ -125,6 +278,16 @@ export function InstructorCourseCurriculumPage({
   embedded = false,
 }: InstructorCourseCurriculumPageProps) {
   const { accessToken, loading: authLoading } = useAuth();
+  const workspaceSidebar = useInstructorWorkspaceSidebar();
+  const [localSidebarCollapsed, setLocalSidebarCollapsed] = useState(false);
+  const sidebarCollapsed = workspaceSidebar?.sidebarCollapsed ?? localSidebarCollapsed;
+  const setSidebarCollapsed = (collapsed: boolean) => {
+    if (workspaceSidebar) {
+      workspaceSidebar.setSidebarCollapsed(collapsed);
+      return;
+    }
+    setLocalSidebarCollapsed(collapsed);
+  };
 
   const [structure, setStructure] = useState<CourseStructure | null>(null);
   const [loading, setLoading] = useState(true);
@@ -137,9 +300,35 @@ export function InstructorCourseCurriculumPage({
   const [sectionModalOpen, setSectionModalOpen] = useState(false);
   const [editingSection, setEditingSection] = useState<CourseStructureSection | null>(null);
   const [sectionTitle, setSectionTitle] = useState("");
+  const [sectionIntroduction, setSectionIntroduction] = useState("");
   const [sectionDescription, setSectionDescription] = useState("");
+  const [sectionMetaTitle, setSectionMetaTitle] = useState("");
+  const [sectionMetaDescription, setSectionMetaDescription] = useState("");
+  const [sectionSeoNotice, setSectionSeoNotice] = useState("");
+  const [sectionEditorTab, setSectionEditorTab] = useState<"details" | "seo">("details");
+  const [previewExpanded, setPreviewExpanded] = useState(true);
   const [sectionFormLoading, setSectionFormLoading] = useState(false);
   const [sectionFormError, setSectionFormError] = useState<string | null>(null);
+  const studentPreviewSection: CourseCurriculumSectionData = {
+    id: `section-editor-preview-${editingSection?.id ?? courseId}`,
+    title: sectionTitle,
+    introduction: sectionIntroduction,
+    description: sectionDescription,
+    lessons: (editingSection?.lessons ?? [])
+      .filter((lesson) => lesson.status === "PUBLISHED")
+      .map((lesson) => ({
+        id: lesson.id,
+        title: lesson.title,
+        lessonType: lesson.type,
+        durationSeconds: lesson.videoDurationSeconds,
+        preview: lesson.isPreview,
+      })),
+  };
+
+  const handleOpenStudentLesson = () => {
+    if (!structure?.courseSlug) return;
+    window.open(`/courses/${structure.courseSlug}#curriculum`, "_blank", "noopener,noreferrer");
+  };
 
   // Lesson Modal state
   const [lessonModalOpen, setLessonModalOpen] = useState(false);
@@ -148,8 +337,17 @@ export function InstructorCourseCurriculumPage({
   const [lessonTitle, setLessonTitle] = useState("");
   const [lessonDescription, setLessonDescription] = useState("");
   const [lessonType, setLessonType] = useState<LessonType>("TEXT");
+  const [lessonEditorTab, setLessonEditorTab] = useState<LessonEditorTab>("details");
+  const [lessonObjectives, setLessonObjectives] = useState<string[]>(["", ""]);
   const [lessonTextContent, setLessonTextContent] = useState("");
   const [lessonVideoFile, setLessonVideoFile] = useState<File | null>(null);
+  const [lessonResourceFile, setLessonResourceFile] = useState<File | null>(null);
+  const [lessonThumbnailFile, setLessonThumbnailFile] = useState<File | null>(null);
+  const [assignmentReferenceFile, setAssignmentReferenceFile] = useState<File | null>(null);
+  const [assignmentDescription, setAssignmentDescription] = useState("");
+  const [assignmentRubric, setAssignmentRubric] = useState("");
+  const [assignmentStartAt, setAssignmentStartAt] = useState("");
+  const [assignmentEndAt, setAssignmentEndAt] = useState("");
   const [pendingVideoLessonId, setPendingVideoLessonId] = useState<string | null>(null);
   const [lessonDurationMinutes, setLessonDurationMinutes] = useState<string>("10");
   const [lessonIsPreview, setLessonIsPreview] = useState(false);
@@ -163,6 +361,12 @@ export function InstructorCourseCurriculumPage({
   const [incompleteQuizLessonId, setIncompleteQuizLessonId] = useState<string | null>(null);
   const [pendingQuizPublishLessonId, setPendingQuizPublishLessonId] = useState<string | null>(null);
   const nextQuizQuestionId = useRef(2);
+  const lessonEditorTabs: Array<{ id: LessonEditorTab; label: string }> = [
+    { id: "details", label: "Chi tiết" },
+    { id: "resources", label: "Tài liệu" },
+    ...(lessonType === "QUIZ" ? [{ id: "quiz" as const, label: "Quiz" }] : []),
+    ...(lessonType === "ASSIGNMENT" ? [{ id: "assignment" as const, label: "Bài tập" }] : []),
+  ];
 
   // Delete Section Modal state
   const [deleteSectionTarget, setDeleteSectionTarget] = useState<CourseStructureSection | null>(
@@ -259,7 +463,13 @@ export function InstructorCourseCurriculumPage({
   const handleOpenCreateSection = () => {
     setEditingSection(null);
     setSectionTitle("");
+    setSectionIntroduction("");
     setSectionDescription("");
+    setSectionMetaTitle("");
+    setSectionMetaDescription("");
+    setSectionSeoNotice("");
+    setSectionEditorTab("details");
+    setPreviewExpanded(true);
     setSectionFormError(null);
     setSectionModalOpen(true);
   };
@@ -267,7 +477,15 @@ export function InstructorCourseCurriculumPage({
   const handleOpenEditSection = (sec: CourseStructureSection) => {
     setEditingSection(sec);
     setSectionTitle(sec.title);
+    setSectionIntroduction(sec.introduction ?? "");
     setSectionDescription(sec.description || "");
+    setSectionMetaTitle(sec.metaTitle ?? sec.title);
+    setSectionMetaDescription(
+      sec.metaDescription ?? courseDescriptionToText(sec.description ?? "").slice(0, 160),
+    );
+    setSectionSeoNotice("");
+    setSectionEditorTab("details");
+    setPreviewExpanded(true);
     setSectionFormError(null);
     setSectionModalOpen(true);
   };
@@ -276,6 +494,10 @@ export function InstructorCourseCurriculumPage({
     e.preventDefault();
     if (!sectionTitle.trim()) {
       setSectionFormError("Vui lòng nhập tên chương học");
+      return;
+    }
+    if (courseDescriptionToText(sectionDescription).length > 20000) {
+      setSectionFormError("Mô tả chương học không được vượt quá 20000 ký tự");
       return;
     }
 
@@ -287,14 +509,20 @@ export function InstructorCourseCurriculumPage({
         // Update
         const payload: UpdateSectionPayload = {
           title: sectionTitle.trim(),
+          introduction: sectionIntroduction.trim() || null,
           description: sectionDescription.trim() || null,
+          metaTitle: sectionMetaTitle.trim() || null,
+          metaDescription: sectionMetaDescription.trim() || null,
         };
         await updateSection(courseId, editingSection.id, payload, accessToken);
       } else {
         // Create
         const payload: CreateSectionPayload = {
           title: sectionTitle.trim(),
+          introduction: sectionIntroduction.trim() || null,
           description: sectionDescription.trim() || null,
+          metaTitle: sectionMetaTitle.trim() || null,
+          metaDescription: sectionMetaDescription.trim() || null,
         };
         const createdSection = await createSection(courseId, payload, accessToken);
         createdSectionId = createdSection.id;
@@ -320,6 +548,16 @@ export function InstructorCourseCurriculumPage({
     } finally {
       setSectionFormLoading(false);
     }
+  };
+
+  const handleSuggestSeo = () => {
+    const descriptionText = courseDescriptionToText(sectionDescription).trim();
+    const introductionText = sectionIntroduction.trim();
+    const seoTitleSource = sectionTitle.trim() || introductionText || descriptionText;
+    const seoDescriptionSource = [introductionText, descriptionText].filter(Boolean).join(" ");
+    setSectionMetaTitle(Array.from(seoTitleSource).slice(0, 255).join(""));
+    setSectionMetaDescription(Array.from(seoDescriptionSource).slice(0, 160).join(""));
+    setSectionSeoNotice("Đã tạo gợi ý từ nội dung chương. Bạn có thể chỉnh sửa trước khi lưu.");
   };
 
   const handleDeleteSectionConfirm = async () => {
@@ -392,8 +630,17 @@ export function InstructorCourseCurriculumPage({
     setLessonTitle("");
     setLessonDescription("");
     setLessonType("TEXT");
+    setLessonEditorTab("details");
+    setLessonObjectives(["", ""]);
     setLessonTextContent("");
     setLessonVideoFile(null);
+    setLessonResourceFile(null);
+    setLessonThumbnailFile(null);
+    setAssignmentReferenceFile(null);
+    setAssignmentDescription("");
+    setAssignmentRubric("");
+    setAssignmentStartAt("");
+    setAssignmentEndAt("");
     setPendingVideoLessonId(null);
     setLessonDurationMinutes("10");
     setLessonIsPreview(false);
@@ -413,8 +660,17 @@ export function InstructorCourseCurriculumPage({
     setLessonTitle(lesson.title);
     setLessonDescription(lesson.description || "");
     setLessonType(lesson.type);
+    setLessonEditorTab("details");
+    setLessonObjectives(["", ""]);
     setLessonTextContent(lesson.textContent || "");
     setLessonVideoFile(null);
+    setLessonResourceFile(null);
+    setLessonThumbnailFile(null);
+    setAssignmentReferenceFile(null);
+    setAssignmentDescription("");
+    setAssignmentRubric("");
+    setAssignmentStartAt("");
+    setAssignmentEndAt("");
     setPendingVideoLessonId(null);
     setLessonDurationMinutes(
       lesson.videoDurationSeconds ? String(Math.round(lesson.videoDurationSeconds / 60)) : "0",
@@ -498,35 +754,48 @@ export function InstructorCourseCurriculumPage({
       }
       if (!quizQuestions.length || quizQuestions.length > 100) {
         setLessonFormError("Bài kiểm tra cần có từ 1 đến 100 câu hỏi.");
+        setLessonEditorTab("quiz");
         return;
       }
       const invalidQuestion = quizQuestions.find(
         (question) =>
           !question.prompt.trim() ||
           question.prompt.trim().length > 2000 ||
-          question.options.length < 2 ||
-          question.options.length > 6 ||
-          question.options.some(
-            (option) => !option.label.trim() || option.label.trim().length > 500,
-          ) ||
-          question.options.filter((option) => option.correct).length !== 1,
+          question.options.filter((option) => option.label.trim()).length < 2 ||
+          question.options.filter((option) => option.label.trim()).length > 6 ||
+          question.options.some((option) => option.label.trim().length > 500) ||
+          question.options.filter((option) => option.label.trim() && option.correct).length !== 1,
       );
       if (invalidQuestion) {
         setLessonFormError(
           `Câu ${quizQuestions.indexOf(invalidQuestion) + 1} cần có nội dung, từ 2 đến 6 phương án hợp lệ và đúng một đáp án đúng.`,
         );
+        setLessonEditorTab("quiz");
         return;
       }
       quizPayload = {
         passingScore,
         questions: quizQuestions.map((question) => ({
           prompt: question.prompt.trim(),
-          options: question.options.map((option) => ({
-            label: option.label.trim(),
-            correct: option.correct,
-          })),
+          options: question.options
+            .filter((option) => option.label.trim())
+            .map((option) => ({
+              label: option.label.trim(),
+              correct: option.correct,
+            })),
         })),
       };
+    }
+
+    if (
+      lessonType === "ASSIGNMENT" &&
+      assignmentStartAt &&
+      assignmentEndAt &&
+      new Date(assignmentEndAt).getTime() < new Date(assignmentStartAt).getTime()
+    ) {
+      setLessonFormError("Ngày kết thúc phải sau ngày bắt đầu.");
+      setLessonEditorTab("assignment");
+      return;
     }
 
     const durationSeconds =
@@ -864,10 +1133,8 @@ export function InstructorCourseCurriculumPage({
           <div className="mt-8">
             {/* Loading State */}
             {loading && (
-              <div className="space-y-4">
-                <Skeleton className="h-28 w-full rounded-2xl" />
-                <Skeleton className="h-28 w-full rounded-2xl" />
-                <Skeleton className="h-28 w-full rounded-2xl" />
+              <div className="space-y-4" aria-label="Đang tải cấu trúc chương" aria-busy="true">
+                <CourseCurriculumSectionsSkeleton />
               </div>
             )}
 
@@ -962,11 +1229,11 @@ export function InstructorCourseCurriculumPage({
                               )}
                             </div>
                             <h3 className="mt-1 text-base font-bold text-heading">{sec.title}</h3>
-                            {sec.description && (
+                            {sec.description && courseDescriptionToText(sec.description) ? (
                               <p className="mt-0.5 line-clamp-1 text-xs text-muted">
-                                {sec.description}
+                                {courseDescriptionToText(sec.description)}
                               </p>
-                            )}
+                            ) : null}
                           </div>
                         </div>
 
@@ -1170,52 +1437,30 @@ export function InstructorCourseCurriculumPage({
       {/* SECTION FORM MODAL */}
       {/* ------------------------------------------------------------- */}
       {sectionModalOpen && (
-        <div className="fixed inset-0 z-[9990] overflow-y-auto bg-[#f8fafc]">
-          <header className="sticky top-0 z-20 border-b border-slate-200 bg-white">
-            <div className="mx-auto flex min-h-[68px] max-w-[1458px] items-center justify-between gap-3 px-4 py-3 sm:px-6">
-              <div className="flex min-w-0 items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => setSectionModalOpen(false)}
-                  disabled={sectionFormLoading}
-                  aria-label="Quay lại danh sách chương"
-                  className="focus-ring inline-flex size-9 shrink-0 items-center justify-center rounded-md text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <ArrowLeft className="h-5 w-5" aria-hidden="true" />
-                </button>
-                <div>
-                  <p className="text-xs text-muted">Cấu trúc chương</p>
-                  <h2 className="text-base font-semibold text-heading">
-                    {editingSection ? editingSection.title : "Thêm chương mới"}
-                  </h2>
-                </div>
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSectionModalOpen(false)}
-                  disabled={sectionFormLoading}
-                >
-                  Hủy
-                </Button>
-                <button
-                  type="submit"
-                  form="section-form"
-                  disabled={sectionFormLoading}
-                  className="focus-ring inline-flex min-h-9 items-center justify-center rounded-md bg-primary px-3 text-sm font-semibold text-white transition hover:bg-primary/90 active:bg-primary/80 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {sectionFormLoading ? "Đang lưu..." : editingSection ? "Cập nhật" : "Lưu chương"}
-                </button>
-              </div>
-            </div>
-          </header>
+        <div className="fixed inset-0 z-[9990] overflow-y-auto bg-[#f8fafc] text-slate-900">
+          <div
+            id="section-editor-layout"
+            className={`grid min-h-dvh w-full grid-cols-1 transition-[grid-template-columns] duration-300 ease-in-out motion-reduce:transition-none ${sidebarCollapsed ? "lg:grid-cols-[88px_303px_minmax(0,1fr)]" : "lg:grid-cols-[261px_303px_minmax(0,1fr)]"} lg:grid-rows-[64px_auto]`}
+          >
+            <aside
+              id="section-editor-global-sidebar"
+              className="hidden bg-[#101a2c] text-white lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:flex lg:min-h-dvh lg:flex-col"
+            >
+              <InstructorWorkspaceSidebar
+                activeSection="courses"
+                sidebarCollapsed={sidebarCollapsed}
+                setSidebarCollapsed={setSidebarCollapsed}
+                controlsId="section-editor-global-sidebar"
+                showAccountAvatar
+              />
+            </aside>
 
-          <div className="mx-auto grid max-w-[1458px] gap-4 px-4 py-4 sm:px-6 lg:grid-cols-[260px_minmax(0,1fr)] lg:gap-6">
-            <aside className="sticky top-[84px] hidden h-[calc(100dvh-100px)] overflow-y-auto rounded-lg border border-slate-200 bg-white p-3 lg:block">
-              <div className="border-b border-slate-100 px-2 pb-3">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            <aside
+              id="section-editor-structure"
+              className="row-start-2 border-b border-slate-200 bg-white lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:h-dvh lg:overflow-y-auto lg:border-b-0 lg:border-r"
+            >
+              <div className="flex min-h-[42px] items-center justify-between border-b border-slate-100 px-4 py-3">
+                <h3 className="text-xs font-semibold uppercase tracking-[0.05em] text-[#62748e]">
                   Cấu trúc chương
                 </h3>
                 {editingSection ? (
@@ -1225,71 +1470,310 @@ export function InstructorCourseCurriculumPage({
                       setSectionModalOpen(false);
                       handleOpenCreateLesson(editingSection.id);
                     }}
-                    className="focus-ring mt-3 inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-white transition hover:bg-primary/90"
+                    className="focus-ring inline-flex items-center gap-1 text-xs font-medium text-primary transition hover:text-[#087f5b]"
                   >
-                    <Plus className="h-4 w-4" aria-hidden="true" /> Thêm bài học
+                    <Plus className="h-3.5 w-3.5" aria-hidden="true" /> Thêm bài học
                   </button>
                 ) : null}
               </div>
-              <div className="space-y-2 py-3">
-                {structure?.sections.map((section, sectionIndex) => (
-                  <div
-                    key={section.id}
-                    className={`rounded-md px-2 py-2 text-sm ${section.id === editingSection?.id ? "bg-emerald-50 font-medium text-primary" : "text-slate-600"}`}
-                  >
-                    Chương {sectionIndex + 1} · {section.title}
-                    {section.id === editingSection?.id
-                      ? section.lessons.map((lesson) => (
-                          <p key={lesson.id} className="ml-2 truncate py-1 text-xs text-slate-500">
-                            {lesson.title}
-                          </p>
-                        ))
-                      : null}
-                  </div>
-                ))}
+              <div className="space-y-2 p-2">
+                {structure?.sections.map((section, sectionIndex) => {
+                  const active = section.id === editingSection?.id;
+                  return (
+                    <div key={section.id}>
+                      <div
+                        className={`flex items-center gap-2 rounded-md px-3 py-2 ${active ? "bg-[#e6faf2] text-[#314158]" : "text-slate-600"}`}
+                      >
+                        <ChevronDown
+                          className={`h-3.5 w-3.5 shrink-0 ${active ? "text-primary" : "text-slate-400"}`}
+                          aria-hidden="true"
+                        />
+                        <span className="line-clamp-2 text-xs font-semibold">
+                          Chương {sectionIndex + 1} - {section.title}
+                        </span>
+                      </div>
+                      {active ? (
+                        <div className="ml-5 border-l border-slate-200 py-1 pl-2">
+                          {section.lessons.map((lesson) => (
+                            <div
+                              key={lesson.id}
+                              className="flex min-h-[30px] items-center gap-2 rounded-md px-2 py-1 text-xs text-slate-600"
+                            >
+                              {getLessonTypeIcon(lesson.type)}
+                              <span className="truncate">{lesson.title}</span>
+                            </div>
+                          ))}
+                          {section.lessons.length === 0 ? (
+                            <p className="px-2 py-1 text-xs text-slate-400">Chưa có bài học</p>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
               </div>
             </aside>
 
-            <form id="section-form" onSubmit={handleSaveSection} className="min-w-0 space-y-4">
-              <section className="rounded-lg border border-slate-200 bg-white p-4 sm:p-6">
-                <h3 className="text-base font-semibold text-primary">Nội dung chi tiết</h3>
-                <p className="mt-1 text-sm text-muted">
-                  Hãy điền thông tin chương mà học viên sẽ thấy.
-                </p>
-              </section>
-              {sectionFormError && (
-                <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-medium text-rose-700">
-                  {sectionFormError}
-                </div>
-              )}
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-                  Tên chương học <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={sectionTitle}
-                  onChange={(e) => setSectionTitle(e.target.value)}
-                  placeholder="Ví dụ: Giới thiệu khóa học và cài đặt môi trường"
-                  className="mt-1.5 w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-heading shadow-2xs placeholder:text-slate-400 focus:border-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
-                />
+            <header className="sticky top-0 z-20 row-start-1 flex min-h-16 items-center justify-between gap-4 border-b border-slate-200 bg-white px-4 py-2 sm:px-6 lg:col-start-3 lg:row-start-1 lg:px-[25px]">
+              <div className="flex min-w-0 items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSectionModalOpen(false)}
+                  disabled={sectionFormLoading}
+                  aria-label="Quay lại danh sách chương"
+                  className="focus-ring inline-flex size-9 shrink-0 items-center justify-center rounded-md text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <ArrowLeft className="h-5 w-5" aria-hidden="true" />
+                </button>
+                <h2 className="min-w-0 truncate text-sm font-semibold text-slate-700 sm:text-lg">
+                  {sectionTitle.trim() ||
+                    (editingSection ? editingSection.title : "Thêm chương mới")}
+                </h2>
               </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-                  Mô tả chương học (Tùy chọn)
-                </label>
-                <textarea
-                  rows={3}
-                  value={sectionDescription}
-                  onChange={(e) => setSectionDescription(e.target.value)}
-                  placeholder="Mô tả mục tiêu và nội dung học viên sẽ đạt được..."
-                  className="mt-1.5 w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-heading shadow-2xs placeholder:text-slate-400 focus:border-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
-                />
+              <div className="flex shrink-0 items-center gap-2">
+                {editingSection ? (
+                  <button
+                    type="button"
+                    disabled={sectionFormLoading}
+                    onClick={() => {
+                      setSectionModalOpen(false);
+                      setDeleteSectionTarget(editingSection);
+                    }}
+                    className="focus-ring inline-flex min-h-10 items-center justify-center rounded-lg bg-red-600 px-3 text-sm font-medium text-white transition hover:bg-red-700 active:bg-red-800 disabled:cursor-not-allowed disabled:opacity-60 sm:px-4"
+                  >
+                    Xóa
+                  </button>
+                ) : null}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSectionModalOpen(false)}
+                  disabled={sectionFormLoading}
+                  className="min-h-10 rounded-lg px-3 sm:px-4"
+                >
+                  Hủy
+                </Button>
+                <button
+                  type="submit"
+                  form="section-form"
+                  disabled={sectionFormLoading}
+                  className="focus-ring inline-flex min-h-10 items-center justify-center rounded-lg bg-primary px-3 text-sm font-semibold text-white transition hover:bg-[#159e75] active:bg-[#128763] disabled:cursor-not-allowed disabled:opacity-60 sm:px-4"
+                >
+                  {sectionFormLoading ? "Đang lưu..." : editingSection ? "Cập nhật" : "Lưu chương"}
+                </button>
               </div>
-            </form>
+            </header>
+
+            <section className="row-start-3 min-w-0 lg:col-start-3 lg:row-start-2">
+              <nav
+                aria-label="Nội dung chương"
+                role="tablist"
+                className="flex min-h-[54px] gap-1 border-b border-slate-200 bg-white px-4 sm:px-6 lg:px-[25px]"
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  id="section-details-tab"
+                  aria-selected={sectionEditorTab === "details"}
+                  onClick={() => setSectionEditorTab("details")}
+                  className={`focus-ring border-b-2 px-2.5 py-3.5 text-sm transition ${sectionEditorTab === "details" ? "border-primary font-semibold text-primary" : "border-transparent font-medium text-slate-600 hover:text-slate-900"}`}
+                >
+                  Chi tiết
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  id="section-seo-tab"
+                  aria-selected={sectionEditorTab === "seo"}
+                  onClick={() => setSectionEditorTab("seo")}
+                  className={`focus-ring border-b-2 px-2.5 py-3.5 text-sm transition ${sectionEditorTab === "seo" ? "border-primary font-semibold text-primary" : "border-transparent font-medium text-slate-600 hover:text-slate-900"}`}
+                >
+                  SEO
+                </button>
+              </nav>
+
+              <form
+                id="section-form"
+                onSubmit={handleSaveSection}
+                className="min-w-0 px-4 py-4 sm:px-6 lg:px-[25px]"
+              >
+                {sectionFormError ? (
+                  <div
+                    role="alert"
+                    className="mb-4 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm font-medium text-rose-700"
+                  >
+                    {sectionFormError}
+                  </div>
+                ) : null}
+
+                {sectionEditorTab === "details" ? (
+                  <div
+                    id="section-details-panel"
+                    role="tabpanel"
+                    aria-labelledby="section-details-tab"
+                    className="grid min-w-0 grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]"
+                  >
+                    <div className="min-w-0">
+                      <div className="mb-5">
+                        <h3 className="text-base font-semibold text-primary">Nội dung chi tiết</h3>
+                        <p className="mt-1 text-[13px] leading-5 text-[#62748e]">
+                          Hãy điền thông tin chương mà học viên sẽ thấy.
+                        </p>
+                      </div>
+                      <div className="space-y-5">
+                        <div>
+                          <label
+                            htmlFor="section-title"
+                            className="block pb-1.5 text-[13px] font-medium text-primary"
+                          >
+                            Tiêu đề <span className="text-red-600">*</span>
+                          </label>
+                          <input
+                            id="section-title"
+                            type="text"
+                            required
+                            maxLength={255}
+                            value={sectionTitle}
+                            onChange={(event) => setSectionTitle(event.target.value)}
+                            placeholder="Ví dụ: Giới thiệu khóa học và cài đặt môi trường"
+                            className="h-[42px] w-full rounded-lg border border-slate-200 bg-white px-3 text-[13px] text-slate-800 placeholder:text-slate-400 focus-visible:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/15 focus-visible:ring-offset-0"
+                          />
+                        </div>
+                        <div>
+                          <label
+                            htmlFor="section-introduction"
+                            className="block pb-1.5 text-[13px] font-medium text-primary"
+                          >
+                            Giới thiệu
+                          </label>
+                          <input
+                            id="section-introduction"
+                            type="text"
+                            maxLength={500}
+                            value={sectionIntroduction}
+                            onChange={(event) => setSectionIntroduction(event.target.value)}
+                            placeholder="Giới thiệu ngắn về nội dung chương..."
+                            className="h-[42px] w-full rounded-lg border border-slate-200 bg-white px-3 text-[13px] text-slate-800 placeholder:text-slate-400 focus-visible:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/15 focus-visible:ring-offset-0"
+                          />
+                        </div>
+                        <div>
+                          <div className="flex items-center justify-between gap-3">
+                            <label className="block pb-1.5 text-[13px] font-medium text-primary">
+                              Mô tả
+                            </label>
+                            <span className="text-xs text-slate-500">
+                              {courseDescriptionToText(sectionDescription).length}/20000
+                            </span>
+                          </div>
+                          <RichTextEditor
+                            label="Mô tả chương học"
+                            value={sectionDescription}
+                            onChange={setSectionDescription}
+                            compact
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <StudentChapterPreview
+                      section={studentPreviewSection}
+                      isExpanded={previewExpanded}
+                      onToggle={() => setPreviewExpanded((expanded) => !expanded)}
+                      onPreviewLesson={handleOpenStudentLesson}
+                      note="Bản xem trước áp dụng nội dung chương bạn đang nhập."
+                    />
+                  </div>
+                ) : (
+                  <div
+                    id="section-seo-panel"
+                    role="tabpanel"
+                    aria-labelledby="section-seo-tab"
+                    className="grid min-w-0 grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]"
+                  >
+                    <div className="min-w-0">
+                      <div className="mb-5">
+                        <h3 className="text-base font-semibold text-primary">Cài đặt SEO</h3>
+                        <p className="mt-1 text-[13px] leading-5 text-[#62748e]">
+                          Tối ưu hóa chương này cho công cụ tìm kiếm.
+                        </p>
+                      </div>
+                      <div className="space-y-5">
+                        <div>
+                          <div className="flex items-center justify-between gap-3">
+                            <label
+                              htmlFor="section-meta-title"
+                              className="block pb-1.5 text-[13px] font-medium text-primary"
+                            >
+                              Tiêu đề SEO
+                            </label>
+                            <span className="text-xs text-slate-500">
+                              {sectionMetaTitle.length}/255
+                            </span>
+                          </div>
+                          <input
+                            id="section-meta-title"
+                            type="text"
+                            maxLength={255}
+                            value={sectionMetaTitle}
+                            onChange={(event) => setSectionMetaTitle(event.target.value)}
+                            placeholder="Tiêu đề hiển thị trên công cụ tìm kiếm..."
+                            className="h-[42px] w-full rounded-lg border border-slate-200 bg-white px-3 text-[13px] text-slate-800 placeholder:text-slate-400 focus-visible:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/15 focus-visible:ring-offset-0"
+                          />
+                        </div>
+                        <div>
+                          <div className="flex items-center justify-between gap-3">
+                            <label
+                              htmlFor="section-meta-description"
+                              className="block pb-1.5 text-[13px] font-medium text-primary"
+                            >
+                              Mô tả SEO
+                            </label>
+                            <span className="text-xs text-slate-500">
+                              {sectionMetaDescription.length}/500
+                            </span>
+                          </div>
+                          <textarea
+                            id="section-meta-description"
+                            rows={4}
+                            maxLength={500}
+                            value={sectionMetaDescription}
+                            onChange={(event) => setSectionMetaDescription(event.target.value)}
+                            placeholder="Mô tả ngắn hiển thị trên kết quả tìm kiếm..."
+                            className="w-full resize-y rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-[13px] leading-5 text-slate-800 placeholder:text-slate-400 focus-visible:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/15 focus-visible:ring-offset-0"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          disabled={
+                            !sectionTitle.trim() &&
+                            !sectionIntroduction.trim() &&
+                            !sectionDescription.trim()
+                          }
+                          onClick={handleSuggestSeo}
+                          className="focus-ring inline-flex min-h-10 items-center justify-center rounded-lg bg-[#079367] px-4 text-sm font-semibold text-white transition hover:bg-[#087f5b] active:bg-[#066a4b] disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Tạo gợi ý SEO
+                        </button>
+                        {sectionSeoNotice ? (
+                          <p role="status" className="text-sm text-emerald-700">
+                            {sectionSeoNotice}
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <StudentChapterPreview
+                      section={studentPreviewSection}
+                      isExpanded={previewExpanded}
+                      onToggle={() => setPreviewExpanded((expanded) => !expanded)}
+                      onPreviewLesson={handleOpenStudentLesson}
+                      note="Tiêu đề và mô tả SEO là metadata tìm kiếm; chúng không hiển thị trong nội dung chương này."
+                    />
+                  </div>
+                )}
+              </form>
+            </section>
           </div>
         </div>
       )}
@@ -1298,10 +1782,71 @@ export function InstructorCourseCurriculumPage({
       {/* LESSON FORM MODAL */}
       {/* ------------------------------------------------------------- */}
       {lessonModalOpen && (
-        <div className="fixed inset-0 z-[9990] overflow-y-auto bg-[#f8fafc]">
-          <header className="sticky top-0 z-20 border-b border-slate-200 bg-white">
-            <div className="mx-auto flex min-h-[68px] max-w-[1458px] items-center justify-between gap-3 px-4 py-3 sm:px-6">
-              <div className="flex min-w-0 items-center gap-3">
+        <div className="fixed inset-0 z-[9990] overflow-y-auto bg-[#f8fafc] text-slate-900">
+          <div
+            id="lesson-editor-layout"
+            className={`grid min-h-dvh w-full grid-cols-1 transition-[grid-template-columns] duration-300 ease-in-out motion-reduce:transition-none ${sidebarCollapsed ? "lg:grid-cols-[88px_303px_minmax(0,1fr)]" : "lg:grid-cols-[261px_303px_minmax(0,1fr)]"} lg:grid-rows-[64px_auto]`}
+          >
+            <aside
+              id="lesson-editor-global-sidebar"
+              className="hidden bg-[#101a2c] text-white lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:flex lg:min-h-dvh lg:flex-col"
+            >
+              <InstructorWorkspaceSidebar
+                activeSection="courses"
+                sidebarCollapsed={sidebarCollapsed}
+                setSidebarCollapsed={setSidebarCollapsed}
+                controlsId="lesson-editor-global-sidebar"
+              />
+            </aside>
+
+            <aside
+              id="lesson-editor-structure"
+              className="row-start-2 border-b border-slate-200 bg-white lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:h-dvh lg:overflow-y-auto lg:border-b-0 lg:border-r"
+            >
+              <div className="flex min-h-[42px] items-center justify-between border-b border-slate-100 px-4 py-3">
+                <h3 className="text-xs font-semibold uppercase tracking-[0.05em] text-[#62748e]">
+                  Cấu trúc chương
+                </h3>
+              </div>
+              <div className="space-y-2 p-2">
+                {structure?.sections.map((section, sectionIndex) => {
+                  const active = section.id === targetSectionId;
+                  const canChangeSection =
+                    !editingLesson && !pendingVideoLessonId && !incompleteQuizLessonId;
+                  return (
+                    <div key={section.id}>
+                      <button
+                        type="button"
+                        disabled={!canChangeSection}
+                        onClick={() => setTargetSectionId(section.id)}
+                        className={`focus-ring w-full rounded-md px-3 py-2 text-left text-xs font-semibold transition ${active ? "bg-[#e6faf2] text-[#314158]" : "text-slate-600 hover:bg-slate-50"} disabled:cursor-default`}
+                      >
+                        Chương {sectionIndex + 1} - {section.title}
+                      </button>
+                      {active ? (
+                        <div className="ml-5 border-l border-slate-200 py-1 pl-2">
+                          {section.lessons.map((lesson) => (
+                            <div
+                              key={lesson.id}
+                              className="flex min-h-[30px] items-center gap-2 rounded-md px-2 py-1 text-xs text-slate-600"
+                            >
+                              {getLessonTypeIcon(lesson.type)}
+                              <span className="truncate">{lesson.title}</span>
+                            </div>
+                          ))}
+                          {!section.lessons.length ? (
+                            <p className="px-2 py-1 text-xs text-slate-400">Chưa có bài học</p>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            </aside>
+
+            <header className="sticky top-0 z-20 row-start-1 flex min-h-16 items-center justify-between gap-4 border-b border-slate-200 bg-white px-4 py-3 sm:px-6 lg:col-start-3 lg:row-start-1 lg:px-[25px]">
+              <div className="flex min-w-0 items-center gap-2">
                 <button
                   type="button"
                   onClick={handleCloseLessonModal}
@@ -1312,11 +1857,11 @@ export function InstructorCourseCurriculumPage({
                   <ArrowLeft className="h-5 w-5" aria-hidden="true" />
                 </button>
                 <div className="min-w-0">
-                  <p className="truncate text-xs text-muted">
+                  <p className="truncate text-xs text-[#62748e]">
                     {structure?.sections.find((section) => section.id === targetSectionId)?.title ??
                       "Cấu trúc chương"}
                   </p>
-                  <h2 className="truncate text-base font-semibold text-heading">
+                  <h2 className="truncate text-sm font-semibold text-slate-700 sm:text-lg">
                     {editingLesson ? "Chỉnh sửa bài học" : "Thêm bài học mới"}
                   </h2>
                 </div>
@@ -1328,6 +1873,7 @@ export function InstructorCourseCurriculumPage({
                   size="sm"
                   onClick={handleCloseLessonModal}
                   disabled={lessonFormLoading}
+                  className="min-h-10 rounded-lg px-3 sm:px-4"
                 >
                   Hủy
                 </Button>
@@ -1335,7 +1881,7 @@ export function InstructorCourseCurriculumPage({
                   type="submit"
                   form="lesson-form"
                   disabled={lessonFormLoading}
-                  className="focus-ring inline-flex min-h-9 items-center justify-center rounded-md bg-primary px-3 text-sm font-semibold text-white transition hover:bg-primary/90 active:bg-primary/80 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="focus-ring inline-flex min-h-10 items-center justify-center rounded-lg bg-primary px-3 text-sm font-semibold text-white transition hover:bg-[#159e75] active:bg-[#128763] disabled:cursor-not-allowed disabled:opacity-60 sm:px-4"
                 >
                   {lessonFormLoading
                     ? "Đang lưu..."
@@ -1344,256 +1890,545 @@ export function InstructorCourseCurriculumPage({
                       : "Lưu bản nháp"}
                 </button>
               </div>
-            </div>
-          </header>
+            </header>
 
-          <div className="mx-auto grid max-w-[1458px] gap-4 px-4 py-4 sm:px-6 lg:grid-cols-[260px_minmax(0,1fr)] lg:gap-6">
-            <aside className="sticky top-[84px] hidden h-[calc(100dvh-100px)] overflow-y-auto rounded-lg border border-slate-200 bg-white p-3 lg:block">
-              <div className="border-b border-slate-100 px-2 pb-3">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                  Cấu trúc chương
-                </h3>
-              </div>
-              <div className="space-y-2 py-3">
-                {structure?.sections.map((section, sectionIndex) => {
-                  const active = section.id === targetSectionId;
-                  const canChangeSection =
-                    !editingLesson && !pendingVideoLessonId && !incompleteQuizLessonId;
-                  return (
-                    <div key={section.id}>
+            <main className="row-start-3 min-w-0 bg-[#f8fafc] lg:col-start-3 lg:row-start-2">
+              <form id="lesson-form" onSubmit={handleSaveLesson} className="min-w-0">
+                <nav
+                  aria-label="Các phần nội dung bài học"
+                  className="sticky top-16 z-10 flex min-h-[50px] items-end border-b border-slate-200 bg-white px-4 sm:px-6 lg:px-6"
+                >
+                  <div role="tablist" className="flex min-h-[49px] items-stretch gap-1">
+                    {lessonEditorTabs.map((tab) => (
                       <button
+                        key={tab.id}
                         type="button"
-                        disabled={!canChangeSection}
-                        onClick={() => setTargetSectionId(section.id)}
-                        className={`focus-ring w-full rounded-md px-2 py-2 text-left text-sm font-medium transition ${active ? "bg-emerald-50 text-primary" : "text-slate-700 hover:bg-slate-50"} disabled:cursor-default`}
+                        role="tab"
+                        aria-selected={lessonEditorTab === tab.id}
+                        onClick={() => setLessonEditorTab(tab.id)}
+                        className={`focus-ring min-w-[60px] border-b-2 px-3 text-[13px] transition-colors ${
+                          lessonEditorTab === tab.id
+                            ? "border-primary font-semibold text-primary"
+                            : "border-transparent font-medium text-[#62748e] hover:text-primary"
+                        }`}
                       >
-                        Chương {sectionIndex + 1} · {section.title}
+                        {tab.label}
                       </button>
-                      {active ? (
-                        <div className="ml-2 mt-1 space-y-1 border-l border-slate-200 pl-3">
-                          {section.lessons.map((lesson) => (
-                            <p key={lesson.id} className="truncate py-1 text-xs text-slate-500">
-                              {lesson.title}
-                            </p>
-                          ))}
-                          {!section.lessons.length ? (
-                            <p className="py-1 text-xs text-slate-400">Chưa có bài học</p>
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
-            </aside>
-
-            <form id="lesson-form" onSubmit={handleSaveLesson} className="min-w-0 space-y-4">
-              <div className="rounded-lg border border-slate-200 bg-white p-4 sm:p-6">
-                <h3 className="text-base font-semibold text-primary">Nội dung chi tiết bài học</h3>
-                <p className="mt-1 text-sm text-muted">
-                  Thiết lập thông tin cơ bản và nội dung học viên sẽ thấy.
-                </p>
-              </div>
-              {lessonFormError && (
-                <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-medium text-rose-700">
-                  {lessonFormError}
-                </div>
-              )}
-
-              {incompleteQuizLessonId && (
-                <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-medium text-amber-800">
-                  Bài học đã được tạo. Hãy hoàn tất bước lưu câu hỏi bên dưới; thông tin bài học đã
-                  khóa.
-                </p>
-              )}
-
-              {!incompleteQuizLessonId && (
-                <>
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-                      Tên bài học <span className="text-rose-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={lessonTitle}
-                      onChange={(e) => setLessonTitle(e.target.value)}
-                      placeholder="Ví dụ: Giới thiệu cú pháp TypeScript căn bản"
-                      className="mt-1.5 w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-heading shadow-2xs placeholder:text-slate-400 focus:border-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
-                    />
+                    ))}
                   </div>
+                </nav>
 
-                  <div className="space-y-4">
-                    <fieldset>
-                      <legend className="block text-sm font-medium text-primary">Loại bài</legend>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {lessonTypeOptions.map((option) => {
-                          const disabled =
-                            editingLesson?.type === "QUIZ" ||
-                            Boolean(pendingVideoLessonId) ||
-                            (option.value === "QUIZ" && Boolean(editingLesson));
-                          const selected = lessonType === option.value;
-                          return (
-                            <button
-                              key={option.value}
-                              type="button"
-                              aria-pressed={selected}
-                              disabled={disabled}
-                              onClick={() => {
-                                setLessonType(option.value);
-                                setLessonVideoFile(null);
-                                setLessonFormError(null);
-                              }}
-                              className={`focus-ring inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-sm transition ${selected ? "border-primary bg-primary text-white" : "border-slate-200 bg-white text-slate-700 hover:border-primary/40 hover:text-primary"} disabled:cursor-not-allowed disabled:opacity-50`}
-                            >
-                              {getLessonTypeIcon(option.value)}
-                              {option.label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </fieldset>
-
-                    <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-                        Thời lượng ước tính (phút)
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={lessonDurationMinutes}
-                        onChange={(e) => setLessonDurationMinutes(e.target.value)}
-                        placeholder="10"
-                        className="mt-1.5 w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-heading shadow-2xs placeholder:text-slate-400 focus:border-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-                      Mô tả bài học (Tùy chọn)
-                    </label>
-                    <input
-                      type="text"
-                      value={lessonDescription}
-                      onChange={(e) => setLessonDescription(e.target.value)}
-                      placeholder="Tóm tắt ngắn gọn nội dung bài học..."
-                      className="mt-1.5 w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-heading shadow-2xs placeholder:text-slate-400 focus:border-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
-                    />
-                  </div>
-
-                  {/* Text content field */}
-                  {lessonType !== "QUIZ" && (
-                    <div>
-                      <div className="flex items-center justify-between">
-                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-                          Nội dung bài học
-                        </label>
-                        <span className="text-xs text-muted">{lessonTextContent.length} ký tự</span>
-                      </div>
-                      <textarea
-                        rows={6}
-                        value={lessonTextContent}
-                        onChange={(e) => setLessonTextContent(e.target.value)}
-                        placeholder="Nhập nội dung bài đọc, ghi chú hướng dẫn, code sample hoặc liên kết tài liệu tại đây..."
-                        className="mt-1.5 w-full rounded-xl border border-slate-200 px-4 py-2.5 font-mono text-sm text-heading shadow-2xs placeholder:font-sans placeholder:text-slate-400 focus:border-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
-                      />
-                    </div>
-                  )}
-
-                  {lessonType === "VIDEO" ? (
-                    <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-4">
-                      <label
-                        htmlFor="lesson-video-file"
-                        className="block text-sm font-semibold text-heading"
-                      >
-                        Video bài giảng {!editingLesson && <span className="text-rose-500">*</span>}
-                      </label>
-                      <p className="mt-1 text-xs leading-5 text-muted">
-                        Chọn tệp MP4 hoặc WebM, tối đa 2 GB. Video sẽ được tải lên kho lưu trữ an
-                        toàn.
-                        {editingLesson ? " Chọn tệp mới để thay video hiện tại." : ""}
-                      </p>
-                      <input
-                        id="lesson-video-file"
-                        type="file"
-                        accept="video/mp4,video/webm,.mp4,.webm"
-                        disabled={lessonFormLoading}
-                        onChange={(event) => {
-                          setLessonVideoFile(event.currentTarget.files?.[0] ?? null);
-                          setLessonFormError(null);
-                        }}
-                        className="mt-3 block min-h-11 w-full cursor-pointer rounded-lg border border-emerald-200 bg-white text-sm text-slate-700 file:mr-3 file:min-h-11 file:border-0 file:bg-emerald-100 file:px-3 file:text-sm file:font-semibold file:text-primary hover:file:bg-emerald-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                      />
-                      {lessonVideoFile ? (
-                        <p className="mt-2 break-all text-xs text-slate-600">
-                          Đã chọn: <span className="font-medium">{lessonVideoFile.name}</span> ·{" "}
-                          {(lessonVideoFile.size / (1024 * 1024)).toFixed(1)} MB
-                        </p>
-                      ) : null}
-                      {pendingVideoLessonId ? (
-                        <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs font-medium text-amber-800">
-                          Bài học đã được tạo nhưng video chưa hoàn tất. Chọn lại tệp nếu cần, rồi
-                          thử tải lên lần nữa.
-                        </p>
-                      ) : null}
+                <div className="min-h-[calc(100dvh-114px)] px-4 py-6 sm:px-6 lg:px-6">
+                  {lessonFormError ? (
+                    <div
+                      role="alert"
+                      className="mb-5 max-w-[680px] rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs font-medium text-rose-700"
+                    >
+                      {lessonFormError}
                     </div>
                   ) : null}
+                  {incompleteQuizLessonId ? (
+                    <p className="mb-5 max-w-[680px] rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs font-medium text-amber-800">
+                      Bài học đã được tạo. Hãy hoàn tất bước lưu câu hỏi bên dưới; thông tin bài học
+                      đã khóa.
+                    </p>
+                  ) : null}
 
-                  {/* Options */}
-                  <div className="grid grid-cols-1 gap-4 rounded-2xl bg-slate-50 p-4 sm:grid-cols-2">
-                    <label className="flex cursor-pointer items-center gap-3">
-                      <input
-                        type="checkbox"
-                        checked={lessonIsPreview}
-                        onChange={(e) => setLessonIsPreview(e.target.checked)}
-                        className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
-                      />
+                  {lessonEditorTab === "details" ? (
+                    <section
+                      className="max-w-[680px] space-y-5"
+                      aria-labelledby="lesson-details-title"
+                    >
                       <div>
-                        <span className="text-sm font-semibold text-heading">Cho phép học thử</span>
-                        <p className="text-xs text-muted">
-                          Học viên chưa mua khóa học vẫn xem được bài này
+                        <h3
+                          id="lesson-details-title"
+                          className="text-base font-semibold text-primary"
+                        >
+                          Nội dung chi tiết bài học
+                        </h3>
+                        <p className="mt-1 text-[13px] leading-5 text-[#62748e]">
+                          Thiết lập thông tin cơ bản và mục tiêu học tập cho bài học này.
                         </p>
                       </div>
-                    </label>
 
-                    <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-                        Trạng thái
-                      </label>
-                      <select
-                        value={lessonStatus}
-                        onChange={(e) => setLessonStatus(e.target.value as LessonStatus)}
-                        className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-heading focus:border-primary focus:outline-hidden"
-                      >
-                        <option value="PUBLISHED">Đã xuất bản (Công khai)</option>
-                        <option value="DRAFT">Bản nháp (Ẩn)</option>
-                      </select>
-                    </div>
-                  </div>
-                </>
-              )}
+                      {!incompleteQuizLessonId ? (
+                        <>
+                          <fieldset disabled={Boolean(lessonFormLoading)}>
+                            <legend className="text-[13px] font-medium text-primary">
+                              Loại bài
+                            </legend>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {lessonTypeOptions.map((option) => {
+                                const disabled =
+                                  editingLesson?.type === "QUIZ" ||
+                                  Boolean(pendingVideoLessonId) ||
+                                  (option.value === "QUIZ" && Boolean(editingLesson));
+                                const selected = lessonType === option.value;
+                                return (
+                                  <button
+                                    key={option.value}
+                                    type="button"
+                                    aria-pressed={selected}
+                                    disabled={disabled}
+                                    onClick={() => {
+                                      setLessonType(option.value);
+                                      setLessonEditorTab("details");
+                                      setLessonVideoFile(null);
+                                      setLessonFormError(null);
+                                    }}
+                                    className={`focus-ring group inline-flex min-h-8 items-center gap-1.5 rounded-full border px-4 text-xs font-medium transition-colors ${
+                                      selected
+                                        ? "border-primary bg-primary text-white"
+                                        : "border-slate-200 bg-white text-[#45556c] hover:border-primary/50 hover:text-primary"
+                                    } disabled:cursor-not-allowed disabled:opacity-50`}
+                                  >
+                                    {getLessonTypeIcon(option.value, selected)}
+                                    {option.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </fieldset>
 
-              {lessonType === "QUIZ" && !editingLesson && (
-                <QuizAuthoringFields
-                  passingScore={quizPassingScore}
-                  questions={quizQuestions}
-                  onPassingScoreChange={setQuizPassingScore}
-                  onQuestionsChange={setQuizQuestions}
-                  onAddQuestion={() => {
-                    const id = nextQuizQuestionId.current++;
-                    setQuizQuestions((current) => [...current, createQuizDraftQuestion(id)]);
-                  }}
-                />
-              )}
+                          <div>
+                            <label
+                              htmlFor="lesson-title"
+                              className="block text-[13px] font-medium text-primary"
+                            >
+                              {lessonType === "QUIZ"
+                                ? "Tên Quiz"
+                                : lessonType === "ASSIGNMENT"
+                                  ? "Tên bài tập"
+                                  : "Tên bài học"}
+                              <span className="ml-1 text-rose-500">*</span>
+                            </label>
+                            <input
+                              id="lesson-title"
+                              type="text"
+                              required
+                              disabled={Boolean(incompleteQuizLessonId) || lessonFormLoading}
+                              value={lessonTitle}
+                              onChange={(event) => setLessonTitle(event.target.value)}
+                              placeholder="Nhập tên bài học"
+                              className="focus-ring mt-2 h-[42px] w-full rounded-lg border border-slate-200 bg-white px-3 text-[13px] text-[#1d293d] placeholder:text-slate-400"
+                            />
+                          </div>
 
-              {lessonType === "QUIZ" && editingLesson && (
-                <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
-                  Không hỗ trợ chỉnh sửa câu hỏi sau khi tạo bài kiểm tra. Phần soạn câu hỏi chỉ khả
-                  dụng khi tạo bài mới.
-                </p>
-              )}
-            </form>
+                          <div>
+                            <label
+                              htmlFor="lesson-introduction"
+                              className="block text-[13px] font-medium text-primary"
+                            >
+                              Giới thiệu
+                            </label>
+                            <textarea
+                              id="lesson-introduction"
+                              rows={2}
+                              maxLength={500}
+                              disabled={Boolean(incompleteQuizLessonId) || lessonFormLoading}
+                              value={lessonDescription}
+                              onChange={(event) => setLessonDescription(event.target.value)}
+                              placeholder="Giới thiệu ngắn về nội dung bài học..."
+                              className="focus-ring mt-2 min-h-[60px] w-full resize-y rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-[13px] leading-5 text-[#1d293d] placeholder:text-slate-400"
+                            />
+                          </div>
+
+                          <div>
+                            <div className="flex items-center justify-between">
+                              <label className="block text-[13px] font-medium text-primary">
+                                Mô tả
+                              </label>
+                              <span className="text-xs text-[#90a1b9]">
+                                {courseDescriptionToText(lessonTextContent).length}/20000
+                              </span>
+                            </div>
+                            <div className="mt-2">
+                              <RichTextEditor
+                                label="Mô tả bài học"
+                                value={lessonTextContent}
+                                onChange={setLessonTextContent}
+                                disabled={Boolean(incompleteQuizLessonId) || lessonFormLoading}
+                                compact
+                              />
+                            </div>
+                          </div>
+
+                          <fieldset disabled={Boolean(incompleteQuizLessonId) || lessonFormLoading}>
+                            <legend className="text-[13px] font-medium text-primary">
+                              Mục tiêu bài học
+                            </legend>
+                            <div className="mt-2 space-y-2">
+                              {lessonObjectives.map((objective, index) => (
+                                <div key={index} className="flex items-center gap-2">
+                                  <span className="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-[10px] font-bold text-primary">
+                                    {index + 1}
+                                  </span>
+                                  <label className="sr-only" htmlFor={`lesson-objective-${index}`}>
+                                    Mục tiêu {index + 1}
+                                  </label>
+                                  <input
+                                    id={`lesson-objective-${index}`}
+                                    type="text"
+                                    maxLength={300}
+                                    value={objective}
+                                    onChange={(event) =>
+                                      setLessonObjectives((current) =>
+                                        current.map((value, objectiveIndex) =>
+                                          objectiveIndex === index ? event.target.value : value,
+                                        ),
+                                      )
+                                    }
+                                    placeholder={`Mục tiêu ${index + 1}...`}
+                                    className="focus-ring h-[38px] min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 text-[13px] text-heading placeholder:text-slate-400"
+                                  />
+                                  <button
+                                    type="button"
+                                    aria-label={`Xóa mục tiêu ${index + 1}`}
+                                    disabled={lessonObjectives.length <= 1}
+                                    onClick={() =>
+                                      setLessonObjectives((current) =>
+                                        current.filter(
+                                          (_, objectiveIndex) => objectiveIndex !== index,
+                                        ),
+                                      )
+                                    }
+                                    className="focus-ring inline-flex size-8 shrink-0 items-center justify-center rounded-md text-rose-500 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                                  </button>
+                                </div>
+                              ))}
+                              <button
+                                type="button"
+                                disabled={lessonObjectives.length >= 10}
+                                onClick={() => setLessonObjectives((current) => [...current, ""])}
+                                className="focus-ring inline-flex items-center gap-1.5 text-xs font-medium text-primary transition hover:text-emerald-700 disabled:opacity-50"
+                              >
+                                <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                                Thêm mục tiêu
+                              </button>
+                            </div>
+                          </fieldset>
+
+                          <details className="group rounded-lg border border-slate-200 bg-white">
+                            <summary className="focus-ring cursor-pointer list-none px-4 py-3 text-xs font-semibold text-[#45556c] marker:hidden">
+                              Tùy chọn bài học
+                              <ChevronDown
+                                className="float-right h-4 w-4 transition-transform group-open:rotate-180"
+                                aria-hidden="true"
+                              />
+                            </summary>
+                            <div className="grid gap-4 border-t border-slate-100 p-4 sm:grid-cols-2">
+                              <div>
+                                <label
+                                  htmlFor="lesson-duration"
+                                  className="block text-xs font-medium text-[#45556c]"
+                                >
+                                  Thời lượng ước tính (phút)
+                                </label>
+                                <input
+                                  id="lesson-duration"
+                                  type="number"
+                                  min="0"
+                                  value={lessonDurationMinutes}
+                                  onChange={(event) => setLessonDurationMinutes(event.target.value)}
+                                  className="focus-ring mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm"
+                                />
+                              </div>
+                              <label className="flex cursor-pointer items-start gap-2 pt-1">
+                                <input
+                                  type="checkbox"
+                                  checked={lessonIsPreview}
+                                  onChange={(event) => setLessonIsPreview(event.target.checked)}
+                                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
+                                />
+                                <span>
+                                  <span className="text-xs font-semibold text-heading">
+                                    Cho phép học thử
+                                  </span>
+                                  <span className="mt-0.5 block text-[11px] leading-4 text-muted">
+                                    Học viên chưa mua khóa học vẫn xem được bài này.
+                                  </span>
+                                </span>
+                              </label>
+                              <div className="sm:col-span-2">
+                                <label
+                                  htmlFor="lesson-status"
+                                  className="block text-xs font-medium text-[#45556c]"
+                                >
+                                  Trạng thái khi lưu
+                                </label>
+                                <select
+                                  id="lesson-status"
+                                  value={lessonStatus}
+                                  onChange={(event) =>
+                                    setLessonStatus(event.target.value as LessonStatus)
+                                  }
+                                  className="focus-ring mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm"
+                                >
+                                  <option value="PUBLISHED">Đã xuất bản</option>
+                                  <option value="DRAFT">Bản nháp</option>
+                                </select>
+                              </div>
+                            </div>
+                          </details>
+                        </>
+                      ) : null}
+                    </section>
+                  ) : null}
+
+                  {lessonEditorTab === "resources" ? (
+                    <section
+                      className="max-w-[680px] space-y-6"
+                      aria-labelledby="lesson-resources-title"
+                    >
+                      <div>
+                        <h3
+                          id="lesson-resources-title"
+                          className="text-base font-semibold text-primary"
+                        >
+                          Tài liệu bài học
+                        </h3>
+                        <p className="mt-1 text-[13px] leading-5 text-[#62748e]">
+                          {lessonType === "VIDEO"
+                            ? "Hãy tải lên video, các tài liệu hỗ trợ và hình thu nhỏ cho bài học này."
+                            : lessonType === "ASSIGNMENT"
+                              ? "Hãy tải lên tài liệu bài tập và hình thu nhỏ cho học viên."
+                              : "Hãy tải lên các tài liệu hỗ trợ và hình thu nhỏ cho bài học này."}
+                        </p>
+                      </div>
+
+                      {lessonType === "VIDEO" ? (
+                        <>
+                          <LessonFileDropzone
+                            id="lesson-video-file"
+                            label="Video bài học"
+                            hint={`Tải lên MP4 hoặc WebM (tối đa 2 GB)${editingLesson ? ". Chọn tệp mới để thay video hiện tại." : ""}`}
+                            accept="video/mp4,video/webm,.mp4,.webm"
+                            icon={<Video className="h-6 w-6" aria-hidden="true" />}
+                            file={lessonVideoFile}
+                            disabled={lessonFormLoading}
+                            onFileChange={(file) => {
+                              setLessonVideoFile(file);
+                              setLessonFormError(null);
+                            }}
+                          />
+                          {pendingVideoLessonId ? (
+                            <p className="-mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs font-medium text-amber-800">
+                              Bài học đã được tạo nhưng video chưa hoàn tất. Chọn lại tệp để thử tải
+                              lên lần nữa.
+                            </p>
+                          ) : null}
+                          <LessonFileDropzone
+                            id="lesson-supporting-file"
+                            label="Tài liệu bổ trợ"
+                            hint="Tải lên PDF, Word hoặc tệp văn bản"
+                            accept=".pdf,.doc,.docx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+                            icon={<FileIcon className="h-6 w-6" aria-hidden="true" />}
+                            file={lessonResourceFile}
+                            disabled={lessonFormLoading}
+                            onFileChange={setLessonResourceFile}
+                          />
+                          <LessonFileDropzone
+                            id="lesson-thumbnail-file"
+                            label="Ảnh Thumbnail"
+                            hint="Tải lên JPEG hoặc PNG · Kích thước đề xuất: 1280 × 720"
+                            accept="image/jpeg,image/png,.jpg,.jpeg,.png"
+                            icon={<ImagePlus className="h-6 w-6" aria-hidden="true" />}
+                            file={lessonThumbnailFile}
+                            disabled={lessonFormLoading}
+                            onFileChange={setLessonThumbnailFile}
+                          />
+                        </>
+                      ) : lessonType === "ASSIGNMENT" ? (
+                        <>
+                          <LessonFileDropzone
+                            id="lesson-assignment-file"
+                            label="Nội dung bài tập"
+                            hint="Tải lên PDF, Word hoặc tệp văn bản"
+                            accept=".pdf,.doc,.docx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+                            icon={<FileIcon className="h-6 w-6" aria-hidden="true" />}
+                            file={lessonResourceFile}
+                            disabled={lessonFormLoading}
+                            onFileChange={setLessonResourceFile}
+                          />
+                          <LessonFileDropzone
+                            id="lesson-thumbnail-file"
+                            label="Ảnh Thumbnail"
+                            hint="Tải lên JPEG hoặc PNG · Kích thước đề xuất: 1280 × 720"
+                            accept="image/jpeg,image/png,.jpg,.jpeg,.png"
+                            icon={<ImagePlus className="h-6 w-6" aria-hidden="true" />}
+                            file={lessonThumbnailFile}
+                            disabled={lessonFormLoading}
+                            onFileChange={setLessonThumbnailFile}
+                          />
+                        </>
+                      ) : lessonType === "DOCUMENT" ? (
+                        <LessonFileDropzone
+                          id="lesson-document-file"
+                          label="Tài liệu bài học"
+                          hint="Tải lên PDF, Word hoặc tệp văn bản"
+                          accept=".pdf,.doc,.docx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+                          icon={<FileIcon className="h-6 w-6" aria-hidden="true" />}
+                          file={lessonResourceFile}
+                          disabled={lessonFormLoading}
+                          onFileChange={setLessonResourceFile}
+                        />
+                      ) : (
+                        <>
+                          <LessonFileDropzone
+                            id="lesson-supporting-file"
+                            label="Tài liệu bổ trợ"
+                            hint="Tải lên PDF, Word hoặc tệp văn bản"
+                            accept=".pdf,.doc,.docx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+                            icon={<FileIcon className="h-6 w-6" aria-hidden="true" />}
+                            file={lessonResourceFile}
+                            disabled={lessonFormLoading}
+                            onFileChange={setLessonResourceFile}
+                          />
+                          <LessonFileDropzone
+                            id="lesson-thumbnail-file"
+                            label="Ảnh Thumbnail"
+                            hint="Tải lên JPEG hoặc PNG · Kích thước đề xuất: 1280 × 720"
+                            accept="image/jpeg,image/png,.jpg,.jpeg,.png"
+                            icon={<ImagePlus className="h-6 w-6" aria-hidden="true" />}
+                            file={lessonThumbnailFile}
+                            disabled={lessonFormLoading}
+                            onFileChange={setLessonThumbnailFile}
+                          />
+                        </>
+                      )}
+                    </section>
+                  ) : null}
+
+                  {lessonEditorTab === "quiz" && lessonType === "QUIZ" ? (
+                    lessonType === "QUIZ" && editingLesson ? (
+                      <p className="max-w-[680px] rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                        Không hỗ trợ chỉnh sửa câu hỏi sau khi tạo bài kiểm tra. Phần soạn câu hỏi
+                        chỉ khả dụng khi tạo bài mới.
+                      </p>
+                    ) : (
+                      <QuizAuthoringFields
+                        questions={quizQuestions}
+                        onQuestionsChange={setQuizQuestions}
+                        onAddQuestion={() => {
+                          const id = nextQuizQuestionId.current++;
+                          setQuizQuestions((current) => [...current, createQuizDraftQuestion(id)]);
+                        }}
+                      />
+                    )
+                  ) : null}
+
+                  {lessonEditorTab === "assignment" && lessonType === "ASSIGNMENT" ? (
+                    <section
+                      className="max-w-[680px] space-y-4"
+                      aria-labelledby="assignment-editor-title"
+                    >
+                      <div>
+                        <h3
+                          id="assignment-editor-title"
+                          className="text-base font-semibold text-primary"
+                        >
+                          Nội dung bài tập
+                        </h3>
+                        <p className="mt-1 text-[13px] leading-5 text-[#62748e]">
+                          Mô tả nhiệm vụ, yêu cầu và thời hạn để học viên hoàn thành bài tập.
+                        </p>
+                      </div>
+                      <div>
+                        <label className="block text-[13px] font-medium text-primary">
+                          Mô tả bài tập
+                        </label>
+                        <div className="mt-2">
+                          <RichTextEditor
+                            label="Mô tả bài tập"
+                            value={assignmentDescription}
+                            onChange={setAssignmentDescription}
+                            disabled={lessonFormLoading}
+                            compact
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label
+                          htmlFor="assignment-rubric"
+                          className="block text-[13px] font-medium text-primary"
+                        >
+                          Phiếu chấm điểm
+                        </label>
+                        <textarea
+                          id="assignment-rubric"
+                          rows={4}
+                          maxLength={5000}
+                          value={assignmentRubric}
+                          onChange={(event) => setAssignmentRubric(event.target.value)}
+                          placeholder={
+                            "Liệt kê các tiêu chí dùng để đánh giá bài nộp.\nVí dụ: Độ chính xác (40%), Độ rõ ràng (30%), Tính độc đáo (30%)..."
+                          }
+                          className="focus-ring mt-2 min-h-[112px] w-full resize-y rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-[13px] leading-5 text-heading placeholder:text-slate-400"
+                        />
+                      </div>
+                      <div className="rounded-xl border border-primary/30 bg-emerald-50 px-4 py-3.5">
+                        <h4 className="text-[13px] font-semibold text-primary">
+                          Tiêu chí đánh giá
+                        </h4>
+                        <p className="mt-1 text-xs leading-[18px] text-emerald-700">
+                          Ghi rõ tiêu chí và trọng số để việc chấm bài nhất quán, dễ hiểu với học
+                          viên.
+                        </p>
+                      </div>
+                      <LessonFileDropzone
+                        id="assignment-reference-file"
+                        label="Đính kèm tài liệu tham khảo (tùy chọn)"
+                        hint="Đính kèm PDF hoặc tài liệu tham khảo cho bài tập"
+                        accept=".pdf,.doc,.docx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+                        icon={<FileIcon className="h-6 w-6" aria-hidden="true" />}
+                        file={assignmentReferenceFile}
+                        disabled={lessonFormLoading}
+                        onFileChange={setAssignmentReferenceFile}
+                      />
+                      <fieldset className="pt-1">
+                        <legend className="w-full border-b border-slate-100 pb-2 text-[15px] font-semibold text-primary">
+                          Thời hạn bài tập
+                        </legend>
+                        <div className="grid gap-4 pt-3 sm:grid-cols-2">
+                          <div>
+                            <label
+                              htmlFor="assignment-start-at"
+                              className="block text-[13px] font-medium text-heading"
+                            >
+                              Ngày bắt đầu
+                            </label>
+                            <input
+                              id="assignment-start-at"
+                              type="datetime-local"
+                              value={assignmentStartAt}
+                              onChange={(event) => setAssignmentStartAt(event.target.value)}
+                              className="focus-ring mt-1.5 h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs text-[#62748e]"
+                            />
+                          </div>
+                          <div>
+                            <label
+                              htmlFor="assignment-end-at"
+                              className="block text-[13px] font-medium text-heading"
+                            >
+                              Ngày kết thúc
+                            </label>
+                            <input
+                              id="assignment-end-at"
+                              type="datetime-local"
+                              value={assignmentEndAt}
+                              onChange={(event) => setAssignmentEndAt(event.target.value)}
+                              className="focus-ring mt-1.5 h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs text-[#62748e]"
+                            />
+                          </div>
+                        </div>
+                      </fieldset>
+                    </section>
+                  ) : null}
+                </div>
+              </form>
+            </main>
           </div>
         </div>
       )}

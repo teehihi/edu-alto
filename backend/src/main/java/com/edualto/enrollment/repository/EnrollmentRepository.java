@@ -39,8 +39,7 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, UUID> {
             where e.courseId = :courseId
                 and e.status = :status
                 and (
-                    :search is null
-                    or lower(u.fullName) like lower(concat('%', :search, '%'))
+                    lower(u.fullName) like lower(concat('%', :search, '%'))
                     or lower(u.email) like lower(concat('%', :search, '%'))
                 )
             """)
@@ -61,8 +60,7 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, UUID> {
                     where c.instructorId = :instructorId
                         and e.status = :status
                         and (
-                            :search is null
-                            or lower(u.fullName) like lower(concat('%', :search, '%'))
+                            lower(u.fullName) like lower(concat('%', :search, '%'))
                             or lower(u.email) like lower(concat('%', :search, '%'))
                         )
                     group by u.id, u.fullName, u.email
@@ -76,8 +74,7 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, UUID> {
                     where c.instructorId = :instructorId
                         and e.status = :status
                         and (
-                            :search is null
-                            or lower(u.fullName) like lower(concat('%', :search, '%'))
+                            lower(u.fullName) like lower(concat('%', :search, '%'))
                             or lower(u.email) like lower(concat('%', :search, '%'))
                         )
                     """

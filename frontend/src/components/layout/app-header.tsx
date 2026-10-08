@@ -274,7 +274,7 @@ export const AppHeader = memo(function AppHeader({
           {isAuthed && user ? (
             <div className="flex items-center gap-4">
               {/* Shopping Cart */}
-              <HeaderCartButton />
+              {!isInstructor ? <HeaderCartButton /> : null}
 
               {/* Wishlist / Favorites */}
               <Link
@@ -309,7 +309,7 @@ export const AppHeader = memo(function AppHeader({
         </div>
 
         {/* Mobile Menu Button */}
-        <HeaderCartButton isMobile />
+        {!isAuthLoading && !isInstructor ? <HeaderCartButton isMobile /> : null}
         <button
           className="focus-ring inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-ink lg:hidden"
           type="button"
@@ -387,14 +387,16 @@ export const AppHeader = memo(function AppHeader({
           <div className="mt-4 border-t border-slate-100 pt-4">
             {isAuthed ? (
               <div className="grid gap-2">
-                <Link
-                  href="/learning"
-                  onClick={() => setIsOpen(false)}
-                  className="focus-ring flex items-center gap-2.5 rounded-xl border border-primary/25 bg-primary-soft/40 px-4 py-2.5 text-sm font-semibold text-primary"
-                >
-                  <GraduationCap className="h-4 w-4" />
-                  <span>Khu vực học tập</span>
-                </Link>
+                {!isInstructor ? (
+                  <Link
+                    href="/learning"
+                    onClick={() => setIsOpen(false)}
+                    className="focus-ring flex items-center gap-2.5 rounded-xl border border-primary/25 bg-primary-soft/40 px-4 py-2.5 text-sm font-semibold text-primary"
+                  >
+                    <GraduationCap className="h-4 w-4" />
+                    <span>Khu vực học tập</span>
+                  </Link>
+                ) : null}
                 {isAdmin ? (
                   <Link
                     href="/admin/payments"

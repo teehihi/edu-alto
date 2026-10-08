@@ -270,7 +270,7 @@ export default function InstructorCommunityPage() {
 
   return (
     <section
-      className="min-h-full bg-[#f8fafc] p-4 text-[#334155] sm:p-6 lg:p-8"
+      className="min-h-full bg-[#f8fafc] p-4 text-[#334155] sm:p-5 lg:p-6"
       aria-labelledby="community-title"
     >
       <header className="border-b border-slate-200">

@@ -21,8 +21,17 @@ public class Section {
     @Column(name = "title", nullable = false, length = 255)
     private String title;
 
+    @Column(name = "introduction", columnDefinition = "text")
+    private String introduction;
+
     @Column(name = "description", columnDefinition = "text")
     private String description;
+
+    @Column(name = "meta_title", length = 255)
+    private String metaTitle;
+
+    @Column(name = "meta_description", length = 500)
+    private String metaDescription;
 
     @Column(name = "position", nullable = false)
     private Integer position;
@@ -37,10 +46,26 @@ public class Section {
     }
 
     public Section(UUID id, UUID courseId, String title, String description, Integer position) {
+        this(id, courseId, title, null, description, null, null, position);
+    }
+
+    public Section(
+            UUID id,
+            UUID courseId,
+            String title,
+            String introduction,
+            String description,
+            String metaTitle,
+            String metaDescription,
+            Integer position
+    ) {
         this.id = Objects.requireNonNull(id, "Section id must not be null");
         this.courseId = Objects.requireNonNull(courseId, "Course id must not be null");
         this.title = Objects.requireNonNull(title, "Section title must not be null").trim();
-        this.description = description != null ? description.trim() : null;
+        this.introduction = trimToNull(introduction);
+        this.description = trimToNull(description);
+        this.metaTitle = trimToNull(metaTitle);
+        this.metaDescription = trimToNull(metaDescription);
         this.position = Objects.requireNonNull(position, "Section position must not be null");
         this.createdAt = Instant.now();
         this.updatedAt = this.createdAt;
@@ -50,10 +75,49 @@ public class Section {
         return new Section(UUID.randomUUID(), courseId, title, description, position);
     }
 
+    public static Section create(
+            UUID courseId,
+            String title,
+            String introduction,
+            String description,
+            String metaTitle,
+            String metaDescription,
+            int position
+    ) {
+        return new Section(
+                UUID.randomUUID(),
+                courseId,
+                title,
+                introduction,
+                description,
+                metaTitle,
+                metaDescription,
+                position
+        );
+    }
+
     public void update(String title, String description) {
+        update(title, null, description, null, null);
+    }
+
+    public void update(
+            String title,
+            String introduction,
+            String description,
+            String metaTitle,
+            String metaDescription
+    ) {
         this.title = Objects.requireNonNull(title, "Section title must not be null").trim();
-        this.description = description != null ? description.trim() : null;
+        this.introduction = trimToNull(introduction);
+        this.description = trimToNull(description);
+        this.metaTitle = trimToNull(metaTitle);
+        this.metaDescription = trimToNull(metaDescription);
         this.updatedAt = Instant.now();
+    }
+
+    private static String trimToNull(String value) {
+        if (value == null || value.isBlank()) return null;
+        return value.trim();
     }
 
     public void updatePosition(int newPosition) {
@@ -76,8 +140,20 @@ public class Section {
         return title;
     }
 
+    public String getIntroduction() {
+        return introduction;
+    }
+
     public String getDescription() {
         return description;
+    }
+
+    public String getMetaTitle() {
+        return metaTitle;
+    }
+
+    public String getMetaDescription() {
+        return metaDescription;
     }
 
     public Integer getPosition() {

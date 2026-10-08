@@ -5,6 +5,7 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import { ArrowLeft, CircleAlert, MoreHorizontal, RefreshCw } from "lucide-react";
 import { InstructorWorkspaceShell } from "@/features/instructor/instructor-workspace-shell";
 import { useAuth } from "@/features/auth/auth-client";
+import { CourseCurriculumSkeleton, Skeleton } from "@/components/ui/skeleton";
 import { ApiClientError } from "@/lib/api";
 import { fetchInstructorCourse, type InstructorCourse } from "@/lib/instructor-course-client";
 
@@ -84,12 +85,56 @@ export function InstructorCourseWorkspace({
 
   return (
     <InstructorWorkspaceShell activeSection="courses">
-      <div className="mx-auto w-full max-w-[1135px] px-4 py-5 sm:px-6 lg:px-7 lg:py-[21px]">
+      <div className="w-full px-4 py-5 sm:px-5 lg:px-6 lg:py-6">
         {loading ? (
-          <div className="space-y-5" aria-label="Đang tải khóa học">
-            <div className="h-8 w-2/3 animate-pulse rounded bg-slate-200" />
-            <div className="h-14 animate-pulse rounded border-b border-slate-200 bg-white/50" />
-            <div className="h-36 animate-pulse rounded-lg bg-white" />
+          <div role="status" aria-label="Đang tải khóa học" aria-busy="true">
+            <header className="flex items-center justify-between gap-4">
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                <Skeleton className="size-9 shrink-0 rounded-md" />
+                <Skeleton className="h-7 w-56 max-w-full rounded-lg sm:w-72" />
+              </div>
+              <Skeleton className="size-10 shrink-0 rounded-md" />
+            </header>
+
+            <nav
+              aria-label="Đang tải các mục trong khóa học"
+              className="mt-4 flex gap-1 overflow-hidden border-b border-slate-200"
+            >
+              {[
+                ["overview", "w-20"],
+                ["reviews", "w-16"],
+                ["students", "w-20"],
+                ["chapters", "w-14"],
+                ["details", "w-16"],
+                ["promotions", "w-20"],
+              ].map(([tabId, width]) => (
+                <div key={tabId} className="shrink-0 border-b-[3px] border-transparent px-3 py-3">
+                  <Skeleton className={`h-4 ${width} rounded-md`} />
+                </div>
+              ))}
+            </nav>
+
+            <div className="mt-4">
+              {activeTab === "chapters" ? (
+                <CourseCurriculumSkeleton embedded />
+              ) : (
+                <div className="space-y-4" aria-hidden="true">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="space-y-2">
+                      <Skeleton className="h-6 w-48 rounded-md" />
+                      <Skeleton className="h-4 w-72 max-w-full rounded-md" />
+                    </div>
+                    <Skeleton className="h-10 w-36 shrink-0 rounded-md" />
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <Skeleton className="h-24 rounded-lg border border-slate-200 bg-white" />
+                    <Skeleton className="h-24 rounded-lg border border-slate-200 bg-white" />
+                    <Skeleton className="h-24 rounded-lg border border-slate-200 bg-white" />
+                  </div>
+                  <Skeleton className="h-56 w-full rounded-lg border border-slate-200 bg-white" />
+                </div>
+              )}
+            </div>
           </div>
         ) : error || !course ? (
           <div role="alert" className="rounded-lg border border-rose-200 bg-white p-6 text-center">

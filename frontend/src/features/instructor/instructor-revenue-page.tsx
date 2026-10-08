@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { ApiClientError } from "@/lib/api";
-import { formatVND } from "@/lib/format";
+import { formatVNDAmount } from "@/lib/format";
 import {
   fetchInstructorRevenueSummary,
   fetchInstructorRevenueTransactions,
@@ -131,7 +131,7 @@ function RevenueChart({ summary }: { summary: InstructorRevenueSummary }) {
         <div className="mt-3 overflow-x-auto rounded-lg border border-slate-200 bg-white px-4 pb-3 pt-5">
           <div
             role="img"
-            aria-label={`Biểu đồ so sánh doanh thu theo tháng, kỳ đã chọn ${formatVND(summary.paidNetAmount)}`}
+            aria-label={`Biểu đồ so sánh doanh thu theo tháng, kỳ đã chọn ${formatVNDAmount(summary.paidNetAmount)}`}
             className="min-w-[680px]"
           >
             <svg
@@ -164,7 +164,7 @@ function RevenueChart({ summary }: { summary: InstructorRevenueSummary }) {
                       strokeDasharray="3 4"
                     />
                     <text x="0" y={y + 4} fill="#94a3b8" fontSize="11">
-                      {formatVND(value)}
+                      {formatVNDAmount(value)}
                     </text>
                   </g>
                 );
@@ -186,10 +186,10 @@ function RevenueChart({ summary }: { summary: InstructorRevenueSummary }) {
               {periods.map((period, index) => (
                 <g key={period.label}>
                   <circle cx={xAt(index)} cy={yAt(period.previousNetAmount)} r="3" fill="#14b8a6">
-                    <title>{`Cùng kỳ năm trước ${period.label}: ${formatVND(period.previousNetAmount)}`}</title>
+                    <title>{`Cùng kỳ năm trước ${period.label}: ${formatVNDAmount(period.previousNetAmount)}`}</title>
                   </circle>
                   <circle cx={xAt(index)} cy={yAt(period.netAmount)} r="3" fill="#2563eb">
-                    <title>{`Kỳ đã chọn ${period.label}: ${formatVND(period.netAmount)}`}</title>
+                    <title>{`Kỳ đã chọn ${period.label}: ${formatVNDAmount(period.netAmount)}`}</title>
                   </circle>
                   <text
                     x={xAt(index)}
@@ -270,7 +270,7 @@ export function InstructorRevenuePage() {
   const cards = [
     {
       label: "Doanh thu đã thanh toán",
-      value: summary ? formatVND(summary.paidNetAmount) : "—",
+      value: summary ? formatVNDAmount(summary.paidNetAmount) : "—",
       note: "Tổng giá trị giao dịch",
       tone: "text-primary",
     },
@@ -289,8 +289,8 @@ export function InstructorRevenuePage() {
   ];
 
   return (
-    <div className="min-w-0 bg-[#f8fafc] px-4 py-5 text-[#101a2c] sm:px-6 lg:px-7 lg:py-[21px]">
-      <div className="mx-auto flex w-full max-w-[1134px] flex-col gap-6">
+    <div className="min-w-0 bg-[#f8fafc] px-4 py-5 text-[#101a2c] sm:px-5 lg:px-6 lg:py-6">
+      <div className="flex w-full flex-col gap-6">
         <header className="flex items-center justify-between gap-4">
           <h1 className="text-xl font-semibold leading-[1.4] text-primary sm:text-2xl">
             Thống kê Doanh thu
@@ -559,7 +559,7 @@ function TransactionRow({ item }: { item: InstructorRevenueTransaction }) {
       <td className="whitespace-nowrap px-3 py-3 text-slate-600">{formatDate(item.createdAt)}</td>
       <td className="px-3 py-3 text-primary">{getPaymentMethodLabel(item.paymentMethod)}</td>
       <td className="whitespace-nowrap px-3 py-3 font-semibold text-slate-900">
-        {formatVND(item.amount)}
+        {formatVNDAmount(item.amount)}
       </td>
     </tr>
   );

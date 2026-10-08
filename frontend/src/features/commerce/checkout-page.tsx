@@ -23,9 +23,10 @@ import { ApiClientError } from "@/lib/api";
 import { formatVND } from "@/lib/format";
 import { useAuthSession } from "@/lib/auth-session";
 import { cn } from "@/lib/cn";
+import { InstructorPurchaseNotice } from "@/features/commerce/instructor-purchase-notice";
 
 export function CheckoutPage() {
-  const { user, getAccessToken } = useAuthSession();
+  const { user, isLoading: authLoading, getAccessToken } = useAuthSession();
   const router = useRouter();
   const [isMounted, setIsMounted] = useState(false);
   const [courses, setCourses] = useState<CartCourse[]>([]);
@@ -49,6 +50,34 @@ export function CheckoutPage() {
     };
   }, []);
   const subtotal = courses.reduce((sum, course) => sum + course.price, 0);
+  const isInstructor =
+    user?.roles.some((role) => role === "INSTRUCTOR" || role === "ROLE_INSTRUCTOR") ?? false;
+
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen flex-col bg-[#f8fafc]">
+        <AppHeader transparent height="checkout" />
+        <main className="grid min-h-[610px] flex-1 place-items-center px-5 py-8">
+          <p role="status" className="text-sm text-muted">
+            Đang kiểm tra tài khoản...
+          </p>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (isInstructor) {
+    return (
+      <div className="flex min-h-screen flex-col bg-[#f8fafc]">
+        <AppHeader transparent height="checkout" />
+        <main className="grid min-h-[610px] flex-1 place-items-center px-5 py-8">
+          <InstructorPurchaseNotice />
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div suppressHydrationWarning className="flex min-h-screen flex-col bg-[#f8fafc]">

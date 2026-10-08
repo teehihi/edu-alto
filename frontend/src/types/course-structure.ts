@@ -6,7 +6,10 @@ export type Section = {
   id: string;
   courseId: string;
   title: string;
+  introduction?: string | null;
   description: string | null;
+  metaTitle?: string | null;
+  metaDescription?: string | null;
   position: number;
   createdAt: string;
   updatedAt: string;
@@ -30,7 +33,10 @@ export type Lesson = {
 export type CourseStructureSection = {
   id: string;
   title: string;
+  introduction?: string | null;
   description: string | null;
+  metaTitle?: string | null;
+  metaDescription?: string | null;
   position: number;
   totalLessons: number;
   totalDurationSeconds: number;
@@ -49,12 +55,18 @@ export type CourseStructure = {
 
 export type CreateSectionPayload = {
   title: string;
+  introduction?: string | null;
   description?: string | null;
+  metaTitle?: string | null;
+  metaDescription?: string | null;
 };
 
 export type UpdateSectionPayload = {
   title?: string;
+  introduction?: string | null;
   description?: string | null;
+  metaTitle?: string | null;
+  metaDescription?: string | null;
 };
 
 export type ReorderItem = {

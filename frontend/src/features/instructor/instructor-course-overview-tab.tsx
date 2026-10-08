@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { ChartNoAxesCombined, CircleAlert, RefreshCw } from "lucide-react";
 import { ApiClientError } from "@/lib/api";
-import { formatVND } from "@/lib/format";
+import { formatVNDAmount } from "@/lib/format";
 import {
   fetchInstructorCourseRevenueSummary,
   type InstructorCourseRevenueSummary,
@@ -45,7 +45,10 @@ export function InstructorCourseOverviewTab() {
   const periods = summary?.periods ?? [];
   const maximum = Math.max(...periods.map((period) => period.netAmount), 0);
   const cards = [
-    { label: "Doanh thu đã thanh toán", value: summary ? formatVND(summary.paidNetAmount) : "—" },
+    {
+      label: "Doanh thu đã thanh toán",
+      value: summary ? formatVNDAmount(summary.paidNetAmount) : "—",
+    },
     {
       label: "Giao dịch đã thanh toán",
       value: summary?.paidTransactionCount.toLocaleString("vi-VN") ?? "—",
@@ -142,7 +145,7 @@ export function InstructorCourseOverviewTab() {
               return (
                 <div key={period.label} className="flex h-full min-w-8 flex-1 flex-col justify-end">
                   <div
-                    title={`${period.label}: ${formatVND(period.netAmount)}`}
+                    title={`${period.label}: ${formatVNDAmount(period.netAmount)}`}
                     className={`mx-auto w-full max-w-8 rounded-t ${period.netAmount > 0 ? "bg-primary" : "bg-slate-200"}`}
                     style={{ height: `${height}px` }}
                   />

@@ -57,7 +57,7 @@ public class CommerceService {
 
     @Transactional
     public OrderCreatedResponse createOrder(UUID studentId, CreateOrderRequest request, String clientIp) {
-        users.requireActiveStudent(studentId);
+        users.requireActiveLearner(studentId);
         if (request.paymentMethod() == PaymentMethod.VNPAY) {
             requireGatewayConfigured();
         }
@@ -149,7 +149,7 @@ public class CommerceService {
 
     @Transactional(readOnly = true)
     public OrderResponse getOrder(UUID studentId, UUID orderId) {
-        users.requireActiveStudent(studentId);
+        users.requireActiveLearner(studentId);
         return repository.findOrder(orderId, studentId)
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "ORDER_NOT_FOUND", "Không tìm thấy đơn hàng"));
     }

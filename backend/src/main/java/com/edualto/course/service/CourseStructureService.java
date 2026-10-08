@@ -123,7 +123,10 @@ public class CourseStructureService {
             sectionResponses.add(new CourseStructureSectionResponse(
                     section.getId(),
                     section.getTitle(),
+                    section.getIntroduction(),
                     section.getDescription(),
+                    section.getMetaTitle(),
+                    section.getMetaDescription(),
                     section.getPosition(),
                     sectionLessons.size(),
                     sectionDuration,
@@ -157,7 +160,10 @@ public class CourseStructureService {
         Section section = Section.create(
                 courseId,
                 request.title(),
+                request.introduction(),
                 request.description(),
+                request.metaTitle(),
+                request.metaDescription(),
                 nextPosition
         );
 
@@ -204,7 +210,13 @@ public class CourseStructureService {
         getCourseAndCheckOwnership(instructorId, courseId);
         Section section = getSectionAndCheckCourse(courseId, sectionId);
 
-        section.update(request.title(), request.description());
+        section.update(
+                request.title(),
+                request.introduction(),
+                request.description(),
+                request.metaTitle(),
+                request.metaDescription()
+        );
         section = sectionRepository.save(section);
 
         List<Lesson> lessons = lessonRepository.findAllBySectionIdOrderByPositionAsc(sectionId);
@@ -465,7 +477,10 @@ public class CourseStructureService {
                 section.getId(),
                 section.getCourseId(),
                 section.getTitle(),
+                section.getIntroduction(),
                 section.getDescription(),
+                section.getMetaTitle(),
+                section.getMetaDescription(),
                 section.getPosition(),
                 lessonCount,
                 totalDurationSeconds,

@@ -420,27 +420,29 @@ export function UserMenu({
               </Link>
             ) : null}
 
-            <Link
-              href="/learning/courses"
-              role="menuitem"
-              onClick={closeMenu}
-              className={cn(
-                "group flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold transition",
-                pathname.startsWith("/learning")
-                  ? "bg-primary-soft font-bold text-primary hover:bg-[#d5f7ec]"
-                  : "text-slate-700 hover:bg-primary-soft/60 hover:text-primary active:bg-primary-soft",
-              )}
-            >
-              <GraduationCap
+            {!isInstructor ? (
+              <Link
+                href="/learning/courses"
+                role="menuitem"
+                onClick={closeMenu}
                 className={cn(
-                  "h-4 w-4 transition-colors",
+                  "group flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold transition",
                   pathname.startsWith("/learning")
-                    ? "text-primary"
-                    : "text-slate-400 group-hover:text-primary",
+                    ? "bg-primary-soft font-bold text-primary hover:bg-[#d5f7ec]"
+                    : "text-slate-700 hover:bg-primary-soft/60 hover:text-primary active:bg-primary-soft",
                 )}
-              />
-              <span>Khóa học của tôi</span>
-            </Link>
+              >
+                <GraduationCap
+                  className={cn(
+                    "h-4 w-4 transition-colors",
+                    pathname.startsWith("/learning")
+                      ? "text-primary"
+                      : "text-slate-400 group-hover:text-primary",
+                  )}
+                />
+                <span>Khóa học của tôi</span>
+              </Link>
+            ) : null}
 
             <Link
               href="/profile"

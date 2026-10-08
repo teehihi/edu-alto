@@ -47,7 +47,16 @@ class PublicCourseCurriculumServiceTest {
         service = new PublicCourseCurriculumService(courseRepository, sectionRepository, lessonRepository);
         course = new Course(UUID.randomUUID(), UUID.randomUUID(), "Course", "course", null, "Description", BigDecimal.ZERO, null, CourseLevel.ALL_LEVELS, "vi", null);
         course.publish();
-        section = new Section(UUID.randomUUID(), course.getId(), "Section", null, 1);
+        section = new Section(
+                UUID.randomUUID(),
+                course.getId(),
+                "Section",
+                "Giới thiệu ngắn",
+                "<p>Mô tả có <strong>định dạng</strong></p>",
+                "Tiêu đề SEO",
+                "Mô tả SEO",
+                1
+        );
         lenient().when(courseRepository.findBySlugAndStatus("course", course.getStatus())).thenReturn(Optional.of(course));
     }
 
@@ -63,6 +72,9 @@ class PublicCourseCurriculumServiceTest {
         var response = service.getCurriculum("course");
 
         assertThat(response.sections()).hasSize(1);
+        assertThat(response.sections().get(0).introduction()).isEqualTo("Giới thiệu ngắn");
+        assertThat(response.sections().get(0).description())
+                .isEqualTo("<p>Mô tả có <strong>định dạng</strong></p>");
         assertThat(response.sections().get(0).lessons()).hasSize(2);
         assertThat(response.sections().get(0).lessons().get(0).preview()).isTrue();
         assertThat(response.sections().get(0).lessons().get(1).preview()).isFalse();

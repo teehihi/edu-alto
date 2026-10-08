@@ -889,7 +889,7 @@ export function FigmaCourseCard({ course }: { course: FavoriteCourse }) {
   );
 
   return (
-    <article className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-100/90 bg-white p-3.5 shadow-xs transform-gpu">
+    <article className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-100/90 bg-white p-3.5 shadow-xs transform-gpu transition-all duration-300 ease-out motion-reduce:transition-none motion-safe:hover:-translate-y-1 hover:border-primary/30 hover:shadow-cardHover focus-within:border-primary/30 focus-within:shadow-cardHover">
       {/* Top Image */}
       <div className="relative aspect-[16/10] w-full overflow-hidden rounded-xl bg-slate-100">
         <Image
@@ -898,7 +898,7 @@ export function FigmaCourseCard({ course }: { course: FavoriteCourse }) {
           alt={course.title}
           fill
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-          className="object-cover"
+          className="object-cover transition-transform duration-500 ease-out motion-reduce:transition-none motion-safe:group-hover:scale-[1.03]"
         />
 
         {/* Favorite heart button */}

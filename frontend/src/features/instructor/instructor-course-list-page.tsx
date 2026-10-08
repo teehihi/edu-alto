@@ -51,7 +51,7 @@ function CourseCard({
   stats: InstructorCourseMetrics | null;
 }) {
   return (
-    <article className="flex min-w-0 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white p-3 shadow-[0_0_8px_rgba(59,130,246,0.12)] sm:p-4">
+    <article className="group flex min-w-0 transform-gpu flex-col overflow-hidden rounded-lg border border-slate-200 bg-white p-3 shadow-[0_0_8px_rgba(59,130,246,0.12)] transition-all duration-300 ease-out motion-reduce:transition-none motion-safe:hover:-translate-y-1 motion-safe:hover:border-primary/30 motion-safe:hover:shadow-cardHover focus-within:border-primary/30 focus-within:shadow-cardHover sm:p-4">
       <Link
         href={`/instructor/courses/${encodeURIComponent(course.id)}/overview`}
         className="focus-ring group block rounded-lg"
@@ -64,7 +64,7 @@ function CourseCard({
             <img
               src={course.thumbnailUrl}
               alt=""
-              className="h-full w-full object-cover transition duration-200 group-hover:scale-[1.02]"
+              className="h-full w-full object-cover transition duration-300 motion-reduce:transition-none motion-safe:group-hover:scale-[1.03]"
             />
           ) : (
             <div className="flex h-full items-center justify-center text-slate-400">
@@ -190,7 +190,7 @@ function InstructorCourseListContent() {
 
   return (
     <InstructorWorkspaceShell activeSection="courses">
-      <div className="mx-auto w-full max-w-[1135px] px-4 py-5 sm:px-6 lg:px-7 lg:py-[21px]">
+      <div className="w-full px-4 py-5 sm:px-5 lg:px-6 lg:py-6">
         <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-2xl font-semibold text-primary">Danh sách khóa học</h1>
           <div className="flex items-center gap-2">

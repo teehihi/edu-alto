@@ -40,7 +40,7 @@ public class EnrollmentService {
 
     @Transactional
     public UUID enroll(UUID studentId, UUID courseId) {
-        users.requireActiveStudent(studentId);
+        users.requireActiveLearner(studentId);
         LearningCourseResponse course = courses.requireCourseForEnrollment(courseId);
         if (course.instructorId().equals(studentId)) {
             throw new BusinessException(HttpStatus.CONFLICT, "OWN_COURSE_ENROLLMENT", "Bạn không thể ghi danh khóa học do mình giảng dạy");
@@ -121,11 +121,8 @@ public class EnrollmentService {
     }
 
     private String normalizeSearch(String search) {
-        String normalizedSearch = search == null ? null : search.trim();
-        if (normalizedSearch != null && normalizedSearch.isEmpty()) {
-            return null;
-        }
-        if (normalizedSearch != null && normalizedSearch.length() > 160) {
+        String normalizedSearch = search == null ? "" : search.trim();
+        if (normalizedSearch.length() > 160) {
             throw new BusinessException(
                     HttpStatus.BAD_REQUEST,
                     "INVALID_SEARCH",

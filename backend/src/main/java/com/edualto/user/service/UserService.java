@@ -78,6 +78,20 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
+    public void requireActiveLearner(UUID userId) {
+        User user = requireById(userId);
+        boolean isStudent = user.getRoles().stream().anyMatch(role -> role.getName() == RoleName.STUDENT);
+        boolean isInstructor = user.getRoles().stream().anyMatch(role -> role.getName() == RoleName.INSTRUCTOR);
+        if (user.getStatus() != UserStatus.ACTIVE || !isStudent || isInstructor) {
+            throw new BusinessException(
+                    HttpStatus.FORBIDDEN,
+                    "STUDENT_REQUIRED",
+                    "Chức năng này dành cho tài khoản học viên đang hoạt động"
+            );
+        }
+    }
+
+    @Transactional(readOnly = true)
     public void requireActiveInstructor(UUID userId) {
         User user = requireById(userId);
         if (user.getStatus() != UserStatus.ACTIVE

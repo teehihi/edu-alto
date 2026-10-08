@@ -10,12 +10,9 @@ import {
   Award,
   BookOpen,
   Check,
-  ChevronDown,
   Clock,
-  FileText,
   GraduationCap,
   LoaderCircle,
-  LockKeyhole,
   Play,
   PlayCircle,
   Star,
@@ -30,6 +27,7 @@ import { useAuthSession } from "@/lib/auth-session";
 import { enrollInCourse } from "@/lib/learning-client";
 import { addCourseToCart } from "@/lib/cart";
 import { CourseReviewSection } from "@/features/course/course-review-section";
+import { CourseCurriculumSection } from "@/features/course/course-curriculum-section";
 import { cn } from "@/lib/cn";
 import { sanitizeCourseDescription } from "@/lib/course-description";
 import {
@@ -55,14 +53,6 @@ const sections = [
 const money = (value: number) =>
   value === 0 ? "Miễn phí" : `${new Intl.NumberFormat("vi-VN").format(value)}đ`;
 const duration = (seconds: number) => `${Math.ceil(seconds / 60)} phút`;
-function formatSectionDuration(seconds: number): string {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.round((seconds % 3600) / 60);
-  if (hours > 0 && minutes > 0) return `${hours} giờ ${minutes} phút`;
-  if (hours > 0) return `${hours} giờ`;
-  return `${minutes} phút`;
-}
-
 function DesignIcon({ name }: { name: "chevron-right" | "chevron-down" | "globe" }) {
   return (
     <Image
@@ -195,7 +185,9 @@ export function CourseDetailPage(props: { slug: string }) {
 
 function CourseDetailPageInner({ slug }: { slug: string }) {
   const router = useRouter();
-  const { user, getAccessToken } = useAuthSession();
+  const { user, isLoading: isAuthLoading, getAccessToken } = useAuthSession();
+  const isInstructor =
+    user?.roles.some((role) => role === "INSTRUCTOR" || role === "ROLE_INSTRUCTOR") ?? false;
   const [activeSection, setActiveSection] = useState("description");
   const [copied, setCopied] = useState(false);
   const [buyingNow, setBuyingNow] = useState(false);
@@ -319,7 +311,7 @@ function CourseDetailPageInner({ slug }: { slug: string }) {
   }
 
   async function enroll() {
-    if (!course) return;
+    if (!course || isAuthLoading || isInstructor) return;
     if (!user) {
       router.push(`/login?next=${encodeURIComponent(`/courses/${course.slug}`)}`);
       return;
@@ -345,7 +337,7 @@ function CourseDetailPageInner({ slug }: { slug: string }) {
   }
 
   function addToCart() {
-    if (!course) return;
+    if (!course || isAuthLoading || isInstructor) return;
     addCourseToCart({
       id: course.id,
       slug: course.slug,
@@ -368,7 +360,7 @@ function CourseDetailPageInner({ slug }: { slug: string }) {
   }
 
   function buyNow() {
-    if (!course || course.price <= 0 || buyingNow) return;
+    if (!course || isAuthLoading || isInstructor || course.price <= 0 || buyingNow) return;
     setBuyingNow(true);
     addCourseToCart({
       id: course.id,
@@ -552,55 +544,65 @@ function CourseDetailPageInner({ slug }: { slug: string }) {
 
                     {/* CTA Buttons */}
                     <div className="mt-6 space-y-3">
-                      <Button
-                        type="button"
-                        disabled={enrollmentLoading}
-                        onClick={course.price === 0 ? enroll : addToCart}
-                        size="md"
-                        className={`focus-ring h-12 w-full rounded-xl text-base font-bold shadow-soft ${
-                          cartActionAnimating && course.price > 0 ? "cart-add-pop" : ""
-                        }`}
-                        aria-label={course.price === 0 ? "Đăng ký học" : "Thêm vào giỏ hàng"}
-                        aria-describedby={
-                          enrollmentMessage || cartMessage ? "enrollment-status" : undefined
-                        }
-                      >
-                        {enrollmentLoading ? (
-                          "Đang ghi danh…"
-                        ) : course.price === 0 ? (
-                          "Đăng ký học"
-                        ) : cartActionAnimating ? (
-                          <>
-                            <Check className="h-4 w-4" aria-hidden="true" />
-                            Đã thêm vào giỏ hàng
-                          </>
-                        ) : (
-                          "Thêm Vào Giỏ Hàng"
-                        )}
-                      </Button>
+                      {isInstructor || isAuthLoading ? (
+                        <p className="rounded-xl border border-primary/15 bg-primary-soft/50 px-4 py-3 text-center text-sm leading-6 text-slate-600">
+                          {isAuthLoading
+                            ? "Đang kiểm tra tài khoản..."
+                            : "Tài khoản giảng viên chỉ có thể xem khóa học, không thể mua hoặc ghi danh."}
+                        </p>
+                      ) : (
+                        <>
+                          <Button
+                            type="button"
+                            disabled={enrollmentLoading}
+                            onClick={course.price === 0 ? enroll : addToCart}
+                            size="md"
+                            className={`focus-ring h-12 w-full rounded-xl text-base font-bold shadow-soft ${
+                              cartActionAnimating && course.price > 0 ? "cart-add-pop" : ""
+                            }`}
+                            aria-label={course.price === 0 ? "Đăng ký học" : "Thêm vào giỏ hàng"}
+                            aria-describedby={
+                              enrollmentMessage || cartMessage ? "enrollment-status" : undefined
+                            }
+                          >
+                            {enrollmentLoading ? (
+                              "Đang ghi danh…"
+                            ) : course.price === 0 ? (
+                              "Đăng ký học"
+                            ) : cartActionAnimating ? (
+                              <>
+                                <Check className="h-4 w-4" aria-hidden="true" />
+                                Đã thêm vào giỏ hàng
+                              </>
+                            ) : (
+                              "Thêm Vào Giỏ Hàng"
+                            )}
+                          </Button>
 
-                      {course.price > 0 && (
-                        <Button
-                          type="button"
-                          disabled={buyingNow}
-                          onClick={buyNow}
-                          variant="outline"
-                          size="md"
-                          className="focus-ring h-12 w-full rounded-xl border border-heading bg-white text-base font-bold text-heading transition duration-150 hover:bg-slate-50 active:scale-[0.98]"
-                          aria-label="Mua ngay"
-                          aria-describedby={
-                            enrollmentMessage || cartMessage ? "enrollment-status" : undefined
-                          }
-                        >
-                          {buyingNow ? (
-                            <span className="inline-flex items-center gap-2">
-                              <LoaderCircle className="h-4 w-4 animate-spin text-heading" />
-                              Đang chuyển trang…
-                            </span>
-                          ) : (
-                            "Mua Ngay"
+                          {course.price > 0 && (
+                            <Button
+                              type="button"
+                              disabled={buyingNow}
+                              onClick={buyNow}
+                              variant="outline"
+                              size="md"
+                              className="focus-ring h-12 w-full rounded-xl border border-heading bg-white text-base font-bold text-heading transition duration-150 hover:bg-slate-50 active:scale-[0.98]"
+                              aria-label="Mua ngay"
+                              aria-describedby={
+                                enrollmentMessage || cartMessage ? "enrollment-status" : undefined
+                              }
+                            >
+                              {buyingNow ? (
+                                <span className="inline-flex items-center gap-2">
+                                  <LoaderCircle className="h-4 w-4 animate-spin text-heading" />
+                                  Đang chuyển trang…
+                                </span>
+                              ) : (
+                                "Mua Ngay"
+                              )}
+                            </Button>
                           )}
-                        </Button>
+                        </>
                       )}
                     </div>
 
@@ -815,97 +817,15 @@ function CourseDetailPageInner({ slug }: { slug: string }) {
                         </p>
                       ) : (
                         <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200/90 bg-white divide-y divide-slate-100 shadow-xs">
-                          {curriculum.sections.map((section) => {
-                            const isOpen = openSectionIds.has(section.id);
-                            const sectionLessons = section.lessons || [];
-                            const sectionSeconds = sectionLessons.reduce(
-                              (acc, l) => acc + (l.durationSeconds || 0),
-                              0,
-                            );
-                            return (
-                              <div key={section.id} className="transition-colors">
-                                <button
-                                  type="button"
-                                  onClick={() => toggleSection(section.id)}
-                                  aria-expanded={isOpen}
-                                  aria-controls={`section-content-${section.id}`}
-                                  id={`section-header-${section.id}`}
-                                  className="flex w-full items-center justify-between p-5 text-left transition hover:bg-slate-50/70"
-                                >
-                                  <div className="flex items-center gap-3 min-w-0 pr-4">
-                                    <ChevronDown
-                                      className={cn(
-                                        "h-5 w-5 shrink-0 text-slate-600 transition-transform duration-200",
-                                        isOpen ? "rotate-180" : "rotate-0",
-                                      )}
-                                    />
-                                    <span className="font-bold text-base text-heading truncate">
-                                      {section.title}
-                                    </span>
-                                  </div>
-                                  <div className="flex shrink-0 items-center gap-4 text-sm text-slate-500 font-medium">
-                                    <span>{sectionLessons.length} Bài học</span>
-                                    {sectionSeconds > 0 && (
-                                      <span>{formatSectionDuration(sectionSeconds)}</span>
-                                    )}
-                                  </div>
-                                </button>
-
-                                <div
-                                  id={`section-content-${section.id}`}
-                                  role="region"
-                                  aria-labelledby={`section-header-${section.id}`}
-                                  className={cn(
-                                    "grid transition-all duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none",
-                                    isOpen
-                                      ? "grid-rows-[1fr] opacity-100"
-                                      : "grid-rows-[0fr] opacity-0 pointer-events-none",
-                                  )}
-                                >
-                                  <div className="overflow-hidden">
-                                    <div className="bg-slate-50/50 px-5 pb-3 pt-1 divide-y divide-slate-100">
-                                      {sectionLessons.map((lesson) => (
-                                        <div
-                                          key={lesson.id}
-                                          className="flex flex-wrap items-center gap-3 py-3 text-sm text-slate-700"
-                                        >
-                                          {lesson.lessonType === "VIDEO" ? (
-                                            <Play className="h-4 w-4 shrink-0 text-slate-400" />
-                                          ) : (
-                                            <FileText className="h-4 w-4 shrink-0 text-slate-400" />
-                                          )}
-                                          <span className="min-w-0 flex-1 font-medium text-slate-800 truncate">
-                                            {lesson.title}
-                                          </span>
-                                          {lesson.durationSeconds !== null &&
-                                            lesson.durationSeconds > 0 && (
-                                              <span className="text-xs text-muted">
-                                                {duration(lesson.durationSeconds)}
-                                              </span>
-                                            )}
-                                          {lesson.preview ? (
-                                            <button
-                                              type="button"
-                                              className="focus-ring inline-flex items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary transition hover:bg-primary hover:text-white active:scale-95"
-                                              onClick={() => openPreview(lesson.id)}
-                                            >
-                                              <Play className="h-3 w-3 fill-current" />
-                                              Học thử
-                                            </button>
-                                          ) : (
-                                            <LockKeyhole
-                                              className="h-4 w-4 text-slate-400"
-                                              aria-label="Bài học dành cho học viên đã đăng ký"
-                                            />
-                                          )}
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
+                          {curriculum.sections.map((section) => (
+                            <CourseCurriculumSection
+                              key={section.id}
+                              section={section}
+                              isOpen={openSectionIds.has(section.id)}
+                              onToggle={() => toggleSection(section.id)}
+                              onPreviewLesson={openPreview}
+                            />
+                          ))}
                         </div>
                       )}
                     </section>
@@ -1015,11 +935,16 @@ function PreviewContent({ slug, lessonId }: { slug: string; lessonId: string }) 
   if (isError) return <p role="alert">Không thể mở bài học thử. Vui lòng đóng và thử lại.</p>;
   if (isLoading || !data) return <p role="status">Đang tải bài học thử…</p>;
   return (
-    <article>
+    <article className="max-w-none">
       <h3 className="mb-4 text-xl font-semibold text-primary">{data.title}</h3>
-      <p className="whitespace-pre-line leading-relaxed text-slate-700">
-        {data.textContent || "Nội dung bài học đang được cập nhật."}
-      </p>
+      <div
+        className="leading-relaxed text-slate-700 [&_a]:text-primary [&_a]:underline [&_blockquote]:border-l-4 [&_blockquote]:border-slate-200 [&_blockquote]:pl-4 [&_h1]:my-4 [&_h1]:text-3xl [&_h1]:font-bold [&_h2]:my-3 [&_h2]:text-2xl [&_h2]:font-semibold [&_h3]:my-3 [&_h3]:text-xl [&_h3]:font-semibold [&_li]:my-1 [&_ol]:my-3 [&_ol]:list-decimal [&_ol]:pl-6 [&_p]:my-2 [&_pre]:overflow-x-auto [&_pre]:rounded-lg [&_pre]:bg-slate-100 [&_pre]:p-3 [&_ul]:my-3 [&_ul]:list-disc [&_ul]:pl-6"
+        dangerouslySetInnerHTML={{
+          __html: sanitizeCourseDescription(
+            data.textContent || "Nội dung bài học đang được cập nhật.",
+          ),
+        }}
+      />
     </article>
   );
 }

@@ -17,7 +17,7 @@ export default async function Page({ params }: CurriculumPageProps) {
   const resolvedParams = await params;
   return (
     <InstructorCourseWorkspace courseId={resolvedParams.id} activeTab="chapters">
-      <Suspense fallback={<CourseCurriculumSkeleton />}>
+      <Suspense fallback={<CourseCurriculumSkeleton embedded />}>
         <InstructorCourseCurriculumPage courseId={resolvedParams.id} embedded />
       </Suspense>
     </InstructorCourseWorkspace>

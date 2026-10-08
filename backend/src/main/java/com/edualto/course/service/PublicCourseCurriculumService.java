@@ -56,6 +56,8 @@ public class PublicCourseCurriculumService {
                 .map(section -> new CourseCurriculumSectionResponse(
                         section.getId(),
                         section.getTitle(),
+                        section.getIntroduction(),
+                        section.getDescription(),
                         lessonsBySection.getOrDefault(section.getId(), List.of()).stream()
                                 .map(lesson -> new CourseCurriculumLessonResponse(
                                         lesson.getId(),

@@ -655,7 +655,57 @@ export function CourseCatalogSkeleton() {
 /**
  * Course Curriculum Skeleton for /instructor/courses/[id]/curriculum
  */
+export function CourseCurriculumSectionsSkeleton({
+  sectionCount = 3,
+}: { sectionCount?: number } = {}) {
+  return (
+    <div className="space-y-4" aria-hidden="true">
+      {Array.from({ length: sectionCount }, (_, index) => (
+        <div key={index} className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+          <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+            <div className="flex flex-1 items-start gap-3.5">
+              <Skeleton className="h-7 w-7 shrink-0 rounded-lg" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-3.5 w-16" />
+                  <span className="text-slate-300">•</span>
+                  <Skeleton className="h-3.5 w-20" />
+                  <span className="text-slate-300">•</span>
+                  <Skeleton className="h-3.5 w-14" />
+                </div>
+                <Skeleton className="h-5 w-64 max-w-full rounded-md" />
+                <Skeleton className="h-3.5 w-80 max-w-full" />
+              </div>
+            </div>
+
+            <div className="flex shrink-0 items-center gap-1.5 self-end border-t border-slate-100 pt-2 sm:self-center sm:border-t-0 sm:pt-0">
+              <Skeleton className="h-8 w-8 rounded-lg" />
+              <Skeleton className="h-8 w-8 rounded-lg" />
+              <span className="mx-1 h-4 w-px bg-slate-200" />
+              <Skeleton className="h-8 w-8 rounded-lg" />
+              <Skeleton className="h-8 w-8 rounded-lg" />
+              <span className="mx-1 h-4 w-px bg-slate-200" />
+              <Skeleton className="h-8 w-28 rounded-xl" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function CourseCurriculumSkeleton({ embedded = false }: { embedded?: boolean } = {}) {
+  if (embedded) {
+    return (
+      <div className="space-y-8 py-4" aria-label="Đang tải cấu trúc chương" aria-busy="true">
+        <div className="flex justify-end">
+          <Skeleton className="h-10 w-32 rounded-xl" />
+        </div>
+        <CourseCurriculumSectionsSkeleton />
+      </div>
+    );
+  }
+
   const content = (
     <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
       {/* Breadcrumb & Navigation */}

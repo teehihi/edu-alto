@@ -182,7 +182,12 @@ function formatStudentEnrollmentDate(value: string) {
     : new Intl.DateTimeFormat("vi-VN", { dateStyle: "medium" }).format(date);
 }
 
+function isUnauthorizedError(error: unknown): error is ApiClientError {
+  return error instanceof ApiClientError && error.status === 401;
+}
+
 function InstructorStudentsPanel({ accessToken }: { accessToken: string | null }) {
+  const { getAccessToken, refreshSession, logout } = useAuth();
   const [students, setStudents] = useState<InstructorCourseStudent[]>([]);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
@@ -203,7 +208,28 @@ function InstructorStudentsPanel({ accessToken }: { accessToken: string | null }
     setLoading(true);
     setError(null);
     try {
-      const result = await fetchInstructorStudents(accessToken, page, search);
+      let result: Awaited<ReturnType<typeof fetchInstructorStudents>>;
+      try {
+        result = await fetchInstructorStudents(accessToken, page, search);
+      } catch (cause) {
+        if (!isUnauthorizedError(cause)) throw cause;
+
+        const refreshedUser = await refreshSession();
+        const refreshedToken = refreshedUser ? await getAccessToken() : null;
+        if (!refreshedToken) {
+          throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại để tiếp tục.");
+        }
+
+        try {
+          result = await fetchInstructorStudents(refreshedToken, page, search);
+        } catch (retryCause) {
+          if (isUnauthorizedError(retryCause)) {
+            await logout();
+            throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại để tiếp tục.");
+          }
+          throw retryCause;
+        }
+      }
       if (requestId !== requestIdRef.current) return;
       setStudents(result.data);
       setTotalElements(result.meta.totalElements);
@@ -211,14 +237,14 @@ function InstructorStudentsPanel({ accessToken }: { accessToken: string | null }
     } catch (cause) {
       if (requestId !== requestIdRef.current) return;
       setError(
-        cause instanceof ApiClientError
+        cause instanceof Error
           ? cause.message
           : "Không thể tải danh sách học viên. Vui lòng thử lại.",
       );
     } finally {
       if (requestId === requestIdRef.current) setLoading(false);
     }
-  }, [accessToken, page, search]);
+  }, [accessToken, getAccessToken, logout, page, refreshSession, search]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => void loadStudents(), 250);
