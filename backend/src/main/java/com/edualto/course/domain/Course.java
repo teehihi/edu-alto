@@ -1,16 +1,23 @@
 package com.edualto.course.domain;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OrderColumn;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
+import org.hibernate.annotations.BatchSize;
 
 @Entity
 @Table(name = "courses")
@@ -49,6 +56,13 @@ public class Course {
 
     @Column(nullable = false, length = 20)
     private String language = "vi";
+
+    @ElementCollection
+    @CollectionTable(name = "course_subtitle_languages", joinColumns = @JoinColumn(name = "course_id"))
+    @OrderColumn(name = "position")
+    @Column(name = "language", nullable = false, length = 20)
+    @BatchSize(size = 50)
+    private List<String> subtitleLanguages = new ArrayList<>();
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 40)
@@ -248,6 +262,25 @@ public class Course {
 
     public void setLanguage(String language) {
         this.language = language;
+    }
+
+    public List<String> getSubtitleLanguages() {
+        return List.copyOf(subtitleLanguages);
+    }
+
+    public void setSubtitleLanguages(List<String> subtitleLanguages) {
+        this.subtitleLanguages.clear();
+        if (subtitleLanguages == null) {
+            return;
+        }
+        for (String languageCode : subtitleLanguages) {
+            if (languageCode != null && !languageCode.isBlank()) {
+                String normalizedCode = languageCode.trim();
+                if (!this.subtitleLanguages.contains(normalizedCode)) {
+                    this.subtitleLanguages.add(normalizedCode);
+                }
+            }
+        }
     }
 
     public CourseStatus getStatus() {

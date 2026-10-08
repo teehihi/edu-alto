@@ -203,6 +203,7 @@ public class CourseService {
                 request.language() != null && !request.language().isBlank() ? request.language().trim() : "vi",
                 request.thumbnailKey() != null ? request.thumbnailKey().trim() : null
         );
+        course.setSubtitleLanguages(request.subtitleLanguages());
 
         course = courseRepository.save(course);
         return toInstructorCourseResponse(course);
@@ -264,6 +265,9 @@ public class CourseService {
                 request.language() != null && !request.language().isBlank() ? request.language().trim() : "vi",
                 request.thumbnailKey() != null ? request.thumbnailKey().trim() : null
         );
+        if (request.subtitleLanguages() != null) {
+            course.setSubtitleLanguages(request.subtitleLanguages());
+        }
 
         course = courseRepository.save(course);
         return toInstructorCourseResponse(course);
@@ -526,6 +530,7 @@ public class CourseService {
                 course.getOriginalPrice(),
                 course.getLevel(),
                 course.getLanguage(),
+                course.getSubtitleLanguages(),
                 course.getStatus(),
                 course.getCreatedAt(),
                 course.getUpdatedAt(),

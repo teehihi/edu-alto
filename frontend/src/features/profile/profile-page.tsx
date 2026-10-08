@@ -3,36 +3,30 @@
 import Link from "next/link";
 import Image from "next/image";
 import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+} from "react";
+import {
   BookOpen,
   CheckCircle2,
+  CircleAlert,
   ExternalLink,
+  GraduationCap,
   Globe,
   Mail,
   Pencil,
+  RefreshCw,
   Search,
   Share2,
   SlidersHorizontal,
   Star,
   UploadCloud,
 } from "lucide-react";
-import { Facebook, Linkedin, Youtube } from "@/components/ui/social-icons";
-import {
-  type ChangeEvent,
-  type FormEvent,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-
-function TikTokIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
-      <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1.04-.1z" />
-    </svg>
-  );
-}
 import { AppHeader } from "@/components/layout/app-header";
 import { Footer } from "@/components/layout/footer";
 import { CustomSelect } from "@/components/ui/custom-select";
@@ -49,6 +43,42 @@ import { AlertMessage, FormField } from "@/features/auth/form-field";
 import { getFriendlyError } from "@/features/auth/form-utils";
 import { ApiClientError } from "@/lib/api";
 import { cn } from "@/lib/cn";
+import {
+  fetchInstructorStudents,
+  type InstructorCourseStudent,
+} from "@/lib/instructor-students-client";
+
+function TikTokIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+      <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1.04-.1z" />
+    </svg>
+  );
+}
+
+function LinkedInIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+      <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14ZM8.34 17.67V9.9H5.76v7.77h2.58ZM7.05 8.84a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Zm11.19 8.83v-4.25c0-2.28-1.22-3.34-2.85-3.34a2.47 2.47 0 0 0-2.23 1.23V9.9h-2.58c.03.75 0 7.77 0 7.77h2.58v-4.34c0-.23.02-.46.09-.63.19-.46.61-.94 1.32-.94.93 0 1.3.71 1.3 1.75v4.16h2.37Z" />
+    </svg>
+  );
+}
+
+function YouTubeIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+      <path d="M23.5 6.2a3 3 0 0 0-2.1-2.12C19.55 3.56 12 3.56 12 3.56s-7.55 0-9.4.52A3 3 0 0 0 .5 6.2 31.4 31.4 0 0 0 0 12a31.4 31.4 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.12c1.85.52 9.4.52 9.4.52s7.55 0 9.4-.52a3 3 0 0 0 2.1-2.12A31.4 31.4 0 0 0 24 12a31.4 31.4 0 0 0-.5-5.8ZM9.55 15.56V8.44L15.82 12l-6.27 3.56Z" />
+    </svg>
+  );
+}
+
+function FacebookIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+      <path d="M13.35 21v-8.2h2.76l.41-3.2h-3.17V7.56c0-.93.26-1.56 1.59-1.56h1.7V3.14A22.7 22.7 0 0 0 14.16 3c-2.46 0-4.15 1.5-4.15 4.26V9.6H7.23v3.2h2.78V21h3.34Z" />
+    </svg>
+  );
+}
 
 type ActiveTab = "personal" | "instructor" | "reviews";
 
@@ -145,9 +175,187 @@ const LANGUAGE_OPTIONS = [
   { value: "ko", label: "한국어 (Korean)" },
 ];
 
+function formatStudentEnrollmentDate(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? "—"
+    : new Intl.DateTimeFormat("vi-VN", { dateStyle: "medium" }).format(date);
+}
+
+function InstructorStudentsPanel({ accessToken }: { accessToken: string | null }) {
+  const [students, setStudents] = useState<InstructorCourseStudent[]>([]);
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(0);
+  const [totalElements, setTotalElements] = useState<number | null>(null);
+  const [totalPages, setTotalPages] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const requestIdRef = useRef(0);
+
+  const loadStudents = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
+    if (!accessToken) {
+      setError("Vui lòng đăng nhập lại để xem danh sách học viên.");
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await fetchInstructorStudents(accessToken, page, search);
+      if (requestId !== requestIdRef.current) return;
+      setStudents(result.data);
+      setTotalElements(result.meta.totalElements);
+      setTotalPages(result.meta.totalPages);
+    } catch (cause) {
+      if (requestId !== requestIdRef.current) return;
+      setError(
+        cause instanceof ApiClientError
+          ? cause.message
+          : "Không thể tải danh sách học viên. Vui lòng thử lại.",
+      );
+    } finally {
+      if (requestId === requestIdRef.current) setLoading(false);
+    }
+  }, [accessToken, page, search]);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => void loadStudents(), 250);
+    return () => {
+      window.clearTimeout(timeout);
+      requestIdRef.current += 1;
+    };
+  }, [loadStudents]);
+
+  return (
+    <section
+      aria-labelledby="profile-students-heading"
+      className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm sm:p-8"
+    >
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2 id="profile-students-heading" className="text-xl font-bold text-primary">
+            Học viên <span className="text-sm font-semibold">({totalElements ?? "…"})</span>
+          </h2>
+          <p className="mt-1 text-sm text-muted">
+            Danh sách học viên đã đăng ký các khóa học của bạn.
+          </p>
+        </div>
+        <label className="flex min-h-11 w-full items-center gap-2 rounded-xl border border-[#D8E1ED] bg-white px-3.5 transition focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 sm:max-w-sm">
+          <span className="sr-only">Tìm học viên theo tên hoặc email</span>
+          <input
+            type="search"
+            value={search}
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setPage(0);
+            }}
+            placeholder="Tìm tên hoặc email học viên..."
+            className="min-w-0 flex-1 bg-transparent text-sm text-heading outline-none placeholder:text-muted"
+          />
+          <Search aria-hidden="true" className="h-4 w-4 shrink-0 text-primary" />
+        </label>
+      </div>
+
+      {error ? (
+        <div
+          role="alert"
+          className="mt-5 flex items-start gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"
+        >
+          <CircleAlert className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+          <p className="flex-1">{error}</p>
+          <button
+            type="button"
+            onClick={() => void loadStudents()}
+            className="focus-ring rounded px-2 py-1 font-semibold hover:bg-rose-100"
+          >
+            Thử lại
+          </button>
+        </div>
+      ) : null}
+
+      <div className="mt-5 divide-y divide-slate-100 rounded-2xl border border-slate-100">
+        {loading ? (
+          <div className="flex min-h-40 items-center justify-center gap-2 p-8 text-sm text-muted">
+            <RefreshCw className="h-4 w-4 animate-spin" aria-hidden="true" />
+            Đang tải danh sách học viên...
+          </div>
+        ) : error ? (
+          <div className="px-5 py-12 text-center text-sm text-muted">
+            Danh sách học viên hiện chưa khả dụng.
+          </div>
+        ) : students.length === 0 ? (
+          <div className="px-5 py-12 text-center">
+            <GraduationCap className="mx-auto h-9 w-9 text-slate-300" aria-hidden="true" />
+            <p className="mt-3 text-sm font-semibold text-heading">
+              {search.trim() ? "Không tìm thấy học viên phù hợp" : "Chưa có học viên đăng ký"}
+            </p>
+            <p className="mt-1 text-sm text-muted">
+              {search.trim()
+                ? "Thử tìm bằng tên hoặc địa chỉ email khác."
+                : "Học viên đăng ký khóa học sẽ xuất hiện tại đây."}
+            </p>
+          </div>
+        ) : (
+          students.map((student) => (
+            <div
+              key={student.studentId}
+              className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5"
+            >
+              <div className="flex min-w-0 items-center gap-3">
+                <UserAvatar name={student.studentName} size="md" />
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-heading">
+                    {student.studentName}
+                  </p>
+                  <p className="truncate text-sm text-muted">{student.email}</p>
+                </div>
+              </div>
+              <p className="shrink-0 text-xs text-muted sm:text-right">
+                Ghi danh gần nhất · {formatStudentEnrollmentDate(student.enrolledAt)}
+              </p>
+            </div>
+          ))
+        )}
+      </div>
+
+      {!loading && totalPages > 1 ? (
+        <nav
+          aria-label="Phân trang danh sách học viên"
+          className="mt-5 flex items-center justify-between gap-3"
+        >
+          <p className="text-sm text-muted">
+            Trang {page + 1} / {totalPages}
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={page === 0}
+              onClick={() => setPage((current) => Math.max(0, current - 1))}
+              className="focus-ring min-h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Trước
+            </button>
+            <button
+              type="button"
+              disabled={page + 1 >= totalPages}
+              onClick={() => setPage((current) => Math.min(totalPages - 1, current + 1))}
+              className="focus-ring min-h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Sau
+            </button>
+          </div>
+        </nav>
+      ) : null}
+    </section>
+  );
+}
+
 export function ProfilePage({ targetIdentifier, defaultEditing = false }: ProfilePageProps) {
   const {
     user,
+    accessToken,
     loading: authLoading,
     isAuthenticated,
     getProfile,
@@ -746,11 +954,11 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
 
                         <div className="pt-1">
                           <Link
-                            href="/learning"
+                            href={isInstructor ? "/instructor" : "/learning"}
                             prefetch={false}
                             className="focus-ring flex w-full items-center justify-between rounded-2xl px-4 py-3.5 text-left text-sm font-medium text-slate-700 transition hover:bg-[#F2FAF7] hover:text-primary"
                           >
-                            <span>Quản lý học tập</span>
+                            <span>{isInstructor ? "Quản lý giảng dạy" : "Quản lý học tập"}</span>
                             <ExternalLink className="h-4 w-4 text-primary" />
                           </Link>
                         </div>
@@ -766,8 +974,8 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                                 : "text-slate-700 hover:bg-[#F2FAF7] hover:text-primary",
                             )}
                           >
-                            <span>Giảng viên</span>
-                            {isInstructor && instructorVerified && (
+                            <span>{isInstructor ? "Học viên" : "Giảng viên"}</span>
+                            {!isInstructor && instructorVerified && (
                               <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
                                 Đã duyệt
                               </span>
@@ -949,7 +1157,7 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                             {/* LinkedIn */}
                             <div className="flex items-center gap-3.5 p-1 rounded-xl">
                               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500">
-                                <Linkedin className="h-5 w-5" />
+                                <LinkedInIcon className="h-5 w-5" />
                               </div>
                               <div className="min-w-0 flex-1">
                                 <p className="text-xs text-muted font-medium">LinkedIn</p>
@@ -974,7 +1182,7 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                             {youtubeUrl && (
                               <div className="flex items-center gap-3.5 p-1 rounded-xl">
                                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500">
-                                  <Youtube className="h-5 w-5" />
+                                  <YouTubeIcon className="h-5 w-5" />
                                 </div>
                                 <div className="min-w-0 flex-1">
                                   <p className="text-xs text-muted font-medium">YouTube</p>
@@ -994,7 +1202,7 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                             {facebookUrl && (
                               <div className="flex items-center gap-3.5 p-1 rounded-xl">
                                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500">
-                                  <Facebook className="h-5 w-5" />
+                                  <FacebookIcon className="h-5 w-5" />
                                 </div>
                                 <div className="min-w-0 flex-1">
                                   <p className="text-xs text-muted font-medium">Facebook</p>
@@ -1378,8 +1586,12 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                   </>
                 )}
 
-                {/* TAB 2: Giảng viên (Exact Figma Node 33-7705: My Teachers View) */}
-                {activeTab === "instructor" && (
+                {/* TAB 2: Danh sách giảng viên cho học viên hoặc học viên cho giảng viên */}
+                {activeTab === "instructor" && isInstructor && (
+                  <InstructorStudentsPanel accessToken={accessToken} />
+                )}
+
+                {activeTab === "instructor" && !isInstructor && (
                   <div className="rounded-3xl border border-slate-100 bg-white p-6 sm:p-8 shadow-sm space-y-6">
                     {/* Header: Title */}
                     <div>

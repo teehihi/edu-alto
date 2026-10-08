@@ -27,6 +27,7 @@ import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -174,7 +175,8 @@ class CourseIntegrationTest extends AbstractIntegrationTest {
                 "price", 799000,
                 "originalPrice", 1499000,
                 "level", "ADVANCED",
-                "language", "vi"
+                "language", "vi",
+                "subtitleLanguages", List.of("en", "vi")
         );
 
         String createRes = postJsonAuth("/api/v1/instructor/courses", createReq, instructorToken)
@@ -185,6 +187,8 @@ class CourseIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.data.price").value(799000))
                 .andExpect(jsonPath("$.data.originalPrice").value(1499000))
                 .andExpect(jsonPath("$.data.level").value("ADVANCED"))
+                .andExpect(jsonPath("$.data.subtitleLanguages[0]").value("en"))
+                .andExpect(jsonPath("$.data.subtitleLanguages[1]").value("vi"))
                 .andReturn().getResponse().getContentAsString();
 
         JsonNode createdNode = objectMapper.readTree(createRes).get("data");
@@ -212,14 +216,17 @@ class CourseIntegrationTest extends AbstractIntegrationTest {
                 "price", 899000,
                 "originalPrice", 1699000,
                 "level", "ADVANCED",
-                "language", "vi"
+                "language", "vi",
+                "subtitleLanguages", List.of("vi")
         );
 
         putJsonAuth("/api/v1/instructor/courses/" + courseId, updateReq, instructorToken)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.title").value("Khóa Học Spring Boot 3 Chuyên Sâu Cập Nhật"))
                 .andExpect(jsonPath("$.data.slug").value("spring-boot-3-chuyen-sau-pro"))
-                .andExpect(jsonPath("$.data.price").value(899000));
+                .andExpect(jsonPath("$.data.price").value(899000))
+                .andExpect(jsonPath("$.data.subtitleLanguages[0]").value("vi"))
+                .andExpect(jsonPath("$.data.subtitleLanguages").isArray());
 
         // 5. Publish Course
         postJsonAuth("/api/v1/instructor/courses/" + courseId + "/publish", Map.of(), instructorToken)

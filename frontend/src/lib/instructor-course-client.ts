@@ -14,6 +14,7 @@ export type InstructorCourse = {
   originalPrice: number | null;
   level: InstructorCourseLevel;
   language: string;
+  subtitleLanguages: string[];
   status: InstructorCourseStatus;
   createdAt: string;
   updatedAt: string;
@@ -31,6 +32,7 @@ export type InstructorCoursePayload = {
   originalPrice?: number | null;
   level: InstructorCourseLevel;
   language: string;
+  subtitleLanguages?: string[];
   thumbnailKey?: string | null;
 };
 

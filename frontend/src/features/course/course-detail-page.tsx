@@ -18,7 +18,6 @@ import {
   LockKeyhole,
   Play,
   PlayCircle,
-  Sparkles,
   Star,
   X as CloseIcon,
 } from "lucide-react";
@@ -32,6 +31,7 @@ import { enrollInCourse } from "@/lib/learning-client";
 import { addCourseToCart } from "@/lib/cart";
 import { CourseReviewSection } from "@/features/course/course-review-section";
 import { cn } from "@/lib/cn";
+import { sanitizeCourseDescription } from "@/lib/course-description";
 import {
   fetchPublicCourseBySlug,
   fetchPublicCourses,
@@ -453,11 +453,9 @@ function CourseDetailPageInner({ slug }: { slug: string }) {
                     </span>
                   </nav>
 
-                  {/* Level Pill */}
-                  <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
-                    <Sparkles className="h-3.5 w-3.5" />
-                    <span>Trình độ: {levels[course.level]}</span>
-                  </div>
+                  <p className="mb-3 text-sm font-medium text-slate-500">
+                    Trình độ: {levels[course.level]}
+                  </p>
 
                   {/* Course Title in Heading Color */}
                   <h1 className="text-3xl font-extrabold leading-[1.3] tracking-tight text-heading sm:text-4xl lg:text-[42px]">
@@ -714,9 +712,18 @@ function CourseDetailPageInner({ slug }: { slug: string }) {
                       className="scroll-mt-28 border-b border-slate-100 pb-10"
                     >
                       <h2 className="text-2xl font-bold text-primary">Mô tả khóa học</h2>
-                      <div className="mt-4 whitespace-pre-line text-base leading-relaxed text-slate-600">
-                        {course.description || "Giảng viên đang cập nhật mô tả khóa học."}
-                      </div>
+                      {course.description ? (
+                        <div
+                          className="course-description-content mt-4 text-base leading-relaxed text-slate-600 [&_h1]:my-4 [&_h1]:text-3xl [&_h1]:font-bold [&_h2]:my-3 [&_h2]:text-2xl [&_h2]:font-semibold [&_h3]:my-3 [&_h3]:text-xl [&_h3]:font-semibold [&_p]:my-2 [&_ul]:my-3 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:my-3 [&_ol]:list-decimal [&_ol]:pl-6 [&_blockquote]:my-3 [&_blockquote]:border-l-4 [&_blockquote]:border-slate-200 [&_blockquote]:pl-4 [&_a]:text-primary [&_a]:underline [&_img]:my-4 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-lg"
+                          dangerouslySetInnerHTML={{
+                            __html: sanitizeCourseDescription(course.description),
+                          }}
+                        />
+                      ) : (
+                        <p className="mt-4 text-base leading-relaxed text-slate-600">
+                          Giảng viên đang cập nhật mô tả khóa học.
+                        </p>
+                      )}
                     </section>
 
                     {/* Section 2: Instructor */}

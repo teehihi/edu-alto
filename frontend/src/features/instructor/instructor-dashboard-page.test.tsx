@@ -19,6 +19,25 @@ import { fetchInstructorReviewSummary } from "@/lib/review-client";
 vi.mock("@/lib/instructor-course-client");
 vi.mock("@/lib/instructor-revenue-client");
 vi.mock("@/lib/review-client");
+vi.mock("@/components/ui/rich-text-editor", () => ({
+  RichTextEditor: ({
+    label,
+    value,
+    onChange,
+  }: {
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+  }) => (
+    <textarea
+      aria-label={label}
+      value={value.replace(/^<p>|<\/p>$/g, "")}
+      onChange={(event) =>
+        onChange(event.currentTarget.value ? `<p>${event.currentTarget.value}</p>` : "")
+      }
+    />
+  ),
+}));
 vi.mock(import("@/lib/instructor-course-metrics-client"), async (importOriginal) => ({
   ...(await importOriginal()),
   fetchInstructorCourseMetrics: vi.fn(),
@@ -61,6 +80,7 @@ const course: InstructorCourse = {
   originalPrice: 499000,
   level: "BEGINNER",
   language: "vi",
+  subtitleLanguages: [],
   status: "DRAFT",
   createdAt: "2026-09-01T00:00:00Z",
   updatedAt: "2026-09-01T00:00:00Z",
@@ -101,7 +121,7 @@ describe("InstructorDashboardPage course management", () => {
       expect(createSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           title: course.title,
-          description: course.description,
+          description: `<p>${course.description}</p>`,
           price: 0,
           level: "ALL_LEVELS",
         }),

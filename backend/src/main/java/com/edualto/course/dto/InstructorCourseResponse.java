@@ -4,6 +4,7 @@ import com.edualto.course.domain.CourseLevel;
 import com.edualto.course.domain.CourseStatus;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 public record InstructorCourseResponse(
@@ -18,6 +19,7 @@ public record InstructorCourseResponse(
         BigDecimal originalPrice,
         CourseLevel level,
         String language,
+        List<String> subtitleLanguages,
         CourseStatus status,
         Instant createdAt,
         Instant updatedAt,

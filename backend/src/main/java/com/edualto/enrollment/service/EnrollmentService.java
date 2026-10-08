@@ -93,20 +93,46 @@ public class EnrollmentService {
                         "Không tìm thấy khóa học"
                 ));
 
-        String normalizedSearch = search == null ? null : search.trim();
-        if (normalizedSearch != null && normalizedSearch.isEmpty()) {
-            normalizedSearch = null;
-        }
-        if (normalizedSearch != null && normalizedSearch.length() > 160) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST, "INVALID_SEARCH", "Từ khóa tìm kiếm không được vượt quá 160 ký tự");
-        }
-
         return enrollments.findInstructorCourseStudents(
                 course.getId(),
                 EnrollmentStatus.ACTIVE,
-                normalizedSearch,
+                normalizeSearch(search),
                 PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "enrolledAt").and(Sort.by(Sort.Direction.ASC, "studentId")))
         );
+    }
+
+    @Transactional(readOnly = true)
+    public Page<InstructorCourseStudentResponse> getInstructorStudents(
+            UUID instructorId,
+            int page,
+            int size,
+            String search
+    ) {
+        users.requireActiveInstructor(instructorId);
+        validatePagination(page, size);
+
+        String normalizedSearch = normalizeSearch(search);
+        return enrollments.findInstructorStudents(
+                instructorId,
+                EnrollmentStatus.ACTIVE,
+                normalizedSearch,
+                PageRequest.of(page, size)
+        );
+    }
+
+    private String normalizeSearch(String search) {
+        String normalizedSearch = search == null ? null : search.trim();
+        if (normalizedSearch != null && normalizedSearch.isEmpty()) {
+            return null;
+        }
+        if (normalizedSearch != null && normalizedSearch.length() > 160) {
+            throw new BusinessException(
+                    HttpStatus.BAD_REQUEST,
+                    "INVALID_SEARCH",
+                    "Từ khóa tìm kiếm không được vượt quá 160 ký tự"
+            );
+        }
+        return normalizedSearch;
     }
 
     private void validatePagination(int page, int size) {

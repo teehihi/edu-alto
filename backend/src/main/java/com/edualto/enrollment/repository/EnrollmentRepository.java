@@ -50,4 +50,42 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, UUID> {
             @Param("search") String search,
             Pageable pageable
     );
+
+    @Query(
+            value = """
+                    select new com.edualto.enrollment.dto.InstructorCourseStudentResponse(
+                        u.id, u.fullName, u.email, max(e.enrolledAt))
+                    from Enrollment e
+                    join Course c on c.id = e.courseId
+                    join User u on u.id = e.studentId
+                    where c.instructorId = :instructorId
+                        and e.status = :status
+                        and (
+                            :search is null
+                            or lower(u.fullName) like lower(concat('%', :search, '%'))
+                            or lower(u.email) like lower(concat('%', :search, '%'))
+                        )
+                    group by u.id, u.fullName, u.email
+                    order by max(e.enrolledAt) desc, u.fullName asc
+                    """,
+            countQuery = """
+                    select count(distinct u.id)
+                    from Enrollment e
+                    join Course c on c.id = e.courseId
+                    join User u on u.id = e.studentId
+                    where c.instructorId = :instructorId
+                        and e.status = :status
+                        and (
+                            :search is null
+                            or lower(u.fullName) like lower(concat('%', :search, '%'))
+                            or lower(u.email) like lower(concat('%', :search, '%'))
+                        )
+                    """
+    )
+    Page<InstructorCourseStudentResponse> findInstructorStudents(
+            @Param("instructorId") UUID instructorId,
+            @Param("status") EnrollmentStatus status,
+            @Param("search") String search,
+            Pageable pageable
+    );
 }

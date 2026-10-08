@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { CourseDetailPage } from "@/features/course/course-detail-page";
 import { fetchPublicCourseBySlug } from "@/lib/course-client";
+import { courseDescriptionToText } from "@/lib/course-description";
 
 export const instant = false;
 
@@ -12,15 +13,14 @@ export async function generateMetadata({
   const { slug } = await params;
   try {
     const course = await fetchPublicCourseBySlug(slug);
+    const description = courseDescriptionToText(course.description).slice(0, 160);
     return {
       title: `${course.title} | EduAlto`,
       description:
-        course.tagline ||
-        course.description?.slice(0, 160) ||
-        "Khám phá khóa học chất lượng cao trên EduAlto.",
+        course.tagline || description || "Khám phá khóa học chất lượng cao trên EduAlto.",
       openGraph: {
         title: course.title,
-        description: course.tagline || course.description?.slice(0, 160),
+        description: course.tagline || description,
         images: course.thumbnailUrl ? [{ url: course.thumbnailUrl }] : undefined,
       },
     };

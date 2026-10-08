@@ -18,8 +18,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/instructor/courses")
-@Tag(name = "Instructor Enrollment Management", description = "Danh sách học viên theo khóa học dành cho giảng viên")
+@RequestMapping("/api/v1/instructor")
+@Tag(name = "Instructor Enrollment Management", description = "Danh sách học viên của giảng viên")
 public class InstructorEnrollmentController {
 
     private final EnrollmentService enrollmentService;
@@ -28,7 +28,7 @@ public class InstructorEnrollmentController {
         this.enrollmentService = enrollmentService;
     }
 
-    @GetMapping("/{courseId}/students")
+    @GetMapping("/courses/{courseId}/students")
     @Operation(summary = "Lấy danh sách học viên đã ghi danh khóa học của giảng viên")
     public ApiResponse<List<InstructorCourseStudentResponse>> listCourseStudents(
             @AuthenticationPrincipal AuthenticatedUser principal,
@@ -40,6 +40,29 @@ public class InstructorEnrollmentController {
         Page<InstructorCourseStudentResponse> studentsPage = enrollmentService.getInstructorCourseStudents(
                 principal.id(),
                 courseId,
+                page,
+                size,
+                search
+        );
+        PageMeta pageMeta = new PageMeta(
+                studentsPage.getNumber(),
+                studentsPage.getSize(),
+                studentsPage.getTotalElements(),
+                studentsPage.getTotalPages()
+        );
+        return ApiResponse.page(studentsPage.getContent(), pageMeta);
+    }
+
+    @GetMapping("/students")
+    @Operation(summary = "Lấy danh sách học viên duy nhất trên các khóa học của giảng viên")
+    public ApiResponse<List<InstructorCourseStudentResponse>> listInstructorStudents(
+            @AuthenticationPrincipal AuthenticatedUser principal,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String search
+    ) {
+        Page<InstructorCourseStudentResponse> studentsPage = enrollmentService.getInstructorStudents(
+                principal.id(),
                 page,
                 size,
                 search

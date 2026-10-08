@@ -5,6 +5,7 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
+import java.util.List;
 
 public record CreateCourseRequest(
         @NotBlank(message = "Tiêu đề khóa học không được để trống")
@@ -32,6 +33,9 @@ public record CreateCourseRequest(
         String language,
 
         @Size(max = 512, message = "Mã ảnh thu nhỏ tối đa 512 ký tự")
-        String thumbnailKey
+        String thumbnailKey,
+
+        @Size(max = 10, message = "Khóa học hỗ trợ tối đa 10 ngôn ngữ phụ đề")
+        List<@NotBlank @Size(max = 20) String> subtitleLanguages
 ) {
 }

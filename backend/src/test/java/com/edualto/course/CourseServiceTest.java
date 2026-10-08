@@ -100,7 +100,8 @@ class CourseServiceTest {
                 BigDecimal.valueOf(999000),
                 CourseLevel.INTERMEDIATE,
                 "vi",
-                null
+                null,
+                List.of("en", "vi")
         );
 
         InstructorCourseResponse response = courseService.createCourse(instructorId, request);
@@ -112,6 +113,7 @@ class CourseServiceTest {
         assertThat(response.price()).isEqualByComparingTo("499000");
         assertThat(response.originalPrice()).isEqualByComparingTo("999000");
         assertThat(response.level()).isEqualTo(CourseLevel.INTERMEDIATE);
+        assertThat(response.subtitleLanguages()).containsExactly("en", "vi");
     }
 
     @Test
@@ -127,6 +129,7 @@ class CourseServiceTest {
                 BigDecimal.valueOf(300000), // Original price < price
                 CourseLevel.BEGINNER,
                 "vi",
+                null,
                 null
         );
 
@@ -150,6 +153,7 @@ class CourseServiceTest {
                 null,
                 CourseLevel.ALL_LEVELS,
                 "vi",
+                null,
                 null
         );
 

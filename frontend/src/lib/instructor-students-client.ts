@@ -20,3 +20,11 @@ export async function fetchInstructorCourseStudents(
     { accessToken },
   );
 }
+
+export async function fetchInstructorStudents(accessToken: string, page: number, search: string) {
+  const params = new URLSearchParams({ page: String(page), size: "20" });
+  if (search.trim()) params.set("search", search.trim());
+  return apiPageRequest<InstructorCourseStudent>(`/instructor/students?${params.toString()}`, {
+    accessToken,
+  });
+}

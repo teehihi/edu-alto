@@ -5,6 +5,7 @@ import { ArrowUpRight, Clock3, Star } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Course } from "@/types/course";
 import { cn } from "@/lib/cn";
+import { courseDescriptionToText } from "@/lib/course-description";
 
 const accentClass: Record<Course["accent"], string> = {
   design: "text-primary",
@@ -14,6 +15,7 @@ const accentClass: Record<Course["accent"], string> = {
 
 export function CourseCard({ course }: { course: Course }) {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const description = courseDescriptionToText(course.description);
 
   useEffect(() => {
     if (!isPreviewOpen) return;
@@ -56,7 +58,7 @@ export function CourseCard({ course }: { course: Course }) {
           <h3 className="flex-1 text-[21px] font-bold leading-7 text-ink">{course.title}</h3>
           <ArrowUpRight className="mt-1 h-5 w-5 shrink-0 text-ink transition duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-primary" />
         </div>
-        <p className="mt-3 min-h-[54px] text-sm leading-6 text-muted">{course.description}</p>
+        <p className="mt-3 min-h-[54px] text-sm leading-6 text-muted">{description}</p>
 
         <div className="mt-3 flex items-center gap-2 text-sm">
           {course.rating > 0 ? (
@@ -140,7 +142,7 @@ export function CourseCard({ course }: { course: Course }) {
                 ×
               </button>
             </div>
-            <p className="mt-4 text-sm leading-6 text-muted">{course.description}</p>
+            <p className="mt-4 text-sm leading-6 text-muted">{description}</p>
             <dl className="mt-5 grid grid-cols-2 gap-3 text-sm">
               <div className="rounded-lg bg-primary-soft p-3">
                 <dt className="text-muted">Thời lượng</dt>

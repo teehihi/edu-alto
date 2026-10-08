@@ -3,6 +3,14 @@ import userEvent from "@testing-library/user-event";
 import { vi } from "vitest";
 import { ProfilePage } from "./profile-page";
 
+const { fetchInstructorStudentsMock } = vi.hoisted(() => ({
+  fetchInstructorStudentsMock: vi.fn(),
+}));
+
+vi.mock("@/lib/instructor-students-client", () => ({
+  fetchInstructorStudents: fetchInstructorStudentsMock,
+}));
+
 const currentUser = {
   id: "user-1",
   fullName: "Nguyễn Minh Anh",
@@ -87,6 +95,7 @@ vi.mock("@/components/layout/footer", () => ({
 vi.mock("@/features/auth/auth-client", () => ({
   useAuth: () => ({
     user: currentUser,
+    accessToken: "test-access-token",
     loading: false,
     isAuthenticated: true,
     login: vi.fn(),
@@ -105,6 +114,9 @@ vi.mock("@/features/auth/auth-client", () => ({
 describe("ProfilePage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    fetchInstructorStudentsMock.mockReset();
+    currentUser.roles = ["STUDENT"];
+    userProfile.roles = ["STUDENT"];
   });
 
   it("loads profile in view mode and toggles edit mode to save changes", async () => {
@@ -181,6 +193,40 @@ describe("ProfilePage", () => {
     expect(screen.getByPlaceholderText("Tìm kiếm giảng viên...")).toBeInTheDocument();
     expect(screen.getAllByText("Thầy Hoàng Văn Dũng").length).toBeGreaterThan(0);
     expect(screen.getAllByRole("button", { name: /gửi tin nhắn/i }).length).toBeGreaterThan(0);
+  });
+
+  it("shows unique course students and teaching management for instructors", async () => {
+    const user = userEvent.setup();
+    currentUser.roles = ["INSTRUCTOR"];
+    userProfile.roles = ["INSTRUCTOR"];
+    getProfileMock.mockResolvedValueOnce({ ...userProfile, roles: ["INSTRUCTOR"] });
+    fetchInstructorStudentsMock.mockResolvedValueOnce({
+      data: [
+        {
+          studentId: "student-1",
+          studentName: "Lê Minh Châu",
+          email: "chau@example.com",
+          enrolledAt: "2026-10-07T12:00:00Z",
+        },
+      ],
+      meta: { page: 0, size: 20, totalElements: 1, totalPages: 1 },
+    });
+
+    render(<ProfilePage />);
+
+    expect(
+      await screen.findByRole("heading", { name: "Nguyễn Minh Anh", level: 1 }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /quản lý giảng dạy/i })).toHaveAttribute(
+      "href",
+      "/instructor",
+    );
+
+    await user.click(screen.getByRole("button", { name: /^học viên$/i }));
+
+    expect(await screen.findByText("Lê Minh Châu")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /học viên \(1\)/i })).toBeInTheDocument();
+    expect(fetchInstructorStudentsMock).toHaveBeenCalledWith("test-access-token", 0, "");
   });
 
   it("hides edit button and personal navigation tabs when viewing another user profile", async () => {

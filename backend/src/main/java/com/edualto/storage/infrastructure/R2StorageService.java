@@ -43,10 +43,15 @@ public class R2StorageService implements StorageService {
     @PostConstruct
     public void logConfiguration() {
         boolean publicUrlConfigured = properties.publicUrlPrefix() != null && !properties.publicUrlPrefix().isBlank();
+        boolean credentialsConfigured = properties.accessKeyId() != null
+                && !properties.accessKeyId().isBlank()
+                && properties.secretAccessKey() != null
+                && !properties.secretAccessKey().isBlank();
         log.info(
-                "Cloudflare R2 configured: bucket={}, endpoint={}, publicUrlConfigured={}; bucket CORS must be provisioned separately",
+                "Cloudflare R2 configured: bucket={}, endpoint={}, credentialsConfigured={}, publicUrlConfigured={}; bucket CORS must be provisioned separately",
                 properties.bucketName(),
                 properties.endpoint(),
+                credentialsConfigured,
                 publicUrlConfigured
         );
     }

@@ -12,10 +12,12 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/features/auth/auth-client";
 import { InstructorWorkspaceShell } from "@/features/instructor/instructor-workspace-shell";
 import { ApiClientError } from "@/lib/api";
+import { courseDescriptionToText } from "@/lib/course-description";
 import {
   fetchInstructorRevenueSummary,
   type InstructorRevenueSummary,
@@ -214,6 +216,7 @@ const emptyCourseForm: InstructorCoursePayload = {
   originalPrice: null,
   level: "ALL_LEVELS",
   language: "vi",
+  subtitleLanguages: [],
   thumbnailKey: null,
 };
 
@@ -400,7 +403,7 @@ export function InstructorDashboardPage() {
     }
     const title = courseForm.title.trim();
     const description = courseForm.description.trim();
-    if (!title || !description) {
+    if (!title || !courseDescriptionToText(description)) {
       setCourseFormError("Vui lòng nhập tên và mô tả khóa học.");
       return;
     }
@@ -487,7 +490,7 @@ export function InstructorDashboardPage() {
       setPublishError("Vui lòng nhập tên khóa học trước khi xuất bản.");
       return;
     }
-    if (!publishTarget.description?.trim()) {
+    if (!courseDescriptionToText(publishTarget.description ?? "")) {
       setPublishError("Vui lòng bổ sung mô tả khóa học trước khi xuất bản.");
       return;
     }
@@ -867,21 +870,16 @@ export function InstructorDashboardPage() {
                 />
               </div>
               <div>
-                <label
-                  htmlFor="course-description"
-                  className="block text-sm font-medium text-slate-700"
-                >
+                <p className="block text-sm font-medium text-slate-700">
                   Mô tả khóa học <span className="text-rose-600">*</span>
-                </label>
-                <textarea
-                  id="course-description"
-                  required
-                  rows={5}
+                </p>
+                <RichTextEditor
+                  label="Mô tả khóa học"
                   value={courseForm.description}
-                  onChange={(event) =>
-                    setCourseForm({ ...courseForm, description: event.target.value })
+                  compact
+                  onChange={(description) =>
+                    setCourseForm((current) => ({ ...current, description }))
                   }
-                  className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-heading focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
