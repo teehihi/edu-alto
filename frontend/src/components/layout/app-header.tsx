@@ -308,17 +308,19 @@ export const AppHeader = memo(function AppHeader({
           )}
         </div>
 
-        {/* Mobile Menu Button */}
-        {!isAuthLoading && !isInstructor ? <HeaderCartButton isMobile /> : null}
-        <button
-          className="focus-ring inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-ink lg:hidden"
-          type="button"
-          aria-label={isOpen ? "Đóng menu" : "Mở menu"}
-          aria-expanded={isOpen}
-          onClick={() => setIsOpen((value) => !value)}
-        >
-          {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
+        {/* Mobile Actions: Cart + Hamburger */}
+        <div className="flex items-center gap-1 sm:gap-2 lg:hidden">
+          {!isAuthLoading && !isInstructor ? <HeaderCartButton isMobile /> : null}
+          <button
+            className="focus-ring inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-ink"
+            type="button"
+            aria-label={isOpen ? "Đóng menu" : "Mở menu"}
+            aria-expanded={isOpen}
+            onClick={() => setIsOpen((value) => !value)}
+          >
+            {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
       </div>
 
       {/* Mobile Drawer */}
