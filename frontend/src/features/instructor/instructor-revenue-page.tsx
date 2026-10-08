@@ -66,6 +66,8 @@ function formatDate(value: string) {
 function getPaymentMethodLabel(method: string) {
   if (method === "VNPAY") return "VNPay";
   if (method === "MOMO") return "MoMo";
+  if (method === "SEPAY") return "SePay";
+  if (method === "STRIPE") return "Stripe";
   if (method === "VIETQR") return "Chuyển khoản ngân hàng";
   return method;
 }

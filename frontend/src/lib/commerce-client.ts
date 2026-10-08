@@ -13,10 +13,10 @@ export type CheckoutOrder = {
   instructions: PaymentInstructions | null;
 };
 
-export type PaymentMethod = "VNPAY" | "MOMO" | "VIETQR";
+export type PaymentMethod = "VNPAY" | "MOMO" | "SEPAY" | "STRIPE" | "VIETQR";
 
 export type PaymentInstructions = {
-  kind: "BANK_TRANSFER" | "MOMO_TRANSFER";
+  kind: "BANK_TRANSFER" | "MOMO_TRANSFER" | "SEPAY_TRANSFER";
   recipientName: string;
   accountNumber: string | null;
   bankName: string | null;

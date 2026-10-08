@@ -13,7 +13,8 @@ export function CheckoutResultPage() {
   const { user, isLoading: sessionLoading, getAccessToken } = useAuthSession();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const orderId = searchParams.get("vnp_TxnRef");
+  const orderId =
+    searchParams.get("vnp_TxnRef") || searchParams.get("orderId") || searchParams.get("order_id");
   const [order, setOrder] = useState<OrderDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -113,7 +114,7 @@ export function CheckoutResultPage() {
                     ? order?.paymentReviewReason === "PROMOTION_RESERVATION_EXPIRED"
                       ? "Giao dịch đến sau thời hạn giữ mã giảm giá và đang được quản trị viên xác minh. Khóa học sẽ mở sau khi xác nhận tiền đã nhận."
                       : "Đơn hàng đang chờ quản trị viên đối soát giao dịch chuyển khoản. Khóa học sẽ mở sau khi giao dịch được xác nhận."
-                    : "VNPay đã quay lại EduAlto. Hệ thống đang chờ xác nhận an toàn từ máy chủ thanh toán; trạng thái sẽ tự cập nhật sau ít phút."
+                    : "Cổng thanh toán đã chuyển hướng về EduAlto. Hệ thống đang chờ xác nhận an toàn từ máy chủ thanh toán; trạng thái sẽ tự cập nhật sau ít phút."
                   : "Đơn hàng chưa được thanh toán. Bạn có thể quay lại giỏ hàng và thử lại."}
             </p>
             {order && (

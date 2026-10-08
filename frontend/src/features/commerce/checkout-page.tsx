@@ -7,11 +7,14 @@ import {
   Check,
   ChevronRight,
   Copy,
+  CreditCard,
+  Download,
   LoaderCircle,
   LockKeyhole,
   Percent,
   QrCode,
   ShieldCheck,
+  Zap,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -36,7 +39,6 @@ export function CheckoutPage() {
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [createdOrder, setCreatedOrder] = useState<CheckoutOrder | null>(null);
-  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
@@ -49,6 +51,15 @@ export function CheckoutPage() {
       window.removeEventListener("storage", sync);
     };
   }, []);
+
+  useEffect(() => {
+    if (createdOrder) {
+      const el = document.getElementById("manual-payment-instructions");
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }
+  }, [createdOrder]);
   const subtotal = courses.reduce((sum, course) => sum + course.price, 0);
   const isInstructor =
     user?.roles.some((role) => role === "INSTRUCTOR" || role === "ROLE_INSTRUCTOR") ?? false;
@@ -142,9 +153,7 @@ export function CheckoutPage() {
                       phoneNumber,
                       promotionCode,
                     );
-                    if (order.paymentMethod === "VNPAY") {
-                      if (!order.paymentUrl)
-                        throw new Error("Cổng VNPay chưa trả về liên kết thanh toán.");
+                    if (order.paymentUrl) {
                       window.location.assign(order.paymentUrl);
                       return;
                     }
@@ -154,7 +163,7 @@ export function CheckoutPage() {
                     setMessage(
                       reason instanceof ApiClientError &&
                         reason.code === "PAYMENT_GATEWAY_NOT_CONFIGURED"
-                        ? "VNPay Sandbox chưa được cấu hình trên máy chủ. Giỏ hàng vẫn được giữ nguyên."
+                        ? "Cổng thanh toán này chưa được cấu hình trên máy chủ. Giỏ hàng vẫn được giữ nguyên."
                         : reason instanceof Error
                           ? reason.message
                           : "Chưa thể tạo đơn hàng. Vui lòng thử lại.",
@@ -216,15 +225,47 @@ export function CheckoutPage() {
                   <div className="mt-3 space-y-2.5">
                     {(
                       [
-                        ["VNPAY", "VNPay Sandbox", "Thanh toán trực tuyến"],
-                        ["MOMO", "MoMo", "Chuyển khoản đến ví cá nhân"],
-                        ["VIETQR", "VietQR · Vietcombank", "Quét QR chuyển khoản"],
+                        [
+                          "VNPAY",
+                          "VNPay Sandbox",
+                          "Cổng thanh toán trực tuyến ATM / QR",
+                          "Sandbox",
+                          "border-sky-200 bg-sky-50 text-sky-700",
+                        ],
+                        [
+                          "MOMO",
+                          "MoMo",
+                          "Ví điện tử MoMo cá nhân hoặc cổng đối tác",
+                          "Ví điện tử",
+                          "border-pink-200 bg-pink-50 text-pink-700",
+                        ],
+                        [
+                          "SEPAY",
+                          "SePay · Quét mã QR",
+                          "Tự động kích hoạt sau chuyển khoản qua ngân hàng",
+                          "Tự động 24/7",
+                          "border-emerald-200 bg-emerald-50 text-emerald-700",
+                        ],
+                        [
+                          "STRIPE",
+                          "Stripe",
+                          "Thẻ quốc tế Visa, MasterCard, JCB",
+                          "Quốc tế",
+                          "border-indigo-200 bg-indigo-50 text-indigo-700",
+                        ],
+                        [
+                          "VIETQR",
+                          "VietQR · Chuyển khoản ngân hàng",
+                          "Chuyển khoản thủ công chờ đối soát",
+                          "Thủ công",
+                          "border-slate-200 bg-slate-100 text-slate-700",
+                        ],
                       ] as const
-                    ).map(([method, label, detail]) => (
+                    ).map(([method, label, detail, badge, badgeClass]) => (
                       <label
                         key={method}
                         className={cn(
-                          "flex min-h-14 cursor-pointer items-center gap-3.5 rounded-xl border p-4 transition",
+                          "flex min-h-16 cursor-pointer items-center gap-3.5 rounded-xl border p-4 transition",
                           paymentMethod === method
                             ? "border-primary bg-primary/5 text-slate-900 shadow-xs"
                             : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50 text-slate-700",
@@ -242,30 +283,49 @@ export function CheckoutPage() {
                           }}
                           className="h-5 w-5 shrink-0 appearance-none rounded-full border-2 border-slate-300 bg-white transition-colors checked:border-primary checked:bg-[radial-gradient(circle,#20b486_0_45%,white_48%)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-2"
                         />
-                        <span className="min-w-0 flex-1 text-sm font-semibold text-heading">
-                          {label}
-                        </span>
-                        <span className="flex-1 text-right text-xs text-muted">{detail}</span>
-                        {method === "VNPAY" ? (
-                          <Image
-                            src="/images/payment/vnpay-logo.svg"
-                            alt=""
-                            width={66}
-                            height={20}
-                          />
-                        ) : method === "MOMO" ? (
-                          <Image
-                            src="/images/payment/momo-logo.png"
-                            alt=""
-                            width={22}
-                            height={22}
-                          />
-                        ) : (
-                          <QrCode
-                            className="h-[22px] w-[22px] shrink-0 text-primary"
-                            aria-hidden="true"
-                          />
-                        )}
+                        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-sm font-semibold text-heading">{label}</span>
+                            <span
+                              className={cn(
+                                "inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-medium leading-none",
+                                badgeClass,
+                              )}
+                            >
+                              {badge}
+                            </span>
+                          </div>
+                          <span className="text-xs text-muted">{detail}</span>
+                        </div>
+                        <div className="shrink-0 flex items-center justify-center">
+                          {method === "VNPAY" ? (
+                            <Image
+                              src="/images/payment/vnpay-logo.svg"
+                              alt="VNPay"
+                              width={66}
+                              height={20}
+                            />
+                          ) : method === "MOMO" ? (
+                            <Image
+                              src="/images/payment/momo-logo.png"
+                              alt="MoMo"
+                              width={24}
+                              height={24}
+                            />
+                          ) : method === "SEPAY" ? (
+                            <Zap
+                              className="h-[22px] w-[22px] text-emerald-600"
+                              aria-hidden="true"
+                            />
+                          ) : method === "STRIPE" ? (
+                            <CreditCard
+                              className="h-[22px] w-[22px] text-indigo-500"
+                              aria-hidden="true"
+                            />
+                          ) : (
+                            <QrCode className="h-[22px] w-[22px] text-primary" aria-hidden="true" />
+                          )}
+                        </div>
                       </label>
                     ))}
                   </div>
@@ -273,25 +333,17 @@ export function CheckoutPage() {
                 <div className="flex items-center gap-3 rounded-xl border border-slate-200/80 bg-slate-50/70 p-4 text-xs leading-5 text-slate-600">
                   <LockKeyhole className="h-4 w-4 shrink-0 text-primary" />
                   <span>
-                    {paymentMethod === "VNPAY"
-                      ? "Bạn sẽ được chuyển đến VNPay Sandbox. Khóa học chỉ mở sau khi hệ thống xác nhận IPN có chữ ký hợp lệ."
-                      : "Đơn chuyển khoản sẽ chờ quản trị viên đối soát. Không gửi mật khẩu, mã OTP hoặc thông tin đăng nhập ngân hàng."}
+                    {paymentMethod === "VNPAY" || paymentMethod === "STRIPE"
+                      ? "Bạn sẽ được chuyển đến cổng thanh toán an toàn. Khóa học sẽ tự động mở sau khi hoàn tất giao dịch."
+                      : paymentMethod === "SEPAY"
+                        ? "Hệ thống SePay tự động xác nhận giao dịch và kích hoạt khóa học trong vài giây ngay sau khi nhận tiền."
+                        : paymentMethod === "MOMO"
+                          ? "Thanh toán tiện lợi qua cổng ví MoMo hoặc chuyển khoản đến ví cá nhân."
+                          : "Đơn chuyển khoản thủ công sẽ chờ quản trị viên đối soát trước khi mở khóa học."}
                   </span>
                 </div>
                 {createdOrder?.instructions && (
-                  <ManualPaymentInstructions
-                    order={createdOrder}
-                    method={paymentMethod}
-                    copied={copied}
-                    onCopy={() => {
-                      void navigator.clipboard
-                        .writeText(createdOrder.instructions!.transferReference)
-                        .then(() => {
-                          setCopied(true);
-                          window.setTimeout(() => setCopied(false), 1800);
-                        });
-                    }}
-                  />
+                  <ManualPaymentInstructions order={createdOrder} method={paymentMethod} />
                 )}
                 {message && (
                   <p
@@ -389,13 +441,25 @@ export function CheckoutPage() {
                       ? "Đơn hàng đã được tạo"
                       : paymentMethod === "VNPAY"
                         ? "Thanh toán qua VNPay Sandbox"
-                        : "Tạo hướng dẫn chuyển khoản"}
+                        : paymentMethod === "STRIPE"
+                          ? "Thanh toán qua Stripe"
+                          : paymentMethod === "MOMO"
+                            ? "Thanh toán qua MoMo"
+                            : paymentMethod === "SEPAY"
+                              ? "Lấy mã QR thanh toán SePay"
+                              : "Tạo hướng dẫn chuyển khoản"}
                 </button>
                 <p className="flex items-center justify-center gap-1.5 text-xs text-slate-500">
                   <ShieldCheck className="h-4 w-4 shrink-0 text-primary" />
                   {paymentMethod === "VNPAY"
                     ? "Thanh toán VNPay Sandbox"
-                    : "Chuyển khoản thủ công"}{" "}
+                    : paymentMethod === "STRIPE"
+                      ? "Cổng quốc tế Stripe"
+                      : paymentMethod === "MOMO"
+                        ? "Ví điện tử MoMo"
+                        : paymentMethod === "SEPAY"
+                          ? "Quét mã SePay tự động"
+                          : "Chuyển khoản thủ công"}{" "}
                   · Bảo mật SSL
                 </p>
               </aside>
@@ -422,15 +486,14 @@ export function CheckoutPage() {
 function ManualPaymentInstructions({
   order,
   method,
-  copied,
-  onCopy,
 }: {
   order: CheckoutOrder;
   method: PaymentMethod;
-  copied: boolean;
-  onCopy: () => void;
 }) {
   const details = order.instructions;
+  const [copiedContent, setCopiedContent] = useState(false);
+  const [copiedAccount, setCopiedAccount] = useState(false);
+
   if (!details) return null;
   const reservationDeadline = order.expiresAt
     ? new Intl.DateTimeFormat("vi-VN", {
@@ -440,17 +503,50 @@ function ManualPaymentInstructions({
       }).format(new Date(order.expiresAt))
     : null;
 
+  const targetAccount = details.walletPhone ?? details.accountNumber ?? "";
+
+  const copyToClipboard = (text: string, type: "content" | "account") => {
+    void navigator.clipboard.writeText(text).then(() => {
+      if (type === "content") {
+        setCopiedContent(true);
+        window.setTimeout(() => setCopiedContent(false), 2000);
+      } else {
+        setCopiedAccount(true);
+        window.setTimeout(() => setCopiedAccount(false), 2000);
+      }
+    });
+  };
+
+  const handleDownloadQr = () => {
+    if (!details.qrUrl) return;
+    const link = document.createElement("a");
+    link.href = details.qrUrl;
+    link.download = `vietqr-${order.orderId}.png`;
+    link.target = "_blank";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
-    <section className="mt-4 rounded-xl border border-emerald-200/90 bg-emerald-50/50 p-4">
+    <section
+      id="manual-payment-instructions"
+      className="mt-4 scroll-mt-24 rounded-2xl border border-emerald-200/90 bg-emerald-50/40 p-5 shadow-xs"
+    >
       <div className="flex items-start gap-3">
         <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-emerald-100 text-primary">
           <Check className="h-4 w-4" />
         </span>
         <div>
-          <h2 className="text-sm font-semibold text-[#101a2c]">Đơn hàng đang chờ đối soát</h2>
+          <h2 className="text-sm font-semibold text-[#101a2c]">
+            {method === "SEPAY"
+              ? "Đơn hàng đang chờ thanh toán (Tự động kích hoạt 24/7)"
+              : "Đơn hàng đang chờ đối soát"}
+          </h2>
           <p className="mt-1 text-xs leading-5 text-slate-600">
-            Chuyển đúng số tiền và nhập mã đơn hàng ở nội dung. Khóa học sẽ mở sau khi quản trị viên
-            xác nhận giao dịch.
+            {method === "SEPAY"
+              ? "Quét mã QR và chuyển khoản đúng số tiền, nội dung bên dưới. Khóa học sẽ tự động mở ngay sau khi SePay ghi nhận giao dịch thành công."
+              : "Chuyển đúng số tiền và nhập mã đơn hàng ở nội dung. Khóa học sẽ mở sau khi quản trị viên xác nhận giao dịch."}
           </p>
           {reservationDeadline ? (
             <p className="mt-1 text-xs font-medium text-amber-800">
@@ -459,17 +555,26 @@ function ManualPaymentInstructions({
           ) : null}
         </div>
       </div>
+
       {details.qrUrl && (
-        <Image
-          src={details.qrUrl}
-          alt="Mã VietQR để chuyển khoản"
-          width={240}
-          height={240}
-          unoptimized
-          className="mx-auto mt-4 rounded-xl border border-slate-200/90 bg-white p-2.5 shadow-xs"
-        />
+        <div className="mt-5 text-center">
+          <div className="inline-block rounded-2xl border border-slate-200/90 bg-white p-3 shadow-xs">
+            <Image
+              src={details.qrUrl}
+              alt="Mã VietQR để chuyển khoản"
+              width={240}
+              height={240}
+              unoptimized
+              className="rounded-xl"
+            />
+            <p className="mt-2 text-[11px] font-medium text-slate-500">
+              Quét bằng ứng dụng ngân hàng hoặc MoMo
+            </p>
+          </div>
+        </div>
       )}
-      <dl className="mt-4 grid gap-2.5 text-xs sm:grid-cols-2">
+
+      <dl className="mt-5 grid gap-2.5 text-xs sm:grid-cols-2">
         <PaymentDetail
           label="Ngân hàng / ví"
           value={details.bankName ?? (details.walletPhone ? "MoMo" : "")}
@@ -477,31 +582,64 @@ function ManualPaymentInstructions({
         <PaymentDetail label="Người nhận" value={details.recipientName} />
         <PaymentDetail
           label={method === "MOMO" ? "Số điện thoại MoMo" : "Số tài khoản"}
-          value={details.walletPhone ?? details.accountNumber ?? ""}
+          value={targetAccount}
+          onCopy={targetAccount ? () => copyToClipboard(targetAccount, "account") : undefined}
+          copied={copiedAccount}
         />
         <PaymentDetail label="Số tiền" value={formatVND(details.amount)} />
-        <PaymentDetail label="Nội dung chuyển khoản" value={details.transferReference} />
+        <PaymentDetail
+          label="Nội dung chuyển khoản"
+          value={details.transferReference}
+          onCopy={() => copyToClipboard(details.transferReference, "content")}
+          copied={copiedContent}
+          highlight
+        />
         <PaymentDetail label="Mã đơn hàng" value={order.orderId} />
         {reservationDeadline ? (
           <PaymentDetail label="Hạn chuyển khoản" value={reservationDeadline} />
         ) : null}
       </dl>
-      <div className="mt-4 flex flex-wrap items-center gap-2">
+
+      <div className="mt-5 flex flex-wrap items-center gap-2.5 border-t border-emerald-100 pt-3">
+        {targetAccount && (
+          <button
+            type="button"
+            onClick={() => copyToClipboard(targetAccount, "account")}
+            className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 shadow-xs hover:border-primary hover:text-primary transition"
+          >
+            {copiedAccount ? (
+              <Check className="h-3.5 w-3.5 text-primary" />
+            ) : (
+              <Copy className="h-3.5 w-3.5" />
+            )}
+            {copiedAccount ? "Đã sao chép STK" : "Sao chép số tài khoản"}
+          </button>
+        )}
         <button
           type="button"
-          onClick={onCopy}
-          className="focus-ring inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 shadow-xs hover:border-primary hover:text-primary transition"
+          onClick={() => copyToClipboard(details.transferReference, "content")}
+          className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 shadow-xs hover:border-primary hover:text-primary transition"
         >
-          {copied ? (
+          {copiedContent ? (
             <Check className="h-3.5 w-3.5 text-primary" />
           ) : (
             <Copy className="h-3.5 w-3.5" />
           )}
-          {copied ? "Đã sao chép nội dung" : "Sao chép nội dung chuyển khoản"}
+          {copiedContent ? "Đã sao chép nội dung" : "Sao chép nội dung chuyển khoản"}
         </button>
+        {details.qrUrl && (
+          <button
+            type="button"
+            onClick={handleDownloadQr}
+            className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 shadow-xs hover:border-primary hover:text-primary transition"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Tải ảnh mã QR
+          </button>
+        )}
         <Link
           href={`/checkout/result?vnp_TxnRef=${encodeURIComponent(order.orderId)}`}
-          className="focus-ring inline-flex h-9 items-center rounded-lg px-3 text-xs font-semibold text-primary hover:bg-emerald-50 transition"
+          className="focus-ring ml-auto inline-flex h-9 items-center rounded-lg px-3 text-xs font-semibold text-primary hover:bg-emerald-100/60 transition"
         >
           Xem trạng thái đơn hàng →
         </Link>
@@ -510,11 +648,57 @@ function ManualPaymentInstructions({
   );
 }
 
-function PaymentDetail({ label, value }: { label: string; value: string }) {
+function PaymentDetail({
+  label,
+  value,
+  onCopy,
+  copied,
+  highlight = false,
+}: {
+  label: string;
+  value: string;
+  onCopy?: () => void;
+  copied?: boolean;
+  highlight?: boolean;
+}) {
   return (
-    <div className="min-w-0 rounded-lg border border-slate-200/70 bg-white px-3 py-2.5 shadow-2xs">
-      <dt className="text-[11px] font-medium text-slate-500">{label}</dt>
-      <dd className="mt-0.5 break-all font-semibold text-slate-800">{value}</dd>
+    <div
+      className={cn(
+        "group relative min-w-0 rounded-xl border p-3 shadow-2xs transition",
+        highlight
+          ? "border-emerald-300 bg-emerald-50/80"
+          : "border-slate-200/80 bg-white hover:border-slate-300",
+      )}
+    >
+      <div className="flex items-center justify-between gap-1">
+        <dt className="text-[11px] font-medium text-slate-500">{label}</dt>
+        {onCopy && (
+          <button
+            type="button"
+            onClick={onCopy}
+            title={`Sao chép ${label}`}
+            className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
+          >
+            {copied ? (
+              <>
+                <Check className="h-3 w-3" /> Đã chép
+              </>
+            ) : (
+              <>
+                <Copy className="h-3 w-3 text-slate-400 group-hover:text-primary" /> Sao chép
+              </>
+            )}
+          </button>
+        )}
+      </div>
+      <dd
+        className={cn(
+          "mt-1 break-all font-semibold",
+          highlight ? "text-base text-emerald-900 tracking-wide font-mono" : "text-slate-800",
+        )}
+      >
+        {value}
+      </dd>
     </div>
   );
 }
