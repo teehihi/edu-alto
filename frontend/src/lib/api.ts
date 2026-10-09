@@ -37,7 +37,21 @@ const API_BASE_URL = normalizeBaseUrl(
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080/api/v1",
 );
 
-async function requestPayload(path: string, options: ApiRequestOptions = {}): Promise<unknown> {
+type UnauthorizedAccessTokenHandler = (rejectedToken: string) => Promise<string | null>;
+
+let unauthorizedAccessTokenHandler: UnauthorizedAccessTokenHandler | null = null;
+
+export function setUnauthorizedAccessTokenHandler(
+  handler: UnauthorizedAccessTokenHandler | null,
+): void {
+  unauthorizedAccessTokenHandler = handler;
+}
+
+async function requestPayload(
+  path: string,
+  options: ApiRequestOptions = {},
+  retryUnauthorized = true,
+): Promise<unknown> {
   const { accessToken, body, headers, ...init } = options;
   const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
   const isBinaryBody = typeof Blob !== "undefined" && body instanceof Blob;
@@ -66,6 +80,23 @@ async function requestPayload(path: string, options: ApiRequestOptions = {}): Pr
 
   const payload = await parseJson(response);
   if (!response.ok) {
+    if (
+      response.status === 401 &&
+      accessToken &&
+      retryUnauthorized &&
+      unauthorizedAccessTokenHandler
+    ) {
+      let refreshedToken: string | null = null;
+      try {
+        refreshedToken = await unauthorizedAccessTokenHandler(accessToken);
+      } catch {
+        refreshedToken = null;
+      }
+
+      if (refreshedToken) {
+        return requestPayload(path, { ...options, accessToken: refreshedToken }, false);
+      }
+    }
     throw toApiError(response.status, payload);
   }
 

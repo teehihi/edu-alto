@@ -10,7 +10,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { ApiClientError } from "@/lib/api";
+import { ApiClientError, setUnauthorizedAccessTokenHandler } from "@/lib/api";
 import { authApi, currentUserApi } from "@/lib/auth-client";
 import type { AuthTokenResponse, CurrentUser, LoginRequest } from "@/types/auth";
 
@@ -79,6 +79,19 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
     return refreshPromiseRef.current;
   }, [clearSession, saveSession]);
 
+  useEffect(() => {
+    setUnauthorizedAccessTokenHandler(async (rejectedToken) => {
+      const current = sessionRef.current;
+      if (!current) return null;
+      if (current.accessToken !== rejectedToken) return current.accessToken;
+
+      const refreshed = await refreshStoredSession();
+      return refreshed?.accessToken ?? null;
+    });
+
+    return () => setUnauthorizedAccessTokenHandler(null);
+  }, [refreshStoredSession]);
+
   // On mount, attempt to restore session via refresh token cookie
   useEffect(() => {
     refreshStoredSession()
@@ -111,7 +124,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
     try {
       const user = await currentUserApi.getCurrentUser(token);
       setSession((current) => {
-        if (!current || current.accessToken !== token) return current;
+        if (!current || version !== sessionVersionRef.current) return current;
         const next = { ...current, user };
         sessionRef.current = next;
         return next;
@@ -127,7 +140,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
         try {
           const user = await currentUserApi.getCurrentUser(refreshed.accessToken);
           setSession((current) => {
-            if (!current || current.accessToken !== refreshed.accessToken) return current;
+            if (!current || version !== sessionVersionRef.current) return current;
             const next = { ...current, user };
             sessionRef.current = next;
             return next;

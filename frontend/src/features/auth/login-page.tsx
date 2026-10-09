@@ -45,13 +45,13 @@ export function LoginPage() {
 
     setSubmitting(true);
     try {
-      await login({ email: email.trim(), password });
+      const user = await login({ email: email.trim(), password });
       setStatus({
         tone: "success",
         message: "Đăng nhập thành công. EduAlto đang chuẩn bị không gian học tập cho bạn.",
       });
       const next = new URLSearchParams(window.location.search).get("next");
-      router.push(resolveLoginDestination(next));
+      router.push(resolveLoginDestination(next, user.roles));
       router.refresh();
     } catch (error) {
       if (
@@ -145,13 +145,19 @@ export function LoginPage() {
   );
 }
 
-function resolveLoginDestination(next: string | null): string {
-  if (!next?.startsWith("/")) return "/";
-  try {
-    const url = new URL(next, window.location.origin);
-    if (url.origin !== window.location.origin) return "/";
-    return `${url.pathname}${url.search}${url.hash}`;
-  } catch {
-    return "/";
+function resolveLoginDestination(next: string | null, roles: string[] = []): string {
+  if (next?.startsWith("/")) {
+    try {
+      const url = new URL(next, window.location.origin);
+      if (url.origin === window.location.origin) {
+        return `${url.pathname}${url.search}${url.hash}`;
+      }
+    } catch {
+      // Fall back to the role's default destination when the requested URL is malformed.
+    }
   }
+
+  return roles.some((role) => role === "INSTRUCTOR" || role === "ROLE_INSTRUCTOR")
+    ? "/instructor"
+    : "/";
 }
