@@ -905,8 +905,12 @@ export function InstructorCourseCurriculumPage({
       setIncompleteQuizLessonId(null);
       setPendingQuizPublishLessonId(null);
       setPendingVideoLessonId(null);
-      setLessonVideoFile(null);
-      setLessonModalOpen(false);
+      if (editingLesson) {
+        setLessonVideoFile(null);
+        setLessonModalOpen(false);
+      } else {
+        handleOpenCreateLesson(targetSectionId);
+      }
       setFeedback({
         isOpen: true,
         title: editingLesson ? "Đã cập nhật bài học" : "Đã tạo bài học mới",
@@ -1075,7 +1079,7 @@ export function InstructorCourseCurriculumPage({
               ) : null}
 
               {/* Action */}
-              <div className={`flex shrink-0 items-center gap-3 ${embedded ? "justify-end" : ""}`}>
+              <div className={`flex shrink-0 items-center gap-3 ${embedded ? "ml-auto" : ""}`}>
                 <Button
                   onClick={handleOpenCreateSection}
                   className="rounded-xl shadow-xs"
@@ -1807,6 +1811,21 @@ export function InstructorCourseCurriculumPage({
                 <h3 className="text-xs font-semibold uppercase tracking-[0.05em] text-[#62748e]">
                   Cấu trúc chương
                 </h3>
+                {!editingLesson && targetSectionId ? (
+                  <button
+                    type="button"
+                    onClick={() => handleOpenCreateLesson(targetSectionId)}
+                    disabled={
+                      lessonFormLoading ||
+                      Boolean(pendingVideoLessonId) ||
+                      Boolean(incompleteQuizLessonId) ||
+                      Boolean(pendingQuizPublishLessonId)
+                    }
+                    className="focus-ring inline-flex items-center gap-1 text-xs font-medium text-primary transition hover:text-[#087f5b] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Plus className="h-3.5 w-3.5" aria-hidden="true" /> Thêm bài học
+                  </button>
+                ) : null}
               </div>
               <div className="space-y-2 p-2">
                 {structure?.sections.map((section, sectionIndex) => {

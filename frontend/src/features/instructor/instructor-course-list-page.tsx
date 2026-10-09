@@ -1,16 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useMemo, useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { EnsureQueryClient } from "@/lib/query-provider";
 import { BookOpen, CircleAlert, MoreHorizontal, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InstructorWorkspaceShell } from "@/features/instructor/instructor-workspace-shell";
 import { useAuth } from "@/features/auth/auth-client";
 import { ApiClientError } from "@/lib/api";
+import { courseDescriptionToText } from "@/lib/course-description";
 import {
+  createInstructorCourse,
   fetchInstructorCourses,
+  type InstructorCourseLevel,
+  type InstructorCoursePayload,
   type InstructorCourse,
   type InstructorCourseStatus,
 } from "@/lib/instructor-course-client";
@@ -30,6 +37,25 @@ const statusStyle: Record<InstructorCourseStatus, string> = {
   DRAFT: "bg-amber-50 text-amber-800 ring-amber-200",
   PUBLISHED: "bg-emerald-50 text-emerald-800 ring-emerald-200",
   ARCHIVED: "bg-slate-100 text-slate-700 ring-slate-200",
+};
+
+const courseLevelLabels: Record<InstructorCourseLevel, string> = {
+  ALL_LEVELS: "Mọi trình độ",
+  BEGINNER: "Cơ bản",
+  INTERMEDIATE: "Trung cấp",
+  ADVANCED: "Nâng cao",
+};
+
+const emptyCourseForm: InstructorCoursePayload = {
+  title: "",
+  tagline: "",
+  description: "",
+  price: 0,
+  originalPrice: null,
+  level: "ALL_LEVELS",
+  language: "vi",
+  subtitleLanguages: [],
+  thumbnailKey: null,
 };
 
 function formatPrice(price: number): string {
@@ -134,8 +160,13 @@ export function InstructorCourseListPage() {
 }
 
 function InstructorCourseListContent() {
+  const router = useRouter();
   const { accessToken, loading: authLoading } = useAuth();
   const [optionsOpen, setOptionsOpen] = useState(false);
+  const [courseFormOpen, setCourseFormOpen] = useState(false);
+  const [courseForm, setCourseForm] = useState<InstructorCoursePayload>(emptyCourseForm);
+  const [courseFormError, setCourseFormError] = useState<string | null>(null);
+  const [courseFormLoading, setCourseFormLoading] = useState(false);
 
   const {
     data: courses = [],
@@ -166,6 +197,56 @@ function InstructorCourseListContent() {
 
   const loadCourses = () => void refetchCourses();
 
+  const openCreateCourse = () => {
+    setCourseForm(emptyCourseForm);
+    setCourseFormError(null);
+    setCourseFormOpen(true);
+  };
+
+  const saveCourse = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!accessToken) {
+      setCourseFormError("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+      return;
+    }
+
+    const title = courseForm.title.trim();
+    const description = courseForm.description.trim();
+    if (!title || !courseDescriptionToText(description)) {
+      setCourseFormError("Vui lòng nhập tên và mô tả khóa học.");
+      return;
+    }
+    if (courseForm.price < 0 || (courseForm.originalPrice ?? 0) < 0) {
+      setCourseFormError("Giá khóa học không được âm.");
+      return;
+    }
+
+    setCourseFormLoading(true);
+    setCourseFormError(null);
+    const payload: InstructorCoursePayload = {
+      ...courseForm,
+      title,
+      description,
+      tagline: courseForm.tagline?.trim() || null,
+      originalPrice: courseForm.originalPrice === null ? null : Number(courseForm.originalPrice),
+      price: Number(courseForm.price),
+    };
+
+    try {
+      const createdCourse = await createInstructorCourse(payload, accessToken);
+      setCourseFormOpen(false);
+      router.push(`/instructor/courses/${encodeURIComponent(createdCourse.id)}/details`);
+    } catch (cause) {
+      setCourseFormError(
+        cause instanceof ApiClientError
+          ? cause.message
+          : "Không thể tạo khóa học. Vui lòng thử lại.",
+      );
+    } finally {
+      setCourseFormLoading(false);
+    }
+  };
+
   function downloadCourseList() {
     if (courses.length === 0) return;
     const escapeCsv = (value: string) => `"${value.replaceAll('"', '""')}"`;
@@ -194,12 +275,9 @@ function InstructorCourseListContent() {
         <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-2xl font-semibold text-primary">Danh sách khóa học</h1>
           <div className="flex items-center gap-2">
-            <Link
-              href="/instructor"
-              className="focus-ring inline-flex min-h-12 items-center justify-center rounded-lg bg-primary px-6 text-sm font-semibold text-white transition hover:bg-[#159e75] active:bg-[#128763]"
-            >
+            <Button type="button" variant="primary" onClick={openCreateCourse}>
               Thêm khóa học
-            </Link>
+            </Button>
             <div className="relative">
               <button
                 type="button"
@@ -285,12 +363,9 @@ function InstructorCourseListContent() {
               <p className="mt-1 text-sm text-slate-600">
                 Tạo khóa học đầu tiên để bắt đầu chia sẻ kiến thức.
               </p>
-              <Link
-                href="/instructor"
-                className="focus-ring mt-4 inline-flex min-h-10 items-center rounded-lg bg-primary px-4 text-sm font-semibold text-white transition hover:bg-[#159e75] active:bg-[#128763]"
-              >
+              <Button type="button" variant="primary" onClick={openCreateCourse}>
                 Tạo khóa học
-              </Link>
+              </Button>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -305,6 +380,185 @@ function InstructorCourseListContent() {
           )}
         </section>
       </div>
+
+      {courseFormOpen ? (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-slate-950/40 p-3 sm:p-6">
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="course-form-title"
+            className="my-auto max-h-[94vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-slate-200 bg-white p-5 shadow-xl sm:p-7"
+          >
+            <div className="mb-5">
+              <h2 id="course-form-title" className="text-xl font-semibold text-heading">
+                Tạo khóa học mới
+              </h2>
+              <p className="mt-1 text-sm text-muted">
+                Tạo bản nháp trước, sau đó bổ sung chương và bài học.
+              </p>
+            </div>
+            <form className="space-y-4" onSubmit={saveCourse}>
+              {courseFormError ? (
+                <p
+                  role="alert"
+                  className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800"
+                >
+                  {courseFormError}
+                </p>
+              ) : null}
+              <div>
+                <label htmlFor="course-title" className="block text-sm font-medium text-slate-700">
+                  Tên khóa học <span className="text-rose-600">*</span>
+                </label>
+                <input
+                  id="course-title"
+                  required
+                  maxLength={255}
+                  value={courseForm.title}
+                  onChange={(event) =>
+                    setCourseForm((current) => ({ ...current, title: event.target.value }))
+                  }
+                  className="mt-1.5 min-h-11 w-full rounded-lg border border-slate-300 px-3 text-sm text-heading focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="course-tagline"
+                  className="block text-sm font-medium text-slate-700"
+                >
+                  Mô tả ngắn
+                </label>
+                <input
+                  id="course-tagline"
+                  maxLength={500}
+                  value={courseForm.tagline ?? ""}
+                  onChange={(event) =>
+                    setCourseForm((current) => ({ ...current, tagline: event.target.value }))
+                  }
+                  className="mt-1.5 min-h-11 w-full rounded-lg border border-slate-300 px-3 text-sm text-heading focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+              <div>
+                <p className="block text-sm font-medium text-slate-700">
+                  Mô tả khóa học <span className="text-rose-600">*</span>
+                </p>
+                <RichTextEditor
+                  label="Mô tả khóa học"
+                  value={courseForm.description}
+                  compact
+                  onChange={(description) =>
+                    setCourseForm((current) => ({ ...current, description }))
+                  }
+                />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label
+                    htmlFor="course-price"
+                    className="block text-sm font-medium text-slate-700"
+                  >
+                    Giá bán (đồng)
+                  </label>
+                  <input
+                    id="course-price"
+                    type="number"
+                    min="0"
+                    step="1000"
+                    value={courseForm.price}
+                    onChange={(event) =>
+                      setCourseForm((current) => ({
+                        ...current,
+                        price: Number(event.target.value),
+                      }))
+                    }
+                    className="mt-1.5 min-h-11 w-full rounded-lg border border-slate-300 px-3 text-sm text-heading focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="course-original-price"
+                    className="block text-sm font-medium text-slate-700"
+                  >
+                    Giá gốc (tùy chọn)
+                  </label>
+                  <input
+                    id="course-original-price"
+                    type="number"
+                    min="0"
+                    step="1000"
+                    value={courseForm.originalPrice ?? ""}
+                    onChange={(event) =>
+                      setCourseForm((current) => ({
+                        ...current,
+                        originalPrice:
+                          event.target.value === "" ? null : Number(event.target.value),
+                      }))
+                    }
+                    className="mt-1.5 min-h-11 w-full rounded-lg border border-slate-300 px-3 text-sm text-heading focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="course-level"
+                    className="block text-sm font-medium text-slate-700"
+                  >
+                    Trình độ
+                  </label>
+                  <select
+                    id="course-level"
+                    value={courseForm.level}
+                    onChange={(event) =>
+                      setCourseForm((current) => ({
+                        ...current,
+                        level: event.target.value as InstructorCourseLevel,
+                      }))
+                    }
+                    className="mt-1.5 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-heading focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  >
+                    {Object.entries(courseLevelLabels).map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label
+                    htmlFor="course-language"
+                    className="block text-sm font-medium text-slate-700"
+                  >
+                    Ngôn ngữ
+                  </label>
+                  <select
+                    id="course-language"
+                    value={courseForm.language}
+                    onChange={(event) =>
+                      setCourseForm((current) => ({ ...current, language: event.target.value }))
+                    }
+                    className="mt-1.5 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-heading focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  >
+                    <option value="vi">Tiếng Việt</option>
+                    <option value="en">Tiếng Anh</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex flex-col-reverse gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={courseFormLoading}
+                  onClick={() => setCourseFormOpen(false)}
+                >
+                  Hủy
+                </Button>
+                <Button type="submit" loading={courseFormLoading}>
+                  Tạo bản nháp
+                </Button>
+              </div>
+            </form>
+          </section>
+        </div>
+      ) : null}
     </InstructorWorkspaceShell>
   );
 }

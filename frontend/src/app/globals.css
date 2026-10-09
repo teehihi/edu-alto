@@ -295,6 +295,13 @@ input::-ms-clear {
     @apply focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/20 focus-visible:ring-offset-2;
   }
 
+  #lesson-form input:not([type="file"]):focus-visible,
+  #lesson-form textarea:focus-visible,
+  #lesson-form select:focus-visible,
+  #lesson-form button:focus-visible {
+    @apply outline-none ring-2 ring-primary ring-offset-0;
+  }
+
   .container-page {
     @apply mx-auto w-full max-w-7xl px-5 sm:px-6 lg:px-8;
   }
