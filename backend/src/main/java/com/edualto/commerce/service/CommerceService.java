@@ -43,12 +43,18 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
 
 @Service
 public class CommerceService {
+
+    private static final int ONLINE_PAYMENT_EXPIRY_MINUTES = 15;
+    private static final int STRIPE_PAYMENT_EXPIRY_MINUTES = 31;
+    private static final int MANUAL_PAYMENT_EXPIRY_MINUTES = 24 * 60;
+    private static final int EXPIRY_BATCH_SIZE = 100;
 
     private final CommerceRepository repository;
     private final UserService users;
@@ -176,8 +182,14 @@ public class CommerceService {
                 .map(course -> new PaymentInitCommand.ItemInfo(course.id(), course.title(), course.price()))
                 .toList();
 
-        boolean isManualReview = request.paymentMethod() == PaymentMethod.VIETQR;
-        OffsetDateTime expiresAt = promotion == null ? null : OffsetDateTime.now().plusMinutes(isManualReview ? 24 * 60 : 15);
+        boolean isManualReview = request.paymentMethod() == PaymentMethod.VIETQR
+                || (request.paymentMethod() == PaymentMethod.MOMO && !gateway.isConfigured());
+        int expiryMinutes = isManualReview
+                ? MANUAL_PAYMENT_EXPIRY_MINUTES
+                : request.paymentMethod() == PaymentMethod.STRIPE
+                        ? STRIPE_PAYMENT_EXPIRY_MINUTES
+                        : ONLINE_PAYMENT_EXPIRY_MINUTES;
+        OffsetDateTime expiresAt = OffsetDateTime.now().plusMinutes(expiryMinutes);
 
         PaymentInitCommand initCommand = new PaymentInitCommand(
                 orderId,
@@ -246,6 +258,7 @@ public class CommerceService {
                 total,
                 request.paymentMethod().name(),
                 initResult.paymentUrl(),
+                initResult.paymentForm(),
                 expiresAt,
                 initResult.instructions()
         );
@@ -256,6 +269,32 @@ public class CommerceService {
         users.requireActiveLearner(studentId);
         return repository.findOrder(orderId, studentId)
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "ORDER_NOT_FOUND", "Không tìm thấy đơn hàng"));
+    }
+
+    @Transactional
+    public OrderResponse cancelOrder(UUID studentId, UUID orderId) {
+        users.requireActiveLearner(studentId);
+        PaymentOrder payment = repository.lockPaymentOrder(orderId.toString())
+                .filter(order -> order.studentId().equals(studentId))
+                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "ORDER_NOT_FOUND", "Không tìm thấy đơn hàng"));
+
+        if ("PENDING".equals(payment.paymentStatus())
+                && ("PENDING_PAYMENT".equals(payment.orderStatus()) || "PAYMENT_REVIEW".equals(payment.orderStatus()))) {
+            repository.markPaymentFailed(orderId);
+            promotions.releaseReservation(orderId);
+        }
+
+        return repository.findOrder(orderId, studentId).orElseThrow();
+    }
+
+    @Scheduled(fixedDelay = 60_000L, initialDelay = 60_000L)
+    @Transactional
+    public void expirePendingOrders() {
+        List<UUID> expiredOrderIds = repository.lockExpiredPendingOrders(EXPIRY_BATCH_SIZE);
+        for (UUID orderId : expiredOrderIds) {
+            repository.markPaymentFailed(orderId);
+            promotions.releaseReservation(orderId);
+        }
     }
 
     @Transactional(readOnly = true)
@@ -354,6 +393,12 @@ public class CommerceService {
         }
 
         if ("PAID".equals(payment.paymentStatus()) && "PAID".equals(payment.orderStatus())) {
+            return result;
+        }
+
+        if (result.successful() && "FAILED".equals(payment.paymentStatus())
+                && "PAYMENT_FAILED".equals(payment.orderStatus())) {
+            repository.markLatePaymentReview(payment.orderId(), "PAYMENT_AFTER_ORDER_CLOSED");
             return result;
         }
 

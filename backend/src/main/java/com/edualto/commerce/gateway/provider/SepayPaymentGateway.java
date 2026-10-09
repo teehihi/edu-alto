@@ -11,6 +11,7 @@ import com.edualto.commerce.gateway.PaymentWebhookResult;
 import com.edualto.commerce.gateway.util.PaymentCryptoUtils;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
@@ -72,18 +73,22 @@ public class SepayPaymentGateway implements PaymentGateway {
         fields.put("order_invoice_number", orderIdStr);
         fields.put("payment_method", "BANK_TRANSFER");
         if (properties.successUrl() != null && !properties.successUrl().isBlank()) {
-            fields.put("success_url", properties.successUrl() + (properties.successUrl().contains("?") ? "&" : "?") + "order_id=" + orderIdStr);
+            fields.put("success_url", callbackUrl(properties.successUrl(), orderIdStr, "success"));
         }
         if (properties.errorUrl() != null && !properties.errorUrl().isBlank()) {
-            fields.put("error_url", properties.errorUrl() + (properties.errorUrl().contains("?") ? "&" : "?") + "order_id=" + orderIdStr);
+            fields.put("error_url", callbackUrl(properties.errorUrl(), orderIdStr, "failed"));
         }
         if (properties.cancelUrl() != null && !properties.cancelUrl().isBlank()) {
-            fields.put("cancel_url", properties.cancelUrl() + (properties.cancelUrl().contains("?") ? "&" : "?") + "order_id=" + orderIdStr);
+            fields.put("cancel_url", callbackUrl(properties.cancelUrl(), orderIdStr, "cancelled"));
         }
         fields.put("signature", signSePayPg(fields));
 
-        String checkoutUrl = properties.checkoutUrl() + "?" + PaymentCryptoUtils.toQueryString(fields);
-        return PaymentInitResult.online(checkoutUrl);
+        return PaymentInitResult.formPost(properties.checkoutUrl(), fields);
+    }
+
+    private static String callbackUrl(String baseUrl, String orderId, String paymentResult) {
+        String separator = baseUrl.contains("?") ? "&" : "?";
+        return baseUrl + separator + "order_id=" + orderId + "&payment_result=" + paymentResult;
     }
 
     private PaymentInitResult initializeVietQr(PaymentInitCommand command) {
@@ -240,12 +245,18 @@ public class SepayPaymentGateway implements PaymentGateway {
 
     private static long parseAmount(Object value) {
         if (value instanceof Number n) {
-            return n.longValue();
+            try {
+                return new BigDecimal(n.toString()).setScale(0, RoundingMode.UNNECESSARY).longValueExact();
+            } catch (NumberFormatException | ArithmeticException ignored) {
+                return 0L;
+            }
         }
         if (value instanceof String s) {
             try {
-                return Long.parseLong(s.replace(",", "").replace(".", "").trim());
-            } catch (NumberFormatException ignored) {
+                return new BigDecimal(s.replace(",", "").trim())
+                        .setScale(0, RoundingMode.UNNECESSARY)
+                        .longValueExact();
+            } catch (NumberFormatException | ArithmeticException ignored) {
             }
         }
         return 0L;

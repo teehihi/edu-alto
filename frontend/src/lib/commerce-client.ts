@@ -10,6 +10,7 @@ export type CheckoutOrder = {
   expiresAt: string | null;
   paymentMethod: PaymentMethod;
   paymentUrl: string | null;
+  paymentForm: { action: string; fields: { name: string; value: string }[] } | null;
   instructions: PaymentInstructions | null;
 };
 
@@ -54,6 +55,11 @@ export type OrderDetails = {
   }[];
 };
 
+export function formatOrderCode(orderId: string) {
+  const compactId = orderId.replace(/-/g, "").slice(0, 16).toUpperCase();
+  return `EDUA-${compactId}`;
+}
+
 export async function createCheckoutOrder(
   accessToken: string,
   courseIds: string[],
@@ -75,4 +81,11 @@ export async function createCheckoutOrder(
 
 export async function fetchOrderDetails(accessToken: string, orderId: string) {
   return apiRequest<OrderDetails>(`/me/orders/${encodeURIComponent(orderId)}`, { accessToken });
+}
+
+export async function cancelCheckoutOrder(accessToken: string, orderId: string) {
+  return apiRequest<OrderDetails>(`/me/orders/${encodeURIComponent(orderId)}/cancel`, {
+    method: "POST",
+    accessToken,
+  });
 }

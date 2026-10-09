@@ -20,6 +20,7 @@ import {
   type PaymentReviewOrder,
 } from "@/lib/admin-commerce-client";
 import type { PageResult } from "@/lib/api";
+import { formatOrderCode } from "@/lib/commerce-client";
 
 const pageSize = 20;
 
@@ -98,7 +99,7 @@ export function AdminPaymentsPage() {
       const confirmedOrder = await confirmManualPayment(token, orderId, receiptReference);
       if (confirmedOrder.status === "PAYMENT_REVIEW") {
         setActionError(
-          "Thời hạn giữ chỗ đã hết. Đơn được chuyển sang trạng thái cần xác minh; hãy kiểm tra giao dịch rồi xác nhận lại.",
+          "Đơn hàng đã hết hạn. Hãy kiểm tra khoản tiền thực nhận rồi xác minh giao dịch trước khi xác nhận.",
         );
         await loadOrders();
         return;
@@ -236,14 +237,16 @@ export function AdminPaymentsPage() {
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <h2 className="break-all text-sm font-bold text-ink">Đơn {order.orderId}</h2>
+                      <h2 className="break-all font-mono text-sm font-bold tracking-wide text-ink">
+                        Đơn {formatOrderCode(order.orderId)}
+                      </h2>
                       <p className="mt-1 text-xs text-muted">
                         {order.studentName} · {paymentMethodLabel(order.paymentMethod)} ·{" "}
                         {formatDate(order.createdAt)}
                       </p>
                       {order.expiresAt ? (
                         <p className="mt-1 text-xs text-muted">
-                          Hạn giữ ưu đãi: {formatDate(order.expiresAt)}
+                          Hạn thanh toán: {formatDate(order.expiresAt)}
                         </p>
                       ) : null}
                     </div>
@@ -266,7 +269,9 @@ export function AdminPaymentsPage() {
                     <p className="mt-3 rounded-lg border border-orange-200 bg-orange-50 p-3 text-sm text-orange-900">
                       {order.paymentReviewReason === "PROMOTION_RESERVATION_EXPIRED"
                         ? "Ưu đãi đã hết hạn giữ chỗ khi hệ thống nhận được xác nhận thanh toán. Hãy kiểm tra giao dịch thực tế và nhập mã tham chiếu trước khi ghi nhận đã nhận tiền."
-                        : "Giao dịch cần được kiểm tra thủ công trước khi ghi nhận đã nhận tiền."}
+                        : order.paymentReviewReason === "PAYMENT_AFTER_ORDER_CLOSED"
+                          ? "Cổng thanh toán báo đã nhận tiền sau khi đơn hàng đã bị hủy hoặc hết hạn. Hãy đối chiếu giao dịch thực tế và nhập mã tham chiếu trước khi ghi nhận đã nhận tiền."
+                          : "Giao dịch cần được kiểm tra thủ công trước khi ghi nhận đã nhận tiền."}
                     </p>
                   ) : null}
                   <form
@@ -277,7 +282,7 @@ export function AdminPaymentsPage() {
                     }}
                   >
                     <label className="sr-only" htmlFor={`receipt-${order.orderId}`}>
-                      Mã tham chiếu biên nhận cho đơn {order.orderId}
+                      Mã tham chiếu biên nhận cho đơn {formatOrderCode(order.orderId)}
                     </label>
                     <input
                       id={`receipt-${order.orderId}`}

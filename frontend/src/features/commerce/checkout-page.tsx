@@ -7,18 +7,20 @@ import {
   Check,
   ChevronRight,
   Copy,
-  CreditCard,
   Download,
   LoaderCircle,
   LockKeyhole,
   Percent,
-  QrCode,
   ShieldCheck,
-  Zap,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createCheckoutOrder, type CheckoutOrder, type PaymentMethod } from "@/lib/commerce-client";
+import {
+  createCheckoutOrder,
+  formatOrderCode,
+  type CheckoutOrder,
+  type PaymentMethod,
+} from "@/lib/commerce-client";
 import { AppHeader } from "@/components/layout/app-header";
 import { Footer } from "@/components/layout/footer";
 import { readCart, type CartCourse } from "@/lib/cart";
@@ -27,6 +29,24 @@ import { formatVND } from "@/lib/format";
 import { useAuthSession } from "@/lib/auth-session";
 import { cn } from "@/lib/cn";
 import { InstructorPurchaseNotice } from "@/features/commerce/instructor-purchase-notice";
+
+function submitPaymentForm(action: string, fields: { name: string; value: string }[]) {
+  const form = document.createElement("form");
+  form.method = "POST";
+  form.action = action;
+  form.hidden = true;
+
+  for (const { name, value } of fields) {
+    const input = document.createElement("input");
+    input.type = "hidden";
+    input.name = name;
+    input.value = value;
+    form.append(input);
+  }
+
+  document.body.append(form);
+  form.submit();
+}
 
 export function CheckoutPage() {
   const { user, isLoading: authLoading, getAccessToken } = useAuthSession();
@@ -64,21 +84,7 @@ export function CheckoutPage() {
   const isInstructor =
     user?.roles.some((role) => role === "INSTRUCTOR" || role === "ROLE_INSTRUCTOR") ?? false;
 
-  if (authLoading) {
-    return (
-      <div className="flex min-h-screen flex-col bg-[#f8fafc]">
-        <AppHeader transparent height="checkout" />
-        <main className="grid min-h-[610px] flex-1 place-items-center px-5 py-8">
-          <p role="status" className="text-sm text-muted">
-            Đang kiểm tra tài khoản...
-          </p>
-        </main>
-        <Footer />
-      </div>
-    );
-  }
-
-  if (isInstructor) {
+  if (!authLoading && isInstructor) {
     return (
       <div className="flex min-h-screen flex-col bg-[#f8fafc]">
         <AppHeader transparent height="checkout" />
@@ -113,7 +119,7 @@ export function CheckoutPage() {
               </span>
             </nav>
           </div>
-          {!isMounted ? (
+          {!isMounted || authLoading ? (
             <div className="mt-6 grid items-start gap-8 lg:gap-10 lg:grid-cols-[minmax(0,1fr)_400px]">
               <div className="rounded-2xl border border-slate-200/90 bg-white p-6 sm:p-8 shadow-xs animate-pulse space-y-6">
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -153,6 +159,10 @@ export function CheckoutPage() {
                       phoneNumber,
                       promotionCode,
                     );
+                    if (order.paymentForm) {
+                      submitPaymentForm(order.paymentForm.action, order.paymentForm.fields);
+                      return;
+                    }
                     if (order.paymentUrl) {
                       window.location.assign(order.paymentUrl);
                       return;
@@ -225,43 +235,23 @@ export function CheckoutPage() {
                   <div className="mt-3 space-y-2.5">
                     {(
                       [
-                        [
-                          "VNPAY",
-                          "VNPay Sandbox",
-                          "Cổng thanh toán trực tuyến ATM / QR",
-                          "Sandbox",
-                          "border-sky-200 bg-sky-50 text-sky-700",
-                        ],
-                        [
-                          "MOMO",
-                          "MoMo",
-                          "Ví điện tử MoMo cá nhân hoặc cổng đối tác",
-                          "Ví điện tử",
-                          "border-pink-200 bg-pink-50 text-pink-700",
-                        ],
+                        ["VNPAY", "VNPay", "Cổng thanh toán trực tuyến ATM / QR", "Sandbox"],
+                        ["MOMO", "MoMo", "Ví điện tử MoMo cá nhân hoặc cổng đối tác", "Ví điện tử"],
                         [
                           "SEPAY",
                           "SePay · Quét mã QR",
                           "Tự động kích hoạt sau chuyển khoản qua ngân hàng",
                           "Tự động 24/7",
-                          "border-emerald-200 bg-emerald-50 text-emerald-700",
                         ],
-                        [
-                          "STRIPE",
-                          "Stripe",
-                          "Thẻ quốc tế Visa, MasterCard, JCB",
-                          "Quốc tế",
-                          "border-indigo-200 bg-indigo-50 text-indigo-700",
-                        ],
+                        ["STRIPE", "Stripe", "Thẻ quốc tế Visa, MasterCard, JCB", "Quốc tế"],
                         [
                           "VIETQR",
                           "VietQR · Chuyển khoản ngân hàng",
                           "Chuyển khoản thủ công chờ đối soát",
                           "Thủ công",
-                          "border-slate-200 bg-slate-100 text-slate-700",
                         ],
                       ] as const
-                    ).map(([method, label, detail, badge, badgeClass]) => (
+                    ).map(([method, label, detail, badge]) => (
                       <label
                         key={method}
                         className={cn(
@@ -284,46 +274,55 @@ export function CheckoutPage() {
                           className="h-5 w-5 shrink-0 appearance-none rounded-full border-2 border-slate-300 bg-white transition-colors checked:border-primary checked:bg-[radial-gradient(circle,#20b486_0_45%,white_48%)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-2"
                         />
                         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                          <div className="flex flex-wrap items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                             <span className="text-sm font-semibold text-heading">{label}</span>
-                            <span
-                              className={cn(
-                                "inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-medium leading-none",
-                                badgeClass,
-                              )}
-                            >
+                            <span className="inline-flex h-5 shrink-0 items-center whitespace-nowrap rounded-full bg-slate-100 px-2 text-[11px] font-medium leading-none text-slate-600">
                               {badge}
                             </span>
                           </div>
                           <span className="text-xs text-muted">{detail}</span>
                         </div>
-                        <div className="shrink-0 flex items-center justify-center">
+                        <div className="relative h-7 w-24 shrink-0">
                           {method === "VNPAY" ? (
                             <Image
                               src="/images/payment/vnpay-logo.svg"
                               alt="VNPay"
-                              width={66}
-                              height={20}
+                              fill
+                              sizes="96px"
+                              className="object-contain object-right"
                             />
                           ) : method === "MOMO" ? (
                             <Image
                               src="/images/payment/momo-logo.png"
                               alt="MoMo"
-                              width={24}
-                              height={24}
+                              fill
+                              sizes="96px"
+                              className="object-contain object-right"
                             />
                           ) : method === "SEPAY" ? (
-                            <Zap
-                              className="h-[22px] w-[22px] text-emerald-600"
-                              aria-hidden="true"
+                            <Image
+                              src="/images/payment/sepay-logo.svg"
+                              alt="SePay"
+                              fill
+                              sizes="96px"
+                              className="object-contain object-right"
                             />
                           ) : method === "STRIPE" ? (
-                            <CreditCard
-                              className="h-[22px] w-[22px] text-indigo-500"
-                              aria-hidden="true"
+                            <Image
+                              src="/images/payment/Stripe%20wordmark%20-%20Blurple.svg"
+                              alt="Stripe"
+                              fill
+                              sizes="96px"
+                              className="object-contain object-right"
                             />
                           ) : (
-                            <QrCode className="h-[22px] w-[22px] text-primary" aria-hidden="true" />
+                            <Image
+                              src="/images/payment/VietQR_Logo.svg"
+                              alt="VietQR"
+                              fill
+                              sizes="96px"
+                              className="object-contain object-right"
+                            />
                           )}
                         </div>
                       </label>
@@ -495,7 +494,7 @@ function ManualPaymentInstructions({
   const [copiedAccount, setCopiedAccount] = useState(false);
 
   if (!details) return null;
-  const reservationDeadline = order.expiresAt
+  const paymentDeadline = order.expiresAt
     ? new Intl.DateTimeFormat("vi-VN", {
         dateStyle: "medium",
         timeStyle: "short",
@@ -521,7 +520,7 @@ function ManualPaymentInstructions({
     if (!details.qrUrl) return;
     const link = document.createElement("a");
     link.href = details.qrUrl;
-    link.download = `vietqr-${order.orderId}.png`;
+    link.download = `vietqr-${formatOrderCode(order.orderId)}.png`;
     link.target = "_blank";
     document.body.appendChild(link);
     link.click();
@@ -548,9 +547,10 @@ function ManualPaymentInstructions({
               ? "Quét mã QR và chuyển khoản đúng số tiền, nội dung bên dưới. Khóa học sẽ tự động mở ngay sau khi SePay ghi nhận giao dịch thành công."
               : "Chuyển đúng số tiền và nhập mã đơn hàng ở nội dung. Khóa học sẽ mở sau khi quản trị viên xác nhận giao dịch."}
           </p>
-          {reservationDeadline ? (
+          {paymentDeadline ? (
             <p className="mt-1 text-xs font-medium text-amber-800">
-              Vui lòng chuyển khoản trước {reservationDeadline} để giữ mức giảm giá.
+              Vui lòng hoàn tất thanh toán trước {paymentDeadline}; sau thời điểm này đơn hàng sẽ tự
+              hủy.
             </p>
           ) : null}
         </div>
@@ -594,10 +594,8 @@ function ManualPaymentInstructions({
           copied={copiedContent}
           highlight
         />
-        <PaymentDetail label="Mã đơn hàng" value={order.orderId} />
-        {reservationDeadline ? (
-          <PaymentDetail label="Hạn chuyển khoản" value={reservationDeadline} />
-        ) : null}
+        <PaymentDetail label="Mã đơn hàng" value={formatOrderCode(order.orderId)} />
+        {paymentDeadline ? <PaymentDetail label="Hạn thanh toán" value={paymentDeadline} /> : null}
       </dl>
 
       <div className="mt-5 flex flex-wrap items-center gap-2.5 border-t border-emerald-100 pt-3">

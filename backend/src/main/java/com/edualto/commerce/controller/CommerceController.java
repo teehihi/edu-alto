@@ -50,6 +50,15 @@ public class CommerceController {
         return ApiResponse.ok(commerce.getOrder(principal.id(), orderId));
     }
 
+    @PostMapping("/me/orders/{orderId}/cancel")
+    @Operation(summary = "Hủy đơn hàng thanh toán đang chờ")
+    public ApiResponse<OrderResponse> cancelOrder(
+            @AuthenticationPrincipal AuthenticatedUser principal,
+            @PathVariable UUID orderId
+    ) {
+        return ApiResponse.ok(commerce.cancelOrder(principal.id(), orderId));
+    }
+
     @GetMapping(value = "/payments/vnpay/ipn", produces = MediaType.APPLICATION_JSON_VALUE)
     public Map<String, String> vnpayIpn(HttpServletRequest request) {
         Map<String, String> parameters = request.getParameterMap().entrySet().stream()

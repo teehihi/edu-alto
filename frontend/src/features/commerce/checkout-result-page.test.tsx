@@ -1,11 +1,14 @@
 import { act, render, screen } from "@testing-library/react";
 import { CheckoutResultPage } from "./checkout-result-page";
 
-const { fetchOrderMock, getAccessTokenMock, removeFromCartMock } = vi.hoisted(() => ({
-  fetchOrderMock: vi.fn(),
-  getAccessTokenMock: vi.fn(),
-  removeFromCartMock: vi.fn(),
-}));
+const { cancelOrderMock, fetchOrderMock, getAccessTokenMock, removeFromCartMock } = vi.hoisted(
+  () => ({
+    cancelOrderMock: vi.fn(),
+    fetchOrderMock: vi.fn(),
+    getAccessTokenMock: vi.fn(),
+    removeFromCartMock: vi.fn(),
+  }),
+);
 
 vi.mock("next/navigation", () => {
   const router = { replace: vi.fn() };
@@ -18,7 +21,12 @@ vi.mock("@/lib/auth-session", () => {
   const user = { id: "student-1" };
   return { useAuthSession: () => ({ user, isLoading: false, getAccessToken: getAccessTokenMock }) };
 });
-vi.mock("@/lib/commerce-client", () => ({ fetchOrderDetails: fetchOrderMock }));
+vi.mock("@/lib/commerce-client", () => ({
+  cancelCheckoutOrder: cancelOrderMock,
+  fetchOrderDetails: fetchOrderMock,
+  formatOrderCode: (orderId: string) =>
+    `EDUA-${orderId.replace(/-/g, "").slice(0, 16).toUpperCase()}`,
+}));
 vi.mock("@/lib/cart", () => ({ removeCourseFromCart: removeFromCartMock }));
 
 const order = {

@@ -2,11 +2,19 @@ package com.edualto.commerce.dto;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 public record OrderCreatedResponse(UUID orderId, String status, String currency, BigDecimal subtotal,
                                    BigDecimal discountTotal, BigDecimal total, String paymentMethod, String paymentUrl,
-                                   OffsetDateTime expiresAt, ManualPaymentInstructions instructions) {
+                                   PaymentForm paymentForm, OffsetDateTime expiresAt,
+                                   ManualPaymentInstructions instructions) {
+    public record PaymentForm(String action, List<PaymentFormField> fields) {
+    }
+
+    public record PaymentFormField(String name, String value) {
+    }
+
     public record ManualPaymentInstructions(String kind, String recipientName, String bankName,
                                             String accountNumber, String walletPhone, BigDecimal amount,
                                             String transferReference, String qrUrl) {

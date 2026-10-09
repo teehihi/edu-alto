@@ -103,6 +103,27 @@ public class CommerceRepository {
         jdbc.update("update orders set status = 'PAYMENT_FAILED', updated_at = current_timestamp where id = ? and status in ('PENDING_PAYMENT', 'PAYMENT_REVIEW')", orderId);
     }
 
+    public List<UUID> lockExpiredPendingOrders(int limit) {
+        return jdbc.query("""
+                select o.id
+                from orders o
+                join payments p on p.order_id = o.id
+                where o.status in ('PENDING_PAYMENT', 'PAYMENT_REVIEW')
+                  and p.status = 'PENDING'
+                  and o.expires_at is not null
+                  and o.expires_at <= current_timestamp
+                order by o.expires_at, o.id
+                limit ?
+                for update of p, o skip locked
+                """, (rs, rowNum) -> rs.getObject("id", UUID.class), limit);
+    }
+
+    public void markLatePaymentReview(UUID orderId, String reason) {
+        jdbc.update("update payments set status='REVIEW',updated_at=current_timestamp where order_id=? and status='FAILED'", orderId);
+        jdbc.update("update orders set status='PAYMENT_REVIEW',payment_review_reason=?,updated_at=current_timestamp where id=? and status='PAYMENT_FAILED'",
+                reason, orderId);
+    }
+
     public void markPaymentReview(UUID orderId, String reason) {
         jdbc.update("update payments set status='REVIEW',updated_at=current_timestamp where order_id=? and status='PENDING'", orderId);
         jdbc.update("update orders set status='PAYMENT_REVIEW',payment_review_reason=?,updated_at=current_timestamp where id=? and status in ('PENDING_PAYMENT','PAYMENT_REVIEW')",

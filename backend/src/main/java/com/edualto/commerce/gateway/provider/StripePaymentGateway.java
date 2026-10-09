@@ -67,6 +67,9 @@ public class StripePaymentGateway implements PaymentGateway {
         formParams.put("mode", "payment");
         formParams.put("client_reference_id", orderId);
         formParams.put("metadata[order_id]", orderId);
+        if (command.expiresAt() != null) {
+            formParams.put("expires_at", Long.toString(command.expiresAt().toEpochSecond()));
+        }
         formParams.put("success_url", successUrl);
         formParams.put("cancel_url", cancelUrl);
         formParams.put("line_items[0][price_data][currency]", "vnd");

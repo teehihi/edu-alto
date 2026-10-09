@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -162,9 +161,10 @@ class CommerceServiceTest {
         assertThat(response.paymentUrl()).isNull();
         assertThat(response.instructions().walletPhone()).isEqualTo("0389037546");
         assertThat(response.instructions().transferReference()).startsWith("EA");
+        assertThat(response.expiresAt()).isAfter(OffsetDateTime.now().plusHours(23));
         verify(repository).insertOrder(any(UUID.class), eq(studentId), eq("0931652105"),
                 eq(new BigDecimal("250000")), eq(BigDecimal.ZERO), eq(new BigDecimal("250000")),
-                eq("PAYMENT_REVIEW"), anyString(), isNull());
+                eq("PAYMENT_REVIEW"), anyString(), any(OffsetDateTime.class));
         verify(repository, never()).markPaymentPaid(any(), any());
     }
 
