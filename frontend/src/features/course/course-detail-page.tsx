@@ -2,8 +2,9 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import { EnsureQueryClient } from "@/lib/query-provider";
 import {
@@ -13,6 +14,7 @@ import {
   Clock,
   GraduationCap,
   LoaderCircle,
+  PackageCheck,
   Play,
   PlayCircle,
   Star,
@@ -25,8 +27,9 @@ import { UserAvatar } from "@/components/ui/user-avatar";
 import { ApiClientError } from "@/lib/api";
 import { useAuthSession } from "@/lib/auth-session";
 import { enrollInCourse } from "@/lib/learning-client";
-import { addCourseToCart } from "@/lib/cart";
+import { addCourseToCart, type CartCourse } from "@/lib/cart";
 import { CourseReviewSection } from "@/features/course/course-review-section";
+import { CourseTestimonialsSection } from "@/features/course/course-testimonials-section";
 import { CourseCurriculumSection } from "@/features/course/course-curriculum-section";
 import { cn } from "@/lib/cn";
 import { sanitizeCourseDescription } from "@/lib/course-description";
@@ -175,6 +178,233 @@ function CourseThumbnail({
   );
 }
 
+type CourseCartFlightState = {
+  course: CartCourse;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  deltaX: number;
+  deltaY: number;
+};
+
+function CourseCartFlight({
+  flight,
+  onComplete,
+}: {
+  flight: CourseCartFlightState;
+  onComplete: (flight: CourseCartFlightState) => void;
+}) {
+  const flightRef = useRef<HTMLDivElement>(null);
+  const coreRef = useRef<HTMLDivElement>(null);
+  const trailRef = useRef<SVGSVGElement>(null);
+  const onCompleteRef = useRef(onComplete);
+  const trailGradientId = `cart-rocket-trail-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
+
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
+
+  useEffect(() => {
+    const element = flightRef.current;
+    const core = coreRef.current;
+    const trail = trailRef.current;
+    if (!element || !core || !trail) return;
+
+    const duration = 980;
+    const distance = Math.hypot(flight.deltaX, flight.deltaY);
+    const arcLift = Math.min(110, Math.max(38, distance * 0.14));
+    const circleScaleX = flight.height / flight.width;
+
+    const travelAnimation = element.animate(
+      [
+        { offset: 0, transform: "translate3d(0, 0, 0)", opacity: 1 },
+        { offset: 0.35, transform: "translate3d(0, 0, 0)", opacity: 1 },
+        {
+          offset: 0.63,
+          transform: `translate3d(${flight.deltaX * 0.35}px, ${flight.deltaY * 0.35 - arcLift}px, 0)`,
+          opacity: 1,
+        },
+        {
+          offset: 0.84,
+          transform: `translate3d(${flight.deltaX * 0.72}px, ${flight.deltaY * 0.72 - arcLift * 0.52}px, 0)`,
+          opacity: 0.96,
+        },
+        {
+          offset: 1,
+          transform: `translate3d(${flight.deltaX}px, ${flight.deltaY}px, 0)`,
+          opacity: 0,
+        },
+      ],
+      { duration, easing: "cubic-bezier(0.18, 0.72, 0.24, 1)", fill: "forwards" },
+    );
+
+    const packingAnimation = core.animate(
+      [
+        {
+          offset: 0,
+          transform: "scaleX(1) scaleY(1) rotate(0deg)",
+          borderRadius: "12px",
+          filter: "drop-shadow(0 8px 16px rgba(16, 26, 44, 0.16))",
+        },
+        {
+          offset: 0.2,
+          transform: `scaleX(${circleScaleX}) scaleY(1) rotate(-8deg)`,
+          borderRadius: "50%",
+          filter: "drop-shadow(0 0 18px rgba(32, 180, 134, 0.42))",
+        },
+        {
+          offset: 0.35,
+          transform: `scaleX(${circleScaleX * 0.16}) scaleY(0.16) rotate(16deg)`,
+          borderRadius: "50%",
+          filter: "drop-shadow(0 0 18px rgba(244, 134, 109, 0.8))",
+        },
+        {
+          offset: 0.88,
+          transform: `scaleX(${circleScaleX * 0.16}) scaleY(0.16) rotate(16deg)`,
+          borderRadius: "50%",
+          filter: "drop-shadow(0 0 12px rgba(245, 195, 77, 0.9))",
+          opacity: 1,
+        },
+        {
+          offset: 1,
+          transform: `scaleX(${circleScaleX * 0.12}) scaleY(0.12) rotate(16deg)`,
+          borderRadius: "50%",
+          filter: "drop-shadow(0 0 4px rgba(245, 195, 77, 0.4))",
+          opacity: 0.2,
+        },
+      ],
+      { duration, easing: "cubic-bezier(0.2, 0.75, 0.25, 1)", fill: "forwards" },
+    );
+
+    const trailAnimation = trail.animate(
+      [
+        { opacity: 0, transform: "scaleX(0.15)" },
+        { offset: 0.18, opacity: 0.9, transform: "scaleX(1)" },
+        { offset: 0.68, opacity: 0.82, transform: "scaleX(0.82)" },
+        { opacity: 0, transform: "scaleX(0.28)" },
+      ],
+      {
+        duration: 650,
+        delay: 300,
+        easing: "cubic-bezier(0.2, 0.7, 0.3, 1)",
+        fill: "forwards",
+      },
+    );
+
+    travelAnimation.onfinish = () => onCompleteRef.current(flight);
+
+    return () => {
+      travelAnimation.cancel();
+      packingAnimation.cancel();
+      trailAnimation.cancel();
+    };
+  }, [flight, flight.deltaX, flight.deltaY, flight.height, flight.width]);
+
+  const angle = (Math.atan2(flight.deltaY, flight.deltaX) * 180) / Math.PI;
+  const distance = Math.hypot(flight.deltaX, flight.deltaY);
+  const trailLength = Math.min(260, Math.max(90, distance * 0.38));
+  const trailStartX = flight.width / 2 - Math.cos((angle * Math.PI) / 180) * trailLength;
+  const trailStartY = flight.height / 2 - Math.sin((angle * Math.PI) / 180) * trailLength;
+
+  return createPortal(
+    <div
+      ref={flightRef}
+      aria-hidden="true"
+      className="pointer-events-none fixed z-[10000] will-change-transform"
+      style={{ left: flight.left, top: flight.top, width: flight.width, height: flight.height }}
+    >
+      <svg
+        ref={trailRef}
+        className="pointer-events-none absolute inset-0 z-0 overflow-visible opacity-0"
+        width={flight.width}
+        height={flight.height}
+        aria-hidden="true"
+      >
+        <defs>
+          <linearGradient
+            id={trailGradientId}
+            x1={trailStartX}
+            y1={trailStartY}
+            x2={flight.width / 2}
+            y2={flight.height / 2}
+            gradientUnits="userSpaceOnUse"
+          >
+            <stop offset="0" stopColor="#F4866D" stopOpacity="0" />
+            <stop offset="0.55" stopColor="#F5C34D" stopOpacity="0.68" />
+            <stop offset="1" stopColor="#FFFFFF" stopOpacity="0.96" />
+          </linearGradient>
+        </defs>
+        <line
+          x1={trailStartX}
+          y1={trailStartY}
+          x2={flight.width / 2}
+          y2={flight.height / 2}
+          stroke={`url(#${trailGradientId})`}
+          strokeWidth={Math.max(9, Math.min(flight.height * 0.07, 18))}
+          strokeLinecap="round"
+          opacity="0.85"
+          style={{ filter: "blur(4px)" }}
+        />
+        <line
+          x1={trailStartX}
+          y1={trailStartY}
+          x2={flight.width / 2}
+          y2={flight.height / 2}
+          stroke="#FFFFFF"
+          strokeOpacity="0.72"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+      </svg>
+      <div
+        ref={coreRef}
+        className="absolute inset-0 z-10 overflow-hidden rounded-xl border-2 border-primary/60 bg-gradient-to-br from-[#E6F7F2] to-[#D5F2E8] shadow-xl will-change-transform"
+      >
+        {flight.course.thumbnailUrl ? (
+          <Image
+            unoptimized
+            src={flight.course.thumbnailUrl}
+            alt=""
+            fill
+            sizes="356px"
+            className="object-cover"
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center text-primary">
+            <BookOpen className="h-10 w-10" aria-hidden="true" />
+          </div>
+        )}
+        <span className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-lg bg-white/95 text-primary shadow-md">
+          <PackageCheck className="h-4 w-4" aria-hidden="true" />
+        </span>
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/80 to-transparent px-2 pb-2 pt-6">
+          <p className="truncate text-left text-xs font-semibold text-white">
+            {flight.course.title}
+          </p>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+function findVisibleCartTarget() {
+  return Array.from(document.querySelectorAll<HTMLElement>("[data-cart-target='true']")).find(
+    (element) => {
+      const rect = element.getBoundingClientRect();
+      const style = window.getComputedStyle(element);
+      return (
+        rect.width > 0 &&
+        rect.height > 0 &&
+        rect.bottom > 0 &&
+        rect.top < window.innerHeight &&
+        style.visibility !== "hidden"
+      );
+    },
+  );
+}
+
 export function CourseDetailPage(props: { slug: string }) {
   return (
     <EnsureQueryClient>
@@ -195,8 +425,12 @@ function CourseDetailPageInner({ slug }: { slug: string }) {
   const [enrollmentMessage, setEnrollmentMessage] = useState("");
   const [cartMessage, setCartMessage] = useState("");
   const [cartActionAnimating, setCartActionAnimating] = useState(false);
+  const [addingToCart, setAddingToCart] = useState(false);
+  const [cartFlight, setCartFlight] = useState<CourseCartFlightState | null>(null);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const courseThumbnailRef = useRef<HTMLDivElement>(null);
+  const cartFlightRef = useRef<CourseCartFlightState | null>(null);
   const cartAnimationTimeoutRef = useRef<number | null>(null);
   const copyTimeoutRef = useRef<number | null>(null);
   const buyNowTimeoutRef = useRef<number | null>(null);
@@ -336,19 +570,22 @@ function CourseDetailPageInner({ slug }: { slug: string }) {
     }
   }
 
-  function addToCart() {
-    if (!course || isAuthLoading || isInstructor) return;
-    addCourseToCart({
-      id: course.id,
-      slug: course.slug,
-      title: course.title,
-      price: course.price,
-      thumbnailUrl: course.thumbnailUrl,
-      instructorName: course.instructor?.fullName ?? "Giảng viên EduAlto",
-      lessonCount: lessons.length,
-      durationSeconds: totalSeconds,
-    });
+  const completeCartAddition = useCallback((courseToAdd: CartCourse) => {
+    addCourseToCart(courseToAdd);
+    const cartTarget = findVisibleCartTarget();
+    if (cartTarget && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      cartTarget.animate(
+        [
+          { transform: "scale(1)" },
+          { offset: 0.4, transform: "scale(1.18) rotate(-7deg)" },
+          { offset: 0.72, transform: "scale(0.94) rotate(4deg)" },
+          { transform: "scale(1) rotate(0deg)" },
+        ],
+        { duration: 420, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" },
+      );
+    }
     setCartMessage("Đã thêm khóa học vào giỏ hàng.");
+    setAddingToCart(false);
     setCartActionAnimating(true);
     if (cartAnimationTimeoutRef.current !== null) {
       window.clearTimeout(cartAnimationTimeoutRef.current);
@@ -357,6 +594,58 @@ function CourseDetailPageInner({ slug }: { slug: string }) {
       setCartActionAnimating(false);
       cartAnimationTimeoutRef.current = null;
     }, 550);
+  }, []);
+
+  const finishCartFlight = useCallback(
+    (finishedFlight: CourseCartFlightState) => {
+      const flight = cartFlightRef.current;
+      if (!flight || flight !== finishedFlight) return;
+      cartFlightRef.current = null;
+      setCartFlight(null);
+      completeCartAddition(flight.course);
+    },
+    [completeCartAddition],
+  );
+
+  function handleAddToCart() {
+    if (!course || isAuthLoading || isInstructor || addingToCart) return;
+    const courseToAdd: CartCourse = {
+      id: course.id,
+      slug: course.slug,
+      title: course.title,
+      price: course.price,
+      thumbnailUrl: course.thumbnailUrl,
+      instructorName: course.instructor?.fullName ?? "Giảng viên EduAlto",
+      lessonCount: lessons.length,
+      durationSeconds: totalSeconds,
+    };
+    setCartMessage("");
+
+    const sourceRect = courseThumbnailRef.current?.getBoundingClientRect();
+    const targetRect = findVisibleCartTarget()?.getBoundingClientRect();
+    if (
+      !sourceRect ||
+      !targetRect ||
+      sourceRect.width === 0 ||
+      sourceRect.height === 0 ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      completeCartAddition(courseToAdd);
+      return;
+    }
+
+    const flight: CourseCartFlightState = {
+      course: courseToAdd,
+      left: sourceRect.left,
+      top: sourceRect.top,
+      width: sourceRect.width,
+      height: sourceRect.height,
+      deltaX: targetRect.left + targetRect.width / 2 - (sourceRect.left + sourceRect.width / 2),
+      deltaY: targetRect.top + targetRect.height / 2 - (sourceRect.top + sourceRect.height / 2),
+    };
+    cartFlightRef.current = flight;
+    setAddingToCart(true);
+    setCartFlight(flight);
   }
 
   function buyNow() {
@@ -393,11 +682,15 @@ function CourseDetailPageInner({ slug }: { slug: string }) {
     <div suppressHydrationWarning className="min-h-screen bg-white text-heading antialiased">
       <div className="bg-gradient-to-b from-[#E6F7F2] via-[#F2FAF7] to-white">
         <AppHeader transparent />
+        {cartFlight ? <CourseCartFlight flight={cartFlight} onComplete={finishCartFlight} /> : null}
         <main>
           {loading ? (
-            <div role="status" className="mx-auto min-h-[480px] max-w-7xl px-6 py-16">
-              <p className="text-muted">Đang tải khóa học…</p>
-              <div className="mt-8 h-14 w-3/4 animate-pulse rounded-lg bg-primary/10" />
+            <div
+              role="status"
+              aria-label="Đang tải khóa học"
+              className="mx-auto min-h-[480px] max-w-7xl px-6 py-16"
+            >
+              <div className="h-14 w-3/4 animate-pulse rounded-lg bg-primary/10" />
               <div className="mt-6 h-40 animate-pulse rounded-lg bg-primary/5" />
             </div>
           ) : !course ? (
@@ -516,11 +809,16 @@ function CourseDetailPageInner({ slug }: { slug: string }) {
                     className="relative z-20 order-first self-start rounded-2xl border border-slate-200/90 bg-white p-6 shadow-xl ring-1 ring-black/5 lg:order-last lg:-mt-[340px]"
                     aria-label="Thông tin đăng ký khóa học"
                   >
-                    <CourseThumbnail
-                      url={course.thumbnailUrl}
-                      title={course.title}
-                      hasPreview={hasAnyPreview}
-                    />
+                    <div
+                      ref={courseThumbnailRef}
+                      className={addingToCart ? "invisible" : undefined}
+                    >
+                      <CourseThumbnail
+                        url={course.thumbnailUrl}
+                        title={course.title}
+                        hasPreview={hasAnyPreview}
+                      />
+                    </div>
 
                     {/* Price section */}
                     <div className="mt-6 flex flex-wrap items-baseline gap-3.5">
@@ -554,13 +852,21 @@ function CourseDetailPageInner({ slug }: { slug: string }) {
                         <>
                           <Button
                             type="button"
-                            disabled={enrollmentLoading}
-                            onClick={course.price === 0 ? enroll : addToCart}
+                            disabled={enrollmentLoading || addingToCart}
+                            onClick={course.price === 0 ? enroll : handleAddToCart}
                             size="md"
                             className={`focus-ring h-12 w-full rounded-xl text-base font-bold shadow-soft ${
-                              cartActionAnimating && course.price > 0 ? "cart-add-pop" : ""
+                              (cartActionAnimating || addingToCart) && course.price > 0
+                                ? "cart-add-pop"
+                                : ""
                             }`}
-                            aria-label={course.price === 0 ? "Đăng ký học" : "Thêm vào giỏ hàng"}
+                            aria-label={
+                              addingToCart
+                                ? "Đang đóng gói khóa học"
+                                : course.price === 0
+                                  ? "Đăng ký học"
+                                  : "Thêm vào giỏ hàng"
+                            }
                             aria-describedby={
                               enrollmentMessage || cartMessage ? "enrollment-status" : undefined
                             }
@@ -569,6 +875,8 @@ function CourseDetailPageInner({ slug }: { slug: string }) {
                               "Đang ghi danh…"
                             ) : course.price === 0 ? (
                               "Đăng ký học"
+                            ) : addingToCart ? (
+                              "Đang đóng gói…"
                             ) : cartActionAnimating ? (
                               <>
                                 <Check className="h-4 w-4" aria-hidden="true" />
@@ -837,6 +1145,8 @@ function CourseDetailPageInner({ slug }: { slug: string }) {
                     </section>
                   </div>
                 </div>
+
+                <CourseTestimonialsSection />
 
                 {/* Related Courses Section */}
                 {related.length > 0 && (

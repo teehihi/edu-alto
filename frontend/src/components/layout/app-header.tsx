@@ -63,6 +63,7 @@ export const HeaderCartButton = memo(function HeaderCartButton({
     return (
       <Link
         href="/cart"
+        data-cart-target="true"
         className="focus-ring relative flex h-11 w-11 items-center justify-center rounded-xl text-slate-700 transition-colors duration-200 hover:text-primary lg:hidden"
         aria-label={count ? `Mở giỏ hàng, ${count} khóa học` : "Mở giỏ hàng"}
       >
@@ -82,6 +83,7 @@ export const HeaderCartButton = memo(function HeaderCartButton({
   return (
     <Link
       href="/cart"
+      data-cart-target="true"
       className="focus-ring relative flex h-11 w-11 items-center justify-center rounded-xl text-slate-700 transition-colors duration-200 hover:text-primary"
       aria-label={count ? `Giỏ hàng, ${count} khóa học` : "Giỏ hàng"}
     >
