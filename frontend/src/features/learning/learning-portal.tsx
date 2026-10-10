@@ -1545,6 +1545,8 @@ function RecentCourse({
 }
 
 function InstructorCourseCard({ course }: { course: InstructorCourse }) {
+  const [failedThumbnailUrl, setFailedThumbnailUrl] = useState<string | null>(null);
+  const thumbnailUrl = course.thumbnailUrl;
   const isPublished = course.status === "PUBLISHED";
   const isDraft = course.status === "DRAFT";
   const statusLabel = isPublished ? "Đang xuất bản" : isDraft ? "Bản nháp" : "Đã lưu trữ";
@@ -1581,11 +1583,13 @@ function InstructorCourseCard({ course }: { course: InstructorCourse }) {
   return (
     <article className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-all duration-300 hover:-translate-y-1 hover:border-emerald-300 hover:shadow-xl hover:shadow-emerald-950/5">
       <div className="relative aspect-video w-full overflow-hidden bg-slate-950">
-        {course.thumbnailUrl ? (
+        {thumbnailUrl && failedThumbnailUrl !== thumbnailUrl ? (
           <Image
-            src={course.thumbnailUrl}
+            src={thumbnailUrl}
             alt={course.title}
             fill
+            unoptimized
+            onError={() => setFailedThumbnailUrl(thumbnailUrl)}
             className="object-cover transition-transform duration-500 group-hover:scale-105"
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
           />
@@ -2270,6 +2274,8 @@ function CourseGridCard({
   progress?: CourseProgress;
   index: number;
 }) {
+  const [failedThumbnailUrl, setFailedThumbnailUrl] = useState<string | null>(null);
+  const thumbnailUrl = course.thumbnailUrl;
   const archived = course.courseStatus !== "PUBLISHED";
   const progressKnown = progress !== undefined;
   const hasStarted = (progress?.completedLessons ?? 0) > 0;
@@ -2288,12 +2294,14 @@ function CourseGridCard({
           tones[index % tones.length],
         )}
       >
-        {course.thumbnailUrl ? (
+        {thumbnailUrl && failedThumbnailUrl !== thumbnailUrl ? (
           <>
             <Image
-              src={course.thumbnailUrl}
+              src={thumbnailUrl}
               alt={course.courseTitle}
               fill
+              unoptimized
+              onError={() => setFailedThumbnailUrl(thumbnailUrl)}
               className="object-cover transition-transform duration-500 group-hover:scale-105"
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
             />

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo } from "react";
-import { authApi, currentUserApi, profileApi, uploadAvatarFile } from "@/lib/auth-client";
+import { authApi, currentUserApi, profileApi } from "@/lib/auth-client";
 import { useAuthSession } from "@/lib/auth-session";
 import { ApiClientError } from "@/lib/api";
 import type {
@@ -92,19 +92,9 @@ export function useAuth() {
 
   const uploadAvatar = useCallback(
     async (file: File): Promise<UserProfile> => {
-      const updatedProfile = await callWithRefresh(async (token) => {
-        try {
-          const { uploadUrl, objectKey } = await profileApi.getAvatarUploadUrl(token, {
-            contentType: file.type,
-            contentLength: file.size,
-          });
-          await uploadAvatarFile(uploadUrl, file);
-          return await profileApi.completeAvatarUpload(token, { objectKey });
-        } catch {
-          // Direct upload failed (e.g. R2 CORS or network restriction), fallback to backend multipart upload
-          return await profileApi.uploadAvatarMultipart(token, file);
-        }
-      });
+      const updatedProfile = await callWithRefresh((token) =>
+        profileApi.uploadAvatarMultipart(token, file),
+      );
       session.updateUserAvatar(updatedProfile.avatarUrl ?? null);
       await session.reloadCurrentUser();
       return updatedProfile;

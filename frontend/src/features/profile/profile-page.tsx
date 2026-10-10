@@ -1464,7 +1464,10 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                                   if (file) handleProcessFile(file);
                                 }}
                                 className={cn(
-                                  "group relative flex h-52 w-full cursor-pointer items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed transition",
+                                  "group relative flex cursor-pointer items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed transition",
+                                  previewAvatarUrl || savedAvatarUrl
+                                    ? "aspect-square w-full max-w-[13rem]"
+                                    : "h-52 w-full",
                                   isDragging
                                     ? "border-primary bg-primary-soft/50"
                                     : "border-slate-200 bg-[#EEF2F6] hover:border-primary hover:bg-[#EBF7F2]/40",
@@ -1480,7 +1483,7 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                                 }}
                               >
                                 {previewAvatarUrl || savedAvatarUrl ? (
-                                  <div className="relative aspect-square h-full">
+                                  <>
                                     <Image
                                       src={previewAvatarUrl || savedAvatarUrl}
                                       alt="Xem trước ảnh đại diện hình vuông"
@@ -1494,7 +1497,7 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                                         Chọn ảnh khác
                                       </span>
                                     </div>
-                                  </div>
+                                  </>
                                 ) : (
                                   <div className="flex flex-col items-center justify-center p-6 text-center">
                                     <UploadCloud
