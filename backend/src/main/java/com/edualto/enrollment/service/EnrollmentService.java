@@ -10,6 +10,7 @@ import com.edualto.enrollment.domain.EnrollmentStatus;
 import com.edualto.enrollment.dto.EnrollmentResponse;
 import com.edualto.enrollment.dto.InstructorCourseStudentResponse;
 import com.edualto.enrollment.repository.EnrollmentRepository;
+import com.edualto.storage.service.StorageService;
 import com.edualto.user.service.UserService;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -25,17 +26,20 @@ public class EnrollmentService {
     private final CourseLearningAccessService courses;
     private final CourseRepository courseRepository;
     private final UserService users;
+    private final StorageService storage;
 
     public EnrollmentService(
             EnrollmentRepository enrollments,
             CourseLearningAccessService courses,
             CourseRepository courseRepository,
-            UserService users
+            UserService users,
+            StorageService storage
     ) {
         this.enrollments = enrollments;
         this.courses = courses;
         this.courseRepository = courseRepository;
         this.users = users;
+        this.storage = storage;
     }
 
     @Transactional
@@ -72,7 +76,19 @@ public class EnrollmentService {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "INVALID_PAGINATION", "Phân trang không hợp lệ; kích thước từ 1 đến 100 và sắp xếp theo ngày ghi danh");
         }
         Sort.Direction direction = sort.endsWith(",asc") ? Sort.Direction.ASC : Sort.Direction.DESC;
-        return enrollments.findHistory(studentId, PageRequest.of(page, size, Sort.by(direction, "enrolledAt").and(Sort.by("id"))));
+        return enrollments.findHistory(
+                studentId,
+                PageRequest.of(page, size, Sort.by(direction, "enrolledAt").and(Sort.by("id")))
+        ).map(row -> new EnrollmentResponse(
+                row.id(),
+                row.courseId(),
+                row.courseTitle(),
+                row.courseSlug(),
+                row.courseStatus(),
+                row.status(),
+                row.enrolledAt(),
+                resolveThumbnailUrl(row.thumbnailKey())
+        ));
     }
 
     @Transactional(readOnly = true)
@@ -130,6 +146,10 @@ public class EnrollmentService {
             );
         }
         return normalizedSearch;
+    }
+
+    private String resolveThumbnailUrl(String thumbnailKey) {
+        return thumbnailKey == null || thumbnailKey.isBlank() ? null : storage.getPublicUrl(thumbnailKey);
     }
 
     private void validatePagination(int page, int size) {

@@ -208,7 +208,7 @@ export function CheckoutPage() {
                       title="Nhập số điện thoại gồm 10 chữ số và bắt đầu bằng 0"
                       placeholder="Nhập số điện thoại"
                       autoComplete="tel"
-                      className="h-12 min-w-0 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-800 outline-none placeholder:text-slate-400 focus:border-primary focus:ring-4 focus:ring-primary/10 transition"
+                      className="h-12 min-w-0 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-800 outline-none placeholder:text-slate-400 transition focus:border-primary focus:ring-4 focus:ring-inset focus:ring-primary"
                     />
                   </label>
                 </div>
@@ -222,7 +222,7 @@ export function CheckoutPage() {
                     maxLength={32}
                     autoComplete="off"
                     placeholder="Nhập mã ưu đãi (nếu có)"
-                    className="h-12 min-w-0 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium uppercase text-slate-800 outline-none placeholder:normal-case placeholder:text-slate-400 focus:border-primary focus:ring-4 focus:ring-primary/10 disabled:bg-slate-50 transition"
+                    className="h-12 min-w-0 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium uppercase text-slate-800 outline-none placeholder:normal-case placeholder:text-slate-400 transition focus:border-primary focus:ring-4 focus:ring-inset focus:ring-primary disabled:bg-slate-50"
                   />
                   <span className="text-xs font-normal text-slate-500">
                     Mã sẽ được kiểm tra theo khóa học trong giỏ hàng khi bạn tạo đơn.

@@ -30,6 +30,7 @@ import {
 import { AppHeader } from "@/components/layout/app-header";
 import { Footer } from "@/components/layout/footer";
 import { CustomSelect } from "@/components/ui/custom-select";
+import { AvatarCropper } from "@/components/ui/avatar-cropper";
 import { FeedbackModal, type FeedbackTone } from "@/components/ui/feedback-modal";
 import { ProfileSkeleton } from "@/components/ui/skeleton";
 import { UserAvatar } from "@/components/ui/user-avatar";
@@ -445,7 +446,7 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
 
   // Avatar Upload States
   const [selectedAvatarFile, setSelectedAvatarFile] = useState<File | null>(null);
-  const [avatarFileName, setAvatarFileName] = useState("");
+  const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
   // Teacher List States (Student role - Node 33-7705)
@@ -455,6 +456,11 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
 
   const initialLoadDoneRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!previewAvatarUrl?.startsWith("blob:")) return;
+    return () => URL.revokeObjectURL(previewAvatarUrl);
+  }, [previewAvatarUrl]);
 
   // Determine if viewing own profile
   const isOwner = useMemo(() => {
@@ -486,7 +492,7 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
     setSavedAvatarUrl(data.avatarUrl || "");
     setPreviewAvatarUrl(null);
     setSelectedAvatarFile(null);
-    setAvatarFileName("");
+    setPendingAvatarFile(null);
     setLanguage(data.language || "vi");
     setWebsiteUrl(data.websiteUrl || "");
     setTiktokUrl(data.tiktokUrl || data.xUrl || "");
@@ -519,6 +525,7 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
       populateForm(profileData);
     }
     setIsEditing(false);
+    setPendingAvatarFile(null);
     setFieldErrors({});
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -614,6 +621,8 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
   }, [filteredAndSortedTeachers, teacherPage]);
 
   function handleProcessFile(file: File) {
+    if (saving) return;
+
     const validMimes = ["image/jpeg", "image/png", "image/webp"];
     if (!validMimes.includes(file.type)) {
       const errMsg = "Vui lòng chọn tệp hình ảnh hợp lệ (PNG, JPG hoặc WebP).";
@@ -641,10 +650,7 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
       return;
     }
 
-    setSelectedAvatarFile(file);
-    setAvatarFileName(file.name);
-    const objectUrl = URL.createObjectURL(file);
-    setPreviewAvatarUrl(objectUrl);
+    setPendingAvatarFile(file);
   }
 
   function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
@@ -652,6 +658,13 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
     if (file) {
       handleProcessFile(file);
     }
+    e.target.value = "";
+  }
+
+  function handleAvatarCrop(file: File) {
+    setSelectedAvatarFile(file);
+    setPendingAvatarFile(null);
+    setPreviewAvatarUrl(URL.createObjectURL(file));
   }
 
   function scrollToFirstError(errors: Record<string, string>) {
@@ -731,6 +744,13 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    if (pendingAvatarFile) {
+      setStatus({
+        tone: "info",
+        message: "Hãy xác nhận hoặc hủy việc căn chỉnh ảnh đại diện trước khi cập nhật hồ sơ.",
+      });
+      return;
+    }
     if (!validate()) {
       setStatus({ tone: "error", message: "Vui lòng kiểm tra lại các trường thông tin bị lỗi." });
       return;
@@ -1411,98 +1431,96 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                         {/* Card 2: Avatar Upload Card */}
                         <div className="rounded-3xl border border-slate-100 bg-white p-6 sm:p-8 shadow-sm space-y-4">
                           <h3 className="text-base font-bold text-heading">Ảnh đại diện</h3>
-
-                          {/* Large Clickable & Dropzone Preview Box matching Figma */}
-                          <div
-                            onClick={() => fileInputRef.current?.click()}
-                            onDragOver={(e) => {
-                              e.preventDefault();
-                              setIsDragging(true);
-                            }}
-                            onDragLeave={() => setIsDragging(false)}
-                            onDrop={(e) => {
-                              e.preventDefault();
-                              setIsDragging(false);
-                              const file = e.dataTransfer.files?.[0];
-                              if (file) handleProcessFile(file);
-                            }}
-                            className={cn(
-                              "group relative flex h-52 w-full cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed transition",
-                              isDragging
-                                ? "border-primary bg-primary-soft/50"
-                                : "border-slate-200 bg-[#EEF2F6] hover:border-primary hover:bg-[#EBF7F2]/40",
-                            )}
-                            role="button"
-                            tabIndex={0}
-                            aria-label="Tải lên ảnh đại diện"
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === " ") {
-                                e.preventDefault();
-                                fileInputRef.current?.click();
-                              }
-                            }}
-                          >
-                            {previewAvatarUrl ? (
-                              <div className="relative h-full w-full">
-                                <Image
-                                  src={previewAvatarUrl}
-                                  alt="Xem trước ảnh đại diện"
-                                  fill
-                                  unoptimized
-                                  sizes="100vw"
-                                  className="object-contain"
-                                />
-                                <div className="absolute inset-0 flex items-center justify-center bg-black/35 opacity-0 transition duration-150 group-hover:opacity-100">
-                                  <span className="rounded-xl bg-white/95 px-4 py-2 text-xs font-semibold text-slate-800 shadow-md">
-                                    Kéo thả ảnh khác hoặc Chọn tệp
-                                  </span>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="flex flex-col items-center justify-center p-6 text-center">
-                                <UploadCloud
-                                  className="mb-2 h-10 w-10 text-slate-400 transition group-hover:text-primary"
-                                  aria-hidden="true"
-                                />
-                                <p className="text-sm font-medium text-slate-600">
-                                  Kéo thả vào đây hoặc{" "}
-                                  <span className="font-semibold text-primary underline underline-offset-2">
-                                    Chọn tệp
-                                  </span>
-                                </p>
-                                <p className="mt-1 text-xs text-slate-400">PNG, JPG hoặc WebP</p>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Hidden file input */}
                           <input
                             type="file"
                             ref={fileInputRef}
-                            accept="image/*"
+                            accept="image/jpeg,image/png,image/webp"
+                            aria-label="Chọn ảnh đại diện"
+                            disabled={saving}
                             className="hidden"
                             onChange={handleFileChange}
                           />
 
-                          {/* File name display input */}
-                          <div className="space-y-1.5 pt-1">
-                            <label
-                              htmlFor="avatarFileName"
-                              className="text-xs font-semibold text-heading sm:text-sm"
-                            >
-                              Thêm/Chỉnh sửa ảnh đại diện
-                            </label>
-                            <input
-                              id="avatarFileName"
-                              type="text"
-                              readOnly
-                              value={avatarFileName}
-                              onClick={() => fileInputRef.current?.click()}
-                              placeholder="Kéo thả vào đây hoặc Chọn tệp"
-                              disabled={saving}
-                              className="w-full rounded-xl border border-[#D8E1ED] bg-white px-3.5 py-2.5 text-sm text-heading placeholder:text-[#8A9AB3] outline-none transition duration-150 cursor-pointer hover:border-slate-300 focus:border-primary focus:ring-1 focus:ring-primary"
+                          {pendingAvatarFile ? (
+                            <AvatarCropper
+                              file={pendingAvatarFile}
+                              onCancel={() => setPendingAvatarFile(null)}
+                              onChooseAnother={() => fileInputRef.current?.click()}
+                              onConfirm={handleAvatarCrop}
                             />
-                          </div>
+                          ) : (
+                            <>
+                              <div
+                                onClick={() => fileInputRef.current?.click()}
+                                onDragOver={(e) => {
+                                  e.preventDefault();
+                                  setIsDragging(true);
+                                }}
+                                onDragLeave={() => setIsDragging(false)}
+                                onDrop={(e) => {
+                                  e.preventDefault();
+                                  setIsDragging(false);
+                                  const file = e.dataTransfer.files?.[0];
+                                  if (file) handleProcessFile(file);
+                                }}
+                                className={cn(
+                                  "group relative flex h-52 w-full cursor-pointer items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed transition",
+                                  isDragging
+                                    ? "border-primary bg-primary-soft/50"
+                                    : "border-slate-200 bg-[#EEF2F6] hover:border-primary hover:bg-[#EBF7F2]/40",
+                                )}
+                                role="button"
+                                tabIndex={0}
+                                aria-label="Tải lên ảnh đại diện"
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" || e.key === " ") {
+                                    e.preventDefault();
+                                    fileInputRef.current?.click();
+                                  }
+                                }}
+                              >
+                                {previewAvatarUrl || savedAvatarUrl ? (
+                                  <div className="relative aspect-square h-full">
+                                    <Image
+                                      src={previewAvatarUrl || savedAvatarUrl}
+                                      alt="Xem trước ảnh đại diện hình vuông"
+                                      fill
+                                      unoptimized
+                                      sizes="208px"
+                                      className="object-cover"
+                                    />
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/35 opacity-0 transition duration-150 group-hover:opacity-100">
+                                      <span className="rounded-xl bg-white/95 px-4 py-2 text-xs font-semibold text-slate-800 shadow-md">
+                                        Chọn ảnh khác
+                                      </span>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="flex flex-col items-center justify-center p-6 text-center">
+                                    <UploadCloud
+                                      className="mb-2 h-10 w-10 text-slate-400 transition group-hover:text-primary"
+                                      aria-hidden="true"
+                                    />
+                                    <p className="text-sm font-medium text-slate-600">
+                                      Kéo thả vào đây hoặc{" "}
+                                      <span className="font-semibold text-primary underline underline-offset-2">
+                                        Chọn tệp
+                                      </span>
+                                    </p>
+                                    <p className="mt-1 text-xs text-slate-400">
+                                      PNG, JPG hoặc WebP · tối đa 5 MB
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+
+                              {previewAvatarUrl && (
+                                <p className="text-xs text-muted">
+                                  Ảnh sẽ được hiển thị theo khung vuông. Bấm vào ảnh để thay đổi.
+                                </p>
+                              )}
+                            </>
+                          )}
                         </div>
 
                         {/* Card 3: Social Links Card */}
@@ -1592,7 +1610,7 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                           <div className="flex items-center gap-3 pt-4 border-t border-slate-100">
                             <button
                               type="submit"
-                              disabled={saving}
+                              disabled={saving || Boolean(pendingAvatarFile)}
                               className="focus-ring inline-flex items-center justify-center rounded-xl bg-primary px-7 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:bg-primary-dark disabled:opacity-50"
                             >
                               {saving ? "Đang lưu..." : "Cập nhật"}

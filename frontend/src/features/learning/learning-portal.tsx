@@ -2271,6 +2271,8 @@ function CourseGridCard({
   index: number;
 }) {
   const archived = course.courseStatus !== "PUBLISHED";
+  const progressKnown = progress !== undefined;
+  const hasStarted = (progress?.completedLessons ?? 0) > 0;
   const percent = progress?.progressPercent ?? 0;
   const tones = [
     "from-emerald-900 via-teal-950 to-slate-950",
@@ -2286,15 +2288,30 @@ function CourseGridCard({
           tones[index % tones.length],
         )}
       >
-        {/* Ambient glowing radial orbs */}
-        <div className="absolute -top-10 -right-10 h-32 w-32 rounded-full bg-emerald-500/20 blur-2xl transition-transform duration-500 group-hover:scale-125" />
-        <div className="absolute -bottom-10 -left-10 h-32 w-32 rounded-full bg-teal-400/20 blur-2xl transition-transform duration-500 group-hover:scale-125" />
-        <div className="absolute inset-0 bg-[radial-gradient(#ffffff15_1px,transparent_1px)] [background-size:14px_14px]" />
+        {course.thumbnailUrl ? (
+          <>
+            <Image
+              src={course.thumbnailUrl}
+              alt={course.courseTitle}
+              fill
+              className="object-cover transition-transform duration-500 group-hover:scale-105"
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950/35 via-transparent to-slate-950/25" />
+          </>
+        ) : (
+          <>
+            {/* Ambient glowing radial orbs */}
+            <div className="absolute -top-10 -right-10 h-32 w-32 rounded-full bg-emerald-500/20 blur-2xl transition-transform duration-500 group-hover:scale-125" />
+            <div className="absolute -bottom-10 -left-10 h-32 w-32 rounded-full bg-teal-400/20 blur-2xl transition-transform duration-500 group-hover:scale-125" />
+            <div className="absolute inset-0 bg-[radial-gradient(#ffffff15_1px,transparent_1px)] [background-size:14px_14px]" />
 
-        {/* Central emblem */}
-        <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl border border-white/20 bg-white/10 text-white shadow-xl backdrop-blur-md transition-transform duration-300 group-hover:scale-110 group-hover:bg-white/15">
-          <BookOpen className="h-7 w-7 stroke-[1.8] text-emerald-200" />
-        </div>
+            {/* Central emblem */}
+            <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl border border-white/20 bg-white/10 text-white shadow-xl backdrop-blur-md transition-transform duration-300 group-hover:scale-110 group-hover:bg-white/15">
+              <BookOpen className="h-7 w-7 stroke-[1.8] text-emerald-200" />
+            </div>
+          </>
+        )}
 
         <div className="absolute left-3 top-3">
           <span
@@ -2308,10 +2325,20 @@ function CourseGridCard({
             <span
               className={cn(
                 "h-1.5 w-1.5 rounded-full",
-                archived ? "bg-slate-400" : "bg-emerald-400 animate-pulse",
+                archived
+                  ? "bg-slate-400"
+                  : hasStarted
+                    ? "bg-emerald-400 animate-pulse"
+                    : "bg-emerald-300",
               )}
             />
-            {archived ? "Đã lưu trữ" : "Đang học"}
+            {archived
+              ? "Đã lưu trữ"
+              : progressKnown
+                ? hasStarted
+                  ? "Đang học"
+                  : "Chưa bắt đầu"
+                : "Đang cập nhật"}
           </span>
         </div>
 
@@ -2364,7 +2391,9 @@ function CourseGridCard({
           ) : (
             <>
               <Play className="h-3.5 w-3.5 fill-white" />
-              <span>Tiếp tục học</span>
+              <span>
+                {progressKnown ? (hasStarted ? "Tiếp tục học" : "Bắt đầu học") : "Vào học"}
+              </span>
             </>
           )}
         </Link>

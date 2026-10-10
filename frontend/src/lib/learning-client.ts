@@ -5,6 +5,7 @@ export type Enrollment = {
   courseId: string;
   courseTitle: string;
   courseSlug: string;
+  thumbnailUrl?: string | null;
   courseStatus: string;
   status: string;
   enrolledAt: string;

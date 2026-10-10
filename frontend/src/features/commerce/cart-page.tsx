@@ -15,6 +15,7 @@ import {
 import { useEffect, useState } from "react";
 import { AppHeader } from "@/components/layout/app-header";
 import { Footer } from "@/components/layout/footer";
+import { Skeleton } from "@/components/ui/skeleton";
 import { formatVND } from "@/lib/format";
 import { readCart, removeCourseFromCart, type CartCourse } from "@/lib/cart";
 import { useAuthSession } from "@/lib/auth-session";
@@ -42,19 +43,7 @@ export function CartPage() {
     user?.roles.some((role) => role === "INSTRUCTOR" || role === "ROLE_INSTRUCTOR") ?? false;
 
   if (authLoading) {
-    return (
-      <div className="flex min-h-screen flex-col bg-white">
-        <div className="bg-gradient-to-b from-[#e5f8f2] to-white">
-          <AppHeader />
-        </div>
-        <main className="container-page grid min-h-[560px] flex-1 place-items-center py-8">
-          <p role="status" className="text-sm text-muted">
-            Đang kiểm tra tài khoản...
-          </p>
-        </main>
-        <Footer />
-      </div>
-    );
+    return <CartLoadingPage />;
   }
 
   if (isInstructor) {
@@ -95,10 +84,7 @@ export function CartPage() {
           </div>
         </div>
         {!isMounted ? (
-          <div className="mt-6 grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_330px]">
-            <div className="h-64 rounded-2xl border border-slate-200 bg-white p-6 shadow-xs animate-pulse" />
-            <div className="h-64 rounded-2xl border border-slate-200 bg-white p-6 shadow-xs animate-pulse" />
-          </div>
+          <CartDataSkeleton />
         ) : courses.length ? (
           <div className="mt-6 grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_330px]">
             <section
@@ -242,6 +228,78 @@ export function CartPage() {
         </div>
       </main>
       <Footer />
+    </div>
+  );
+}
+
+function CartLoadingPage() {
+  return (
+    <div className="flex min-h-screen flex-col bg-white">
+      <div className="bg-gradient-to-b from-[#e5f8f2] to-white">
+        <AppHeader />
+      </div>
+      <main className="container-page min-h-[560px] flex-1 py-8 md:py-10">
+        <nav aria-label="Đường dẫn" className="mb-5 flex items-center gap-2">
+          <Skeleton className="h-4 w-16 rounded" />
+          <Skeleton className="h-3.5 w-3.5 rounded-full" />
+          <Skeleton className="h-4 w-20 rounded" />
+        </nav>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="space-y-2">
+            <Skeleton className="h-9 w-40 rounded-lg" />
+            <Skeleton className="h-4 w-44 rounded" />
+          </div>
+        </div>
+        <CartDataSkeleton />
+        <div className="mt-7 flex flex-wrap gap-4">
+          <Skeleton className="h-4 w-44 rounded" />
+          <Skeleton className="h-4 w-36 rounded" />
+          <Skeleton className="h-4 w-48 rounded" />
+        </div>
+      </main>
+      <Footer />
+    </div>
+  );
+}
+
+function CartDataSkeleton() {
+  return (
+    <div
+      role="status"
+      aria-label="Đang tải giỏ hàng"
+      aria-busy="true"
+      className="mt-6 grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_330px]"
+    >
+      <section className="divide-y divide-[#e7edeb] border-y border-[#e7edeb]" aria-hidden="true">
+        {Array.from({ length: 2 }).map((_, index) => (
+          <article key={index} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center">
+            <Skeleton className="aspect-video w-full shrink-0 rounded-md sm:aspect-auto sm:h-[88px] sm:w-36" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <Skeleton className="h-4 w-3/4 rounded" />
+              <Skeleton className="h-3.5 w-1/3 rounded" />
+            </div>
+            <div className="flex shrink-0 items-center justify-between gap-4 sm:w-32 sm:flex-col sm:items-end">
+              <Skeleton className="h-5 w-20 rounded" />
+              <Skeleton className="h-7 w-14 rounded-lg" />
+            </div>
+          </article>
+        ))}
+      </section>
+      <aside className="rounded-xl border border-[#e2eaf0] bg-white p-4" aria-hidden="true">
+        <Skeleton className="h-5 w-36 rounded" />
+        <div className="mt-4 flex">
+          <Skeleton className="h-10 flex-1 rounded-l-lg rounded-r-none" />
+          <Skeleton className="h-10 w-20 rounded-l-none rounded-r-lg" />
+        </div>
+        <div className="mt-4 space-y-4 rounded-lg border border-[#e5ece9] bg-[#f8fbfa] p-3">
+          <Skeleton className="h-4 w-full rounded" />
+          <Skeleton className="h-4 w-5/6 rounded" />
+          <div className="border-t border-[#e5ece9] pt-3">
+            <Skeleton className="h-5 w-full rounded" />
+          </div>
+        </div>
+        <Skeleton className="mt-4 h-14 w-full rounded-lg" />
+      </aside>
     </div>
   );
 }

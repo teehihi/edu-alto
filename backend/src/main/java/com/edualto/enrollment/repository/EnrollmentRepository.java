@@ -3,7 +3,6 @@ package com.edualto.enrollment.repository;
 import com.edualto.enrollment.domain.Enrollment;
 import com.edualto.enrollment.domain.EnrollmentStatus;
 import com.edualto.enrollment.dto.InstructorCourseStudentResponse;
-import com.edualto.enrollment.dto.EnrollmentResponse;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -25,12 +24,12 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, UUID> {
     int insertIfAbsent(@Param("id") UUID id, @Param("studentId") UUID studentId, @Param("courseId") UUID courseId);
 
     @Query("""
-            select new com.edualto.enrollment.dto.EnrollmentResponse(
-                e.id, e.courseId, c.title, c.slug, cast(c.status as string), cast(e.status as string), e.enrolledAt)
+            select new com.edualto.enrollment.repository.EnrollmentHistoryRow(
+                e.id, e.courseId, c.title, c.slug, cast(c.status as string), cast(e.status as string), e.enrolledAt, c.thumbnailKey)
             from Enrollment e join Course c on c.id = e.courseId
             where e.studentId = :studentId
             """)
-    Page<EnrollmentResponse> findHistory(@Param("studentId") UUID studentId, Pageable pageable);
+    Page<EnrollmentHistoryRow> findHistory(@Param("studentId") UUID studentId, Pageable pageable);
 
     @Query("""
             select new com.edualto.enrollment.dto.InstructorCourseStudentResponse(
