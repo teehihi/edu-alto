@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useQueryClient } from "@tanstack/react-query";
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { ArrowLeft, CircleAlert, MoreHorizontal, RefreshCw } from "lucide-react";
 import { InstructorWorkspaceShell } from "@/features/instructor/instructor-workspace-shell";
@@ -53,6 +54,7 @@ export function InstructorCourseWorkspace({
   children: ReactNode;
 }) {
   const { accessToken, loading: authLoading } = useAuth();
+  const queryClient = useQueryClient();
   const [course, setCourse] = useState<InstructorCourse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -79,9 +81,19 @@ export function InstructorCourseWorkspace({
     }
   }, [accessToken, authLoading, courseId]);
 
+  const refreshInstructorListing = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ["instructor", "courses"] });
+    void queryClient.invalidateQueries({ queryKey: ["instructor", "metrics"] });
+  }, [queryClient]);
+
   useEffect(() => {
     void refreshCourse();
   }, [refreshCourse]);
+
+  useEffect(() => {
+    window.addEventListener("popstate", refreshInstructorListing);
+    return () => window.removeEventListener("popstate", refreshInstructorListing);
+  }, [refreshInstructorListing]);
 
   return (
     <InstructorWorkspaceShell activeSection="courses">
@@ -157,6 +169,7 @@ export function InstructorCourseWorkspace({
                 <Link
                   href="/instructor/courses/overview"
                   aria-label="Quay lại danh sách khóa học"
+                  onClick={refreshInstructorListing}
                   className="focus-ring inline-flex size-9 shrink-0 items-center justify-center rounded-md text-primary transition hover:bg-emerald-50 active:bg-emerald-100"
                 >
                   <ArrowLeft className="h-5 w-5" aria-hidden="true" />

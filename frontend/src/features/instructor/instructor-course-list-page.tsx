@@ -331,12 +331,14 @@ function InstructorCourseListContent() {
     queryKey: ["instructor", "courses", accessToken],
     queryFn: () => fetchInstructorCourses(accessToken!).then((r) => r.data),
     enabled: Boolean(accessToken && !authLoading),
+    refetchOnMount: "always",
   });
 
   const { data: metrics = [] } = useQuery({
     queryKey: ["instructor", "metrics", accessToken],
     queryFn: () => fetchInstructorCourseMetrics(accessToken!),
     enabled: Boolean(accessToken && !authLoading && courses.length > 0),
+    refetchOnMount: "always",
   });
 
   const courseStats = useMemo(() => indexInstructorCourseMetrics(metrics), [metrics]);
