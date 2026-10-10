@@ -12,7 +12,7 @@ permissions:
 
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   frontend:
@@ -85,3 +85,48 @@ jobs:
       - name: Print failed test logs for Agent
         if: failure()
         run: grep -l "FAILURE\|ERROR" backend/target/surefire-reports/*.txt 2>/dev/null | xargs -r cat
+
+  deploy-backend:
+    name: Deploy backend to Lightsail
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    needs: [frontend, backend]
+    runs-on: [self-hosted, Linux, X64]
+    timeout-minutes: 20
+    concurrency:
+      group: lightsail-production
+      cancel-in-progress: false
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build backend image
+        run: docker build --file backend/Dockerfile --tag edualto-backend:production --label org.opencontainers.image.revision="$GITHUB_SHA" .
+
+      - name: Install production environment file
+        env:
+          LIGHTSAIL_ENV_FILE: ${{ secrets.LIGHTSAIL_ENV_FILE }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$LIGHTSAIL_ENV_FILE" ]]; then
+            echo "Missing GitHub Actions secret: LIGHTSAIL_ENV_FILE" >&2
+            exit 1
+          fi
+          for name in SPRING_DATASOURCE_URL SPRING_DATASOURCE_USERNAME SPRING_DATASOURCE_PASSWORD JWT_SECRET CORS_ALLOWED_ORIGINS; do
+            if ! grep -q "^${name}=" <<< "$LIGHTSAIL_ENV_FILE"; then
+              echo "LIGHTSAIL_ENV_FILE is missing required entry: $name" >&2
+              exit 1
+            fi
+          done
+          install -d -m 700 "$HOME/edualto"
+          printf '%s\n' "$LIGHTSAIL_ENV_FILE" > "$HOME/edualto/.env"
+          chmod 600 "$HOME/edualto/.env"
+
+      - name: Deploy backend container
+        run: |
+          set -euo pipefail
+          install -m 644 docker-compose.prod.yml "$HOME/edualto/docker-compose.prod.yml"
+          docker compose --project-directory "$HOME/edualto" \
+            -f "$HOME/edualto/docker-compose.prod.yml" up -d --remove-orphans
+          docker image prune -f
