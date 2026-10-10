@@ -8,7 +8,7 @@ type Feature = (typeof features)[number];
 const toneStyles = {
   primary: {
     card: "bg-primary text-white shadow-soft",
-    iconBox: "bg-white/20",
+    iconBox: "bg-white shadow-sm",
     link: "text-white hover:text-white/90",
   },
   blue: {

@@ -7,9 +7,10 @@ import com.edualto.profile.domain.StudentProfile;
 import com.edualto.profile.dto.AvatarCompleteRequest;
 import com.edualto.profile.dto.AvatarUploadUrlRequest;
 import com.edualto.profile.dto.AvatarUploadUrlResponse;
+import com.edualto.profile.dto.PublicInstructorResponse;
+import com.edualto.profile.dto.PublicProfileResponse;
 import com.edualto.profile.dto.UpdateProfileRequest;
 import com.edualto.profile.dto.UserProfileResponse;
-import com.edualto.profile.dto.PublicProfileResponse;
 import com.edualto.profile.repository.InstructorProfileRepository;
 import com.edualto.profile.repository.ProfileRepository;
 import com.edualto.profile.repository.StudentProfileRepository;
@@ -23,10 +24,15 @@ import com.edualto.user.domain.User;
 import com.edualto.user.domain.UserStatus;
 import com.edualto.user.repository.UserRepository;
 import java.time.Duration;
-import java.util.Set;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -132,6 +138,46 @@ public class ProfileService {
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Không tìm thấy người dùng"));
 
         return getPublicProfile(profile.getUserId());
+    }
+
+    @Transactional(readOnly = true)
+    public Page<PublicInstructorResponse> getPublicInstructors(int page, int size) {
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.min(Math.max(size, 1), 50);
+        Pageable pageable = PageRequest.of(safePage, safeSize);
+        Page<User> users = userRepository.findAllByRoleAndStatus(
+                RoleName.INSTRUCTOR,
+                UserStatus.ACTIVE,
+                pageable
+        );
+        List<UUID> userIds = users.getContent().stream().map(User::getId).toList();
+        Map<UUID, Profile> profiles = profileRepository.findAllById(userIds).stream()
+                .collect(Collectors.toMap(Profile::getUserId, profile -> profile));
+        Map<UUID, InstructorProfile> instructorProfiles = instructorProfileRepository.findAllById(userIds).stream()
+                .collect(Collectors.toMap(InstructorProfile::getUserId, profile -> profile));
+
+        return users.map(user -> {
+            Profile profile = profiles.get(user.getId());
+            InstructorProfile instructorProfile = instructorProfiles.get(user.getId());
+            String avatarUrl = profile == null || profile.getAvatarKey() == null || profile.getAvatarKey().isBlank()
+                    ? null
+                    : storageService.getPublicUrl(profile.getAvatarKey());
+
+            return new PublicInstructorResponse(
+                    user.getId(),
+                    user.getFullName(),
+                    profile == null ? null : profile.getHeadline(),
+                    profile == null ? null : profile.getBio(),
+                    avatarUrl,
+                    profile == null ? null : profile.getXUrl(),
+                    profile == null ? null : profile.getLinkedinUrl(),
+                    profile == null ? null : profile.getWebsiteUrl(),
+                    instructorProfile == null ? null : instructorProfile.getExpertise(),
+                    instructorProfile == null ? null : instructorProfile.getExperienceYears(),
+                    instructorProfile == null ? null : instructorProfile.getTeachingExperience(),
+                    instructorProfile == null ? null : instructorProfile.getSpecialties()
+            );
+        });
     }
 
     private PublicProfileResponse getPublicProfile(UUID userId) {

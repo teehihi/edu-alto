@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { Star } from "lucide-react";
 import { Twitter } from "@/components/ui/social-icons";
 import { AppHeader } from "@/components/layout/app-header";
@@ -11,39 +12,134 @@ import { Footer } from "@/components/layout/footer";
 import { CourseCard } from "@/components/course/course-card";
 import { FeatureCard } from "@/components/marketing/feature-card";
 import { Reveal } from "@/components/ui/reveal";
+import { CourseCardSkeleton } from "@/components/ui/skeleton";
+import { fetchPublicCoursePage } from "@/lib/course-client";
+import { fetchPublicInstructorPage } from "@/lib/instructor-client";
 import {
   blogPosts,
   courseCategories,
+  featuredInstructor,
   features,
-  instructors,
-  popularCourses,
   testimonials,
 } from "@/constants/home";
 import { cn } from "@/lib/cn";
+import type { CourseLevel } from "@/types/course";
+import type { PublicInstructor } from "@/types/instructor";
+
+type InstructorCardData = {
+  id: string;
+  name: string;
+  role: string;
+  description: string;
+  image: string | null;
+  xUrl: string | null;
+  linkedinUrl: string | null;
+};
+
+function normalizeInstructorName(name: string): string {
+  return name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/gi, "d")
+    .toLocaleLowerCase("vi");
+}
+
+function safeExternalUrl(value: string | null): string | null {
+  if (!value) return null;
+
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+function toInstructorCardData(instructor: PublicInstructor): InstructorCardData {
+  return {
+    id: instructor.id,
+    name: instructor.fullName,
+    role: instructor.headline || instructor.expertise || "Giảng viên EduAlto",
+    description:
+      instructor.bio ||
+      instructor.specialties ||
+      instructor.teachingExperience ||
+      instructor.expertise ||
+      "Thông tin giới thiệu đang được cập nhật.",
+    image: instructor.avatarUrl,
+    xUrl: safeExternalUrl(instructor.xUrl),
+    linkedinUrl: safeExternalUrl(instructor.linkedinUrl),
+  };
+}
 
 export function HomePage() {
   const searchParams = useSearchParams();
   const query = (searchParams.get("q") ?? "").trim();
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [selectedLevel, setSelectedLevel] = useState<CourseLevel | "all">("all");
+  const courseParams = useMemo(
+    () => ({
+      page: 0,
+      size: 6,
+      sort: "newest" as const,
+      keyword: query || undefined,
+      level: selectedLevel === "all" ? undefined : selectedLevel,
+    }),
+    [query, selectedLevel],
+  );
+  const {
+    data: coursePage,
+    isLoading: coursesLoading,
+    isError: coursesError,
+    refetch: refetchCourses,
+  } = useQuery({
+    queryKey: ["home", "courses", courseParams],
+    queryFn: () => fetchPublicCoursePage(courseParams),
+  });
+  const courses = coursePage?.data ?? [];
+  const {
+    data: instructorPage,
+    isLoading: instructorsLoading,
+    isError: instructorsError,
+    refetch: refetchInstructors,
+  } = useQuery({
+    queryKey: ["public", "instructors"],
+    queryFn: () => fetchPublicInstructorPage({ page: 0, size: 12 }),
+  });
+  const instructorCards = useMemo<InstructorCardData[]>(() => {
+    const featuredFallback: InstructorCardData = {
+      id: featuredInstructor.id,
+      name: featuredInstructor.name,
+      role: featuredInstructor.role,
+      description: featuredInstructor.description,
+      image: featuredInstructor.image,
+      xUrl: null,
+      linkedinUrl: null,
+    };
+    const featuredName = normalizeInstructorName("Hoàng Văn Dũng");
+    const databaseInstructors = instructorPage?.data ?? [];
+    const databaseFeatured = databaseInstructors.find((instructor) =>
+      normalizeInstructorName(instructor.fullName).includes(featuredName),
+    );
+    const featuredCard = databaseFeatured
+      ? {
+          ...toInstructorCardData(databaseFeatured),
+          role: databaseFeatured.headline || databaseFeatured.expertise || featuredFallback.role,
+          description:
+            databaseFeatured.bio ||
+            databaseFeatured.specialties ||
+            databaseFeatured.teachingExperience ||
+            databaseFeatured.expertise ||
+            featuredFallback.description,
+          image: databaseFeatured.avatarUrl || featuredFallback.image,
+        }
+      : featuredFallback;
+    const databaseCards = databaseInstructors
+      .filter((instructor) => !normalizeInstructorName(instructor.fullName).includes(featuredName))
+      .slice(0, 3)
+      .map(toInstructorCardData);
 
-  const filteredCourses = useMemo(() => {
-    let result = popularCourses;
-
-    if (selectedCategory !== "all") {
-      result = result.filter((course) => course.accent === selectedCategory);
-    }
-
-    if (query) {
-      const normalizedQuery = query.toLocaleLowerCase("vi");
-      result = result.filter((course) =>
-        [course.title, course.category, course.description, course.instructor].some((value) =>
-          value.toLocaleLowerCase("vi").includes(normalizedQuery),
-        ),
-      );
-    }
-
-    return result;
-  }, [query, selectedCategory]);
+    return [featuredCard, ...databaseCards];
+  }, [instructorPage?.data]);
 
   return (
     <div suppressHydrationWarning className="min-h-screen overflow-x-clip bg-white">
@@ -261,25 +357,24 @@ export function HomePage() {
             <Reveal direction="right">
               <p className="text-sm font-bold text-primary">Khám phá EduAlto</p>
               <h2 className="mt-3 text-[34px] font-bold leading-tight text-ink sm:text-[40px]">
-                Khóa học phổ biến
+                Khóa học mới nhất
               </h2>
               <p className="mt-4 max-w-2xl text-base leading-7 text-muted">
-                Hãy tham gia lớp học nổi tiếng của chúng tôi, kiến thức được cung cấp chắc chắn sẽ
-                hữu ích cho bạn.
+                Khám phá những khóa học mới được giảng viên EduAlto chia sẻ.
               </p>
             </Reveal>
 
-            {/* Interactive Category Filter Pills */}
+            {/* Filter by the course level returned by the public catalog API. */}
             <Reveal direction="left" delay={150} className="flex flex-wrap gap-2">
               {courseCategories.map((category) => (
                 <button
                   key={category.id}
                   type="button"
-                  aria-pressed={selectedCategory === category.id}
-                  onClick={() => setSelectedCategory(category.id)}
+                  aria-pressed={selectedLevel === category.id}
+                  onClick={() => setSelectedLevel(category.id)}
                   className={cn(
                     "focus-ring rounded-lg px-4 py-2 text-xs font-semibold transition duration-200",
-                    selectedCategory === category.id
+                    selectedLevel === category.id
                       ? "bg-primary text-white shadow-xs"
                       : "bg-slate-100 text-muted hover:bg-slate-200/80 hover:text-ink",
                   )}
@@ -293,26 +388,55 @@ export function HomePage() {
           {query ? <p className="mt-5 text-sm text-muted">Kết quả tìm kiếm cho “{query}”</p> : null}
 
           <div className="mt-10 grid gap-7 md:grid-cols-2 lg:grid-cols-3">
-            {filteredCourses.map((course, index) => (
-              <Reveal key={course.id} delay={(index % 3) * 120} className="h-full">
-                <CourseCard course={course} />
-              </Reveal>
-            ))}
+            {coursesLoading
+              ? Array.from({ length: 3 }, (_, index) => (
+                  <Reveal key={`course-skeleton-${index}`} delay={(index % 3) * 120}>
+                    <CourseCardSkeleton />
+                  </Reveal>
+                ))
+              : courses.map((course, index) => (
+                  <Reveal key={course.id} delay={(index % 3) * 120} className="h-full">
+                    <CourseCard course={course} />
+                  </Reveal>
+                ))}
           </div>
 
-          {filteredCourses.length === 0 ? (
+          {coursesError ? (
+            <div
+              role="alert"
+              className="mt-12 rounded-xl border border-rose-200 bg-rose-50 px-6 py-8 text-center"
+            >
+              <p className="text-base font-semibold text-ink">Không tải được danh sách khóa học</p>
+              <p className="mt-2 text-sm text-muted">Vui lòng kiểm tra kết nối rồi thử lại.</p>
+              <button
+                type="button"
+                onClick={() => void refetchCourses()}
+                className="focus-ring mt-5 inline-flex h-10 items-center rounded-lg border border-primary bg-primary px-5 text-sm font-semibold text-white transition hover:bg-primary-dark"
+              >
+                Thử tải lại
+              </button>
+            </div>
+          ) : null}
+
+          {!coursesLoading && !coursesError && courses.length === 0 ? (
             <Reveal
               direction="scale"
               duration={500}
               className="mt-12 rounded-xl border border-dashed border-primary/40 bg-primary-soft/40 px-6 py-10 text-center"
             >
-              <p className="text-base font-semibold text-ink">Chưa tìm thấy khóa học phù hợp</p>
+              <p className="text-base font-semibold text-ink">
+                {query || selectedLevel !== "all"
+                  ? "Chưa tìm thấy khóa học phù hợp"
+                  : "Chưa có khóa học được xuất bản"}
+              </p>
               <p className="mt-2 text-sm text-muted">
-                Hãy thử chọn danh mục khác hoặc thay đổi từ khóa tìm kiếm.
+                {query || selectedLevel !== "all"
+                  ? "Hãy thử chọn trình độ khác hoặc thay đổi từ khóa tìm kiếm."
+                  : "Các khóa học sẽ hiển thị tại đây sau khi được xuất bản."}
               </p>
               <button
                 type="button"
-                onClick={() => setSelectedCategory("all")}
+                onClick={() => setSelectedLevel("all")}
                 className="focus-ring mt-5 inline-flex h-10 items-center rounded-lg border border-primary bg-primary px-5 text-sm font-semibold text-white transition hover:bg-primary-dark"
               >
                 Xem tất cả khóa học
@@ -342,45 +466,84 @@ export function HomePage() {
             </p>
           </Reveal>
           <div className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-            {instructors.map((instructor, index) => (
-              <Reveal key={instructor.name} delay={(index % 4) * 110} className="h-full">
+            {instructorCards.map((instructor, index) => (
+              <Reveal key={instructor.id} delay={(index % 4) * 110} className="h-full">
                 <article className="group h-full rounded-2xl border border-slate-100/80 bg-[#f8fafb] px-7 py-10 text-center transition duration-300 hover:-translate-y-1.5 hover:bg-white hover:shadow-cardHover">
-                  <Image
-                    src={instructor.image}
-                    alt={instructor.name}
-                    width={80}
-                    height={80}
-                    className="mx-auto h-20 w-20 rounded-full object-cover shadow-sm ring-2 ring-primary/20 transition group-hover:ring-primary/40"
-                  />
+                  {instructor.image ? (
+                    // Instructor avatars may be stored on an external object-storage host.
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={instructor.image}
+                      alt={instructor.name}
+                      className="mx-auto h-20 w-20 rounded-full object-cover shadow-sm ring-2 ring-primary/20 transition group-hover:ring-primary/40"
+                    />
+                  ) : (
+                    <div
+                      role="img"
+                      className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-primary-soft text-2xl font-bold text-primary shadow-sm ring-2 ring-primary/20"
+                      aria-label={instructor.name}
+                    >
+                      {instructor.name.charAt(0)}
+                    </div>
+                  )}
                   <h3 className="mt-6 text-base font-bold text-ink">{instructor.name}</h3>
                   <p className="mt-1 text-sm font-semibold text-primary">{instructor.role}</p>
-                  <p className="mx-auto mt-3 min-h-[64px] max-w-[220px] text-sm leading-6 text-muted">
+                  <p className="mx-auto mt-3 min-h-[64px] max-w-[220px] text-sm leading-6 text-muted line-clamp-3">
                     {instructor.description}
                   </p>
                   <div className="mt-6 flex justify-center gap-4 text-slate-400">
-                    <a
-                      href="https://twitter.com"
-                      target="_blank"
-                      rel="noreferrer"
-                      aria-label={`Twitter của ${instructor.name}`}
-                      className="focus-ring rounded p-1 transition hover:text-primary"
-                    >
-                      <Twitter className="h-4 w-4" aria-hidden="true" />
-                    </a>
-                    <a
-                      href="https://linkedin.com"
-                      target="_blank"
-                      rel="noreferrer"
-                      aria-label={`LinkedIn của ${instructor.name}`}
-                      className="focus-ring rounded p-1 text-sm font-bold transition hover:text-primary"
-                    >
-                      in
-                    </a>
+                    {instructor.xUrl ? (
+                      <a
+                        href={instructor.xUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        aria-label={`X của ${instructor.name}`}
+                        className="focus-ring rounded p-1 transition hover:text-primary"
+                      >
+                        <Twitter className="h-4 w-4" aria-hidden="true" />
+                      </a>
+                    ) : null}
+                    {instructor.linkedinUrl ? (
+                      <a
+                        href={instructor.linkedinUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        aria-label={`LinkedIn của ${instructor.name}`}
+                        className="focus-ring rounded p-1 text-sm font-bold transition hover:text-primary"
+                      >
+                        in
+                      </a>
+                    ) : null}
                   </div>
                 </article>
               </Reveal>
             ))}
+            {instructorsLoading
+              ? Array.from({ length: 3 }, (_, index) => (
+                  <div
+                    key={`instructor-skeleton-${index}`}
+                    role="status"
+                    aria-label="Đang tải giảng viên"
+                    className="h-[320px] animate-pulse rounded-2xl border border-slate-100 bg-slate-50"
+                  />
+                ))
+              : null}
           </div>
+          {instructorsError ? (
+            <div
+              role="alert"
+              className="mx-auto mt-6 max-w-xl rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+            >
+              Chưa thể tải danh sách giảng viên. Hoàng Văn Dũng vẫn được hiển thị.
+              <button
+                type="button"
+                onClick={() => void refetchInstructors()}
+                className="focus-ring ml-2 font-semibold underline underline-offset-2"
+              >
+                Thử lại
+              </button>
+            </div>
+          ) : null}
         </section>
 
         {/* Testimonials Infinite Marquee */}

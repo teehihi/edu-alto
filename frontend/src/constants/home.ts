@@ -1,62 +1,9 @@
-import type { Course } from "@/types/course";
-
 export const courseCategories = [
   { id: "all", label: "Tất cả" },
-  { id: "design", label: "Thiết kế UI/UX" },
-  { id: "coding", label: "Lập trình Web" },
-  { id: "vibe", label: "AI & Vibe Coding" },
+  { id: "BEGINNER", label: "Cơ bản" },
+  { id: "INTERMEDIATE", label: "Trung cấp" },
+  { id: "ADVANCED", label: "Nâng cao" },
 ] as const;
-
-export const popularCourses: Course[] = [
-  {
-    id: "ui-design-foundation",
-    title: "Figma UI UX Design Cơ Bản Đến Nâng Cao",
-    category: "Design",
-    description:
-      "Sử dụng Figma chuyên nghiệp để sẵn sàng làm việc trong lĩnh vực UI/UX Design, thiết kế giao diện và trải nghiệm người dùng.",
-    image: "/images/home/course-figma.png",
-    duration: "08 giờ 12 phút",
-    rating: 4.8,
-    reviewCount: "(16,325)",
-    instructor: "Phạm Văn Hậu",
-    instructorAvatar: "/images/home/author-hau.png",
-    joinedAt: "Tham gia từ 2022",
-    price: "500.000đ",
-    accent: "design",
-  },
-  {
-    id: "programming-basic",
-    title: "300 Bài Code Thiếu Nhi",
-    category: "Coding Basic",
-    description:
-      "Các bài tập lập trình từ cơ bản đến nâng cao, rèn luyện tư duy logic vững chắc cho người mới bắt đầu.",
-    image: "/images/home/course-code.png",
-    duration: "06 giờ 3 phút",
-    rating: 5.0,
-    reviewCount: "(832)",
-    instructor: "Tee",
-    instructorAvatar: "/images/home/author-tee.png",
-    joinedAt: "Tham gia từ 2021",
-    price: "1.000.000đ",
-    accent: "coding",
-  },
-  {
-    id: "vibe-coding",
-    title: "Kỹ Năng Vibe Coder Với AI",
-    category: "VibeCoding",
-    description:
-      "Làm chủ AI Agent hiện đại, tối ưu hiệu suất lập trình và sẵn sàng dẫn đầu xu hướng công nghệ tương lai.",
-    image: "/images/home/course-vibe.png",
-    duration: "01 giờ 2 phút",
-    rating: 4.7,
-    reviewCount: "(125)",
-    instructor: "Công Ank",
-    instructorAvatar: "/images/home/author-ank.png",
-    joinedAt: "Tham gia từ 2023",
-    price: "360.000đ",
-    accent: "vibe",
-  },
-];
 
 export const testimonials = [
   {
@@ -143,32 +90,13 @@ export const features = [
   },
 ] as const;
 
-export const instructors = [
-  {
-    name: "PGS. TS. Hoàng Văn Dũng",
-    role: "Phó Trưởng khoa CNTT",
-    description: "Chuyên gia đầu ngành về Trí tuệ nhân tạo và Khoa học máy tính.",
-    image: "/images/home/instructor-dung.png",
-  },
-  {
-    name: "TS. Nguyễn Thành Sơn",
-    role: "Chuyên Gia Cơ Sở Dữ Liệu",
-    description: "Kinh nghiệm nghiên cứu và phát triển hệ thống dữ liệu quy mô lớn.",
-    image: "/images/home/instructor-son.png",
-  },
-  {
-    name: "ThS. Trần Mạnh Hùng",
-    role: "Giảng Viên Kỹ Năng & Thể Chất",
-    description: "Huấn luyện viên thể chất và kỹ năng quản trị năng lượng học tập.",
-    image: "/images/home/instructor-hung.png",
-  },
-  {
-    name: "TS. Đặng Thị Minh Tuấn",
-    role: "Tiến Sĩ Triết Học & Tư Duy",
-    description: "Nghiên cứu phương pháp luận tư duy phản biện và đạo đức công nghệ.",
-    image: "/images/home/instructor-tuan.png",
-  },
-] as const;
+export const featuredInstructor = {
+  id: "featured-hoang-van-dung",
+  name: "PGS. TS. Hoàng Văn Dũng",
+  role: "Phó Trưởng khoa CNTT",
+  description: "Chuyên gia đầu ngành về Trí tuệ nhân tạo và Khoa học máy tính.",
+  image: "/images/home/instructor-dung.png",
+} as const;
 
 export const blogPosts = [
   {
