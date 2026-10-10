@@ -763,16 +763,14 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
       let finalAvatarUrl = savedAvatarUrl;
 
       if (selectedAvatarFile) {
-        try {
-          const avatarRes = await uploadAvatar(selectedAvatarFile);
-          if (avatarRes.avatarUrl) {
-            finalAvatarUrl = avatarRes.avatarUrl;
-            setSavedAvatarUrl(finalAvatarUrl);
-            updateUserAvatar(finalAvatarUrl);
-          }
-        } catch (uploadErr) {
-          console.error("Avatar upload failed:", uploadErr);
+        const avatarRes = await uploadAvatar(selectedAvatarFile);
+        if (!avatarRes.avatarUrl) {
+          throw new Error("Chưa nhận được ảnh đại diện đã tải lên. Vui lòng thử lại.");
         }
+
+        finalAvatarUrl = avatarRes.avatarUrl;
+        setSavedAvatarUrl(finalAvatarUrl);
+        updateUserAvatar(finalAvatarUrl);
       }
 
       const fullCombined = `${familyName.trim()} ${givenName.trim()}`.trim();
@@ -805,7 +803,6 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
       setIsEditing(false);
 
       const successMsg = "Cập nhật thông tin hồ sơ thành công!";
-      setStatus({ tone: "success", message: successMsg });
       setModalConfig({
         isOpen: true,
         title: "Thành công!",

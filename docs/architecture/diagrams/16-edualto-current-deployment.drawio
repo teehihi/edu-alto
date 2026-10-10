@@ -1,0 +1,113 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36" version="28.2.3">
+  <diagram id="edualto-current-deployment" name="EduAlto - Current Deployment">
+    <mxGraphModel dx="1697" dy="1098" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1720" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="EduAlto | Kiến trúc triển khai hiện tại" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=28;fontStyle=1;fontColor=#101A2C;" parent="1" vertex="1">
+          <mxGeometry x="64" y="38" width="1100" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" value="Vercel frontend · AWS Lightsail backend · RDS PostgreSQL · Cloudflare R2" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=16;fontColor=#667085;" parent="1" vertex="1">
+          <mxGeometry x="66" y="84" width="1150" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="aws-cloud" value="AWS Cloud" style="sketch=0;outlineConnect=0;gradientColor=none;html=1;whiteSpace=wrap;fontSize=16;fontStyle=1;shape=mxgraph.aws4.group;grIcon=mxgraph.aws4.group_aws_cloud;strokeColor=#AAB7B8;strokeWidth=2;fillColor=none;verticalAlign=top;align=left;spacingLeft=34;spacingTop=8;fontColor=#475467;dashed=0;rounded=1;container=0;pointerEvents=0;collapsible=0;recursiveResize=0;" parent="1" vertex="1">
+          <mxGeometry x="560" y="155" width="780" height="620" as="geometry" />
+        </mxCell>
+        <mxCell id="aws-caption" value="AWS (region to verify against the deployed RDS endpoint)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#D0D5DD;fontColor=#475467;fontSize=13;align=left;spacingLeft=12;" parent="1" vertex="1">
+          <mxGeometry x="585" y="186" width="330" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="browser" value="" style="rounded=1;whiteSpace=wrap;html=1;arcSize=14;fillColor=#FFFFFF;strokeColor=#98A2B3;strokeWidth=2;fontColor=#101A2C;fontSize=17;fontStyle=1;align=center;verticalAlign=middle;spacing=10;shadow=1;" parent="1" vertex="1">
+          <mxGeometry x="100" y="210" width="155" height="122" as="geometry" />
+        </mxCell>
+        <mxCell id="browser-users-icon" value="" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#232F3E;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.users;" parent="1" vertex="1">
+          <mxGeometry x="151" y="218" width="53" height="53" as="geometry" />
+        </mxCell>
+        <mxCell id="browser-label" value="Người dùng / Browser&lt;br&gt;&lt;font style=&quot;font-size:13px;color:#667085&quot;&gt;Web app client&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=15;fontStyle=1;fontColor=#101A2C;pointerEvents=0;" parent="1" vertex="1">
+          <mxGeometry x="108" y="272" width="139" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="vercel" value="Vercel&lt;br&gt;&lt;font style=&quot;font-size:14px;color:#475467&quot;&gt;Next.js frontend&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=14;fillColor=#F8FAFC;strokeColor=#344054;strokeWidth=2;fontColor=#101A2C;fontSize=21;fontStyle=1;align=center;verticalAlign=middle;spacing=12;shadow=1;" parent="1" vertex="1">
+          <mxGeometry x="285" y="380" width="220" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="vercel-mark" value="▲" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=24;fontColor=#111827;" parent="1" vertex="1">
+          <mxGeometry x="372" y="396" width="46" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="lightsail-box" value="" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#FFFCF5;strokeColor=#E7A22A;strokeWidth=2;shadow=1;" parent="1" vertex="1">
+          <mxGeometry x="625" y="252" width="405" height="428" as="geometry" />
+        </mxCell>
+        <mxCell id="lightsail-icon" value="Amazon Lightsail" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=#F78E04;gradientDirection=north;fillColor=#D05C17;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lightsail;" parent="1" vertex="1">
+          <mxGeometry x="650" y="270" width="78" height="78" as="geometry" />
+        </mxCell>
+        <mxCell id="lightsail-title" value="edualto-backend&lt;br&gt;&lt;font style=&quot;font-size:13px;color:#667085&quot;&gt;Lightsail instance&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=18;fontStyle=1;fontColor=#101A2C;" parent="1" vertex="1">
+          <mxGeometry x="748" y="278" width="245" height="54" as="geometry" />
+        </mxCell>
+        <mxCell id="docker-frame" value="Docker containers" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#FFFFFF;strokeColor=#BFC8D4;strokeWidth=1.5;dashed=1;fontColor=#475467;fontSize=14;fontStyle=1;align=left;verticalAlign=top;spacingLeft=12;spacingTop=8;" parent="1" vertex="1">
+          <mxGeometry x="660" y="380" width="335" height="270" as="geometry" />
+        </mxCell>
+        <mxCell id="caddy" value="Caddy&lt;br&gt;&lt;font style=&quot;font-size:12px;color:#667085&quot;&gt;TLS · reverse proxy&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#FFF4E5;strokeColor=#F79009;strokeWidth=1.5;fontColor=#101A2C;fontSize=15;fontStyle=1;align=left;verticalAlign=middle;spacingLeft=14;" parent="1" vertex="1">
+          <mxGeometry x="690" y="426" width="275" height="54" as="geometry" />
+        </mxCell>
+        <mxCell id="spring" value="Spring Boot API&lt;br&gt;&lt;font style=&quot;font-size:12px;color:#667085&quot;&gt;Java · modular monolith · /api/v1&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#EAF7F3;strokeColor=#20B486;strokeWidth=1.5;fontColor=#101A2C;fontSize=15;fontStyle=1;align=left;verticalAlign=middle;spacingLeft=14;" parent="1" vertex="1">
+          <mxGeometry x="690" y="501" width="275" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="redis" value="Redis&lt;br&gt;&lt;font style=&quot;font-size:12px;color:#667085&quot;&gt;Docker container · cache&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#FEF3F2;strokeColor=#F04438;strokeWidth=1.5;fontColor=#101A2C;fontSize=15;fontStyle=1;align=left;verticalAlign=middle;spacingLeft=14;" parent="1" vertex="1">
+          <mxGeometry x="690" y="583" width="275" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="rds-frame" value="Private database" style="rounded=1;whiteSpace=wrap;html=1;arcSize=10;fillColor=#FCFAFF;strokeColor=#C6A7E8;strokeWidth=1.5;dashed=1;fontColor=#6941C6;fontSize=13;fontStyle=1;align=center;verticalAlign=top;spacingTop=10;" parent="1" vertex="1">
+          <mxGeometry x="1130" y="450" width="190" height="240" as="geometry" />
+        </mxCell>
+        <mxCell id="rds-icon" value="Amazon RDS" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=#4D72F3;gradientDirection=north;fillColor=#3334B9;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.rds;" parent="1" vertex="1">
+          <mxGeometry x="1186" y="495" width="78" height="78" as="geometry" />
+        </mxCell>
+        <mxCell id="rds-label" value="PostgreSQL&lt;br&gt;&lt;font style=&quot;font-size:12px;color:#667085&quot;&gt;Amazon RDS&lt;br&gt;Không public&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=15;fontStyle=1;fontColor=#101A2C;" parent="1" vertex="1">
+          <mxGeometry x="1142" y="590" width="166" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="r2" value="Cloudflare R2&lt;br&gt;&lt;font style=&quot;font-size:13px;color:#475467&quot;&gt;Object storage&lt;br&gt;S3-compatible API&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=14;fillColor=#FFF7ED;strokeColor=#F38020;strokeWidth=2;fontColor=#101A2C;fontSize=19;fontStyle=1;align=center;verticalAlign=middle;spacing=14;shadow=1;" parent="1" vertex="1">
+          <mxGeometry x="1390" y="395" width="250" height="175" as="geometry" />
+        </mxCell>
+        <mxCell id="r2-note" value="Dịch vụ ngoài AWS&lt;br&gt;Không phải Amazon S3" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=12;fontColor=#667085;" parent="1" vertex="1">
+          <mxGeometry x="1402" y="580" width="226" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-browser-vercel" value="HTTPS · tải frontend" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475467;strokeWidth=2;endArrow=block;endFill=1;fontColor=#344054;fontSize=12;labelBackgroundColor=#FFFFFF;" parent="1" source="browser" target="vercel" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-vercel-api" value="HTTPS · API /api/v1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475467;strokeWidth=2;endArrow=block;endFill=1;fontColor=#344054;fontSize=12;labelBackgroundColor=#FFFFFF;" parent="1" source="vercel" target="caddy" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="555" y="455" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge-caddy-spring" value="Reverse proxy" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#667085;strokeWidth=1.7;endArrow=block;endFill=1;fontColor=#475467;fontSize=11;labelBackgroundColor=#FFFFFF;" parent="1" source="caddy" target="spring" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-spring-redis" value="TCP 6379" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#D92D20;strokeWidth=1.7;endArrow=block;endFill=1;fontColor=#B42318;fontSize=11;labelBackgroundColor=#FFFFFF;" parent="1" source="spring" target="redis" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-spring-rds" value="PostgreSQL · 5432" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#6941C6;strokeWidth=2;endArrow=block;endFill=1;fontColor=#6941C6;fontSize=12;labelBackgroundColor=#FFFFFF;" parent="1" source="spring" target="rds-frame" edge="1">
+          <mxGeometry x="0.4644" y="10" relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1025" y="511" />
+            </Array>
+            <mxPoint x="1" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge-spring-r2" value="S3-compatible API" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#F38020;strokeWidth=2;endArrow=block;endFill=1;fontColor=#B54708;fontSize=12;labelBackgroundColor=#FFFFFF;" parent="1" source="spring" target="r2" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1010" y="295" />
+              <mxPoint x="1515" y="295" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge-browser-r2" value="Upload / download trực tiếp bằng presigned URL" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2878B8;strokeWidth=2;dashed=1;dashPattern=8 6;endArrow=block;endFill=1;fontColor=#175CD3;fontSize=12;labelBackgroundColor=#FFFFFF;" parent="1" source="browser" target="r2" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="145" y="720" />
+              <mxPoint x="1515" y="720" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
