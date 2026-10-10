@@ -498,18 +498,53 @@ function CourseCatalogContent() {
     setCurrentPage(1);
   }
 
-  const activeFilterCount = useMemo(() => {
-    let count = 0;
-    if (selectedLevel) count++;
-    if (selectedLanguage) count++;
-    if (selectedPriceRange !== "ALL") count++;
-    return count;
+  const activeFilters = useMemo(() => {
+    const filters: { key: "level" | "language" | "price"; label: string }[] = [];
+    const levelLabels: Record<string, string> = {
+      BEGINNER: "Cơ bản",
+      INTERMEDIATE: "Trung cấp",
+      ADVANCED: "Nâng cao",
+      ALL_LEVELS: "Mọi trình độ",
+    };
+    const languageLabels: Record<string, string> = {
+      vi: "Tiếng Việt",
+      en: "Tiếng Anh",
+    };
+    const priceLabels: Record<string, string> = {
+      FREE: "Miễn phí",
+      UNDER_500: "Dưới 500.000đ",
+      "500_1000": "500.000đ - 1.000.000đ",
+      OVER_1000: "Trên 1.000.000đ",
+    };
+
+    if (selectedLevel) {
+      filters.push({ key: "level", label: levelLabels[selectedLevel] ?? selectedLevel });
+    }
+    if (selectedLanguage) {
+      filters.push({
+        key: "language",
+        label: languageLabels[selectedLanguage] ?? selectedLanguage,
+      });
+    }
+    if (selectedPriceRange !== "ALL") {
+      filters.push({ key: "price", label: priceLabels[selectedPriceRange] ?? selectedPriceRange });
+    }
+    return filters;
   }, [selectedLevel, selectedLanguage, selectedPriceRange]);
+
+  const activeFilterCount = activeFilters.length;
 
   function resetFilters() {
     setSelectedLevel("");
     setSelectedLanguage("");
     setSelectedPriceRange("ALL");
+    setCurrentPage(1);
+  }
+
+  function clearFilter(key: "level" | "language" | "price") {
+    if (key === "level") setSelectedLevel("");
+    if (key === "language") setSelectedLanguage("");
+    if (key === "price") setSelectedPriceRange("ALL");
     setCurrentPage(1);
   }
 
@@ -570,35 +605,61 @@ function CourseCatalogContent() {
 
             {/* Filter Button & Sort Row */}
             <div className="relative z-30 mt-6 flex flex-wrap items-center justify-between gap-4">
-              {/* Filter Button */}
-              <button
-                type="button"
-                onClick={handleToggleFilter}
-                aria-expanded={isDesktopFilterOpen}
-                className={cn(
-                  "focus-ring group inline-flex items-center gap-2.5 rounded-xl border px-4 py-2.5 text-xs font-bold shadow-xs transition-all duration-200 active:scale-[0.96]",
-                  isDesktopFilterOpen
-                    ? "border-primary/40 bg-primary-soft/40 text-primary hover:bg-primary-soft/60"
-                    : "border-slate-200 bg-white text-ink hover:border-primary/40 hover:text-primary",
-                )}
-              >
-                <SlidersHorizontal
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                {/* Filter Button */}
+                <button
+                  type="button"
+                  onClick={handleToggleFilter}
+                  aria-expanded={isDesktopFilterOpen}
                   className={cn(
-                    "h-4 w-4 transition-transform duration-200",
+                    "focus-ring group inline-flex items-center gap-2.5 rounded-xl border px-4 py-2.5 text-xs font-bold shadow-xs transition-all duration-200 active:scale-[0.96]",
                     isDesktopFilterOpen
-                      ? "rotate-90 text-primary"
-                      : "text-slate-500 group-hover:text-primary",
+                      ? "border-primary/40 bg-primary-soft/40 text-primary hover:bg-primary-soft/60"
+                      : "border-slate-200 bg-white text-ink hover:border-primary/40 hover:text-primary",
                   )}
-                />
-                <span className="min-w-[4.25rem] text-left">
-                  {isDesktopFilterOpen ? "Ẩn bộ lọc" : "Hiện bộ lọc"}
-                </span>
-                {activeFilterCount > 0 && (
-                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-white shadow-xs">
-                    {activeFilterCount}
+                >
+                  <SlidersHorizontal
+                    className={cn(
+                      "h-4 w-4 transition-transform duration-200",
+                      isDesktopFilterOpen
+                        ? "rotate-90 text-primary"
+                        : "text-slate-500 group-hover:text-primary",
+                    )}
+                  />
+                  <span className="min-w-[4.25rem] text-left">
+                    {isDesktopFilterOpen ? "Ẩn bộ lọc" : "Hiện bộ lọc"}
                   </span>
+                  {activeFilterCount > 0 && (
+                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-white shadow-xs">
+                      {activeFilterCount}
+                    </span>
+                  )}
+                </button>
+
+                {!isDesktopFilterOpen && activeFilters.length > 0 && (
+                  <div
+                    className="flex flex-wrap items-center gap-2"
+                    aria-label="Bộ lọc đang áp dụng"
+                    role="group"
+                  >
+                    {activeFilters.map((filter) => (
+                      <button
+                        key={filter.key}
+                        type="button"
+                        onClick={() => clearFilter(filter.key)}
+                        aria-label={`Bỏ lọc ${filter.label}`}
+                        className="focus-ring group inline-flex h-9 items-center gap-1.5 rounded-full border border-primary/20 bg-white px-3 text-xs font-semibold text-slate-700 shadow-xs transition hover:border-primary/40 hover:bg-primary-soft/40 hover:text-primary active:scale-[0.97]"
+                      >
+                        <span>{filter.label}</span>
+                        <X
+                          className="h-3.5 w-3.5 text-slate-400 transition-colors group-hover:text-primary"
+                          aria-hidden="true"
+                        />
+                      </button>
+                    ))}
+                  </div>
                 )}
-              </button>
+              </div>
 
               {/* Sort Dropdown */}
               <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">

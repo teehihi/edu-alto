@@ -13,6 +13,7 @@ import {
 } from "react";
 import {
   BookOpen,
+  Camera,
   CheckCircle2,
   CircleAlert,
   ExternalLink,
@@ -26,12 +27,14 @@ import {
   SlidersHorizontal,
   Star,
   UploadCloud,
+  X,
 } from "lucide-react";
 import { AppHeader } from "@/components/layout/app-header";
 import { Footer } from "@/components/layout/footer";
 import { CustomSelect } from "@/components/ui/custom-select";
 import { AvatarCropper } from "@/components/ui/avatar-cropper";
 import { FeedbackModal, type FeedbackTone } from "@/components/ui/feedback-modal";
+import { SavingOverlay } from "@/components/ui/saving-overlay";
 import { ProfileSkeleton } from "@/components/ui/skeleton";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import {
@@ -447,6 +450,9 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
   // Avatar Upload States
   const [selectedAvatarFile, setSelectedAvatarFile] = useState<File | null>(null);
   const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
+  const [avatarCropTarget, setAvatarCropTarget] = useState<"profile" | "editor" | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const isBusy = saving || avatarUploading;
   const [isDragging, setIsDragging] = useState(false);
 
   // Teacher List States (Student role - Node 33-7705)
@@ -456,6 +462,7 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
 
   const initialLoadDoneRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const profileAvatarInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!previewAvatarUrl?.startsWith("blob:")) return;
@@ -620,7 +627,7 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
     return filteredAndSortedTeachers.slice(start, start + 8);
   }, [filteredAndSortedTeachers, teacherPage]);
 
-  function handleProcessFile(file: File) {
+  function handleProcessFile(file: File, target: "profile" | "editor" = "editor") {
     if (saving) return;
 
     const validMimes = ["image/jpeg", "image/png", "image/webp"];
@@ -650,6 +657,7 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
       return;
     }
 
+    setAvatarCropTarget(target);
     setPendingAvatarFile(file);
   }
 
@@ -661,9 +669,55 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
     e.target.value = "";
   }
 
-  function handleAvatarCrop(file: File) {
+  function handleProfileAvatarFileChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleProcessFile(file, "profile");
+    }
+    e.target.value = "";
+  }
+
+  async function handleAvatarCrop(file: File) {
+    if (avatarCropTarget === "profile") {
+      setAvatarUploading(true);
+      setStatus(null);
+
+      try {
+        const updatedProfile = await uploadAvatar(file);
+        if (!updatedProfile.avatarUrl) {
+          throw new Error("Chưa nhận được ảnh đại diện đã tải lên. Vui lòng thử lại.");
+        }
+
+        setSavedAvatarUrl(updatedProfile.avatarUrl);
+        setProfileData((current) =>
+          current ? { ...current, avatarUrl: updatedProfile.avatarUrl } : current,
+        );
+        setPendingAvatarFile(null);
+        setAvatarCropTarget(null);
+        setModalConfig({
+          isOpen: true,
+          title: "Thành công!",
+          description: "Ảnh đại diện đã được cập nhật.",
+          tone: "success",
+          confirmText: "Tuyệt vời",
+        });
+      } catch (error) {
+        setModalConfig({
+          isOpen: true,
+          title: "Không thể cập nhật ảnh",
+          description: getFriendlyError(error, "Không thể tải lên ảnh đại diện. Vui lòng thử lại."),
+          tone: "error",
+          confirmText: "Đã hiểu",
+        });
+      } finally {
+        setAvatarUploading(false);
+      }
+      return;
+    }
+
     setSelectedAvatarFile(file);
     setPendingAvatarFile(null);
+    setAvatarCropTarget(null);
     setPreviewAvatarUrl(URL.createObjectURL(file));
   }
 
@@ -875,6 +929,9 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
   return (
     <div
       className="flex min-h-screen flex-col justify-between"
+      inert={isBusy}
+      aria-hidden={isBusy}
+      aria-busy={isBusy}
       style={{
         background:
           "linear-gradient(180deg, #E6F7F2 0%, #F2FAF7 320px, #FFFFFF 680px, #FFFFFF 100%)",
@@ -928,13 +985,52 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
 
                     {/* Large Avatar */}
                     <div className="relative mx-auto flex items-center justify-center pt-2">
-                      <UserAvatar
-                        name={combinedFullName}
-                        email={profileData && "email" in profileData ? profileData.email : ""}
-                        avatarUrl={savedAvatarUrl}
-                        size="2xl"
-                        className="shadow-sm ring-4 ring-white"
-                      />
+                      {isOwner ? (
+                        <>
+                          <input
+                            ref={profileAvatarInputRef}
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            aria-label="Chọn ảnh đại diện mới"
+                            disabled={saving || avatarUploading}
+                            className="hidden"
+                            onChange={handleProfileAvatarFileChange}
+                          />
+                          <div className="group relative inline-flex rounded-full">
+                            <UserAvatar
+                              name={combinedFullName}
+                              email={profileData && "email" in profileData ? profileData.email : ""}
+                              avatarUrl={savedAvatarUrl}
+                              size="2xl"
+                              className="shadow-sm ring-4 ring-white"
+                            />
+                            <button
+                              type="button"
+                              aria-label="Đổi ảnh đại diện"
+                              title="Đổi ảnh đại diện"
+                              disabled={saving || avatarUploading}
+                              onClick={() => profileAvatarInputRef.current?.click()}
+                              className="focus-ring absolute inset-0 z-10 rounded-full bg-transparent transition-colors duration-200 hover:bg-slate-950/35 focus-visible:bg-slate-950/35 disabled:cursor-wait"
+                            >
+                              <Camera className="absolute left-1/2 top-1/2 h-8 w-8 -translate-x-1/2 -translate-y-1/2 text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100" />
+                            </button>
+                            <span
+                              className="pointer-events-none absolute bottom-0 right-0 z-20 grid h-9 w-9 place-items-center rounded-full border-2 border-white bg-primary text-white shadow-sm transition-opacity group-hover:opacity-0"
+                              aria-hidden="true"
+                            >
+                              <Camera className="h-4 w-4" />
+                            </span>
+                          </div>
+                        </>
+                      ) : (
+                        <UserAvatar
+                          name={combinedFullName}
+                          email={profileData && "email" in profileData ? profileData.email : ""}
+                          avatarUrl={savedAvatarUrl}
+                          size="2xl"
+                          className="shadow-sm ring-4 ring-white"
+                        />
+                      )}
                     </div>
 
                     {/* Full Name */}
@@ -1438,10 +1534,13 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
                             onChange={handleFileChange}
                           />
 
-                          {pendingAvatarFile ? (
+                          {pendingAvatarFile && avatarCropTarget === "editor" ? (
                             <AvatarCropper
                               file={pendingAvatarFile}
-                              onCancel={() => setPendingAvatarFile(null)}
+                              onCancel={() => {
+                                setPendingAvatarFile(null);
+                                setAvatarCropTarget(null);
+                              }}
                               onChooseAnother={() => fileInputRef.current?.click()}
                               onConfirm={handleAvatarCrop}
                             />
@@ -1823,7 +1922,67 @@ export function ProfilePage({ targetIdentifier, defaultEditing = false }: Profil
         </div>
       </main>
 
+      {pendingAvatarFile && avatarCropTarget === "profile" ? (
+        <div
+          className="fixed inset-0 z-[1200] flex items-center justify-center overflow-y-auto bg-slate-950/50 p-4 backdrop-blur-sm sm:p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="profile-avatar-crop-title"
+        >
+          <button
+            type="button"
+            aria-label="Đóng khung căn chỉnh ảnh"
+            disabled={avatarUploading}
+            onClick={() => {
+              setPendingAvatarFile(null);
+              setAvatarCropTarget(null);
+            }}
+            className="absolute inset-0 h-full w-full cursor-default disabled:cursor-wait"
+          />
+          <section className="relative z-10 my-auto w-full max-w-3xl rounded-2xl border border-slate-100 bg-white p-4 shadow-2xl sm:p-6">
+            <div className="mb-4 flex items-start justify-between gap-4">
+              <div>
+                <h2 id="profile-avatar-crop-title" className="text-lg font-bold text-heading">
+                  Căn chỉnh ảnh đại diện
+                </h2>
+                <p className="mt-1 text-sm text-muted">
+                  Kéo ảnh để chọn phần muốn hiển thị trong ảnh đại diện.
+                </p>
+              </div>
+              <button
+                type="button"
+                aria-label="Đóng khung căn chỉnh ảnh"
+                disabled={avatarUploading}
+                onClick={() => {
+                  setPendingAvatarFile(null);
+                  setAvatarCropTarget(null);
+                }}
+                className="focus-ring -mr-1 -mt-1 grid h-9 w-9 shrink-0 place-items-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-heading disabled:cursor-wait disabled:opacity-50"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <AvatarCropper
+              file={pendingAvatarFile}
+              onCancel={() => {
+                setPendingAvatarFile(null);
+                setAvatarCropTarget(null);
+              }}
+              onChooseAnother={() => profileAvatarInputRef.current?.click()}
+              onConfirm={handleAvatarCrop}
+              isSubmitting={avatarUploading}
+            />
+          </section>
+        </div>
+      ) : null}
+
       <Footer />
+
+      {isBusy ? (
+        <SavingOverlay
+          message={avatarUploading ? "Đang tải ảnh đại diện lên..." : "Đang lưu thông tin hồ sơ..."}
+        />
+      ) : null}
 
       <FeedbackModal
         isOpen={modalConfig.isOpen}

@@ -131,13 +131,11 @@ const HeaderNavLinks = memo(function HeaderNavLinks({ pathname }: { pathname: st
 export const AppHeader = memo(function AppHeader({
   transparent = false,
   sticky = true,
-  height = "default",
   className,
   transparentBg = "bg-[#E6F7F2]",
 }: {
   transparent?: boolean;
   sticky?: boolean;
-  height?: "default" | "checkout";
   className?: string;
   transparentBg?: string;
 }) {
@@ -222,14 +220,7 @@ export const AppHeader = memo(function AppHeader({
         className,
       )}
     >
-      <div
-        className={cn(
-          "mx-auto flex w-full max-w-[1440px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8 xl:px-12",
-          height === "checkout"
-            ? "min-h-[80px] lg:min-h-[100px] xl:max-w-[1200px] xl:px-0"
-            : "min-h-[80px]",
-        )}
-      >
+      <div className="mx-auto flex min-h-[80px] w-full max-w-[1440px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8 xl:px-12">
         {/* Logo */}
         <Link href="/" className="focus-ring rounded-lg shrink-0" aria-label="Về trang chủ EduAlto">
           <Image
@@ -237,10 +228,7 @@ export const AppHeader = memo(function AppHeader({
             alt="EduAlto"
             width={128}
             height={72}
-            className={cn(
-              "h-[52px] sm:h-[60px] w-auto object-contain",
-              height === "checkout" && "lg:h-[68px]",
-            )}
+            className="h-[52px] w-auto object-contain sm:h-[60px]"
             priority
           />
         </Link>

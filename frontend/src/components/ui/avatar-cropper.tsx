@@ -1,23 +1,34 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type PointerEvent } from "react";
-import { Minus, Plus } from "lucide-react";
+import { useCallback, useEffect, useId, useRef, useState, type PointerEvent } from "react";
+import { Minus, Move, Plus } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 type CropOffset = { x: number; y: number };
+type StageSize = { width: number; height: number };
+type ImageState =
+  | { file: File; status: "loading" }
+  | { file: File; status: "ready"; previewUrl: string; width: number; height: number }
+  | { file: File; status: "error"; message: string };
 
 type AvatarCropperProps = {
   file: File;
   onCancel: () => void;
   onChooseAnother: () => void;
   onConfirm: (file: File) => void;
+  isSubmitting?: boolean;
 };
 
 const OUTPUT_SIZE = 512;
 
-export function AvatarCropper({ file, onCancel, onChooseAnother, onConfirm }: AvatarCropperProps) {
-  const viewportRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+export function AvatarCropper({
+  file,
+  onCancel,
+  onChooseAnother,
+  onConfirm,
+  isSubmitting = false,
+}: AvatarCropperProps) {
+  const stageRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
   const dragRef = useRef<{
     pointerId: number;
@@ -25,25 +36,44 @@ export function AvatarCropper({ file, onCancel, onChooseAnother, onConfirm }: Av
     startY: number;
     startOffset: CropOffset;
   } | null>(null);
-  const [viewportSize, setViewportSize] = useState(0);
+  const maskId = `avatar-crop-mask-${useId().replace(/:/g, "")}`;
+  const [stageSize, setStageSize] = useState<StageSize>({ width: 0, height: 0 });
   const [offset, setOffset] = useState<CropOffset>({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
-  const [readyFile, setReadyFile] = useState<File | null>(null);
-  const [error, setError] = useState("");
+  const [imageState, setImageState] = useState<ImageState | null>(null);
+  const [processingError, setProcessingError] = useState<{ file: File; message: string } | null>(
+    null,
+  );
   const [isDragging, setIsDragging] = useState(false);
-  const imageReady = readyFile === file;
+  const currentImageState = imageState?.file === file ? imageState : null;
+  const loadedImage = currentImageState?.status === "ready" ? currentImageState : null;
+  const imageReady = loadedImage !== null;
+  const imageError = currentImageState?.status === "error" ? currentImageState.message : "";
+  const error = imageError || (processingError?.file === file ? processingError.message : "");
+  const cropSize = Math.min(stageSize.height * 0.82, stageSize.width * 0.8, 320);
 
   useEffect(() => {
     const objectUrl = URL.createObjectURL(file);
     const image = new window.Image();
+
     image.onload = () => {
       imageRef.current = image;
       setOffset({ x: 0, y: 0 });
       setZoom(1);
-      setReadyFile(file);
-      setError("");
+      setImageState({
+        file,
+        status: "ready",
+        previewUrl: objectUrl,
+        width: image.naturalWidth,
+        height: image.naturalHeight,
+      });
     };
-    image.onerror = () => setError("Không thể mở ảnh này. Vui lòng chọn ảnh khác.");
+    image.onerror = () =>
+      setImageState({
+        file,
+        status: "error",
+        message: "Không thể mở ảnh này. Vui lòng chọn ảnh khác.",
+      });
     image.src = objectUrl;
 
     return () => {
@@ -55,69 +85,46 @@ export function AvatarCropper({ file, onCancel, onChooseAnother, onConfirm }: Av
   }, [file]);
 
   useEffect(() => {
-    const viewport = viewportRef.current;
-    if (!viewport) return;
+    const stage = stageRef.current;
+    if (!stage) return;
 
     const observer = new ResizeObserver((entries) => {
-      const size = entries[0]?.contentRect.width ?? 0;
-      setViewportSize(size);
+      const rect = entries[0]?.contentRect;
+      if (rect) setStageSize({ width: rect.width, height: rect.height });
     });
-    observer.observe(viewport);
+    observer.observe(stage);
     return () => observer.disconnect();
   }, []);
 
   const clampOffset = useCallback(
     (nextOffset: CropOffset, nextZoom = zoom): CropOffset => {
-      const image = imageRef.current;
-      if (!image || viewportSize <= 0) return { x: 0, y: 0 };
+      if (!loadedImage || cropSize <= 0) return { x: 0, y: 0 };
 
-      const fitScale = Math.max(
-        viewportSize / image.naturalWidth,
-        viewportSize / image.naturalHeight,
-      );
-      const maxX = Math.max(0, (image.naturalWidth * fitScale * nextZoom - viewportSize) / 2);
-      const maxY = Math.max(0, (image.naturalHeight * fitScale * nextZoom - viewportSize) / 2);
+      const imageScale =
+        Math.max(cropSize / loadedImage.width, cropSize / loadedImage.height) * nextZoom;
+      const maxX = Math.max(0, (loadedImage.width * imageScale - cropSize) / 2);
+      const maxY = Math.max(0, (loadedImage.height * imageScale - cropSize) / 2);
 
       return {
         x: Math.min(maxX, Math.max(-maxX, nextOffset.x)),
         y: Math.min(maxY, Math.max(-maxY, nextOffset.y)),
       };
     },
-    [viewportSize, zoom],
+    [cropSize, loadedImage, zoom],
   );
 
-  const drawPreview = useCallback(() => {
-    const canvas = canvasRef.current;
-    const context = canvas?.getContext("2d");
-    const image = imageRef.current;
-    if (!canvas || !context || !image || !imageReady || viewportSize <= 0) return;
+  const imageScale =
+    loadedImage && cropSize > 0
+      ? Math.max(cropSize / loadedImage.width, cropSize / loadedImage.height) * zoom
+      : 0;
+  const imageWidth = loadedImage ? loadedImage.width * imageScale : 0;
+  const imageHeight = loadedImage ? loadedImage.height * imageScale : 0;
+  const clampedOffset = clampOffset(offset);
 
-    const fitScale = Math.max(OUTPUT_SIZE / image.naturalWidth, OUTPUT_SIZE / image.naturalHeight);
-    const outputScale = OUTPUT_SIZE / viewportSize;
-    const renderWidth = image.naturalWidth * fitScale * zoom;
-    const renderHeight = image.naturalHeight * fitScale * zoom;
-    const clampedOffset = clampOffset(offset);
-
-    context.clearRect(0, 0, OUTPUT_SIZE, OUTPUT_SIZE);
-    context.imageSmoothingEnabled = true;
-    context.imageSmoothingQuality = "high";
-    context.drawImage(
-      image,
-      (OUTPUT_SIZE - renderWidth) / 2 + clampedOffset.x * outputScale,
-      (OUTPUT_SIZE - renderHeight) / 2 + clampedOffset.y * outputScale,
-      renderWidth,
-      renderHeight,
-    );
-  }, [clampOffset, imageReady, offset, viewportSize, zoom]);
-
-  useEffect(() => {
-    drawPreview();
-  }, [drawPreview]);
-
-  function updateZoom(value: number) {
-    const nextZoom = Math.min(3, Math.max(1, value));
-    setZoom(nextZoom);
-    setOffset((current) => clampOffset(current, nextZoom));
+  function updateZoom(nextZoom: number) {
+    const clampedZoom = Math.min(3, Math.max(1, nextZoom));
+    setZoom(clampedZoom);
+    setOffset((current) => clampOffset(current, clampedZoom));
   }
 
   function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
@@ -151,12 +158,34 @@ export function AvatarCropper({ file, onCancel, onChooseAnother, onConfirm }: Av
   }
 
   function handleConfirm() {
-    const canvas = canvasRef.current;
-    if (!canvas || !imageReady) return;
+    const sourceImage = imageRef.current;
+    if (!sourceImage || !imageReady || cropSize <= 0) return;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = OUTPUT_SIZE;
+    canvas.height = OUTPUT_SIZE;
+    const context = canvas.getContext("2d");
+    if (!context) {
+      setProcessingError({ file, message: "Chưa thể xử lý ảnh. Vui lòng thử lại." });
+      return;
+    }
+
+    const outputScale = OUTPUT_SIZE / cropSize;
+    const outputImageWidth = sourceImage.naturalWidth * imageScale * outputScale;
+    const outputImageHeight = sourceImage.naturalHeight * imageScale * outputScale;
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = "high";
+    context.drawImage(
+      sourceImage,
+      (OUTPUT_SIZE - outputImageWidth) / 2 + clampedOffset.x * outputScale,
+      (OUTPUT_SIZE - outputImageHeight) / 2 + clampedOffset.y * outputScale,
+      outputImageWidth,
+      outputImageHeight,
+    );
 
     canvas.toBlob((blob) => {
       if (!blob) {
-        setError("Chưa thể xử lý ảnh. Vui lòng thử lại.");
+        setProcessingError({ file, message: "Chưa thể xử lý ảnh. Vui lòng thử lại." });
         return;
       }
       const fileName = `${file.name.replace(/\.[^.]+$/, "")}-avatar.png`;
@@ -165,104 +194,155 @@ export function AvatarCropper({ file, onCancel, onChooseAnother, onConfirm }: Av
   }
 
   return (
-    <div className="space-y-4 rounded-2xl border-2 border-dashed border-slate-200 bg-[#EEF2F6] p-4 sm:p-5">
-      <div className="flex flex-col items-center gap-5 sm:flex-row sm:justify-center sm:gap-8">
-        <div
-          ref={viewportRef}
-          className={cn(
-            "relative aspect-square w-56 max-w-full shrink-0 touch-none overflow-hidden rounded-xl border border-white bg-slate-200 shadow-md sm:w-64",
-            isDragging ? "cursor-grabbing" : "cursor-grab",
-          )}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerUp}
-          role="img"
-          aria-label="Khung cắt ảnh đại diện hình vuông; kéo ảnh để căn chỉnh"
-        >
-          <canvas
-            ref={canvasRef}
-            width={OUTPUT_SIZE}
-            height={OUTPUT_SIZE}
-            className="block h-full w-full"
+    <div className="space-y-4 rounded-2xl border-2 border-dashed border-slate-200 bg-[#EEF2F6] p-3 sm:p-5">
+      <div
+        ref={stageRef}
+        className={cn(
+          "relative aspect-[5/4] w-full touch-none select-none overflow-hidden rounded-xl bg-slate-200 sm:aspect-[3/2]",
+          isDragging ? "cursor-grabbing" : "cursor-grab",
+        )}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        role="group"
+        aria-label="Khung cắt ảnh đại diện hình tròn; kéo ảnh để căn chỉnh"
+      >
+        {loadedImage && imageWidth > 0 && imageHeight > 0 ? (
+          <img
+            src={loadedImage.previewUrl}
+            alt="Xem trước ảnh đang căn chỉnh"
+            draggable={false}
+            className="pointer-events-none absolute max-w-none"
+            style={{
+              width: imageWidth,
+              height: imageHeight,
+              left: `calc(50% + ${clampedOffset.x}px)`,
+              top: `calc(50% + ${clampedOffset.y}px)`,
+              transform: "translate(-50%, -50%)",
+            }}
           />
-          {!imageReady && !error && (
-            <span className="absolute inset-0 grid place-items-center text-sm text-slate-500">
-              Đang tải ảnh...
-            </span>
-          )}
-        </div>
+        ) : null}
 
-        <div className="w-full max-w-sm space-y-3">
-          <div>
-            <p className="text-sm font-semibold text-heading">Căn chỉnh ảnh đại diện</p>
-            <p className="mt-1 text-xs leading-5 text-muted">
-              Kéo ảnh trong khung vuông để căn chỉnh. Dùng thanh trượt để phóng to hoặc thu nhỏ.
-            </p>
+        {stageSize.width > 0 && cropSize > 0 ? (
+          <svg
+            className="pointer-events-none absolute inset-0 h-full w-full"
+            viewBox={`0 0 ${stageSize.width} ${stageSize.height}`}
+            preserveAspectRatio="none"
+            aria-hidden="true"
+          >
+            <defs>
+              <mask id={maskId}>
+                <rect width={stageSize.width} height={stageSize.height} fill="white" />
+                <circle
+                  cx={stageSize.width / 2}
+                  cy={stageSize.height / 2}
+                  r={cropSize / 2}
+                  fill="black"
+                />
+              </mask>
+            </defs>
+            <rect
+              width={stageSize.width}
+              height={stageSize.height}
+              fill="rgba(16, 26, 44, 0.48)"
+              mask={`url(#${maskId})`}
+            />
+            <circle
+              cx={stageSize.width / 2}
+              cy={stageSize.height / 2}
+              r={cropSize / 2}
+              fill="none"
+              stroke="white"
+              strokeWidth="3"
+            />
+          </svg>
+        ) : null}
+
+        {!imageReady && !error ? (
+          <span className="absolute inset-0 grid place-items-center text-sm text-slate-600">
+            Đang tải ảnh...
+          </span>
+        ) : null}
+
+        {imageReady ? (
+          <div className="pointer-events-none absolute left-1/2 top-3 inline-flex -translate-x-1/2 items-center gap-2 rounded-lg bg-slate-950/65 px-3 py-2 text-center text-xs font-medium text-white shadow-sm sm:text-sm">
+            <Move className="h-4 w-4 shrink-0" />
+            <span>Kéo ảnh để đặt lại vị trí</span>
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              aria-label="Thu nhỏ ảnh"
-              disabled={zoom <= 1 || !imageReady}
-              onClick={() => updateZoom(zoom - 0.1)}
-              className="focus-ring grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-slate-200 bg-white text-heading transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45"
-            >
-              <Minus className="h-4 w-4" />
-            </button>
-            <label className="flex min-w-0 flex-1 flex-col gap-1 text-xs font-medium text-slate-700">
-              <span className="flex items-center justify-between">
-                <span>Thu phóng</span>
-                <span className="tabular-nums">{Math.round(zoom * 100)}%</span>
-              </span>
-              <input
-                type="range"
-                min="1"
-                max="3"
-                step="0.01"
-                value={zoom}
-                disabled={!imageReady}
-                onChange={(event) => updateZoom(Number(event.target.value))}
-                className="h-2 w-full cursor-pointer accent-primary disabled:cursor-not-allowed"
-                aria-label="Mức thu phóng ảnh đại diện"
-              />
-            </label>
-            <button
-              type="button"
-              aria-label="Phóng to ảnh"
-              disabled={zoom >= 3 || !imageReady}
-              onClick={() => updateZoom(zoom + 0.1)}
-              className="focus-ring grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-slate-200 bg-white text-heading transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45"
-            >
-              <Plus className="h-4 w-4" />
-            </button>
-          </div>
-          {error && <p className="text-xs font-medium text-rose-600">{error}</p>}
-        </div>
+        ) : null}
       </div>
+
+      <div className="flex items-center gap-3 px-1">
+        <button
+          type="button"
+          aria-label="Thu nhỏ ảnh"
+          disabled={!imageReady || zoom <= 1 || isSubmitting}
+          onClick={() => updateZoom(zoom - 0.1)}
+          className="focus-ring grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-slate-200 bg-white text-heading transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45"
+        >
+          <Minus className="h-4 w-4" />
+        </button>
+        <label className="flex min-w-0 flex-1 items-center gap-3">
+          <span className="sr-only">Mức thu phóng ảnh đại diện</span>
+          <input
+            type="range"
+            min="1"
+            max="3"
+            step="0.01"
+            value={zoom}
+            disabled={!imageReady || isSubmitting}
+            onChange={(event) => updateZoom(Number(event.target.value))}
+            className="h-2 w-full cursor-pointer accent-primary disabled:cursor-not-allowed"
+            aria-label="Mức thu phóng ảnh đại diện"
+          />
+          <span className="w-12 shrink-0 text-right text-xs font-medium tabular-nums text-slate-600">
+            {Math.round(zoom * 100)}%
+          </span>
+        </label>
+        <button
+          type="button"
+          aria-label="Phóng to ảnh"
+          disabled={!imageReady || zoom >= 3 || isSubmitting}
+          onClick={() => updateZoom(zoom + 0.1)}
+          className="focus-ring grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-slate-200 bg-white text-heading transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45"
+        >
+          <Plus className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div className="flex flex-col gap-1 px-1 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm font-semibold text-heading">Căn chỉnh ảnh đại diện</p>
+        <p className="text-xs leading-5 text-muted">
+          Phần bên ngoài vòng tròn sẽ được cắt khỏi ảnh.
+        </p>
+      </div>
+      {error ? <p className="px-1 text-xs font-medium text-rose-600">{error}</p> : null}
 
       <div className="flex flex-wrap justify-end gap-2 border-t border-slate-200 pt-4">
         <button
           type="button"
           onClick={onChooseAnother}
-          className="focus-ring inline-flex h-9 items-center justify-center rounded-lg border border-slate-200 bg-white px-3.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+          disabled={isSubmitting}
+          className="focus-ring inline-flex h-9 items-center justify-center rounded-lg border border-slate-200 bg-white px-3.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Chọn ảnh khác
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="focus-ring inline-flex h-9 items-center justify-center rounded-lg border border-slate-200 bg-white px-3.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+          disabled={isSubmitting}
+          className="focus-ring inline-flex h-9 items-center justify-center rounded-lg border border-slate-200 bg-white px-3.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Hủy
         </button>
         <button
           type="button"
           onClick={handleConfirm}
-          disabled={!imageReady || Boolean(error)}
+          disabled={!imageReady || Boolean(error) || isSubmitting}
           className="focus-ring inline-flex h-9 items-center justify-center rounded-lg bg-primary px-4 text-xs font-semibold text-white transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Dùng ảnh này
+          {isSubmitting ? "Đang tải ảnh..." : "Dùng ảnh này"}
         </button>
       </div>
     </div>

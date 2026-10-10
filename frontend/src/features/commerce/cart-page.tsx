@@ -2,16 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import {
-  BookOpen,
-  Check,
-  ChevronRight,
-  CircleHelp,
-  CreditCard,
-  ShieldCheck,
-  ShoppingCart,
-  Trash2,
-} from "lucide-react";
+import { BookOpen, ChevronRight, ShoppingCart, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AppHeader } from "@/components/layout/app-header";
 import { Footer } from "@/components/layout/footer";
@@ -48,10 +39,8 @@ export function CartPage() {
 
   if (isInstructor) {
     return (
-      <div className="flex min-h-screen flex-col bg-white">
-        <div className="bg-gradient-to-b from-[#e5f8f2] to-white">
-          <AppHeader />
-        </div>
+      <div className="flex min-h-screen flex-col bg-[linear-gradient(180deg,#E6F7F2_0%,#F2FAF7_248px,#FFFFFF_608px,#FFFFFF_100%)]">
+        <AppHeader transparent />
         <main className="container-page grid flex-1 place-items-center py-8">
           <InstructorPurchaseNotice />
         </main>
@@ -61,10 +50,11 @@ export function CartPage() {
   }
 
   return (
-    <div suppressHydrationWarning className="flex min-h-screen flex-col bg-white">
-      <div className="bg-gradient-to-b from-[#e5f8f2] to-white">
-        <AppHeader />
-      </div>
+    <div
+      suppressHydrationWarning
+      className="flex min-h-screen flex-col bg-[linear-gradient(180deg,#E6F7F2_0%,#F2FAF7_248px,#FFFFFF_608px,#FFFFFF_100%)]"
+    >
+      <AppHeader transparent />
       <main className="container-page min-h-[560px] flex-1 py-8 md:py-10">
         <nav aria-label="Đường dẫn" className="mb-5 flex items-center gap-2 text-xs text-[#7f8a86]">
           <Link href="/courses" className="focus-ring rounded hover:text-primary">
@@ -87,14 +77,11 @@ export function CartPage() {
           <CartDataSkeleton />
         ) : courses.length ? (
           <div className="mt-6 grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_330px]">
-            <section
-              aria-label="Khóa học trong giỏ hàng"
-              className="divide-y divide-[#e7edeb] border-y border-[#e7edeb]"
-            >
+            <section aria-label="Khóa học trong giỏ hàng" className="space-y-3">
               {courses.map((course) => (
                 <article
                   key={course.id}
-                  className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center"
+                  className="flex flex-col gap-3 rounded-xl border border-[#DDEFE9] bg-white p-3 shadow-sm transition hover:border-primary/30 hover:shadow-md sm:flex-row sm:items-center sm:p-4"
                 >
                   <Link
                     href={`/courses/${course.slug}`}
@@ -186,10 +173,6 @@ export function CartPage() {
                 Tiếp tục thanh toán
                 <ChevronRight className="h-4 w-4" />
               </Link>
-              <div className="mt-4 flex items-start gap-2 text-[11px] leading-5 text-[#84908b]">
-                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                Chưa có giao dịch nào được xử lý trực tuyến.
-              </div>
             </aside>
           </div>
         ) : (
@@ -212,20 +195,6 @@ export function CartPage() {
             </div>
           </div>
         )}
-        <div className="mt-7 flex flex-wrap gap-4 text-xs text-[#84908b]">
-          <span className="inline-flex items-center gap-1.5">
-            <Check className="h-4 w-4 text-primary" />
-            Truy cập khóa học mọi lúc
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <CircleHelp className="h-4 w-4 text-primary" />
-            Hỗ trợ học viên
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <CreditCard className="h-4 w-4 text-primary" />
-            Nhiều phương thức thanh toán
-          </span>
-        </div>
       </main>
       <Footer />
     </div>
@@ -234,10 +203,8 @@ export function CartPage() {
 
 function CartLoadingPage() {
   return (
-    <div className="flex min-h-screen flex-col bg-white">
-      <div className="bg-gradient-to-b from-[#e5f8f2] to-white">
-        <AppHeader />
-      </div>
+    <div className="flex min-h-screen flex-col bg-[linear-gradient(180deg,#E6F7F2_0%,#F2FAF7_248px,#FFFFFF_608px,#FFFFFF_100%)]">
+      <AppHeader transparent />
       <main className="container-page min-h-[560px] flex-1 py-8 md:py-10">
         <nav aria-label="Đường dẫn" className="mb-5 flex items-center gap-2">
           <Skeleton className="h-4 w-16 rounded" />

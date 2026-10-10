@@ -13,7 +13,7 @@ import {
   Percent,
   ShieldCheck,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   createCheckoutOrder,
@@ -29,6 +29,7 @@ import { formatVND } from "@/lib/format";
 import { useAuthSession } from "@/lib/auth-session";
 import { cn } from "@/lib/cn";
 import { InstructorPurchaseNotice } from "@/features/commerce/instructor-purchase-notice";
+import { FeedbackModal } from "@/components/ui/feedback-modal";
 
 function submitPaymentForm(action: string, fields: { name: string; value: string }[]) {
   const form = document.createElement("form");
@@ -59,6 +60,7 @@ export function CheckoutPage() {
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [createdOrder, setCreatedOrder] = useState<CheckoutOrder | null>(null);
+  const closeMessage = useCallback(() => setMessage(""), []);
 
   useEffect(() => {
     setIsMounted(true);
@@ -86,8 +88,8 @@ export function CheckoutPage() {
 
   if (!authLoading && isInstructor) {
     return (
-      <div className="flex min-h-screen flex-col bg-[#f8fafc]">
-        <AppHeader transparent height="checkout" />
+      <div className="flex min-h-screen flex-col bg-[linear-gradient(180deg,#E6F7F2_0%,#F2FAF7_248px,#FFFFFF_608px,#FFFFFF_100%)]">
+        <AppHeader transparent />
         <main className="grid min-h-[610px] flex-1 place-items-center px-5 py-8">
           <InstructorPurchaseNotice />
         </main>
@@ -97,9 +99,12 @@ export function CheckoutPage() {
   }
 
   return (
-    <div suppressHydrationWarning className="flex min-h-screen flex-col bg-[#f8fafc]">
+    <div
+      suppressHydrationWarning
+      className="flex min-h-screen flex-col bg-[linear-gradient(180deg,#E6F7F2_0%,#F2FAF7_248px,#FFFFFF_608px,#FFFFFF_100%)]"
+    >
       <div className="relative flex flex-1 flex-col">
-        <AppHeader transparent height="checkout" />
+        <AppHeader transparent />
         <main className="relative mx-auto min-h-[610px] w-full max-w-[1440px] flex-1 px-5 py-8 sm:px-6 md:py-10 lg:px-20">
           <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-baseline sm:gap-6">
             <h1 className="text-2xl font-bold tracking-tight text-[#101a2c] sm:text-3xl">
@@ -208,7 +213,7 @@ export function CheckoutPage() {
                       title="Nhập số điện thoại gồm 10 chữ số và bắt đầu bằng 0"
                       placeholder="Nhập số điện thoại"
                       autoComplete="tel"
-                      className="h-12 min-w-0 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-800 outline-none placeholder:text-slate-400 transition focus:border-primary focus:ring-4 focus:ring-inset focus:ring-primary"
+                      className="h-12 min-w-0 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-800 outline-none placeholder:text-slate-400 transition focus:border-primary focus:ring-2 focus:ring-inset focus:ring-primary"
                     />
                   </label>
                 </div>
@@ -222,7 +227,7 @@ export function CheckoutPage() {
                     maxLength={32}
                     autoComplete="off"
                     placeholder="Nhập mã ưu đãi (nếu có)"
-                    className="h-12 min-w-0 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium uppercase text-slate-800 outline-none placeholder:normal-case placeholder:text-slate-400 transition focus:border-primary focus:ring-4 focus:ring-inset focus:ring-primary disabled:bg-slate-50"
+                    className="h-12 min-w-0 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium uppercase text-slate-800 outline-none placeholder:normal-case placeholder:text-slate-400 transition focus:border-primary focus:ring-2 focus:ring-inset focus:ring-primary disabled:bg-slate-50"
                   />
                   <span className="text-xs font-normal text-slate-500">
                     Mã sẽ được kiểm tra theo khóa học trong giỏ hàng khi bạn tạo đơn.
@@ -343,14 +348,6 @@ export function CheckoutPage() {
                 </div>
                 {createdOrder?.instructions && (
                   <ManualPaymentInstructions order={createdOrder} method={paymentMethod} />
-                )}
-                {message && (
-                  <p
-                    role="status"
-                    className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-900"
-                  >
-                    {message}
-                  </p>
                 )}
               </form>
               <aside className="sticky top-24 space-y-5 rounded-2xl border border-slate-200/90 bg-white p-6 shadow-xs">
@@ -478,6 +475,14 @@ export function CheckoutPage() {
         </main>
       </div>
       <Footer />
+      <FeedbackModal
+        isOpen={Boolean(message)}
+        onClose={closeMessage}
+        title="Không thể tạo đơn hàng"
+        description={message}
+        tone="error"
+        confirmText="Đã hiểu"
+      />
     </div>
   );
 }

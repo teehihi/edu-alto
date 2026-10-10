@@ -92,7 +92,7 @@ export function FeedbackModal({
     error: {
       badgeBg: "bg-rose-600 text-white",
       haloBg: "bg-rose-50 text-rose-600 ring-8 ring-rose-50/80",
-      pulseClass: "",
+      pulseClass: "animate-error-icon",
       icon: <AlertCircle className="h-7 w-7 stroke-[2.5]" />,
       buttonVariant: "bg-rose-600 hover:bg-rose-700 text-white shadow-xs focus-ring",
     },

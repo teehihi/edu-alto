@@ -2,19 +2,33 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { EnsureQueryClient } from "@/lib/query-provider";
-import { BookOpen, CircleAlert, MoreHorizontal, RefreshCw } from "lucide-react";
+import {
+  Archive,
+  BookOpen,
+  CircleAlert,
+  Copy,
+  ExternalLink,
+  LoaderCircle,
+  MoreHorizontal,
+  Pencil,
+  RefreshCw,
+  Trash2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InstructorWorkspaceShell } from "@/features/instructor/instructor-workspace-shell";
 import { useAuth } from "@/features/auth/auth-client";
 import { ApiClientError } from "@/lib/api";
+import { cn } from "@/lib/cn";
 import { courseDescriptionToText } from "@/lib/course-description";
 import {
+  archiveInstructorCourse,
   createInstructorCourse,
+  deleteDraftInstructorCourse,
   fetchInstructorCourses,
   type InstructorCourseLevel,
   type InstructorCoursePayload,
@@ -72,42 +86,174 @@ function formatPrice(price: number): string {
 function CourseCard({
   course,
   stats,
+  duplicateLoading,
+  duplicateDisabled,
+  onDuplicate,
+  onRequestAction,
 }: {
   course: InstructorCourse;
   stats: InstructorCourseMetrics | null;
+  duplicateLoading: boolean;
+  duplicateDisabled: boolean;
+  onDuplicate: (course: InstructorCourse) => void;
+  onRequestAction: (course: InstructorCourse, action: "archive" | "delete") => void;
 }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    function handlePointerDown(event: PointerEvent) {
+      if (event.target instanceof Node && !menuRef.current?.contains(event.target)) {
+        setMenuOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setMenuOpen(false);
+        triggerRef.current?.focus();
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [menuOpen]);
+
   return (
-    <article className="group flex min-w-0 transform-gpu flex-col overflow-hidden rounded-lg border border-slate-200 bg-white p-3 shadow-[0_0_8px_rgba(59,130,246,0.12)] transition-all duration-300 ease-out motion-reduce:transition-none motion-safe:hover:-translate-y-1 motion-safe:hover:border-primary/30 motion-safe:hover:shadow-cardHover focus-within:border-primary/30 focus-within:shadow-cardHover sm:p-4">
-      <Link
-        href={`/instructor/courses/${encodeURIComponent(course.id)}/overview`}
-        className="focus-ring group block rounded-lg"
-        aria-label={`Mở quản lý nội dung khóa học ${course.title}`}
-      >
-        <div className="relative aspect-[16/9] overflow-hidden rounded-lg bg-slate-100">
-          {course.thumbnailUrl ? (
-            // The thumbnail is dynamic API data and may use a host outside next/image config.
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={course.thumbnailUrl}
-              alt=""
-              className="h-full w-full object-cover transition duration-300 motion-reduce:transition-none motion-safe:group-hover:scale-[1.03]"
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center text-slate-400">
-              <BookOpen className="h-10 w-10" aria-hidden="true" />
-              <span className="sr-only">Khóa học chưa có ảnh bìa</span>
-            </div>
-          )}
-          <span
-            className={`absolute left-2 top-2 inline-flex rounded-md px-2 py-1 text-[11px] font-semibold ring-1 ring-inset ${statusStyle[course.status]}`}
+    <article
+      className={cn(
+        "group relative flex min-w-0 transform-gpu flex-col rounded-lg border border-slate-200 bg-white p-3 shadow-[0_0_8px_rgba(59,130,246,0.12)] transition-all duration-300 ease-out motion-reduce:transition-none motion-safe:hover:-translate-y-1 motion-safe:hover:border-primary/30 motion-safe:hover:shadow-cardHover focus-within:border-primary/30 focus-within:shadow-cardHover sm:p-4",
+        menuOpen && "z-30",
+      )}
+    >
+      <div className="relative">
+        <Link
+          href={`/instructor/courses/${encodeURIComponent(course.id)}/overview`}
+          className="focus-ring group block rounded-lg"
+          aria-label={`Mở quản lý nội dung khóa học ${course.title}`}
+        >
+          <div className="relative aspect-[16/9] overflow-hidden rounded-lg bg-slate-100">
+            {course.thumbnailUrl ? (
+              // The thumbnail is dynamic API data and may use a host outside next/image config.
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={course.thumbnailUrl}
+                alt=""
+                className="h-full w-full object-cover transition duration-300 motion-reduce:transition-none motion-safe:group-hover:scale-[1.03]"
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center text-slate-400">
+                <BookOpen className="h-10 w-10" aria-hidden="true" />
+                <span className="sr-only">Khóa học chưa có ảnh bìa</span>
+              </div>
+            )}
+            <span
+              className={`absolute left-2 top-2 inline-flex rounded-md px-2 py-1 text-[11px] font-semibold ring-1 ring-inset ${statusStyle[course.status]}`}
+            >
+              {statusCopy[course.status]}
+            </span>
+          </div>
+          <h2 className="mt-3 line-clamp-2 min-h-12 text-base font-semibold leading-6 text-primary group-hover:text-[#087f5b]">
+            {course.title}
+          </h2>
+        </Link>
+
+        <div ref={menuRef} className="absolute right-2 top-2 z-20">
+          <button
+            type="button"
+            ref={triggerRef}
+            aria-label={`Tùy chọn khóa học ${course.title}`}
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            aria-controls={`course-actions-${course.id}`}
+            onClick={() => setMenuOpen((open) => !open)}
+            className="inline-flex size-9 items-center justify-center rounded-lg border border-white/80 bg-white/95 text-slate-700 shadow-sm backdrop-blur transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-1 active:bg-slate-100"
           >
-            {statusCopy[course.status]}
-          </span>
+            <MoreHorizontal className="h-5 w-5" aria-hidden="true" />
+          </button>
+          {menuOpen ? (
+            <div
+              id={`course-actions-${course.id}`}
+              role="menu"
+              aria-label={`Tùy chọn khóa học ${course.title}`}
+              className="absolute right-0 top-full mt-1.5 w-52 rounded-lg border border-slate-200 bg-white p-1.5 shadow-lg"
+            >
+              <Link
+                role="menuitem"
+                href={`/instructor/courses/${encodeURIComponent(course.id)}/details`}
+                onClick={() => setMenuOpen(false)}
+                className="flex min-h-10 items-center gap-2 rounded-md px-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+              >
+                <Pencil className="h-4 w-4 text-slate-500" aria-hidden="true" />
+                Chỉnh sửa thông tin
+              </Link>
+              <Link
+                role="menuitem"
+                href={`/instructor/courses/${encodeURIComponent(course.id)}/overview`}
+                onClick={() => setMenuOpen(false)}
+                className="flex min-h-10 items-center gap-2 rounded-md px-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+              >
+                <ExternalLink className="h-4 w-4 text-slate-500" aria-hidden="true" />
+                Quản lý nội dung
+              </Link>
+              <button
+                type="button"
+                role="menuitem"
+                disabled={duplicateDisabled}
+                onClick={() => {
+                  setMenuOpen(false);
+                  onDuplicate(course);
+                }}
+                className="flex min-h-10 w-full items-center gap-2 rounded-md px-2.5 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-wait disabled:text-slate-400"
+              >
+                {duplicateLoading ? (
+                  <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <Copy className="h-4 w-4 text-slate-500" aria-hidden="true" />
+                )}
+                {duplicateLoading ? "Đang nhân bản..." : "Nhân bản thông tin"}
+              </button>
+              {course.status === "DRAFT" || course.status === "PUBLISHED" ? (
+                <div role="separator" className="my-1.5 border-t border-slate-100" />
+              ) : null}
+              {course.status === "DRAFT" ? (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onRequestAction(course, "delete");
+                  }}
+                  className="flex min-h-10 w-full items-center gap-2 rounded-md px-2.5 text-left text-sm font-medium text-rose-700 transition hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                >
+                  <Trash2 className="h-4 w-4" aria-hidden="true" />
+                  Xóa bản nháp
+                </button>
+              ) : course.status === "PUBLISHED" ? (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onRequestAction(course, "archive");
+                  }}
+                  className="flex min-h-10 w-full items-center gap-2 rounded-md px-2.5 text-left text-sm font-medium text-rose-700 transition hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                >
+                  <Archive className="h-4 w-4" aria-hidden="true" />
+                  Lưu trữ khóa học
+                </button>
+              ) : null}
+            </div>
+          ) : null}
         </div>
-        <h2 className="mt-3 line-clamp-2 min-h-12 text-base font-semibold leading-6 text-primary group-hover:text-[#087f5b]">
-          {course.title}
-        </h2>
-      </Link>
+      </div>
 
       <dl className="mt-3 grid grid-flow-col grid-cols-3 grid-rows-2 gap-x-3 gap-y-3 border-t border-slate-100 pt-3">
         <div className="min-w-0">
@@ -167,6 +313,14 @@ function InstructorCourseListContent() {
   const [courseForm, setCourseForm] = useState<InstructorCoursePayload>(emptyCourseForm);
   const [courseFormError, setCourseFormError] = useState<string | null>(null);
   const [courseFormLoading, setCourseFormLoading] = useState(false);
+  const [duplicatingCourseId, setDuplicatingCourseId] = useState<string | null>(null);
+  const [courseListActionError, setCourseListActionError] = useState<string | null>(null);
+  const [courseActionTarget, setCourseActionTarget] = useState<{
+    course: InstructorCourse;
+    action: "archive" | "delete";
+  } | null>(null);
+  const [courseActionError, setCourseActionError] = useState<string | null>(null);
+  const [courseActionLoading, setCourseActionLoading] = useState(false);
 
   const {
     data: courses = [],
@@ -244,6 +398,81 @@ function InstructorCourseListContent() {
       );
     } finally {
       setCourseFormLoading(false);
+    }
+  };
+
+  const duplicateCourse = async (course: InstructorCourse) => {
+    if (!accessToken) {
+      setCourseListActionError("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+      return;
+    }
+    if (duplicatingCourseId) return;
+    if (!courseDescriptionToText(course.description ?? "")) {
+      setCourseListActionError("Khóa học này chưa có mô tả nên chưa thể nhân bản thông tin.");
+      return;
+    }
+    setDuplicatingCourseId(course.id);
+    setCourseListActionError(null);
+    const duplicateSuffix = " (Bản sao)";
+
+    try {
+      const duplicatedCourse = await createInstructorCourse(
+        {
+          title: `${Array.from(course.title)
+            .slice(0, 255 - duplicateSuffix.length)
+            .join("")
+            .trim()}${duplicateSuffix}`,
+          tagline: course.tagline,
+          description: course.description ?? "",
+          price: course.price,
+          originalPrice: course.originalPrice,
+          level: course.level,
+          language: course.language,
+          subtitleLanguages: course.subtitleLanguages,
+          thumbnailKey: course.thumbnailKey,
+        },
+        accessToken,
+      );
+      await refetchCourses();
+      router.push(`/instructor/courses/${encodeURIComponent(duplicatedCourse.id)}/details`);
+    } catch (cause) {
+      setCourseListActionError(
+        cause instanceof ApiClientError
+          ? cause.message
+          : "Không thể nhân bản thông tin khóa học. Vui lòng thử lại.",
+      );
+    } finally {
+      setDuplicatingCourseId(null);
+    }
+  };
+
+  const confirmCourseAction = async () => {
+    if (!courseActionTarget) return;
+    if (!accessToken) {
+      setCourseActionError("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+      return;
+    }
+    setCourseActionLoading(true);
+    setCourseActionError(null);
+
+    try {
+      if (courseActionTarget.action === "delete") {
+        await deleteDraftInstructorCourse(courseActionTarget.course.id, accessToken);
+      } else {
+        await archiveInstructorCourse(courseActionTarget.course.id, accessToken);
+      }
+      setCourseActionTarget(null);
+      await refetchCourses();
+    } catch (cause) {
+      setCourseActionError(
+        cause instanceof ApiClientError
+          ? cause.message
+          : courseActionTarget.action === "delete"
+            ? "Không thể xóa bản nháp khóa học. Vui lòng thử lại."
+            : "Không thể lưu trữ khóa học. Vui lòng thử lại.",
+      );
+    } finally {
+      setCourseActionLoading(false);
     }
   };
 
@@ -327,6 +556,15 @@ function InstructorCourseListContent() {
             Khóa học
           </h2>
 
+          {courseListActionError ? (
+            <p
+              role="alert"
+              className="mb-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800"
+            >
+              {courseListActionError}
+            </p>
+          ) : null}
+
           {loading ? (
             <div
               className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3"
@@ -374,6 +612,13 @@ function InstructorCourseListContent() {
                   key={course.id}
                   course={course}
                   stats={courseStats[course.id] ?? null}
+                  duplicateLoading={duplicatingCourseId === course.id}
+                  duplicateDisabled={Boolean(duplicatingCourseId)}
+                  onDuplicate={duplicateCourse}
+                  onRequestAction={(targetCourse, action) => {
+                    setCourseActionError(null);
+                    setCourseActionTarget({ course: targetCourse, action });
+                  }}
                 />
               ))}
             </div>
@@ -556,6 +801,54 @@ function InstructorCourseListContent() {
                 </Button>
               </div>
             </form>
+          </section>
+        </div>
+      ) : null}
+
+      {courseActionTarget ? (
+        <div className="fixed inset-0 z-[101] flex items-center justify-center bg-slate-950/40 p-4">
+          <section
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="course-action-title"
+            className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-5 shadow-xl sm:p-6"
+          >
+            <h2 id="course-action-title" className="text-lg font-semibold text-heading">
+              {courseActionTarget.action === "delete"
+                ? "Xóa bản nháp khóa học?"
+                : "Lưu trữ khóa học?"}
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-muted">
+              {courseActionTarget.action === "delete"
+                ? `Bạn sắp xóa “${courseActionTarget.course.title}”. Thao tác này không thể hoàn tác.`
+                : `“${courseActionTarget.course.title}” sẽ được gỡ khỏi danh sách khóa học đang xuất bản. Bạn vẫn có thể xem nội dung trong khu vực giảng viên.`}
+            </p>
+            {courseActionError ? (
+              <p
+                role="alert"
+                className="mt-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800"
+              >
+                {courseActionError}
+              </p>
+            ) : null}
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={courseActionLoading}
+                onClick={() => setCourseActionTarget(null)}
+              >
+                Hủy
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                loading={courseActionLoading}
+                onClick={() => void confirmCourseAction()}
+              >
+                {courseActionTarget.action === "delete" ? "Xóa bản nháp" : "Lưu trữ khóa học"}
+              </Button>
+            </div>
           </section>
         </div>
       ) : null}
