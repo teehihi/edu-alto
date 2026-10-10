@@ -127,6 +127,13 @@ jobs:
         run: |
           set -euo pipefail
           install -m 644 docker-compose.prod.yml "$HOME/edualto/docker-compose.prod.yml"
+          if docker container inspect edualto-backend >/dev/null 2>&1; then
+            compose_project="$(docker container inspect --format '{{ index .Config.Labels "com.docker.compose.project" }}' edualto-backend)"
+            compose_service="$(docker container inspect --format '{{ index .Config.Labels "com.docker.compose.service" }}' edualto-backend)"
+            if [[ "$compose_project" != "edualto" || "$compose_service" != "backend" ]]; then
+              docker container rm --force edualto-backend
+            fi
+          fi
           docker compose --project-directory "$HOME/edualto" \
             -f "$HOME/edualto/docker-compose.prod.yml" up -d --remove-orphans
           docker image prune -f
