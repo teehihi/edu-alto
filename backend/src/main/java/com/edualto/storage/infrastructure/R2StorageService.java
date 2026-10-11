@@ -7,6 +7,8 @@ import com.edualto.storage.dto.PresignedUploadUrl;
 import com.edualto.storage.service.StorageService;
 import jakarta.annotation.PostConstruct;
 import java.io.InputStream;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -88,10 +90,20 @@ public class R2StorageService implements StorageService {
 
     @Override
     public PresignedDownloadUrl generatePresignedDownloadUrl(String objectKey, Duration expiration) {
-        GetObjectRequest getRequest = GetObjectRequest.builder()
+        return generatePresignedDownloadUrl(objectKey, expiration, null);
+    }
+
+    @Override
+    public PresignedDownloadUrl generatePresignedDownloadUrl(
+            String objectKey, Duration expiration, String downloadFileName) {
+        GetObjectRequest.Builder getRequestBuilder = GetObjectRequest.builder()
                 .bucket(properties.bucketName())
-                .key(objectKey)
-                .build();
+                .key(objectKey);
+        if (downloadFileName != null) {
+            String encodedFileName = URLEncoder.encode(downloadFileName, StandardCharsets.UTF_8).replace("+", "%20");
+            getRequestBuilder.responseContentDisposition("attachment; filename*=UTF-8''" + encodedFileName);
+        }
+        GetObjectRequest getRequest = getRequestBuilder.build();
         GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
                 .signatureDuration(expiration)
                 .getObjectRequest(getRequest)

@@ -52,6 +52,11 @@ import {
   updateSection,
 } from "@/lib/course-structure-client";
 import { uploadLessonVideo } from "@/lib/course-video-client";
+import {
+  deleteLessonResource,
+  getLessonResourceContentType,
+  uploadLessonResource,
+} from "@/lib/lesson-resource-client";
 import { courseDescriptionToText } from "@/lib/course-description";
 import {
   createInstructorQuiz,
@@ -73,6 +78,7 @@ import type {
   UpdateLessonPayload,
   UpdateSectionPayload,
 } from "@/types/course-structure";
+import type { LessonAttachment } from "@/types/lesson-attachment";
 
 function formatDuration(seconds: number): string {
   if (!seconds || seconds <= 0) return "0 phút";
@@ -85,6 +91,11 @@ function formatDuration(seconds: number): string {
     return `${hours} giờ`;
   }
   return `${minutes} phút`;
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function getLessonTypeIcon(type: LessonType, active = false) {
@@ -346,6 +357,8 @@ export function InstructorCourseCurriculumPage({
   const [lessonTextContent, setLessonTextContent] = useState("");
   const [lessonVideoFile, setLessonVideoFile] = useState<File | null>(null);
   const [lessonResourceFile, setLessonResourceFile] = useState<File | null>(null);
+  const [lessonAttachments, setLessonAttachments] = useState<LessonAttachment[]>([]);
+  const [lessonResourceUploading, setLessonResourceUploading] = useState(false);
   const [lessonThumbnailFile, setLessonThumbnailFile] = useState<File | null>(null);
   const [assignmentReferenceFile, setAssignmentReferenceFile] = useState<File | null>(null);
   const [assignmentDescription, setAssignmentDescription] = useState("");
@@ -353,6 +366,7 @@ export function InstructorCourseCurriculumPage({
   const [assignmentStartAt, setAssignmentStartAt] = useState("");
   const [assignmentEndAt, setAssignmentEndAt] = useState("");
   const [pendingVideoLessonId, setPendingVideoLessonId] = useState<string | null>(null);
+  const [pendingResourceLessonId, setPendingResourceLessonId] = useState<string | null>(null);
   const [lessonDurationMinutes, setLessonDurationMinutes] = useState<string>("10");
   const [lessonIsPreview, setLessonIsPreview] = useState(false);
   const [lessonStatus, setLessonStatus] = useState<LessonStatus>("PUBLISHED");
@@ -639,6 +653,7 @@ export function InstructorCourseCurriculumPage({
     setLessonTextContent("");
     setLessonVideoFile(null);
     setLessonResourceFile(null);
+    setLessonAttachments([]);
     setLessonThumbnailFile(null);
     setAssignmentReferenceFile(null);
     setAssignmentDescription("");
@@ -646,6 +661,7 @@ export function InstructorCourseCurriculumPage({
     setAssignmentStartAt("");
     setAssignmentEndAt("");
     setPendingVideoLessonId(null);
+    setPendingResourceLessonId(null);
     setLessonDurationMinutes("10");
     setLessonIsPreview(false);
     setLessonStatus("PUBLISHED");
@@ -669,6 +685,7 @@ export function InstructorCourseCurriculumPage({
     setLessonTextContent(lesson.textContent || "");
     setLessonVideoFile(null);
     setLessonResourceFile(null);
+    setLessonAttachments(lesson.attachments ?? []);
     setLessonThumbnailFile(null);
     setAssignmentReferenceFile(null);
     setAssignmentDescription("");
@@ -676,6 +693,7 @@ export function InstructorCourseCurriculumPage({
     setAssignmentStartAt("");
     setAssignmentEndAt("");
     setPendingVideoLessonId(null);
+    setPendingResourceLessonId(null);
     setLessonDurationMinutes(
       lesson.videoDurationSeconds ? String(Math.round(lesson.videoDurationSeconds / 60)) : "0",
     );
@@ -688,7 +706,7 @@ export function InstructorCourseCurriculumPage({
   };
 
   const handleCloseLessonModal = () => {
-    if (lessonFormLoading) return;
+    if (lessonFormLoading || lessonResourceUploading) return;
     setLessonModalOpen(false);
     if (incompleteQuizLessonId) {
       setIncompleteQuizLessonId(null);
@@ -709,6 +727,15 @@ export function InstructorCourseCurriculumPage({
         tone: "warning",
       });
       void loadData();
+    } else if (pendingResourceLessonId) {
+      setFeedback({
+        isOpen: true,
+        title: "Tài liệu chưa tải xong",
+        description:
+          "Bài học đã được tạo nhưng tài liệu chưa hoàn tất. Mở lại bài học để thử tải tài liệu lần nữa.",
+        tone: "warning",
+      });
+      void loadData();
     } else if (pendingQuizPublishLessonId) {
       setFeedback({
         isOpen: true,
@@ -717,6 +744,116 @@ export function InstructorCourseCurriculumPage({
         tone: "warning",
       });
       void loadData();
+    }
+  };
+
+  const handleLessonResourceFileChange = async (file: File | null) => {
+    setLessonResourceFile(file);
+    setLessonFormError(null);
+    if (!file || !editingLesson || !targetSectionId) return;
+
+    const contentType = getLessonResourceContentType(file);
+    if (!contentType) {
+      setLessonFormError("Chỉ hỗ trợ tài liệu PDF, Word, PowerPoint, Excel hoặc văn bản.");
+      return;
+    }
+    if (file.size < 1 || file.size > 50 * 1024 * 1024) {
+      setLessonFormError("Tài liệu phải có dung lượng từ 1 byte đến 50 MB.");
+      return;
+    }
+
+    setLessonResourceUploading(true);
+    try {
+      const uploadedAttachment = await uploadLessonResource(
+        courseId,
+        targetSectionId,
+        editingLesson.id,
+        file,
+        accessToken,
+      );
+      setLessonAttachments((current) => [...current, uploadedAttachment]);
+      setStructure((current) =>
+        current
+          ? {
+              ...current,
+              sections: current.sections.map((section) =>
+                section.id !== targetSectionId
+                  ? section
+                  : {
+                      ...section,
+                      lessons: section.lessons.map((lesson) =>
+                        lesson.id !== editingLesson.id
+                          ? lesson
+                          : {
+                              ...lesson,
+                              attachments: [...(lesson.attachments ?? []), uploadedAttachment],
+                            },
+                      ),
+                    },
+              ),
+            }
+          : current,
+      );
+      setLessonResourceFile(null);
+      setFeedback({
+        isOpen: true,
+        title: "Đã lưu tài liệu bài học",
+        tone: "success",
+      });
+    } catch (error) {
+      setLessonFormError(
+        error instanceof ApiClientError
+          ? `Chưa thể lưu tài liệu. ${error.message}`
+          : "Chưa thể lưu tài liệu. Vui lòng thử lại.",
+      );
+    } finally {
+      setLessonResourceUploading(false);
+    }
+  };
+
+  const handleRemoveLessonAttachment = async (attachmentId: string) => {
+    if (!editingLesson || !targetSectionId) return;
+    setLessonFormLoading(true);
+    setLessonFormError(null);
+    try {
+      await deleteLessonResource(
+        courseId,
+        targetSectionId,
+        editingLesson.id,
+        attachmentId,
+        accessToken,
+      );
+      setLessonAttachments((current) => current.filter((item) => item.id !== attachmentId));
+      setStructure((current) =>
+        current
+          ? {
+              ...current,
+              sections: current.sections.map((section) =>
+                section.id !== targetSectionId
+                  ? section
+                  : {
+                      ...section,
+                      lessons: section.lessons.map((lesson) =>
+                        lesson.id !== editingLesson.id
+                          ? lesson
+                          : {
+                              ...lesson,
+                              attachments: (lesson.attachments ?? []).filter(
+                                (item) => item.id !== attachmentId,
+                              ),
+                            },
+                      ),
+                    },
+              ),
+            }
+          : current,
+      );
+    } catch (error) {
+      setLessonFormError(
+        error instanceof ApiClientError ? error.message : "Chưa thể xóa tài liệu đính kèm.",
+      );
+    } finally {
+      setLessonFormLoading(false);
     }
   };
 
@@ -739,6 +876,18 @@ export function InstructorCourseCurriculumPage({
       }
       if (lessonVideoFile.size < 1 || lessonVideoFile.size > 2 * 1024 * 1024 * 1024) {
         setLessonFormError("Video phải có dung lượng từ 1 byte đến 2 GB.");
+        return;
+      }
+    }
+    if (lessonResourceFile) {
+      if (!getLessonResourceContentType(lessonResourceFile)) {
+        setLessonFormError("Chỉ hỗ trợ tài liệu PDF, Word, PowerPoint, Excel hoặc văn bản.");
+        setLessonEditorTab("resources");
+        return;
+      }
+      if (lessonResourceFile.size < 1 || lessonResourceFile.size > 50 * 1024 * 1024) {
+        setLessonFormError("Tài liệu phải có dung lượng từ 1 byte đến 50 MB.");
+        setLessonEditorTab("resources");
         return;
       }
     }
@@ -809,8 +958,11 @@ export function InstructorCourseCurriculumPage({
     setLessonFormError(null);
     let createdLessonId: string | null = null;
     let completedQuizLessonId: string | null = null;
+    let savedLessonId: string | null = null;
+    let resourceUploadStarted = false;
     try {
       if (editingLesson) {
+        savedLessonId = editingLesson.id;
         const payload: UpdateLessonPayload = {
           title: lessonTitle.trim(),
           description: lessonDescription.trim() || null,
@@ -842,7 +994,17 @@ export function InstructorCourseCurriculumPage({
           isPreview: lessonIsPreview,
           status: lessonStatus,
         };
-        if (pendingVideoLessonId && lessonVideoFile) {
+        if (pendingResourceLessonId) {
+          savedLessonId = pendingResourceLessonId;
+          await updateLesson(
+            courseId,
+            targetSectionId,
+            pendingResourceLessonId,
+            payload,
+            accessToken,
+          );
+        } else if (pendingVideoLessonId && lessonVideoFile) {
+          savedLessonId = pendingVideoLessonId;
           await uploadLessonVideo(
             courseId,
             targetSectionId,
@@ -853,6 +1015,7 @@ export function InstructorCourseCurriculumPage({
           await updateLesson(courseId, targetSectionId, pendingVideoLessonId, payload, accessToken);
           setPendingVideoLessonId(null);
         } else if (pendingQuizPublishLessonId) {
+          savedLessonId = pendingQuizPublishLessonId;
           await updateLesson(
             courseId,
             targetSectionId,
@@ -862,6 +1025,7 @@ export function InstructorCourseCurriculumPage({
           );
           setPendingQuizPublishLessonId(null);
         } else if (incompleteQuizLessonId) {
+          savedLessonId = incompleteQuizLessonId;
           if (!quizPayload) throw new Error("Hãy hoàn thiện câu hỏi trước khi lưu bài kiểm tra.");
           await createInstructorQuiz(incompleteQuizLessonId, quizPayload, accessToken);
           completedQuizLessonId = incompleteQuizLessonId;
@@ -885,6 +1049,7 @@ export function InstructorCourseCurriculumPage({
             accessToken,
           );
           createdLessonId = createdLesson.id;
+          savedLessonId = createdLesson.id;
           if (creatingQuiz && quizPayload) {
             setIncompleteQuizLessonId(createdLesson.id);
             await createInstructorQuiz(createdLesson.id, quizPayload, accessToken);
@@ -908,11 +1073,27 @@ export function InstructorCourseCurriculumPage({
         }
       }
 
+      if (lessonResourceFile && savedLessonId) {
+        if (!editingLesson) setPendingResourceLessonId(savedLessonId);
+        resourceUploadStarted = true;
+        const uploadedAttachment = await uploadLessonResource(
+          courseId,
+          targetSectionId,
+          savedLessonId,
+          lessonResourceFile,
+          accessToken,
+        );
+        setLessonAttachments((current) => [...current, uploadedAttachment]);
+        setLessonResourceFile(null);
+        setPendingResourceLessonId(null);
+      }
+
       setIncompleteQuizLessonId(null);
       setPendingQuizPublishLessonId(null);
       setPendingVideoLessonId(null);
       if (editingLesson) {
         setLessonVideoFile(null);
+        setLessonResourceFile(null);
         setLessonModalOpen(false);
       } else {
         handleOpenCreateLesson(targetSectionId);
@@ -924,7 +1105,11 @@ export function InstructorCourseCurriculumPage({
       });
       await loadData();
     } catch (err) {
-      if (completedQuizLessonId || pendingQuizPublishLessonId) {
+      if (pendingResourceLessonId || (createdLessonId && resourceUploadStarted)) {
+        setLessonFormError(
+          `Bài học đã được tạo nhưng tài liệu chưa tải xong. ${err instanceof ApiClientError ? err.message : "Hãy thử tải lại tài liệu; bài học sẽ không bị tạo trùng."}`,
+        );
+      } else if (completedQuizLessonId || pendingQuizPublishLessonId) {
         setLessonFormError(
           "Bài kiểm tra đã lưu nhưng chưa thể xuất bản. Hãy lưu lại để hoàn tất, câu hỏi sẽ không bị tạo trùng.",
         );
@@ -933,6 +1118,12 @@ export function InstructorCourseCurriculumPage({
           lessonType === "VIDEO" || pendingVideoLessonId
             ? `Bài học đã được tạo nhưng video chưa tải xong. ${err instanceof ApiClientError ? err.message : "Hãy thử lại; bài học sẽ không bị tạo trùng."}`
             : "Bài học đã được tạo, nhưng chưa lưu được câu hỏi. Nội dung bài học đã khóa; hãy thử lưu câu hỏi lại.",
+        );
+      } else if (resourceUploadStarted && savedLessonId) {
+        setLessonFormError(
+          err instanceof Error
+            ? `Chưa thể tải tài liệu đính kèm. ${err.message}`
+            : "Chưa thể tải tài liệu đính kèm. Vui lòng thử lại.",
         );
       } else if (err instanceof ApiClientError) {
         setLessonFormError(err.message);
@@ -1473,7 +1664,7 @@ export function InstructorCourseCurriculumPage({
           >
             <aside
               id="section-editor-global-sidebar"
-              className="hidden bg-[#101a2c] text-white lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:flex lg:min-h-dvh lg:flex-col"
+              className="sticky top-0 hidden h-dvh bg-[#101a2c] text-white lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:flex lg:min-h-0 lg:self-start lg:flex-col"
             >
               <InstructorWorkspaceSidebar
                 activeSection="courses"
@@ -1894,7 +2085,7 @@ export function InstructorCourseCurriculumPage({
                 <button
                   type="button"
                   onClick={handleCloseLessonModal}
-                  disabled={lessonFormLoading}
+                  disabled={lessonFormLoading || lessonResourceUploading}
                   aria-label="Quay lại giáo trình"
                   className="focus-ring inline-flex size-9 shrink-0 items-center justify-center rounded-md text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
                 >
@@ -1916,7 +2107,7 @@ export function InstructorCourseCurriculumPage({
                   variant="outline"
                   size="sm"
                   onClick={handleCloseLessonModal}
-                  disabled={lessonFormLoading}
+                  disabled={lessonFormLoading || lessonResourceUploading}
                   className="min-h-10 rounded-lg px-3 sm:px-4"
                 >
                   Hủy
@@ -1924,14 +2115,16 @@ export function InstructorCourseCurriculumPage({
                 <button
                   type="submit"
                   form="lesson-form"
-                  disabled={lessonFormLoading}
+                  disabled={lessonFormLoading || lessonResourceUploading}
                   className="focus-ring inline-flex min-h-10 items-center justify-center rounded-lg bg-primary px-3 text-sm font-semibold text-white transition hover:bg-[#159e75] active:bg-[#128763] disabled:cursor-not-allowed disabled:opacity-60 sm:px-4"
                 >
-                  {lessonFormLoading
-                    ? "Đang lưu..."
-                    : lessonStatus === "PUBLISHED"
-                      ? "Lưu và xuất bản"
-                      : "Lưu bản nháp"}
+                  {lessonResourceUploading
+                    ? "Đang lưu tài liệu..."
+                    : lessonFormLoading
+                      ? "Đang lưu..."
+                      : lessonStatus === "PUBLISHED"
+                        ? "Lưu và xuất bản"
+                        : "Lưu bản nháp"}
                 </button>
               </div>
             </header>
@@ -1963,6 +2156,14 @@ export function InstructorCourseCurriculumPage({
                 </nav>
 
                 <div className="min-h-[calc(100dvh-114px)] px-4 py-6 sm:px-6 lg:px-6">
+                  {lessonResourceUploading ? (
+                    <p
+                      role="status"
+                      className="mb-5 max-w-[680px] rounded-lg border border-primary/20 bg-emerald-50 p-3 text-xs font-medium text-primary"
+                    >
+                      Đang tải tài liệu lên và lưu vào bài học...
+                    </p>
+                  ) : null}
                   {lessonFormError ? (
                     <div
                       role="alert"
@@ -2242,6 +2443,40 @@ export function InstructorCourseCurriculumPage({
                         </p>
                       </div>
 
+                      {lessonAttachments?.length ? (
+                        <div className="space-y-2" aria-label="Tài liệu đã tải lên">
+                          {lessonAttachments.map((attachment) => (
+                            <div
+                              key={attachment.id}
+                              className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-3"
+                            >
+                              <span className="grid size-9 shrink-0 place-items-center rounded-md bg-emerald-50 text-primary">
+                                <FileIcon className="h-4 w-4" aria-hidden="true" />
+                              </span>
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate text-sm font-semibold text-heading">
+                                  {attachment.fileName}
+                                </span>
+                                <span className="mt-0.5 block text-xs text-muted">
+                                  {formatFileSize(attachment.contentLength)}
+                                </span>
+                              </span>
+                              <button
+                                type="button"
+                                aria-label={`Xóa tài liệu ${attachment.fileName}`}
+                                disabled={
+                                  lessonFormLoading || lessonResourceUploading || !editingLesson
+                                }
+                                onClick={() => void handleRemoveLessonAttachment(attachment.id)}
+                                className="focus-ring inline-flex size-9 shrink-0 items-center justify-center rounded-md text-slate-500 transition hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                <Trash2 className="h-4 w-4" aria-hidden="true" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+
                       {lessonType === "VIDEO" ? (
                         <>
                           <LessonFileDropzone
@@ -2266,12 +2501,16 @@ export function InstructorCourseCurriculumPage({
                           <LessonFileDropzone
                             id="lesson-supporting-file"
                             label="Tài liệu bổ trợ"
-                            hint="Tải lên PDF, Word hoặc tệp văn bản"
-                            accept=".pdf,.doc,.docx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+                            hint={
+                              editingLesson
+                                ? "Tài liệu được lưu ngay khi chọn tệp"
+                                : "Tài liệu sẽ được tải lên khi lưu bài học"
+                            }
+                            accept=".pdf,.doc,.docx,.txt,.ppt,.pptx,.xls,.xlsx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                             icon={<FileIcon className="h-6 w-6" aria-hidden="true" />}
                             file={lessonResourceFile}
-                            disabled={lessonFormLoading}
-                            onFileChange={setLessonResourceFile}
+                            disabled={lessonFormLoading || lessonResourceUploading}
+                            onFileChange={handleLessonResourceFileChange}
                           />
                           <LessonFileDropzone
                             id="lesson-thumbnail-file"
@@ -2289,12 +2528,16 @@ export function InstructorCourseCurriculumPage({
                           <LessonFileDropzone
                             id="lesson-assignment-file"
                             label="Nội dung bài tập"
-                            hint="Tải lên PDF, Word hoặc tệp văn bản"
-                            accept=".pdf,.doc,.docx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+                            hint={
+                              editingLesson
+                                ? "Tài liệu được lưu ngay khi chọn tệp"
+                                : "Tài liệu sẽ được tải lên khi lưu bài học"
+                            }
+                            accept=".pdf,.doc,.docx,.txt,.ppt,.pptx,.xls,.xlsx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                             icon={<FileIcon className="h-6 w-6" aria-hidden="true" />}
                             file={lessonResourceFile}
-                            disabled={lessonFormLoading}
-                            onFileChange={setLessonResourceFile}
+                            disabled={lessonFormLoading || lessonResourceUploading}
+                            onFileChange={handleLessonResourceFileChange}
                           />
                           <LessonFileDropzone
                             id="lesson-thumbnail-file"
@@ -2311,24 +2554,32 @@ export function InstructorCourseCurriculumPage({
                         <LessonFileDropzone
                           id="lesson-document-file"
                           label="Tài liệu bài học"
-                          hint="Tải lên PDF, Word hoặc tệp văn bản"
-                          accept=".pdf,.doc,.docx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+                          hint={
+                            editingLesson
+                              ? "Tài liệu được lưu ngay khi chọn tệp"
+                              : "Tài liệu sẽ được tải lên khi lưu bài học"
+                          }
+                          accept=".pdf,.doc,.docx,.txt,.ppt,.pptx,.xls,.xlsx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                           icon={<FileIcon className="h-6 w-6" aria-hidden="true" />}
                           file={lessonResourceFile}
-                          disabled={lessonFormLoading}
-                          onFileChange={setLessonResourceFile}
+                          disabled={lessonFormLoading || lessonResourceUploading}
+                          onFileChange={handleLessonResourceFileChange}
                         />
                       ) : (
                         <>
                           <LessonFileDropzone
                             id="lesson-supporting-file"
                             label="Tài liệu bổ trợ"
-                            hint="Tải lên PDF, Word hoặc tệp văn bản"
-                            accept=".pdf,.doc,.docx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+                            hint={
+                              editingLesson
+                                ? "Tài liệu được lưu ngay khi chọn tệp"
+                                : "Tài liệu sẽ được tải lên khi lưu bài học"
+                            }
+                            accept=".pdf,.doc,.docx,.txt,.ppt,.pptx,.xls,.xlsx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                             icon={<FileIcon className="h-6 w-6" aria-hidden="true" />}
                             file={lessonResourceFile}
-                            disabled={lessonFormLoading}
-                            onFileChange={setLessonResourceFile}
+                            disabled={lessonFormLoading || lessonResourceUploading}
+                            onFileChange={handleLessonResourceFileChange}
                           />
                           <LessonFileDropzone
                             id="lesson-thumbnail-file"

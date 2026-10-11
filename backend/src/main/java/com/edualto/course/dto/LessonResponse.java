@@ -21,6 +21,7 @@ public record LessonResponse(
         LessonStatus status,
         Instant createdAt,
         Instant updatedAt,
-        List<String> objectives
+        List<String> objectives,
+        List<LessonAttachmentResponse> attachments
 ) {
 }

@@ -495,10 +495,12 @@ export function LearningLessonPage({ lessonId }: { lessonId: string }) {
                             )}
                             <span className="min-w-0">
                               <span className="block truncate text-sm font-semibold text-[#101a2c]">
-                                {section.title}
+                                {/^(chương\s+\d+\s*[:：-])/i.test(section.title)
+                                  ? section.title
+                                  : `Chương ${index + 1}: ${section.title}`}
                               </span>
                               <span className="mt-0.5 block text-[11px] text-[#84908b]">
-                                Chương {index + 1} · {section.lessons.length} bài học
+                                {section.lessons.length} bài học
                               </span>
                             </span>
                           </span>

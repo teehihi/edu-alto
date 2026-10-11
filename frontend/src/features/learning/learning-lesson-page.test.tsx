@@ -39,6 +39,9 @@ describe("LearningLessonPage video playback", () => {
       title: "Giới thiệu bài học video",
       lessonType: "VIDEO",
       content: "Nội dung bổ sung cho video.",
+      description: null,
+      objectives: [],
+      attachments: [],
     });
     vi.spyOn(learningClient, "fetchSavedLessons").mockResolvedValue({
       data: [],

@@ -15,6 +15,11 @@ public interface StorageService {
 
     PresignedDownloadUrl generatePresignedDownloadUrl(String objectKey, Duration expiration);
 
+    default PresignedDownloadUrl generatePresignedDownloadUrl(
+            String objectKey, Duration expiration, String downloadFileName) {
+        return generatePresignedDownloadUrl(objectKey, expiration);
+    }
+
     void putObject(String objectKey, String contentType, byte[] data);
 
     void putObject(String objectKey, String contentType, InputStream data, long contentLength);

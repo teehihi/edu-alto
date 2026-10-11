@@ -282,7 +282,7 @@ export function InstructorWorkspaceSidebar({
       <nav
         aria-label="Điều hướng giảng viên"
         className={cn(
-          "flex-1 space-y-1 overflow-y-auto px-3 py-4",
+          "flex-1 space-y-1 overflow-y-auto px-3 py-4 lg:overflow-y-visible",
           sidebarCollapsed ? "lg:px-0" : "lg:px-3",
         )}
       >
@@ -440,7 +440,7 @@ export function InstructorWorkspaceShell({
         <aside
           id="instructor-sidebar"
           className={cn(
-            "fixed inset-y-0 left-0 z-50 flex w-[261px] flex-col border-r border-slate-800 bg-[#101a2c] text-white shadow-[1px_0_3px_rgba(0,0,0,0.12)] transition-[width,transform] duration-300 ease-in-out motion-reduce:transition-none lg:sticky lg:top-0 lg:z-20 lg:h-screen lg:translate-x-0",
+            "fixed inset-y-0 left-0 z-50 flex w-[261px] flex-col border-r border-slate-800 bg-[#101a2c] text-white shadow-[1px_0_3px_rgba(0,0,0,0.12)] transition-[width,transform] duration-300 ease-in-out motion-reduce:transition-none lg:sticky lg:top-0 lg:z-20 lg:h-dvh lg:min-h-0 lg:translate-x-0",
             sidebarCollapsed ? "lg:w-[88px]" : "lg:w-[261px]",
             mobileNavOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
           )}

@@ -1,3 +1,5 @@
+import type { LessonAttachment } from "@/types/lesson-attachment";
+
 export type LessonType = "TEXT" | "VIDEO" | "DOCUMENT" | "QUIZ" | "ASSIGNMENT";
 
 export type LessonStatus = "DRAFT" | "PUBLISHED";
@@ -23,6 +25,7 @@ export type Lesson = {
   type: LessonType;
   textContent: string | null;
   objectives?: string[];
+  attachments?: LessonAttachment[];
   videoDurationSeconds: number | null;
   isPreview: boolean;
   status: LessonStatus;

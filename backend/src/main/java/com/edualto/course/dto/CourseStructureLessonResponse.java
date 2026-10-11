@@ -16,6 +16,7 @@ public record CourseStructureLessonResponse(
         Integer durationSeconds,
         boolean isPreview,
         LessonStatus status,
-        List<String> objectives
+        List<String> objectives,
+        List<LessonAttachmentResponse> attachments
 ) {
 }

@@ -1,4 +1,5 @@
 import { apiPageRequest, apiRequest } from "@/lib/api";
+import type { LessonAttachment } from "@/types/lesson-attachment";
 
 export type Enrollment = {
   id: string;
@@ -18,6 +19,15 @@ export type LessonContent = {
   title: string;
   lessonType: string;
   content: string | null;
+  description: string | null;
+  objectives: string[];
+  attachments: LessonAttachment[];
+};
+
+export type LessonResourceDownload = {
+  attachmentId: string;
+  downloadUrl: string;
+  expiresAt: string;
 };
 
 export type LessonVideoAccess = {
@@ -131,6 +141,17 @@ export async function fetchLessonVideoAccess(accessToken: string, lessonId: stri
   return apiRequest<LessonVideoAccess>(`/lessons/${encodeURIComponent(lessonId)}/video-access`, {
     accessToken,
   });
+}
+
+export async function fetchLessonResourceDownload(
+  accessToken: string,
+  lessonId: string,
+  attachmentId: string,
+) {
+  return apiRequest<LessonResourceDownload>(
+    `/lessons/${encodeURIComponent(lessonId)}/resources/${encodeURIComponent(attachmentId)}/download`,
+    { accessToken },
+  );
 }
 
 export async function fetchLearningQuiz(accessToken: string, lessonId: string) {

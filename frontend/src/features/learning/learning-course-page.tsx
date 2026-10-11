@@ -11,6 +11,7 @@ import {
   ChevronRight,
   Circle,
   Clock3,
+  Download,
   FileText,
   GraduationCap,
   PlayCircle,
@@ -27,6 +28,7 @@ import {
   fetchLearningCurriculum,
   fetchLearningLesson,
   fetchLessonVideoAccess,
+  fetchLessonResourceDownload,
   fetchMyEnrollments,
   type CourseProgress,
   type Enrollment,
@@ -62,6 +64,21 @@ function formatDuration(seconds: number | null) {
 
 function formatPrice(price: number) {
   return price <= 0 ? "Miễn phí" : `${new Intl.NumberFormat("vi-VN").format(price)}đ`;
+}
+
+function formatAttachmentSize(bytes: number) {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function getAttachmentTypeLabel(contentType: string) {
+  if (contentType === "application/pdf") return "PDF";
+  if (contentType.includes("wordprocessing") || contentType === "application/msword") return "Word";
+  if (contentType.includes("presentation") || contentType === "application/vnd.ms-powerpoint")
+    return "PowerPoint";
+  if (contentType.includes("spreadsheet") || contentType === "application/vnd.ms-excel")
+    return "Excel";
+  return "Văn bản";
 }
 
 function formatReviewDate(value: string) {
@@ -167,6 +184,7 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
   const [activeLessonVideoUrl, setActiveLessonVideoUrl] = useState<string | null>(null);
   const [activeLessonLoading, setActiveLessonLoading] = useState(false);
   const [activeLessonError, setActiveLessonError] = useState("");
+  const [downloadingAttachmentId, setDownloadingAttachmentId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<(typeof courseTabs)[number]["id"]>("description");
   const instructor = course?.instructor ?? null;
 
@@ -348,6 +366,31 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
     document.getElementById(tabId)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
+  async function downloadLessonAttachment(attachmentId: string) {
+    if (!currentLessonContent) return;
+    const downloadWindow = window.open("about:blank", "lesson-resource-download");
+    setDownloadingAttachmentId(attachmentId);
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+      const access = await fetchLessonResourceDownload(
+        token,
+        currentLessonContent.id,
+        attachmentId,
+      );
+      if (downloadWindow) downloadWindow.location.href = access.downloadUrl;
+      else
+        throw new Error(
+          "Trình duyệt đang chặn cửa sổ tải tài liệu. Hãy cho phép cửa sổ bật lên rồi thử lại.",
+        );
+    } catch (error) {
+      downloadWindow?.close();
+      setMessage(error instanceof Error ? error.message : "Chưa thể tải tài liệu bài học.");
+    } finally {
+      setDownloadingAttachmentId(null);
+    }
+  }
+
   async function refreshProgressAfterQuiz() {
     try {
       const token = await getAccessToken();
@@ -360,7 +403,7 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
   return (
     <LearningWorkspaceShell title={courseTitle}>
       <main className="-mx-4 -my-6 min-h-screen bg-gradient-to-b from-[#e1f8ef] via-[#f6fbf9] to-white px-4 py-6 md:-mx-7 md:px-7 md:py-8">
-        <div className="mx-auto w-full max-w-[1280px]">
+        <div className="mx-auto w-full max-w-none">
           {loading ? (
             <div role="status" aria-label="Đang tải khóa học" className="space-y-5">
               <div className="skeleton h-5 w-64 rounded" />
@@ -435,7 +478,7 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
                           </div>
                         </div>
                       )}
-                      <header className="border-t border-[#e2e8f0] px-5 py-4 sm:px-7">
+                      <header className="border-t border-[#e2e8f0] px-4 py-3.5 sm:px-5">
                         <p className="text-xs font-semibold uppercase tracking-wide text-primary">
                           Video bài giảng
                         </p>
@@ -445,7 +488,7 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
                       </header>
                       {currentLessonContent.content?.trim() ? (
                         <div
-                          className="course-description-content border-t border-[#e2e8f0] px-5 py-5 text-sm leading-6 text-[#334155] [&_h1]:my-3 [&_h1]:text-2xl [&_h1]:font-bold [&_h2]:my-3 [&_h2]:text-xl [&_h2]:font-semibold [&_h3]:my-2 [&_h3]:text-lg [&_h3]:font-semibold [&_p]:my-2 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_a]:text-primary [&_a]:underline [&_img]:my-3 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-lg sm:px-7"
+                          className="course-description-content border-t border-[#e2e8f0] px-4 py-4 text-sm leading-6 text-[#334155] [&_h1]:my-3 [&_h1]:text-2xl [&_h1]:font-bold [&_h2]:my-3 [&_h2]:text-xl [&_h2]:font-semibold [&_h3]:my-2 [&_h3]:text-lg [&_h3]:font-semibold [&_p]:my-2 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_a]:text-primary [&_a]:underline [&_img]:my-3 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-lg sm:px-5"
                           dangerouslySetInnerHTML={{
                             __html: sanitizeCourseDescription(currentLessonContent.content),
                           }}
@@ -454,7 +497,7 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
                     </article>
                   ) : currentLessonContent?.lessonType === "QUIZ" ? (
                     <article className="overflow-hidden rounded-2xl border border-[#e2e8f0] bg-white shadow-sm">
-                      <header className="border-b border-[#e2e8f0] bg-[#f5fbf9] px-5 py-4 sm:px-7">
+                      <header className="border-b border-[#e2e8f0] bg-[#f5fbf9] px-4 py-3.5 sm:px-5">
                         <p className="text-xs font-semibold uppercase tracking-wide text-primary">
                           Bài kiểm tra
                         </p>
@@ -470,7 +513,7 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
                     </article>
                   ) : currentLessonContent?.lessonType === "TEXT" ? (
                     <article className="min-h-[360px] overflow-hidden rounded-2xl border border-[#e2e8f0] bg-white shadow-sm">
-                      <header className="flex items-start gap-3 border-b border-[#e2e8f0] bg-[#f5fbf9] px-5 py-4 sm:px-7">
+                      <header className="flex items-start gap-3 border-b border-[#e2e8f0] bg-[#f5fbf9] px-4 py-3.5 sm:px-5">
                         <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#eaf7f3] text-primary">
                           <FileText aria-hidden="true" className="h-5 w-5" />
                         </span>
@@ -485,13 +528,13 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
                       </header>
                       {currentLessonContent.content?.trim() ? (
                         <div
-                          className="course-description-content px-5 py-6 text-sm leading-7 text-[#334155] [&_h1]:my-3 [&_h1]:text-2xl [&_h1]:font-bold [&_h2]:my-3 [&_h2]:text-xl [&_h2]:font-semibold [&_h3]:my-2 [&_h3]:text-lg [&_h3]:font-semibold [&_p]:my-2 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_a]:text-primary [&_a]:underline [&_img]:my-3 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-lg sm:px-7"
+                          className="course-description-content px-4 py-4 text-sm leading-7 text-[#334155] [&_h1]:my-3 [&_h1]:text-2xl [&_h1]:font-bold [&_h2]:my-3 [&_h2]:text-xl [&_h2]:font-semibold [&_h3]:my-2 [&_h3]:text-lg [&_h3]:font-semibold [&_p]:my-2 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_a]:text-primary [&_a]:underline [&_img]:my-3 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-lg sm:px-5"
                           dangerouslySetInnerHTML={{
                             __html: sanitizeCourseDescription(currentLessonContent.content),
                           }}
                         />
                       ) : (
-                        <p className="px-5 py-6 text-sm leading-6 text-[#64748b] sm:px-7">
+                        <p className="px-4 py-4 text-sm leading-6 text-[#64748b] sm:px-5">
                           Giảng viên đang cập nhật nội dung cho bài học này.
                         </p>
                       )}
@@ -605,10 +648,12 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
                                 )}
                                 <span className="min-w-0">
                                   <span className="block truncate text-sm font-semibold text-[#0f172a]">
-                                    {section.title}
+                                    {/^(chương\s+\d+\s*[:：-])/i.test(section.title)
+                                      ? section.title
+                                      : `Chương ${sectionIndex + 1}: ${section.title}`}
                                   </span>
                                   <span className="mt-0.5 block text-xs text-[#64748b]">
-                                    Chương {sectionIndex + 1} · {section.lessons.length} bài học
+                                    {section.lessons.length} bài học
                                   </span>
                                 </span>
                               </span>
@@ -713,19 +758,109 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
                   id="description"
                   className="scroll-mt-28 border-b border-[#e2e8f0] py-6 lg:col-start-1 lg:row-start-2"
                 >
-                  <h2 className="text-base font-semibold text-primary">Giới thiệu khóa học</h2>
-                  {course?.description ? (
-                    <div
-                      className="course-description-content mt-2 text-sm leading-6 text-[#334155] [&_h1]:my-3 [&_h1]:text-2xl [&_h1]:font-bold [&_h2]:my-3 [&_h2]:text-xl [&_h2]:font-semibold [&_h3]:my-2 [&_h3]:text-lg [&_h3]:font-semibold [&_p]:my-2 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_a]:text-primary [&_a]:underline [&_img]:my-3 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-lg"
-                      dangerouslySetInnerHTML={{
-                        __html: sanitizeCourseDescription(course.description),
-                      }}
-                    />
-                  ) : (
-                    <p className="mt-2 text-sm leading-6 text-[#64748b]">
-                      {course?.tagline ?? "Giảng viên đang cập nhật phần giới thiệu khóa học."}
-                    </p>
-                  )}
+                  <section aria-labelledby="lesson-overview-title" className="py-2">
+                    <h2 id="lesson-overview-title" className="text-lg font-semibold text-primary">
+                      Tổng quan bài học
+                    </h2>
+                    {currentLessonContent?.description?.trim() ? (
+                      <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-[#334155]">
+                        {currentLessonContent.description.trim()}
+                      </p>
+                    ) : (
+                      <p className="mt-2 text-sm leading-6 text-[#64748b]">
+                        {waitingForLessonContent
+                          ? "Đang tải thông tin bài học…"
+                          : activeLesson
+                            ? "Giảng viên chưa cập nhật phần tổng quan cho bài học này."
+                            : "Chọn một bài học để xem thông tin tổng quan."}
+                      </p>
+                    )}
+                  </section>
+
+                  <section
+                    aria-labelledby="lesson-objectives-title"
+                    className="mt-6 border-t border-[#e2e8f0] pt-5"
+                  >
+                    <h2 id="lesson-objectives-title" className="text-lg font-semibold text-primary">
+                      Mục tiêu bài học
+                    </h2>
+                    {currentLessonContent?.objectives?.length ? (
+                      <ul className="mt-2 list-disc space-y-2 pl-5 text-sm leading-6 text-[#334155]">
+                        {currentLessonContent.objectives.map((objective, index) => (
+                          <li key={`${index}-${objective}`}>{objective}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="mt-2 text-sm leading-6 text-[#64748b]">
+                        {waitingForLessonContent
+                          ? "Đang tải mục tiêu bài học…"
+                          : "Giảng viên chưa cập nhật mục tiêu cho bài học này."}
+                      </p>
+                    )}
+                  </section>
+
+                  <section
+                    aria-labelledby="lesson-attachments-title"
+                    className="mt-6 border-t border-[#e2e8f0] pt-5"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <h2
+                        id="lesson-attachments-title"
+                        className="text-lg font-semibold text-primary"
+                      >
+                        Tài liệu bài học
+                      </h2>
+                      <span className="text-sm text-[#64748b]">
+                        {currentLessonContent?.attachments.length ?? 0} tệp đính kèm
+                      </span>
+                    </div>
+                    {currentLessonContent?.attachments.length ? (
+                      <ul className="mt-4 space-y-2">
+                        {currentLessonContent.attachments.map((attachment) => (
+                          <li
+                            key={attachment.id}
+                            className="flex min-w-0 flex-wrap items-center gap-3 rounded-xl border border-[#e2e8f0] bg-white p-3 shadow-[0_1px_2px_rgba(16,24,40,0.05)] sm:flex-nowrap sm:px-4"
+                          >
+                            <span
+                              aria-hidden="true"
+                              className={cn(
+                                "grid size-10 shrink-0 place-items-center rounded-[10px]",
+                                attachment.contentType === "application/pdf"
+                                  ? "bg-rose-100 text-rose-600"
+                                  : "bg-blue-100 text-blue-600",
+                              )}
+                            >
+                              <FileText className="h-5 w-5" />
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-sm font-semibold text-[#101a2c]">
+                                {attachment.fileName}
+                              </span>
+                              <span className="mt-0.5 block text-xs text-[#64748b]">
+                                {getAttachmentTypeLabel(attachment.contentType)} ·{" "}
+                                {formatAttachmentSize(attachment.contentLength)}
+                              </span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => void downloadLessonAttachment(attachment.id)}
+                              disabled={downloadingAttachmentId === attachment.id}
+                              className="focus-ring inline-flex min-h-9 shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-3 text-xs font-semibold text-white transition hover:bg-[#159e75] active:bg-[#128763] disabled:cursor-wait disabled:opacity-60"
+                            >
+                              <Download aria-hidden="true" className="h-4 w-4" />
+                              {downloadingAttachmentId === attachment.id ? "Đang tải…" : "Tải về"}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="mt-3 rounded-lg border border-dashed border-[#d8e4df] bg-white px-4 py-5 text-sm text-[#64748b]">
+                        {waitingForLessonContent
+                          ? "Đang tải tài liệu bài học…"
+                          : "Bài học này chưa có tài liệu đính kèm."}
+                      </p>
+                    )}
+                  </section>
                 </section>
               </div>
 
@@ -778,7 +913,7 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
 
               {relatedCourses.length ? (
                 <section className="-mx-4 scroll-mt-28 border-b border-[#e2e8f0] bg-[#f8fafc] px-4 py-9 md:-mx-7 md:px-7">
-                  <div className="mx-auto max-w-[1280px]">
+                  <div className="mx-auto max-w-none">
                     <div className="mb-5 flex items-center justify-between gap-4">
                       <h2 className="text-lg font-semibold text-[#101a2c]">
                         Khóa học khác của{" "}

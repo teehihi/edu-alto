@@ -1,11 +1,11 @@
 package com.edualto.course.domain;
 
 import jakarta.persistence.Column;
-import jakarta.persistence.CollectionTable;
-import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OrderColumn;
@@ -14,6 +14,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
 @Entity
@@ -43,6 +44,11 @@ public class Lesson {
     @OrderColumn(name = "position")
     @Column(name = "objective", nullable = false, length = 300)
     private List<String> objectives = new ArrayList<>();
+
+    @ElementCollection
+    @CollectionTable(name = "lesson_attachments", joinColumns = @JoinColumn(name = "lesson_id"))
+    @OrderColumn(name = "position")
+    private List<LessonAttachment> attachments = new ArrayList<>();
 
     @Enumerated(EnumType.STRING)
     @Column(name = "lesson_type", nullable = false, length = 40)
@@ -218,6 +224,27 @@ public class Lesson {
                 objectives.add(value.trim());
             }
         }
+    }
+
+    public List<LessonAttachment> getAttachments() {
+        return List.copyOf(attachments);
+    }
+
+    public void addAttachment(LessonAttachment attachment) {
+        attachments.add(Objects.requireNonNull(attachment, "Attachment must not be null"));
+        this.updatedAt = Instant.now();
+    }
+
+    public Optional<LessonAttachment> removeAttachment(UUID attachmentId) {
+        for (int index = 0; index < attachments.size(); index++) {
+            LessonAttachment attachment = attachments.get(index);
+            if (attachment.getId().equals(attachmentId)) {
+                attachments.remove(index);
+                this.updatedAt = Instant.now();
+                return Optional.of(attachment);
+            }
+        }
+        return Optional.empty();
     }
 
     public LessonType getLessonType() {

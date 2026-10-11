@@ -8,6 +8,7 @@ import com.edualto.course.domain.LessonStatus;
 import com.edualto.course.domain.LessonType;
 import com.edualto.course.dto.LearningCourseResponse;
 import com.edualto.course.dto.LearningLessonResponse;
+import com.edualto.course.dto.LessonAttachmentResponse;
 import com.edualto.course.repository.CourseRepository;
 import com.edualto.course.repository.LessonRepository;
 import com.edualto.course.repository.SectionRepository;
@@ -51,6 +52,10 @@ public class CourseLearningAccessService {
         UUID courseId = sections.findById(lesson.getSectionId()).orElseThrow().getCourseId();
         requirePublishedCourse(courseId);
         return new LearningLessonResponse(lesson.getId(), courseId, lesson.getSectionId(), lesson.getTitle(),
-                lesson.getLessonType(), lesson.getLessonType() == LessonType.TEXT ? lesson.getContent() : null);
+                lesson.getLessonType(), lesson.getLessonType() == LessonType.TEXT ? lesson.getContent() : null,
+                lesson.getDescription(), lesson.getObjectives(), lesson.getAttachments().stream()
+                        .map(attachment -> new LessonAttachmentResponse(attachment.getId(), attachment.getFileName(),
+                                attachment.getContentType(), attachment.getContentLength()))
+                        .toList());
     }
 }

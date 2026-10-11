@@ -4,6 +4,7 @@ import com.edualto.common.exception.BusinessException;
 import com.edualto.common.util.SlugUtils;
 import com.edualto.course.domain.Course;
 import com.edualto.course.domain.Lesson;
+import com.edualto.course.domain.LessonAttachment;
 import com.edualto.course.domain.LessonStatus;
 import com.edualto.course.domain.LessonType;
 import com.edualto.course.domain.Section;
@@ -13,6 +14,7 @@ import com.edualto.course.dto.CourseStructureSectionResponse;
 import com.edualto.course.dto.CreateLessonRequest;
 import com.edualto.course.dto.CreateSectionRequest;
 import com.edualto.course.dto.LessonResponse;
+import com.edualto.course.dto.LessonAttachmentResponse;
 import com.edualto.course.dto.ReorderItemRequest;
 import com.edualto.course.dto.ReorderLessonsRequest;
 import com.edualto.course.dto.ReorderSectionsRequest;
@@ -34,6 +36,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Stream;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
@@ -118,7 +121,8 @@ public class CourseStructureService {
                             l.getDurationSeconds(),
                             l.isPreview(),
                             l.getStatus(),
-                            l.getObjectives()
+                            l.getObjectives(),
+                            toAttachmentResponses(l)
                     ))
                     .toList();
 
@@ -234,14 +238,16 @@ public class CourseStructureService {
         getCourseAndCheckOwnership(instructorId, courseId);
         Section section = getSectionAndCheckCourse(courseId, sectionId);
 
-        List<String> videoKeys = lessonRepository.findAllBySectionIdOrderByPositionAsc(sectionId).stream()
-                .map(Lesson::getMediaKey)
-                .filter(this::isCourseVideoKey)
+        List<Lesson> sectionLessons = lessonRepository.findAllBySectionIdOrderByPositionAsc(sectionId);
+        List<String> storageKeys = sectionLessons.stream()
+                .flatMap(lesson -> Stream.concat(
+                        lesson.getAttachments().stream().map(LessonAttachment::getObjectKey),
+                        isCourseVideoKey(lesson.getMediaKey()) ? Stream.of(lesson.getMediaKey()) : Stream.empty()))
                 .toList();
 
         lessonRepository.deleteAllBySectionId(sectionId);
         sectionRepository.delete(section);
-        storageCleanup.deleteAfterCommit(videoKeys);
+        storageCleanup.deleteAfterCommit(storageKeys);
 
         // Re-index remaining sections to keep positions contiguous
         List<Section> remaining = sectionRepository.findAllByCourseIdOrderByPositionAsc(courseId);
@@ -378,11 +384,15 @@ public class CourseStructureService {
         Lesson lesson = getLessonAndCheckSection(sectionId, lessonId);
 
         String videoKey = lesson.getMediaKey();
+        List<String> attachmentKeys = lesson.getAttachments().stream()
+                .map(LessonAttachment::getObjectKey)
+                .toList();
 
         lessonRepository.delete(lesson);
         if (isCourseVideoKey(videoKey)) {
             storageCleanup.deleteAfterCommit(List.of(videoKey));
         }
+        storageCleanup.deleteAfterCommit(attachmentKeys);
 
         // Re-index remaining lessons to keep positions contiguous
         List<Lesson> remaining = lessonRepository.findAllBySectionIdOrderByPositionAsc(sectionId);
@@ -509,7 +519,15 @@ public class CourseStructureService {
                 lesson.getStatus(),
                 lesson.getCreatedAt(),
                 lesson.getUpdatedAt(),
-                lesson.getObjectives()
+                lesson.getObjectives(),
+                toAttachmentResponses(lesson)
         );
+    }
+
+    private List<LessonAttachmentResponse> toAttachmentResponses(Lesson lesson) {
+        return lesson.getAttachments().stream()
+                .map(attachment -> new LessonAttachmentResponse(attachment.getId(), attachment.getFileName(),
+                        attachment.getContentType(), attachment.getContentLength()))
+                .toList();
     }
 }
