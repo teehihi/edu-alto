@@ -6,9 +6,10 @@ import { LearningLessonPage } from "./learning-lesson-page";
 import * as learningClient from "@/lib/learning-client";
 
 const getAccessToken = vi.fn().mockResolvedValue("student-token");
+const mockRouter = vi.hoisted(() => ({ replace: vi.fn(), push: vi.fn() }));
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
+  useRouter: () => mockRouter,
   useSearchParams: () => new URLSearchParams("courseId=course-1"),
 }));
 
