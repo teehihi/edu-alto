@@ -66,6 +66,9 @@ public class Lesson {
     @Column(name = "media_key", length = 512)
     private String mediaKey;
 
+    @Column(name = "thumbnail_key", length = 512)
+    private String thumbnailKey;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 40)
     private LessonStatus status;
@@ -265,6 +268,15 @@ public class Lesson {
 
     public String getMediaKey() {
         return mediaKey;
+    }
+
+    public String getThumbnailKey() {
+        return thumbnailKey;
+    }
+
+    public void setThumbnailKey(String thumbnailKey) {
+        this.thumbnailKey = thumbnailKey == null || thumbnailKey.isBlank() ? null : thumbnailKey.trim();
+        this.updatedAt = Instant.now();
     }
 
     public LessonStatus getStatus() {

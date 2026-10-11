@@ -17,6 +17,7 @@ public record CourseStructureLessonResponse(
         boolean isPreview,
         LessonStatus status,
         List<String> objectives,
-        List<LessonAttachmentResponse> attachments
+        List<LessonAttachmentResponse> attachments,
+        String thumbnailKey
 ) {
 }

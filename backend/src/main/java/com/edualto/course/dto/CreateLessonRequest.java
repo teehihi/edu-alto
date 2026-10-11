@@ -33,10 +33,19 @@ public record CreateLessonRequest(
         LessonStatus status,
 
         @Size(max = 10, message = "Mỗi bài học có tối đa 10 mục tiêu")
-        List<@NotBlank @Size(max = 300, message = "Mỗi mục tiêu không được vượt quá 300 ký tự") String> objectives
+        List<@NotBlank @Size(max = 300, message = "Mỗi mục tiêu không được vượt quá 300 ký tự") String> objectives,
+
+        @Size(max = 512, message = "Khóa thumbnail không được vượt quá 512 ký tự")
+        String thumbnailKey
 ) {
     public CreateLessonRequest(String title, String slug, String description, String content, LessonType lessonType,
             Integer durationSeconds, Boolean isPreview, String mediaKey, LessonStatus status) {
-        this(title, slug, description, content, lessonType, durationSeconds, isPreview, mediaKey, status, List.of());
+        this(title, slug, description, content, lessonType, durationSeconds, isPreview, mediaKey, status, List.of(), null);
+    }
+
+    public CreateLessonRequest(String title, String slug, String description, String content, LessonType lessonType,
+            Integer durationSeconds, Boolean isPreview, String mediaKey, LessonStatus status, List<String> objectives) {
+        this(title, slug, description, content, lessonType, durationSeconds, isPreview, mediaKey, status, objectives,
+                null);
     }
 }

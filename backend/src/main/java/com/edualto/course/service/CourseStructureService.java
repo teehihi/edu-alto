@@ -122,7 +122,8 @@ public class CourseStructureService {
                             l.isPreview(),
                             l.getStatus(),
                             l.getObjectives(),
-                            toAttachmentResponses(l)
+                            toAttachmentResponses(l),
+                            l.getThumbnailKey()
                     ))
                     .toList();
 
@@ -323,6 +324,7 @@ public class CourseStructureService {
                 request.status()
         );
         lesson.setObjectives(request.objectives());
+        lesson.setThumbnailKey(request.thumbnailKey());
 
         lesson = lessonRepository.save(lesson);
         return toLessonResponse(lesson);
@@ -372,6 +374,7 @@ public class CourseStructureService {
                 request.status()
         );
         if (request.objectives() != null) lesson.setObjectives(request.objectives());
+        if (request.thumbnailKey() != null) lesson.setThumbnailKey(request.thumbnailKey());
 
         lesson = lessonRepository.save(lesson);
         return toLessonResponse(lesson);
@@ -520,7 +523,8 @@ public class CourseStructureService {
                 lesson.getCreatedAt(),
                 lesson.getUpdatedAt(),
                 lesson.getObjectives(),
-                toAttachmentResponses(lesson)
+                toAttachmentResponses(lesson),
+                lesson.getThumbnailKey()
         );
     }
 

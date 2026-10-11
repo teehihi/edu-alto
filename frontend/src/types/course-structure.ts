@@ -26,6 +26,7 @@ export type Lesson = {
   textContent: string | null;
   objectives?: string[];
   attachments?: LessonAttachment[];
+  thumbnailKey?: string | null;
   videoDurationSeconds: number | null;
   isPreview: boolean;
   status: LessonStatus;
@@ -88,6 +89,7 @@ export type CreateLessonPayload = {
   type?: LessonType;
   textContent?: string | null;
   objectives?: string[];
+  thumbnailKey?: string | null;
   videoDurationSeconds?: number | null;
   isPreview?: boolean;
   status?: LessonStatus;
@@ -99,6 +101,7 @@ export type UpdateLessonPayload = {
   type?: LessonType;
   textContent?: string | null;
   objectives?: string[];
+  thumbnailKey?: string | null;
   videoDurationSeconds?: number | null;
   isPreview?: boolean;
   status?: LessonStatus;

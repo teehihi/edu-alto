@@ -22,6 +22,7 @@ public record LessonResponse(
         Instant createdAt,
         Instant updatedAt,
         List<String> objectives,
-        List<LessonAttachmentResponse> attachments
+        List<LessonAttachmentResponse> attachments,
+        String thumbnailKey
 ) {
 }

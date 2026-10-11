@@ -5,7 +5,7 @@ import { CookieConsentManager } from "@/components/layout/cookie-consent-manager
 import { QueryProvider } from "@/lib/query-provider";
 import "./globals.css";
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://edu-alto.vercel.app";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://edualto.vercel.app";
 
 export const instant = false;
 
@@ -34,12 +34,17 @@ export const metadata: Metadata = {
     locale: "vi_VN",
     siteName: "EduAlto",
     images: [
-      { url: "/opengraph-image", width: 1200, height: 630, alt: "EduAlto — Học tập bền vững" },
+      {
+        url: "/images/metadata_img.png",
+        width: 1672,
+        height: 941,
+        alt: "EduAlto — Nền tảng học tập trực tuyến",
+      },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    images: ["/opengraph-image"],
+    images: ["/images/metadata_img.png"],
   },
   robots: { index: true, follow: true },
 };

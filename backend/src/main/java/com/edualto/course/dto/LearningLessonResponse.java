@@ -6,5 +6,6 @@ import java.util.UUID;
 
 public record LearningLessonResponse(UUID id, UUID courseId, UUID sectionId, String title,
                                      LessonType lessonType, String content, String description,
-                                     List<String> objectives, List<LessonAttachmentResponse> attachments) {
+                                     List<String> objectives, List<LessonAttachmentResponse> attachments,
+                                     String thumbnailUrl) {
 }

@@ -52,6 +52,7 @@ import {
   updateSection,
 } from "@/lib/course-structure-client";
 import { uploadLessonVideo } from "@/lib/course-video-client";
+import { uploadCourseThumbnail } from "@/lib/instructor-course-client";
 import {
   deleteLessonResource,
   getLessonResourceContentType,
@@ -75,7 +76,6 @@ import type {
   Lesson,
   LessonStatus,
   LessonType,
-  UpdateLessonPayload,
   UpdateSectionPayload,
 } from "@/types/course-structure";
 import type { LessonAttachment } from "@/types/lesson-attachment";
@@ -367,6 +367,7 @@ export function InstructorCourseCurriculumPage({
   const [assignmentEndAt, setAssignmentEndAt] = useState("");
   const [pendingVideoLessonId, setPendingVideoLessonId] = useState<string | null>(null);
   const [pendingResourceLessonId, setPendingResourceLessonId] = useState<string | null>(null);
+  const [pendingThumbnailLessonId, setPendingThumbnailLessonId] = useState<string | null>(null);
   const [lessonDurationMinutes, setLessonDurationMinutes] = useState<string>("10");
   const [lessonIsPreview, setLessonIsPreview] = useState(false);
   const [lessonStatus, setLessonStatus] = useState<LessonStatus>("PUBLISHED");
@@ -662,6 +663,7 @@ export function InstructorCourseCurriculumPage({
     setAssignmentEndAt("");
     setPendingVideoLessonId(null);
     setPendingResourceLessonId(null);
+    setPendingThumbnailLessonId(null);
     setLessonDurationMinutes("10");
     setLessonIsPreview(false);
     setLessonStatus("PUBLISHED");
@@ -694,6 +696,7 @@ export function InstructorCourseCurriculumPage({
     setAssignmentEndAt("");
     setPendingVideoLessonId(null);
     setPendingResourceLessonId(null);
+    setPendingThumbnailLessonId(null);
     setLessonDurationMinutes(
       lesson.videoDurationSeconds ? String(Math.round(lesson.videoDurationSeconds / 60)) : "0",
     );
@@ -891,6 +894,18 @@ export function InstructorCourseCurriculumPage({
         return;
       }
     }
+    if (lessonThumbnailFile) {
+      if (!["image/jpeg", "image/png"].includes(lessonThumbnailFile.type)) {
+        setLessonFormError("Ảnh thumbnail phải có định dạng JPEG hoặc PNG.");
+        setLessonEditorTab("resources");
+        return;
+      }
+      if (lessonThumbnailFile.size < 1 || lessonThumbnailFile.size > 5 * 1024 * 1024) {
+        setLessonFormError("Ảnh thumbnail phải có dung lượng từ 1 byte đến 5 MB.");
+        setLessonEditorTab("resources");
+        return;
+      }
+    }
 
     const creatingQuiz = lessonType === "QUIZ" && !editingLesson;
     let quizPayload: CreateInstructorQuizRequest | null = null;
@@ -953,6 +968,16 @@ export function InstructorCourseCurriculumPage({
 
     const durationSeconds =
       Number(lessonDurationMinutes) > 0 ? Number(lessonDurationMinutes) * 60 : 0;
+    const payload: CreateLessonPayload = {
+      title: lessonTitle.trim(),
+      description: lessonDescription.trim() || null,
+      type: lessonType,
+      textContent: lessonTextContent.trim() || null,
+      objectives: lessonObjectives.map((objective) => objective.trim()).filter(Boolean),
+      videoDurationSeconds: durationSeconds,
+      isPreview: lessonIsPreview,
+      status: lessonStatus,
+    };
 
     setLessonFormLoading(true);
     setLessonFormError(null);
@@ -960,19 +985,10 @@ export function InstructorCourseCurriculumPage({
     let completedQuizLessonId: string | null = null;
     let savedLessonId: string | null = null;
     let resourceUploadStarted = false;
+    let thumbnailUploadStarted = false;
     try {
       if (editingLesson) {
         savedLessonId = editingLesson.id;
-        const payload: UpdateLessonPayload = {
-          title: lessonTitle.trim(),
-          description: lessonDescription.trim() || null,
-          type: lessonType,
-          textContent: lessonTextContent.trim() || null,
-          objectives: lessonObjectives.map((objective) => objective.trim()).filter(Boolean),
-          videoDurationSeconds: durationSeconds,
-          isPreview: lessonIsPreview,
-          status: lessonStatus,
-        };
         await updateLesson(courseId, targetSectionId, editingLesson.id, payload, accessToken);
         if (lessonType === "VIDEO" && lessonVideoFile) {
           await uploadLessonVideo(
@@ -984,16 +1000,6 @@ export function InstructorCourseCurriculumPage({
           );
         }
       } else {
-        const payload: CreateLessonPayload = {
-          title: lessonTitle.trim(),
-          description: lessonDescription.trim() || null,
-          type: lessonType,
-          textContent: lessonTextContent.trim() || null,
-          objectives: lessonObjectives.map((objective) => objective.trim()).filter(Boolean),
-          videoDurationSeconds: durationSeconds,
-          isPreview: lessonIsPreview,
-          status: lessonStatus,
-        };
         if (pendingResourceLessonId) {
           savedLessonId = pendingResourceLessonId;
           await updateLesson(
@@ -1024,6 +1030,15 @@ export function InstructorCourseCurriculumPage({
             accessToken,
           );
           setPendingQuizPublishLessonId(null);
+        } else if (pendingThumbnailLessonId) {
+          savedLessonId = pendingThumbnailLessonId;
+          await updateLesson(
+            courseId,
+            targetSectionId,
+            pendingThumbnailLessonId,
+            payload,
+            accessToken,
+          );
         } else if (incompleteQuizLessonId) {
           savedLessonId = incompleteQuizLessonId;
           if (!quizPayload) throw new Error("Hãy hoàn thiện câu hỏi trước khi lưu bài kiểm tra.");
@@ -1086,11 +1101,29 @@ export function InstructorCourseCurriculumPage({
         setLessonAttachments((current) => [...current, uploadedAttachment]);
         setLessonResourceFile(null);
         setPendingResourceLessonId(null);
+        resourceUploadStarted = false;
+      }
+
+      if (lessonThumbnailFile && savedLessonId) {
+        if (!editingLesson) setPendingThumbnailLessonId(savedLessonId);
+        thumbnailUploadStarted = true;
+        if (!accessToken) throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+        const uploadedThumbnail = await uploadCourseThumbnail(lessonThumbnailFile, accessToken);
+        await updateLesson(
+          courseId,
+          targetSectionId,
+          savedLessonId,
+          { ...payload, thumbnailKey: uploadedThumbnail.objectKey },
+          accessToken,
+        );
+        setLessonThumbnailFile(null);
+        setPendingThumbnailLessonId(null);
       }
 
       setIncompleteQuizLessonId(null);
       setPendingQuizPublishLessonId(null);
       setPendingVideoLessonId(null);
+      setPendingThumbnailLessonId(null);
       if (editingLesson) {
         setLessonVideoFile(null);
         setLessonResourceFile(null);
@@ -1108,6 +1141,11 @@ export function InstructorCourseCurriculumPage({
       if (pendingResourceLessonId || (createdLessonId && resourceUploadStarted)) {
         setLessonFormError(
           `Bài học đã được tạo nhưng tài liệu chưa tải xong. ${err instanceof ApiClientError ? err.message : "Hãy thử tải lại tài liệu; bài học sẽ không bị tạo trùng."}`,
+        );
+      } else if (thumbnailUploadStarted && savedLessonId) {
+        if (!editingLesson) setPendingThumbnailLessonId(savedLessonId);
+        setLessonFormError(
+          `Bài học đã được lưu nhưng ảnh thumbnail chưa tải xong. ${err instanceof ApiClientError ? err.message : "Hãy lưu lại để thử tải ảnh; bài học sẽ không bị tạo trùng."}`,
         );
       } else if (completedQuizLessonId || pendingQuizPublishLessonId) {
         setLessonFormError(
@@ -2515,7 +2553,7 @@ export function InstructorCourseCurriculumPage({
                           <LessonFileDropzone
                             id="lesson-thumbnail-file"
                             label="Ảnh Thumbnail"
-                            hint="Tải lên JPEG hoặc PNG · Kích thước đề xuất: 1280 × 720"
+                            hint="Tải lên JPEG hoặc PNG · Kích thước đề xuất: 1280 × 720 · Ảnh lưu cùng bài học khi nhấn lưu"
                             accept="image/jpeg,image/png,.jpg,.jpeg,.png"
                             icon={<ImagePlus className="h-6 w-6" aria-hidden="true" />}
                             file={lessonThumbnailFile}
@@ -2542,7 +2580,7 @@ export function InstructorCourseCurriculumPage({
                           <LessonFileDropzone
                             id="lesson-thumbnail-file"
                             label="Ảnh Thumbnail"
-                            hint="Tải lên JPEG hoặc PNG · Kích thước đề xuất: 1280 × 720"
+                            hint="Tải lên JPEG hoặc PNG · Kích thước đề xuất: 1280 × 720 · Ảnh lưu cùng bài học khi nhấn lưu"
                             accept="image/jpeg,image/png,.jpg,.jpeg,.png"
                             icon={<ImagePlus className="h-6 w-6" aria-hidden="true" />}
                             file={lessonThumbnailFile}
@@ -2584,7 +2622,7 @@ export function InstructorCourseCurriculumPage({
                           <LessonFileDropzone
                             id="lesson-thumbnail-file"
                             label="Ảnh Thumbnail"
-                            hint="Tải lên JPEG hoặc PNG · Kích thước đề xuất: 1280 × 720"
+                            hint="Tải lên JPEG hoặc PNG · Kích thước đề xuất: 1280 × 720 · Ảnh lưu cùng bài học khi nhấn lưu"
                             accept="image/jpeg,image/png,.jpg,.jpeg,.png"
                             icon={<ImagePlus className="h-6 w-6" aria-hidden="true" />}
                             file={lessonThumbnailFile}

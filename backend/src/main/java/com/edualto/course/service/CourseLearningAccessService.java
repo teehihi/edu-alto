@@ -12,6 +12,7 @@ import com.edualto.course.dto.LessonAttachmentResponse;
 import com.edualto.course.repository.CourseRepository;
 import com.edualto.course.repository.LessonRepository;
 import com.edualto.course.repository.SectionRepository;
+import com.edualto.storage.service.StorageService;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -23,11 +24,14 @@ public class CourseLearningAccessService {
     private final CourseRepository courses;
     private final LessonRepository lessons;
     private final SectionRepository sections;
+    private final StorageService storage;
 
-    public CourseLearningAccessService(CourseRepository courses, LessonRepository lessons, SectionRepository sections) {
+    public CourseLearningAccessService(CourseRepository courses, LessonRepository lessons, SectionRepository sections,
+                                       StorageService storage) {
         this.courses = courses;
         this.lessons = lessons;
         this.sections = sections;
+        this.storage = storage;
     }
 
     public LearningCourseResponse requirePublishedCourse(UUID courseId) {
@@ -56,6 +60,10 @@ public class CourseLearningAccessService {
                 lesson.getDescription(), lesson.getObjectives(), lesson.getAttachments().stream()
                         .map(attachment -> new LessonAttachmentResponse(attachment.getId(), attachment.getFileName(),
                                 attachment.getContentType(), attachment.getContentLength()))
-                        .toList());
+                        .toList(), resolveThumbnailUrl(lesson.getThumbnailKey()));
+    }
+
+    private String resolveThumbnailUrl(String thumbnailKey) {
+        return thumbnailKey == null || thumbnailKey.isBlank() ? null : storage.getPublicUrl(thumbnailKey);
     }
 }

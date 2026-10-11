@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -403,6 +404,17 @@ export function LearningLessonPage({ lessonId }: { lessonId: string }) {
                 </>
               ) : (
                 <>
+                  {lesson.lessonType === "TEXT" && lesson.thumbnailUrl ? (
+                    <div className="relative aspect-video max-h-[72vh] bg-[#101a2c]">
+                      <Image
+                        src={lesson.thumbnailUrl}
+                        alt={`Ảnh minh họa bài học: ${lesson.title}`}
+                        fill
+                        sizes="(max-width: 1024px) 100vw, 66vw"
+                        className="object-cover"
+                      />
+                    </div>
+                  ) : null}
                   <div className="prose prose-slate max-w-none px-5 py-7 text-[15px] leading-8 text-[#43514b] md:px-8 md:py-9">
                     <p className="whitespace-pre-wrap">
                       {lesson.content?.trim() ||

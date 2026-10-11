@@ -22,6 +22,7 @@ export type LessonContent = {
   description: string | null;
   objectives: string[];
   attachments: LessonAttachment[];
+  thumbnailUrl?: string | null;
 };
 
 export type LessonResourceDownload = {
@@ -71,6 +72,21 @@ export type SavedLesson = {
   lessonTitle: string;
   lessonType: string;
   durationSeconds: number | null;
+  savedAt: string;
+};
+
+export type SavedLessonResource = {
+  id: string;
+  attachmentId: string;
+  lessonId: string;
+  courseId: string;
+  courseSlug: string;
+  courseTitle: string;
+  sectionTitle: string;
+  lessonTitle: string;
+  fileName: string;
+  contentType: string;
+  contentLength: number;
   savedAt: string;
 };
 
@@ -154,6 +170,16 @@ export async function fetchLessonResourceDownload(
   );
 }
 
+export function triggerResourceDownload(downloadUrl: string) {
+  const downloadLink = document.createElement("a");
+  downloadLink.href = downloadUrl;
+  downloadLink.target = "_self";
+  downloadLink.hidden = true;
+  document.body.append(downloadLink);
+  downloadLink.click();
+  downloadLink.remove();
+}
+
 export async function fetchLearningQuiz(accessToken: string, lessonId: string) {
   return apiRequest<LearningQuiz>(`/lessons/${encodeURIComponent(lessonId)}/quiz`, {
     accessToken,
@@ -220,6 +246,33 @@ export async function saveLearningLesson(accessToken: string, lessonId: string) 
 
 export async function unsaveLearningLesson(accessToken: string, lessonId: string) {
   return apiRequest<void>(`/me/saved-lessons/${encodeURIComponent(lessonId)}`, {
+    method: "DELETE",
+    accessToken,
+  });
+}
+
+export async function fetchSavedLessonResources(
+  accessToken: string,
+  page = 0,
+  size = 20,
+  courseId?: string,
+) {
+  const params = new URLSearchParams({ page: String(page), size: String(size) });
+  if (courseId) params.set("courseId", courseId);
+  return apiPageRequest<SavedLessonResource>(`/me/saved-resources?${params.toString()}`, {
+    accessToken,
+  });
+}
+
+export async function saveLearningResource(accessToken: string, attachmentId: string) {
+  return apiRequest<SavedLessonResource>(
+    `/me/saved-resources/${encodeURIComponent(attachmentId)}`,
+    { method: "PUT", accessToken },
+  );
+}
+
+export async function unsaveLearningResource(accessToken: string, attachmentId: string) {
+  return apiRequest<void>(`/me/saved-resources/${encodeURIComponent(attachmentId)}`, {
     method: "DELETE",
     accessToken,
   });

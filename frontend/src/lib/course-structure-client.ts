@@ -44,6 +44,7 @@ export async function fetchCourseStructure(
         status: Lesson["status"];
         objectives: string[];
         attachments?: Lesson["attachments"];
+        thumbnailKey?: string | null;
       }>;
     }>;
   }>(`/instructor/courses/${courseId}/structure`, {

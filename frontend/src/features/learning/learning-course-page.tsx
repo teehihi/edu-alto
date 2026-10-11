@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Award,
+  BookmarkCheck,
+  BookmarkPlus,
   BookOpen,
   Check,
   ChevronDown,
@@ -30,6 +32,9 @@ import {
   fetchLessonVideoAccess,
   fetchLessonResourceDownload,
   fetchMyEnrollments,
+  fetchSavedLessonResources,
+  saveLearningResource,
+  triggerResourceDownload,
   type CourseProgress,
   type Enrollment,
   type LearningCurriculum,
@@ -185,6 +190,13 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
   const [activeLessonLoading, setActiveLessonLoading] = useState(false);
   const [activeLessonError, setActiveLessonError] = useState("");
   const [downloadingAttachmentId, setDownloadingAttachmentId] = useState<string | null>(null);
+  const [savingAttachmentId, setSavingAttachmentId] = useState<string | null>(null);
+  const [savedAttachmentIds, setSavedAttachmentIds] = useState<Set<string>>(() => new Set());
+  const [resourceFeedback, setResourceFeedback] = useState<{
+    attachmentId: string;
+    text: string;
+    isError: boolean;
+  } | null>(null);
   const [activeTab, setActiveTab] = useState<(typeof courseTabs)[number]["id"]>("description");
   const instructor = course?.instructor ?? null;
 
@@ -205,6 +217,8 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
     setReviewSummary(null);
     setRelatedCourses([]);
     setActiveLessonId("");
+    setSavedAttachmentIds(new Set());
+    setResourceFeedback(null);
     let active = true;
     void getAccessToken()
       .then(async (token) => {
@@ -234,6 +248,20 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
         setEnrollment(match);
         setCurriculum(loadedCurriculum);
         setProgress(loadedProgress);
+        void fetchSavedLessonResources(token, 0, 100, courseId)
+          .then(async (savedPage) => {
+            const savedResources = [...savedPage.data];
+            for (let pageNumber = 1; pageNumber < savedPage.meta.totalPages; pageNumber += 1) {
+              const page = await fetchSavedLessonResources(token, pageNumber, 100, courseId);
+              savedResources.push(...page.data);
+            }
+            if (active) {
+              setSavedAttachmentIds(new Set(savedResources.map((item) => item.attachmentId)));
+            }
+          })
+          .catch(() => {
+            // Saving remains idempotent if the library status cannot be loaded.
+          });
         setActiveLessonId(firstPlayableLesson?.id ?? "");
         setExpandedSections(
           Object.fromEntries(
@@ -368,7 +396,6 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
 
   async function downloadLessonAttachment(attachmentId: string) {
     if (!currentLessonContent) return;
-    const downloadWindow = window.open("about:blank", "lesson-resource-download");
     setDownloadingAttachmentId(attachmentId);
     try {
       const token = await getAccessToken();
@@ -378,16 +405,32 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
         currentLessonContent.id,
         attachmentId,
       );
-      if (downloadWindow) downloadWindow.location.href = access.downloadUrl;
-      else
-        throw new Error(
-          "Trình duyệt đang chặn cửa sổ tải tài liệu. Hãy cho phép cửa sổ bật lên rồi thử lại.",
-        );
+      triggerResourceDownload(access.downloadUrl);
     } catch (error) {
-      downloadWindow?.close();
       setMessage(error instanceof Error ? error.message : "Chưa thể tải tài liệu bài học.");
     } finally {
       setDownloadingAttachmentId(null);
+    }
+  }
+
+  async function saveLessonAttachment(attachmentId: string) {
+    if (savedAttachmentIds.has(attachmentId)) return;
+    setSavingAttachmentId(attachmentId);
+    setResourceFeedback(null);
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+      await saveLearningResource(token, attachmentId);
+      setSavedAttachmentIds((current) => new Set(current).add(attachmentId));
+      setResourceFeedback({ attachmentId, text: "Đã thêm vào thư viện", isError: false });
+    } catch (error) {
+      setResourceFeedback({
+        attachmentId,
+        text: error instanceof Error ? error.message : "Chưa thể lưu tài liệu vào thư viện.",
+        isError: true,
+      });
+    } finally {
+      setSavingAttachmentId(null);
     }
   }
 
@@ -402,7 +445,7 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
 
   return (
     <LearningWorkspaceShell title={courseTitle}>
-      <main className="-mx-4 -my-6 min-h-screen bg-gradient-to-b from-[#e1f8ef] via-[#f6fbf9] to-white px-4 py-6 md:-mx-7 md:px-7 md:py-8">
+      <main className="-mx-4 -my-6 min-h-screen bg-[linear-gradient(180deg,#E6F7F2_0%,#F2FAF7_248px,#FFFFFF_608px,#FFFFFF_100%)] px-4 py-6 md:-mx-7 md:px-7 md:py-8">
         <div className="mx-auto w-full max-w-none">
           {loading ? (
             <div role="status" aria-label="Đang tải khóa học" className="space-y-5">
@@ -512,7 +555,18 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
                       />
                     </article>
                   ) : currentLessonContent?.lessonType === "TEXT" ? (
-                    <article className="min-h-[360px] overflow-hidden rounded-2xl border border-[#e2e8f0] bg-white shadow-sm">
+                    <article className="overflow-hidden rounded-2xl border border-[#e2e8f0] bg-white shadow-sm">
+                      {currentLessonContent.thumbnailUrl ? (
+                        <div className="relative aspect-video max-h-[72vh] bg-[#101a2c]">
+                          <Image
+                            src={currentLessonContent.thumbnailUrl}
+                            alt={`Ảnh minh họa bài học: ${currentLessonContent.title}`}
+                            fill
+                            sizes="(max-width: 1024px) 100vw, 66vw"
+                            className="object-cover"
+                          />
+                        </div>
+                      ) : null}
                       <header className="flex items-start gap-3 border-b border-[#e2e8f0] bg-[#f5fbf9] px-4 py-3.5 sm:px-5">
                         <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#eaf7f3] text-primary">
                           <FileText aria-hidden="true" className="h-5 w-5" />
@@ -526,18 +580,6 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
                           </h2>
                         </div>
                       </header>
-                      {currentLessonContent.content?.trim() ? (
-                        <div
-                          className="course-description-content px-4 py-4 text-sm leading-7 text-[#334155] [&_h1]:my-3 [&_h1]:text-2xl [&_h1]:font-bold [&_h2]:my-3 [&_h2]:text-xl [&_h2]:font-semibold [&_h3]:my-2 [&_h3]:text-lg [&_h3]:font-semibold [&_p]:my-2 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_a]:text-primary [&_a]:underline [&_img]:my-3 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-lg sm:px-5"
-                          dangerouslySetInnerHTML={{
-                            __html: sanitizeCourseDescription(currentLessonContent.content),
-                          }}
-                        />
-                      ) : (
-                        <p className="px-4 py-4 text-sm leading-6 text-[#64748b] sm:px-5">
-                          Giảng viên đang cập nhật nội dung cho bài học này.
-                        </p>
-                      )}
                     </article>
                   ) : activeLesson ? (
                     <div className="grid min-h-[360px] place-items-center rounded-2xl border border-[#e2e8f0] bg-white p-8 text-center shadow-sm">
@@ -777,6 +819,31 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
                     )}
                   </section>
 
+                  {currentLessonContent?.lessonType === "TEXT" ? (
+                    <section
+                      aria-labelledby="lesson-content-title"
+                      className="mt-6 border-t border-[#e2e8f0] pt-5"
+                    >
+                      <h2 id="lesson-content-title" className="text-lg font-semibold text-primary">
+                        Nội dung bài học
+                      </h2>
+                      {currentLessonContent.content?.trim() ? (
+                        <div
+                          className="course-description-content mt-2 text-sm leading-7 text-[#334155] [&_h1]:my-3 [&_h1]:text-2xl [&_h1]:font-bold [&_h2]:my-3 [&_h2]:text-xl [&_h2]:font-semibold [&_h3]:my-2 [&_h3]:text-lg [&_h3]:font-semibold [&_p]:my-2 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_a]:text-primary [&_a]:underline [&_img]:my-3 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-lg"
+                          dangerouslySetInnerHTML={{
+                            __html: sanitizeCourseDescription(currentLessonContent.content),
+                          }}
+                        />
+                      ) : (
+                        <p className="mt-2 text-sm leading-6 text-[#64748b]">
+                          {waitingForLessonContent
+                            ? "Đang tải nội dung bài học…"
+                            : "Giảng viên đang cập nhật nội dung cho bài học này."}
+                        </p>
+                      )}
+                    </section>
+                  ) : null}
+
                   <section
                     aria-labelledby="lesson-objectives-title"
                     className="mt-6 border-t border-[#e2e8f0] pt-5"
@@ -841,15 +908,53 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
                                 {formatAttachmentSize(attachment.contentLength)}
                               </span>
                             </span>
-                            <button
-                              type="button"
-                              onClick={() => void downloadLessonAttachment(attachment.id)}
-                              disabled={downloadingAttachmentId === attachment.id}
-                              className="focus-ring inline-flex min-h-9 shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-3 text-xs font-semibold text-white transition hover:bg-[#159e75] active:bg-[#128763] disabled:cursor-wait disabled:opacity-60"
-                            >
-                              <Download aria-hidden="true" className="h-4 w-4" />
-                              {downloadingAttachmentId === attachment.id ? "Đang tải…" : "Tải về"}
-                            </button>
+                            <div className="flex w-full shrink-0 flex-wrap items-center justify-end gap-2 sm:w-auto">
+                              {resourceFeedback?.attachmentId === attachment.id ? (
+                                <span
+                                  role={resourceFeedback.isError ? "alert" : "status"}
+                                  className={cn(
+                                    "w-full text-right text-[11px] sm:w-auto",
+                                    resourceFeedback.isError ? "text-rose-600" : "text-primary",
+                                  )}
+                                >
+                                  {resourceFeedback.text}
+                                </span>
+                              ) : null}
+                              <button
+                                type="button"
+                                onClick={() => void saveLessonAttachment(attachment.id)}
+                                disabled={
+                                  savingAttachmentId === attachment.id ||
+                                  savedAttachmentIds.has(attachment.id)
+                                }
+                                aria-label={
+                                  savedAttachmentIds.has(attachment.id)
+                                    ? `Đã thêm ${attachment.fileName} vào thư viện`
+                                    : `Thêm ${attachment.fileName} vào thư viện`
+                                }
+                                className="focus-ring inline-flex min-h-9 shrink-0 items-center justify-center gap-2 rounded-lg bg-[#101a2c] px-3 text-xs font-semibold text-white transition hover:bg-[#202d42] active:bg-[#101a2c] disabled:cursor-default disabled:opacity-70"
+                              >
+                                {savedAttachmentIds.has(attachment.id) ? (
+                                  <BookmarkCheck aria-hidden="true" className="h-4 w-4" />
+                                ) : (
+                                  <BookmarkPlus aria-hidden="true" className="h-4 w-4" />
+                                )}
+                                {savingAttachmentId === attachment.id
+                                  ? "Đang lưu…"
+                                  : savedAttachmentIds.has(attachment.id)
+                                    ? "Đã lưu"
+                                    : "Thêm vào thư viện"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void downloadLessonAttachment(attachment.id)}
+                                disabled={downloadingAttachmentId === attachment.id}
+                                className="focus-ring inline-flex min-h-9 shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-3 text-xs font-semibold text-white transition hover:bg-[#159e75] active:bg-[#128763] disabled:cursor-wait disabled:opacity-60"
+                              >
+                                <Download aria-hidden="true" className="h-4 w-4" />
+                                {downloadingAttachmentId === attachment.id ? "Đang tải…" : "Tải về"}
+                              </button>
+                            </div>
                           </li>
                         ))}
                       </ul>
