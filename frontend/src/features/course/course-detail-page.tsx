@@ -1065,7 +1065,7 @@ function CourseDetailPageInner({ slug }: { slug: string }) {
                               name={course.instructor?.fullName || "Nguyễn Nhật Thiên"}
                               avatarUrl={course.instructor?.avatarUrl}
                               size="2xl"
-                              className="h-24 w-24 rounded-full object-cover"
+                              imageClassName="h-24 w-24 rounded-full object-cover sm:h-24 sm:w-24"
                             />
                           </div>
                           <div className="space-y-2 text-sm text-slate-700">

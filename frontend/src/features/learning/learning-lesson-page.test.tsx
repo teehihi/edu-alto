@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LearningLessonPage } from "./learning-lesson-page";
 import * as learningClient from "@/lib/learning-client";
@@ -12,6 +13,9 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/components/layout/app-header", () => ({ AppHeader: () => <div /> }));
+vi.mock("@/features/learning/learning-workspace-shell", () => ({
+  LearningWorkspaceShell: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+}));
 vi.mock("@/lib/auth-session", () => ({
   useAuthSession: () => ({
     user: { id: "student-1" },

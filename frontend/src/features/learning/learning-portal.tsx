@@ -7,7 +7,6 @@ import {
   ArrowRight,
   ArrowUpRight,
   BookOpen,
-  BookmarkCheck,
   CalendarDays,
   Check,
   CheckCircle2,
@@ -20,7 +19,6 @@ import {
   FolderClosed,
   FileText,
   GraduationCap,
-  Home,
   House,
   LayoutDashboard,
   Menu,
@@ -65,82 +63,12 @@ import { useAuthSession } from "@/lib/auth-session";
 import { cn } from "@/lib/cn";
 import { SavedLessonsView } from "@/features/learning/saved-lessons-view";
 import { CertificateListView } from "@/features/learning/certificate-list-view";
+import {
+  learningNavigationGroups as navGroups,
+  type LearningPortalView,
+} from "@/features/learning/learning-navigation";
 
-type PortalView =
-  | "overview"
-  | "courses"
-  | "certificates"
-  | "savedLessons"
-  | "assignments"
-  | "calendar"
-  | "discussion"
-  | "resources"
-  | "notes"
-  | "messages"
-  | "teachers"
-  | "reviews";
-
-const navGroups = [
-  {
-    title: "KHÔNG GIAN HỌC",
-    links: [
-      { label: "Tổng quan", href: "/learning", view: "overview" as const, icon: Home },
-      {
-        label: "Khóa học của tôi",
-        href: "/learning/courses",
-        view: "courses" as const,
-        icon: BookOpen,
-      },
-      {
-        label: "Thời khóa biểu",
-        href: "/learning/calendar",
-        view: "calendar" as const,
-        icon: CalendarDays,
-      },
-    ],
-  },
-  {
-    title: "TƯƠNG TÁC & BÀI TẬP",
-    links: [
-      {
-        label: "Bài tập",
-        href: "/learning/assignments",
-        view: "assignments" as const,
-        icon: ClipboardList,
-      },
-      {
-        label: "Thảo luận",
-        href: "/learning/discussion",
-        view: "discussion" as const,
-        icon: MessageCircle,
-      },
-    ],
-  },
-  {
-    title: "LƯU TRỮ & THÀNH TÍCH",
-    links: [
-      {
-        label: "Bài học đã lưu",
-        href: "/learning/saved-lessons",
-        view: "savedLessons" as const,
-        icon: BookmarkCheck,
-      },
-      { label: "Ghi chú", href: "/learning/notes", view: "notes" as const, icon: NotebookPen },
-      {
-        label: "Tài liệu",
-        href: "/learning/resources",
-        view: "resources" as const,
-        icon: FolderClosed,
-      },
-      {
-        label: "Chứng chỉ của tôi",
-        href: "/learning/certificates",
-        view: "certificates" as const,
-        icon: Sparkles,
-      },
-    ],
-  },
-];
+type PortalView = LearningPortalView;
 
 const viewTitles: Record<PortalView, string> = {
   overview: "Tổng quan học tập",
@@ -217,6 +145,7 @@ export function LearningPortal({ view }: { view: PortalView }) {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     if (isLoading) return;
@@ -344,8 +273,10 @@ export function LearningPortal({ view }: { view: PortalView }) {
 
       {/* Sidebar */}
       <aside
+        id="learning-sidebar"
         className={cn(
-          "learning-sidebar fixed inset-y-0 left-0 z-50 flex w-[261px] shrink-0 flex-col border-r border-slate-200/90 bg-white text-slate-800 shadow-[1px_0_3px_rgba(0,0,0,0.02)] transition-transform duration-200 lg:sticky lg:top-0 lg:z-20 lg:h-screen lg:translate-x-0",
+          "learning-sidebar fixed inset-y-0 left-0 z-50 flex w-[261px] shrink-0 flex-col border-r border-slate-200/90 bg-white text-slate-800 shadow-[1px_0_3px_rgba(0,0,0,0.02)] transition-[width,transform] duration-300 ease-in-out motion-reduce:transition-none lg:sticky lg:top-0 lg:z-20 lg:h-screen lg:translate-x-0",
+          sidebarCollapsed ? "lg:w-[88px]" : "lg:w-[261px]",
           mobileNavOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
         )}
       >
@@ -366,18 +297,89 @@ export function LearningPortal({ view }: { view: PortalView }) {
         </div>
 
         {/* Desktop Header in Sidebar */}
-        <div className="hidden h-[83px] shrink-0 items-center justify-between border-b border-slate-100 px-5 lg:flex">
-          <PortalBrand roleLabel={isInstructor ? "Giảng viên" : "Học viên"} />
+        <div
+          className={cn(
+            "hidden shrink-0 border-b border-slate-100 transition-[height,padding] duration-300 ease-in-out motion-reduce:transition-none lg:flex",
+            sidebarCollapsed
+              ? "h-[138px] flex-col items-center justify-start gap-3 px-2 py-3"
+              : "h-[83px] items-center justify-between px-5",
+          )}
+        >
+          {sidebarCollapsed ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setSidebarCollapsed(false)}
+                aria-label="Mở rộng thanh bên"
+                aria-expanded={false}
+                aria-controls="learning-sidebar"
+                title="Mở rộng thanh bên"
+                className="focus-ring inline-flex size-9 shrink-0 items-center justify-center rounded-md text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+              >
+                <Menu className="h-[18px] w-[18px] stroke-[1.8]" aria-hidden="true" />
+              </button>
+              <Link
+                href="/"
+                aria-label="EduAlto, về trang chủ"
+                className="focus-ring rounded-md p-1"
+              >
+                <Image
+                  src="/images/about/source/logo.png"
+                  alt=""
+                  width={40}
+                  height={40}
+                  className="h-10 w-10 object-contain"
+                  priority
+                />
+              </Link>
+            </>
+          ) : (
+            <>
+              <PortalBrand roleLabel={isInstructor ? "Giảng viên" : "Học viên"} />
+              <button
+                type="button"
+                onClick={() => setSidebarCollapsed(true)}
+                aria-label="Thu gọn thanh bên"
+                aria-expanded={true}
+                aria-controls="learning-sidebar"
+                title="Thu gọn thanh bên"
+                className="focus-ring inline-flex size-9 shrink-0 items-center justify-center rounded-md text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+              >
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-6 w-6"
+                >
+                  <path d="M20 5v14" />
+                  <path d="M17 12H5" />
+                  <path d="m12 5-7 7 7 7" />
+                </svg>
+              </button>
+            </>
+          )}
         </div>
 
         {/* Navigation Items (Scrollable area) */}
         <nav
           aria-label="Điều hướng học tập"
-          className="flex-1 overflow-y-auto space-y-5 px-3 py-4 scrollbar-thin scrollbar-thumb-slate-200 hover:scrollbar-thumb-slate-300"
+          className={cn(
+            "flex-1 overflow-y-auto space-y-5 px-3 py-4 scrollbar-thin scrollbar-thumb-slate-200 hover:scrollbar-thumb-slate-300",
+            sidebarCollapsed && "lg:space-y-1 lg:px-0",
+          )}
         >
           {navGroups.map((group) => (
             <div key={group.title} className="space-y-1">
-              <p className="px-3 pb-1 text-[10px] font-bold tracking-[.12em] text-slate-400 uppercase">
+              <p
+                className={cn(
+                  "px-3 pb-1 text-[10px] font-bold tracking-[.12em] text-slate-400 uppercase",
+                  sidebarCollapsed && "lg:hidden",
+                )}
+              >
                 {group.title}
               </p>
               <ul className="space-y-1">
@@ -397,13 +399,25 @@ export function LearningPortal({ view }: { view: PortalView }) {
                         href={item.href}
                         onClick={() => setMobileNavOpen(false)}
                         aria-current={selected ? "page" : undefined}
+                        title={sidebarCollapsed ? item.label : undefined}
                         className={cn(
                           "group relative focus-ring flex h-9.5 items-center gap-2.5 rounded-xl px-3 text-xs transition-all active:scale-[0.98]",
-                          selected
-                            ? "bg-emerald-50/90 font-semibold text-emerald-800 border border-emerald-200/80 shadow-xs shadow-emerald-950/5"
-                            : "font-medium text-slate-600 hover:bg-slate-100/70 hover:text-heading",
+                          sidebarCollapsed && "lg:justify-center lg:px-0",
+                          sidebarCollapsed
+                            ? selected
+                              ? "bg-transparent font-semibold text-primary shadow-none hover:bg-slate-100/70"
+                              : "text-slate-600 hover:bg-slate-100/70 hover:text-heading"
+                            : selected
+                              ? "bg-emerald-50/90 font-semibold text-emerald-800 border border-emerald-200/80 shadow-xs shadow-emerald-950/5"
+                              : "font-medium text-slate-600 hover:bg-slate-100/70 hover:text-heading",
                         )}
                       >
+                        {selected && sidebarCollapsed ? (
+                          <span
+                            aria-hidden="true"
+                            className="absolute inset-y-1 left-0 w-[3px] rounded-r bg-primary"
+                          />
+                        ) : null}
                         <Icon
                           className={cn(
                             "h-4 w-4 shrink-0 transition-colors stroke-[1.8]",
@@ -412,11 +426,14 @@ export function LearningPortal({ view }: { view: PortalView }) {
                               : "text-slate-400 group-hover:text-slate-700",
                           )}
                         />
-                        <span className="truncate">{item.label}</span>
+                        <span className={cn("truncate", sidebarCollapsed && "lg:hidden")}>
+                          {item.label}
+                        </span>
                         {count !== undefined && count > 0 && (
                           <span
                             className={cn(
                               "ml-auto rounded-full px-2 py-0.5 text-[10px] font-bold tabular-nums transition-colors",
+                              sidebarCollapsed && "lg:hidden",
                               selected
                                 ? "bg-emerald-100/90 text-emerald-800 border border-emerald-200/70"
                                 : "bg-slate-100 text-slate-500 group-hover:bg-slate-200/70 group-hover:text-slate-700",
@@ -435,7 +452,12 @@ export function LearningPortal({ view }: { view: PortalView }) {
 
           {/* Instructor Quick Hub mini card */}
           {isInstructor && (
-            <div className="mx-0.5 mt-2 rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50/70 via-white to-teal-50/40 p-3 shadow-2xs">
+            <div
+              className={cn(
+                "mx-0.5 mt-2 rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50/70 via-white to-teal-50/40 p-3 shadow-2xs",
+                sidebarCollapsed && "lg:hidden",
+              )}
+            >
               <div className="flex items-center justify-between">
                 <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-800">
                   <span className="relative flex h-2 w-2">
@@ -472,22 +494,35 @@ export function LearningPortal({ view }: { view: PortalView }) {
         </nav>
 
         {/* Sidebar Footer */}
-        <div className="mt-auto border-t border-slate-100 p-3 space-y-1">
+        <div
+          className={cn(
+            "mt-auto space-y-1 border-t border-slate-100 py-3",
+            sidebarCollapsed ? "px-3 lg:px-2" : "px-3",
+          )}
+        >
           <Link
             href="/"
             onClick={() => setMobileNavOpen(false)}
-            className="focus-ring flex h-9 items-center gap-2.5 rounded-xl px-3 text-xs font-medium text-slate-600 transition hover:bg-slate-100 hover:text-heading active:scale-[0.98]"
+            title={sidebarCollapsed ? "Về trang chủ" : undefined}
+            className={cn(
+              "focus-ring flex h-9 items-center gap-2.5 rounded-xl px-3 text-xs font-medium text-slate-600 transition hover:bg-slate-100 hover:text-heading active:scale-[0.98]",
+              sidebarCollapsed && "lg:justify-center lg:px-0",
+            )}
           >
             <House className="h-4 w-4 stroke-[1.8]" />
-            <span>Về trang chủ</span>
+            <span className={sidebarCollapsed ? "lg:hidden" : undefined}>Về trang chủ</span>
           </Link>
           <Link
             href="/profile"
             onClick={() => setMobileNavOpen(false)}
-            className="focus-ring flex h-9 items-center gap-2.5 rounded-xl px-3 text-xs font-medium text-slate-600 transition hover:bg-slate-100 hover:text-heading active:scale-[0.98]"
+            title={sidebarCollapsed ? "Cài đặt tài khoản" : undefined}
+            className={cn(
+              "focus-ring flex h-9 items-center gap-2.5 rounded-xl px-3 text-xs font-medium text-slate-600 transition hover:bg-slate-100 hover:text-heading active:scale-[0.98]",
+              sidebarCollapsed && "lg:justify-center lg:px-0",
+            )}
           >
             <Settings className="h-4 w-4 stroke-[1.8]" />
-            <span>Cài đặt tài khoản</span>
+            <span className={sidebarCollapsed ? "lg:hidden" : undefined}>Cài đặt tài khoản</span>
           </Link>
         </div>
       </aside>

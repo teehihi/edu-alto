@@ -9,6 +9,7 @@ export type UserAvatarProps = {
   avatarUrl?: string | null;
   size?: "xs" | "sm" | "md" | "lg" | "xl" | "2xl";
   className?: string;
+  imageClassName?: string;
   showBadge?: boolean;
 };
 
@@ -74,10 +75,12 @@ function AvatarImage({
   src,
   alt,
   size,
+  className,
 }: {
   src: string;
   alt: string;
   size: keyof typeof sizeClasses;
+  className?: string;
 }) {
   const [imgError, setImgError] = useState(false);
 
@@ -87,6 +90,7 @@ function AvatarImage({
         className={cn(
           "flex items-center justify-center rounded-full border-2 border-primary bg-[#EAF7F3] font-bold text-primary tracking-wide select-none shadow-xs transition-all duration-200",
           sizeClasses[size],
+          className,
         )}
         aria-label={alt}
       >
@@ -106,6 +110,7 @@ function AvatarImage({
       className={cn(
         "rounded-full object-cover border-2 border-primary shadow-xs",
         sizeClasses[size],
+        className,
       )}
     />
   );
@@ -116,6 +121,7 @@ export function UserAvatar({
   avatarUrl,
   size = "md",
   className,
+  imageClassName,
   showBadge = false,
 }: UserAvatarProps) {
   const resolvedUrl = resolveAvatarUrl(avatarUrl);
@@ -123,7 +129,13 @@ export function UserAvatar({
 
   return (
     <div className={cn("relative inline-flex shrink-0 items-center justify-center", className)}>
-      <AvatarImage key={targetSrc} src={targetSrc} alt={name || "Ảnh đại diện"} size={size} />
+      <AvatarImage
+        key={targetSrc}
+        src={targetSrc}
+        alt={name || "Ảnh đại diện"}
+        size={size}
+        className={imageClassName}
+      />
 
       {showBadge ? (
         <span

@@ -10,24 +10,30 @@ import {
   Check,
   CircleCheck,
   CirclePlay,
+  ChevronDown,
+  ChevronRight,
   LoaderCircle,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type SyntheticEvent } from "react";
-import { AppHeader } from "@/components/layout/app-header";
 import { ApiClientError } from "@/lib/api";
 import {
   completeLearningLesson,
-  fetchSavedLessons,
-  fetchLearningLesson,
   fetchCourseProgress,
+  fetchLearningCurriculum,
+  fetchLearningLesson,
+  fetchMyEnrollments,
+  fetchSavedLessons,
   fetchLessonVideoAccess,
   saveLearningLesson,
   unsaveLearningLesson,
   type CourseProgress,
+  type LearningCurriculum,
   type LessonContent,
 } from "@/lib/learning-client";
 import { useAuthSession } from "@/lib/auth-session";
 import { LearningQuizContent } from "@/features/learning/learning-quiz-content";
+import { LearningWorkspaceShell } from "@/features/learning/learning-workspace-shell";
+import { cn } from "@/lib/cn";
 
 export function LearningLessonPage({ lessonId }: { lessonId: string }) {
   const { user, isLoading: sessionLoading, getAccessToken } = useAuthSession();
@@ -36,6 +42,8 @@ export function LearningLessonPage({ lessonId }: { lessonId: string }) {
   const courseId = searchParams.get("courseId");
   const [lesson, setLesson] = useState<LessonContent | null>(null);
   const [progress, setProgress] = useState<CourseProgress | null>(null);
+  const [curriculum, setCurriculum] = useState<LearningCurriculum | null>(null);
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -88,11 +96,43 @@ export function LearningLessonPage({ lessonId }: { lessonId: string }) {
       .then((token) => {
         if (!token) throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
         return Promise.all([fetchLearningLesson(token, lessonId), fetchSavedLessons(token)]).then(
-          ([result, savedLessons]) => {
-            if (active) {
-              setLesson(result);
-              setSaved(savedLessons.data.some((item) => item.lessonId === lessonId));
-              if (result.lessonType === "VIDEO") void refreshVideoAccess();
+          async ([result, savedLessons]) => {
+            if (!active) return;
+            setLesson(result);
+            setSaved(savedLessons.data.some((item) => item.lessonId === lessonId));
+            if (result.lessonType === "VIDEO") void refreshVideoAccess();
+
+            try {
+              const [enrollmentsResult, progressResult] = await Promise.allSettled([
+                fetchMyEnrollments(token),
+                fetchCourseProgress(token, result.courseId),
+              ]);
+              if (active && progressResult.status === "fulfilled") {
+                setProgress(progressResult.value);
+              }
+              if (enrollmentsResult.status === "rejected") return;
+              const courseEnrollment = enrollmentsResult.value.data.find(
+                (item) => item.courseId === result.courseId,
+              );
+              if (!courseEnrollment) return;
+
+              const resultCurriculum = await fetchLearningCurriculum(
+                token,
+                courseEnrollment.courseSlug,
+              );
+              if (active) {
+                setCurriculum(resultCurriculum);
+                setExpandedSections(
+                  Object.fromEntries(
+                    resultCurriculum.sections.map((section, index) => [
+                      section.id,
+                      index === 0 || section.lessons.some((item) => item.id === lessonId),
+                    ]),
+                  ),
+                );
+              }
+            } catch {
+              // Keep the lesson usable if the optional course outline cannot be loaded.
             }
           },
         );
@@ -176,20 +216,21 @@ export function LearningLessonPage({ lessonId }: { lessonId: string }) {
   }
 
   async function refreshProgressAfterQuiz() {
-    if (!courseId) return;
+    const progressCourseId = courseId ?? lesson?.courseId;
+    if (!progressCourseId) return;
     try {
       const token = await getAccessToken();
-      if (token) setProgress(await fetchCourseProgress(token, courseId));
+      if (token) setProgress(await fetchCourseProgress(token, progressCourseId));
     } catch {
       // The quiz result remains available even if the progress summary cannot refresh.
     }
   }
 
-  const backHref = courseId ? `/learning/courses/${courseId}` : "/learning/courses";
+  const backCourseId = courseId ?? lesson?.courseId;
+  const backHref = backCourseId ? `/learning/courses/${backCourseId}` : "/learning/courses";
   return (
-    <div className="min-h-screen bg-[#f8fbfa] text-[#101a2c]">
-      <AppHeader />
-      <main className="container-page py-8 md:py-10">
+    <LearningWorkspaceShell title="Bài học">
+      <main className="w-full">
         <Link
           href={backHref}
           className="focus-ring inline-flex items-center gap-2 rounded text-sm font-medium text-[#6e7c76] hover:text-primary"
@@ -218,7 +259,7 @@ export function LearningLessonPage({ lessonId }: { lessonId: string }) {
             </Link>
           </div>
         ) : lesson ? (
-          <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
+          <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_400px]">
             <article className="overflow-hidden rounded-2xl border border-[#e4ece8] bg-white">
               <header className="border-b border-[#edf1ef] bg-gradient-to-r from-[#e8faf4] to-white px-5 py-6 md:px-8">
                 <div className="flex items-start justify-between gap-4">
@@ -404,42 +445,156 @@ export function LearningLessonPage({ lessonId }: { lessonId: string }) {
                 </p>
               )}
             </article>
-            <aside className="rounded-2xl border border-[#e4ece8] bg-white p-5">
-              <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#e7faf3] text-primary">
-                <CirclePlay className="h-5 w-5" />
-              </span>
-              <h2 className="mt-3 text-sm font-semibold">Tiến độ học tập</h2>
-              {progress ? (
-                <>
-                  <p className="mt-1 text-xs text-[#84908b]">
-                    {progress.completedLessons}/{progress.totalLessons} bài học
-                  </p>
-                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#e9f1ed]">
+            <aside className="overflow-hidden rounded-2xl border border-[#e2e8f0] bg-white">
+              <header className="border-b border-[#e8eeeb] bg-[#f8fafc] p-4">
+                <h2 className="text-base font-semibold text-[#101a2c]">Giáo trình khóa học</h2>
+                <p className="mt-1 text-xs text-[#84908b]">
+                  {progress
+                    ? `${progress.completedLessons}/${progress.totalLessons} bài học đã hoàn thành`
+                    : "Theo dõi các bài học trong khóa học"}
+                </p>
+                {progress ? (
+                  <div
+                    role="progressbar"
+                    aria-label="Tiến độ khóa học"
+                    aria-valuenow={progress.progressPercent}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    className="mt-3 h-2 overflow-hidden rounded-full bg-[#e9f1ed]"
+                  >
                     <div
-                      className="h-full rounded-full bg-primary"
+                      className="h-full rounded-full bg-primary transition-[width]"
                       style={{ width: `${progress.progressPercent}%` }}
                     />
                   </div>
-                  <p className="mt-2 text-right text-xs font-semibold text-primary">
-                    {progress.progressPercent}%
-                  </p>
-                </>
+                ) : null}
+              </header>
+              {curriculum?.sections.length ? (
+                <div className="max-h-[calc(100vh-17rem)] overflow-y-auto">
+                  {curriculum.sections.map((section, index) => {
+                    const isOpen = expandedSections[section.id] ?? false;
+                    return (
+                      <section key={section.id} className="border-b border-[#e8eeeb] last:border-0">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setExpandedSections((current) => ({
+                              ...current,
+                              [section.id]: !isOpen,
+                            }))
+                          }
+                          aria-expanded={isOpen}
+                          className="focus-ring flex min-h-[60px] w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-[#f8fbfa]"
+                        >
+                          <span className="flex min-w-0 items-center gap-3">
+                            {isOpen ? (
+                              <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0" />
+                            ) : (
+                              <ChevronRight aria-hidden="true" className="h-4 w-4 shrink-0" />
+                            )}
+                            <span className="min-w-0">
+                              <span className="block truncate text-sm font-semibold text-[#101a2c]">
+                                {section.title}
+                              </span>
+                              <span className="mt-0.5 block text-[11px] text-[#84908b]">
+                                Chương {index + 1} · {section.lessons.length} bài học
+                              </span>
+                            </span>
+                          </span>
+                        </button>
+                        {isOpen ? (
+                          <ul className="divide-y divide-[#e8eeeb]">
+                            {section.lessons.map((item, lessonIndex) => {
+                              const supported = ["TEXT", "VIDEO", "QUIZ"].includes(item.lessonType);
+                              const selected = item.id === lessonId;
+                              return (
+                                <li key={item.id}>
+                                  <Link
+                                    href={
+                                      supported && lesson?.courseId
+                                        ? `/learning/lessons/${item.id}?courseId=${encodeURIComponent(lesson.courseId)}`
+                                        : "#lesson-unavailable"
+                                    }
+                                    onClick={(event) => {
+                                      if (!supported) event.preventDefault();
+                                    }}
+                                    aria-current={selected ? "page" : undefined}
+                                    className={cn(
+                                      "focus-ring flex min-h-[68px] items-center gap-2.5 px-4 py-3 transition",
+                                      selected
+                                        ? "bg-primary text-white"
+                                        : supported
+                                          ? "text-[#101a2c] hover:bg-[#f1fbf7]"
+                                          : "cursor-default text-[#89948f]",
+                                    )}
+                                  >
+                                    <span
+                                      className={cn(
+                                        "grid h-6 w-6 shrink-0 place-items-center rounded-md",
+                                        selected ? "text-white" : "bg-[#e8faf4] text-primary",
+                                      )}
+                                    >
+                                      {selected ? (
+                                        <Check className="h-4 w-4" />
+                                      ) : (
+                                        <CirclePlay className="h-4 w-4" />
+                                      )}
+                                    </span>
+                                    <span className="min-w-0 flex-1">
+                                      <span className="block text-xs font-medium leading-5">
+                                        {lessonIndex + 1}. {item.title}
+                                      </span>
+                                      <span
+                                        className={cn(
+                                          "mt-0.5 block text-[10px]",
+                                          selected ? "text-white/80" : "text-[#84908b]",
+                                        )}
+                                      >
+                                        {item.lessonType === "QUIZ"
+                                          ? "Bài kiểm tra"
+                                          : item.lessonType === "VIDEO"
+                                            ? "Video bài giảng"
+                                            : "Bài học văn bản"}
+                                      </span>
+                                    </span>
+                                    {item.durationSeconds ? (
+                                      <span
+                                        className={cn(
+                                          "shrink-0 text-[10px]",
+                                          selected ? "text-white/80" : "text-[#84908b]",
+                                        )}
+                                      >
+                                        {Math.ceil(item.durationSeconds / 60)} phút
+                                      </span>
+                                    ) : null}
+                                  </Link>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        ) : null}
+                      </section>
+                    );
+                  })}
+                </div>
               ) : (
-                <p className="mt-2 text-xs leading-5 text-[#84908b]">
-                  Hoàn thành bài học hoặc đạt điểm yêu cầu để cập nhật tiến độ khóa học.
-                </p>
+                <div className="p-4">
+                  <p className="text-xs leading-5 text-[#84908b]">
+                    Giáo trình chưa sẵn sàng để hiển thị.
+                  </p>
+                  <Link
+                    href={backHref}
+                    className="focus-ring mt-4 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-[#dfe9e4] px-3 text-xs font-semibold text-[#52605a] transition hover:border-primary hover:text-primary"
+                  >
+                    <BookOpen className="h-4 w-4" />
+                    Xem toàn bộ giáo trình
+                  </Link>
+                </div>
               )}
-              <Link
-                href={backHref}
-                className="focus-ring mt-5 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[#dfe9e4] px-3 py-2.5 text-xs font-semibold text-[#52605a] hover:border-primary hover:text-primary"
-              >
-                <BookOpen className="h-4 w-4" />
-                Xem toàn bộ giáo trình
-              </Link>
             </aside>
           </div>
         ) : null}
       </main>
-    </div>
+    </LearningWorkspaceShell>
   );
 }
