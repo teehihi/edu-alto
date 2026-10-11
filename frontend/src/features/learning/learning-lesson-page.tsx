@@ -37,6 +37,7 @@ import { cn } from "@/lib/cn";
 
 export function LearningLessonPage({ lessonId }: { lessonId: string }) {
   const { user, isLoading: sessionLoading, getAccessToken } = useAuthSession();
+  const userId = user?.id;
   const router = useRouter();
   const searchParams = useSearchParams();
   const courseId = searchParams.get("courseId");
@@ -85,7 +86,7 @@ export function LearningLessonPage({ lessonId }: { lessonId: string }) {
 
   useEffect(() => {
     if (sessionLoading) return;
-    if (!user) {
+    if (!userId) {
       router.replace(
         `/login?next=${encodeURIComponent(`/learning/lessons/${lessonId}${courseId ? `?courseId=${courseId}` : ""}`)}`,
       );
@@ -155,7 +156,7 @@ export function LearningLessonPage({ lessonId }: { lessonId: string }) {
     return () => {
       active = false;
     };
-  }, [courseId, getAccessToken, lessonId, refreshVideoAccess, router, sessionLoading, user]);
+  }, [courseId, getAccessToken, lessonId, refreshVideoAccess, router, sessionLoading, userId]);
 
   useEffect(() => {
     if (!videoExpiresAt || !videoUrl) return;
