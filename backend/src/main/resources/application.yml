@@ -48,6 +48,17 @@ springdoc:
     path: /swagger-ui.html
 
 edualto:
+  ai:
+    enabled: ${AI_ENABLED:false}
+    api-key: ${GEMINI_API_KEY:}
+    model: ${GEMINI_MODEL:gemini-3.8-flash}
+    fallback-models: ${GEMINI_FALLBACK_MODELS:gemini-3.1-flash-lite}
+    request-timeout-seconds: ${AI_REQUEST_TIMEOUT_SECONDS:90}
+    max-context-chars: ${AI_MAX_CONTEXT_CHARS:18000}
+    max-import-chars: ${AI_MAX_IMPORT_CHARS:40000}
+    max-import-pages: ${AI_MAX_IMPORT_PAGES:60}
+    requests-per-minute: ${AI_REQUESTS_PER_MINUTE:6}
+    daily-request-limit: ${AI_DAILY_REQUEST_LIMIT:40}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:3003,http://127.0.0.1:3000,http://127.0.0.1:3002,https://edu-alto.vercel.app,https://edualto.vercel.app}
   auth:
@@ -111,4 +122,3 @@ edualto:
       webhook-secret: ${EDUALTO_PAYMENT_STRIPE_WEBHOOK_SECRET:}
       success-url: ${EDUALTO_PAYMENT_STRIPE_SUCCESS_URL:}
       cancel-url: ${EDUALTO_PAYMENT_STRIPE_CANCEL_URL:}
-

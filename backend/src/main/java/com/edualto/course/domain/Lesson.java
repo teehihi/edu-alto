@@ -1,12 +1,18 @@
 package com.edualto.course.domain;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OrderColumn;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -31,6 +37,12 @@ public class Lesson {
 
     @Column(name = "content", columnDefinition = "text")
     private String content;
+
+    @ElementCollection
+    @CollectionTable(name = "lesson_objectives", joinColumns = @JoinColumn(name = "lesson_id"))
+    @OrderColumn(name = "position")
+    @Column(name = "objective", nullable = false, length = 300)
+    private List<String> objectives = new ArrayList<>();
 
     @Enumerated(EnumType.STRING)
     @Column(name = "lesson_type", nullable = false, length = 40)
@@ -192,6 +204,20 @@ public class Lesson {
 
     public String getContent() {
         return content;
+    }
+
+    public List<String> getObjectives() {
+        return List.copyOf(objectives);
+    }
+
+    public void setObjectives(List<String> values) {
+        objectives.clear();
+        if (values == null) return;
+        for (String value : values) {
+            if (value != null && !value.isBlank() && objectives.size() < 10) {
+                objectives.add(value.trim());
+            }
+        }
     }
 
     public LessonType getLessonType() {

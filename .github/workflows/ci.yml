@@ -107,6 +107,9 @@ jobs:
       - name: Install production environment file
         env:
           LIGHTSAIL_ENV_FILE: ${{ secrets.LIGHTSAIL_ENV_FILE }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-3.8-flash' }}
+          GEMINI_FALLBACK_MODELS: ${{ vars.GEMINI_FALLBACK_MODELS || 'gemini-3.1-flash-lite' }}
         run: |
           set -euo pipefail
           if [[ -z "$LIGHTSAIL_ENV_FILE" ]]; then
@@ -120,7 +123,21 @@ jobs:
             fi
           done
           install -d -m 700 "$HOME/edualto"
-          printf '%s\n' "$LIGHTSAIL_ENV_FILE" > "$HOME/edualto/.env"
+          umask 077
+          if [[ -n "$GEMINI_API_KEY" ]]; then
+            if [[ ! "$GEMINI_API_KEY" =~ ^[A-Za-z0-9_-]+$ || ! "$GEMINI_MODEL" =~ ^[A-Za-z0-9._-]{1,120}$ ]]; then
+              echo "Invalid Gemini API key or model format" >&2
+              exit 1
+            fi
+            if [[ ! "$GEMINI_FALLBACK_MODELS" =~ ^[A-Za-z0-9._,-]{0,500}$ ]]; then
+              echo "Invalid Gemini fallback model format" >&2
+              exit 1
+            fi
+            awk '!/^(AI_ENABLED|GEMINI_API_KEY|GEMINI_MODEL|GEMINI_FALLBACK_MODELS)=/' <<< "$LIGHTSAIL_ENV_FILE" > "$HOME/edualto/.env"
+            printf 'AI_ENABLED=true\nGEMINI_API_KEY=%s\nGEMINI_MODEL=%s\nGEMINI_FALLBACK_MODELS=%s\n' "$GEMINI_API_KEY" "$GEMINI_MODEL" "$GEMINI_FALLBACK_MODELS" >> "$HOME/edualto/.env"
+          else
+            printf '%s\n' "$LIGHTSAIL_ENV_FILE" > "$HOME/edualto/.env"
+          fi
           chmod 600 "$HOME/edualto/.env"
 
       - name: Deploy backend container

@@ -11,8 +11,8 @@ export type Section = {
   metaTitle?: string | null;
   metaDescription?: string | null;
   position: number;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type Lesson = {
@@ -22,12 +22,13 @@ export type Lesson = {
   description: string | null;
   type: LessonType;
   textContent: string | null;
+  objectives?: string[];
   videoDurationSeconds: number | null;
   isPreview: boolean;
   status: LessonStatus;
   position: number;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type CourseStructureSection = {
@@ -83,6 +84,7 @@ export type CreateLessonPayload = {
   description?: string | null;
   type?: LessonType;
   textContent?: string | null;
+  objectives?: string[];
   videoDurationSeconds?: number | null;
   isPreview?: boolean;
   status?: LessonStatus;
@@ -93,6 +95,7 @@ export type UpdateLessonPayload = {
   description?: string | null;
   type?: LessonType;
   textContent?: string | null;
+  objectives?: string[];
   videoDurationSeconds?: number | null;
   isPreview?: boolean;
   status?: LessonStatus;

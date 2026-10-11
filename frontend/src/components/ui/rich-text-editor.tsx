@@ -162,7 +162,7 @@ export function RichTextEditor({
     ) ?? "left";
 
   return (
-    <div className="mt-3 overflow-hidden rounded-lg border border-slate-200 bg-white transition focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15">
+    <div className="mt-3 overflow-hidden rounded-lg border border-slate-200 bg-white transition focus-within:border-primary focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-0">
       <div
         role="toolbar"
         aria-label="Định dạng nội dung mô tả"

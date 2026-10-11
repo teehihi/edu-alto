@@ -36,7 +36,7 @@ Cross-module dependency phải đi qua service/use case công khai của module 
 | `certificate` | Certificate issue rule and lookup | `user`, `course`, `enrollment`, `learning`, `quiz`, `assignment` | Không sửa progress để đạt điều kiện. |
 | `analytics` | Learning signals, aggregate snapshots, instructor course metrics read model | read-only aggregates over source-module data | Không ghi vào dữ liệu nguồn của module khác. |
 | `admin` | Administrative use cases and governance | uses service APIs from owned modules | Không truy cập repository mọi module như shortcut mặc định. |
-| `ai` | Future recommendation model metadata and recommendation output | `analytics`, `learning` read model | Không hard-code vào `CourseService` hoặc `LearningProgressService`. |
+| `ai` | Document curriculum import jobs, Gemini integration, grounded chatbot, curated education references; future recommendations | Public `CourseKnowledgeService` read model and `CourseStructureService` authoring use cases; `analytics` for future recommendations | AI provider logic stays in `ai`; course learning remains available when AI is disabled. Visitors only use public platform facts. |
 
 ## Public boundary examples
 
@@ -80,6 +80,7 @@ Tên interface có thể thay đổi theo implementation, nhưng trách nhiệm 
 - `analytics -> source modules`: đọc dữ liệu cần thiết để tính aggregate/read model; không ghi vào bảng nguồn.
 - `analytics -> signals`: đọc hoặc nhận append-only signal.
 - `ai -> analytics`: đọc dữ liệu đã tổng hợp để sinh recommendation.
+- `ai -> course`: `CourseKnowledgeService` exposes bounded, permission-filtered course/lesson passages. The course module owns the SQL read model; AI does not query course/lesson tables directly or expose quiz answers. Imports write only through existing authoring use cases.
 
 ## Forbidden shortcuts
 

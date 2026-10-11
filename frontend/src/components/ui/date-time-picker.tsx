@@ -165,7 +165,7 @@ export function DateTimePicker({
         aria-controls={dialogId}
         disabled={disabled}
         onClick={open ? () => setOpen(false) : openPicker}
-        className={`mt-1.5 flex min-h-[42px] w-full items-center justify-between gap-3 rounded-xl border bg-white px-3.5 py-2.5 text-left text-[13px] outline-none transition focus-visible:ring-2 focus-visible:ring-primary/20 disabled:cursor-not-allowed disabled:bg-slate-50 ${error ? "border-rose-400 focus-visible:border-rose-500" : "border-slate-200 hover:border-primary focus-visible:border-primary"}`}
+        className={`mt-1.5 flex min-h-[42px] w-full items-center justify-between gap-3 rounded-xl border bg-white px-3.5 py-2.5 text-left text-[13px] outline-none transition focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:bg-slate-50 ${error ? "border-rose-400 focus-visible:border-rose-500" : "border-slate-200 hover:border-primary focus-visible:border-primary"}`}
       >
         <span className={value ? "text-heading" : "text-muted"}>{formatDisplayValue(value)}</span>
         <CalendarDays className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
@@ -245,7 +245,7 @@ export function DateTimePicker({
                         year: "numeric",
                       })}
                       onClick={() => setDraft(date)}
-                      className={`mx-auto my-0.5 flex h-8 w-8 items-center justify-center rounded-full text-[13px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${selected ? "border border-primary/40 text-primary" : columnIndex === 0 ? "text-rose-500 hover:bg-rose-50" : "text-heading hover:bg-slate-100"}`}
+                      className={`mx-auto my-0.5 flex h-8 w-8 items-center justify-center rounded-full text-[13px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-0 ${selected ? "border border-primary/40 text-primary" : columnIndex === 0 ? "text-rose-500 hover:bg-rose-50" : "text-heading hover:bg-slate-100"}`}
                     >
                       {day}
                     </button>

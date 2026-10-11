@@ -15,9 +15,53 @@ export async function fetchCourseStructure(
   courseId: string,
   accessToken?: string | null,
 ): Promise<CourseStructure> {
-  return apiRequest<CourseStructure>(`/instructor/courses/${courseId}/structure`, {
+  const response = await apiRequest<{
+    courseId: string;
+    courseTitle: string;
+    courseSlug: string;
+    totalSections: number;
+    totalLessons: number;
+    totalDurationSeconds: number;
+    sections: Array<{
+      id: string;
+      title: string;
+      introduction?: string | null;
+      description: string | null;
+      metaTitle?: string | null;
+      metaDescription?: string | null;
+      position: number;
+      lessonCount: number;
+      totalDurationSeconds: number;
+      lessons: Array<{
+        id: string;
+        title: string;
+        description: string | null;
+        content: string | null;
+        lessonType: Lesson["type"];
+        position: number;
+        durationSeconds: number | null;
+        isPreview: boolean;
+        status: Lesson["status"];
+        objectives: string[];
+      }>;
+    }>;
+  }>(`/instructor/courses/${courseId}/structure`, {
     accessToken,
   });
+  return {
+    ...response,
+    sections: response.sections.map((section) => ({
+      ...section,
+      totalLessons: section.lessonCount,
+      lessons: section.lessons.map((lesson) => ({
+        ...lesson,
+        sectionId: section.id,
+        type: lesson.lessonType,
+        textContent: lesson.content,
+        videoDurationSeconds: lesson.durationSeconds,
+      })),
+    })),
+  };
 }
 
 export async function fetchSections(

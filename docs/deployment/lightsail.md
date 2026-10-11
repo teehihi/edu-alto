@@ -29,6 +29,8 @@ AUTH_COOKIE_SAME_SITE=None
 
 Add production values for any enabled integrations, such as Cloudflare R2, SMTP, or payment providers. The RDS endpoint must be reachable from the Lightsail instance through the configured VPC peering and RDS security group rules.
 
+For Gemini import/chatbot, add repository secret `GEMINI_API_KEY`. The workflow inserts the backend AI settings into the production env file automatically. An optional repository variable `GEMINI_MODEL` selects another available stable model. See [Gemini AI setup](gemini-ai.md) for local env entries and Free Tier limits.
+
 ## Deploy behavior
 
 - Push to `main`: run CI, then deploy only if both CI jobs succeed.

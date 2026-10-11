@@ -15,6 +15,7 @@ User-facing text is Vietnamese. Source code, database names and API paths are En
 - Use semantic HTML and accessible labels.
 - Do not show raw technical errors to end users.
 - Use stable design tokens from Tailwind config and CSS variables.
+- Focus indicators use solid primary `#20B486`, a 2px ring and zero offset so the ring touches the control border. Prefer the shared `focus-ring` class; custom `focus-visible` or `focus-within` styles must follow the same color, thickness and offset.
 
 ## Backend
 

@@ -3,6 +3,7 @@ package com.edualto.course.dto;
 import com.edualto.course.domain.LessonStatus;
 import com.edualto.course.domain.LessonType;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 public record LessonResponse(
@@ -19,6 +20,7 @@ public record LessonResponse(
         String mediaKey,
         LessonStatus status,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        List<String> objectives
 ) {
 }

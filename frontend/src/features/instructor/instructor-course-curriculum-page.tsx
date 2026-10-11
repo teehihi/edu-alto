@@ -21,6 +21,7 @@ import {
   Pencil,
   Plus,
   Trash2,
+  Upload,
   Video,
 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -33,6 +34,7 @@ import { CourseCurriculumSectionsSkeleton, Skeleton } from "@/components/ui/skel
 import { CourseCurriculumSection } from "@/features/course/course-curriculum-section";
 import type { CourseCurriculumSectionData } from "@/features/course/course-curriculum-section";
 import { useAuth } from "@/features/auth/auth-client";
+import { CurriculumImportDialog } from "@/features/instructor/curriculum-import-dialog";
 import {
   InstructorWorkspaceSidebar,
   useInstructorWorkspaceSidebar,
@@ -292,6 +294,8 @@ export function InstructorCourseCurriculumPage({
   const [structure, setStructure] = useState<CourseStructure | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [curriculumImportOpen, setCurriculumImportOpen] = useState(false);
+  const closeCurriculumImport = useCallback(() => setCurriculumImportOpen(false), []);
 
   // Accordion collapsed state: Map sectionId -> boolean (true = expanded)
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
@@ -661,7 +665,7 @@ export function InstructorCourseCurriculumPage({
     setLessonDescription(lesson.description || "");
     setLessonType(lesson.type);
     setLessonEditorTab("details");
-    setLessonObjectives(["", ""]);
+    setLessonObjectives(lesson.objectives?.length ? lesson.objectives : ["", ""]);
     setLessonTextContent(lesson.textContent || "");
     setLessonVideoFile(null);
     setLessonResourceFile(null);
@@ -812,6 +816,7 @@ export function InstructorCourseCurriculumPage({
           description: lessonDescription.trim() || null,
           type: lessonType,
           textContent: lessonTextContent.trim() || null,
+          objectives: lessonObjectives.map((objective) => objective.trim()).filter(Boolean),
           videoDurationSeconds: durationSeconds,
           isPreview: lessonIsPreview,
           status: lessonStatus,
@@ -832,6 +837,7 @@ export function InstructorCourseCurriculumPage({
           description: lessonDescription.trim() || null,
           type: lessonType,
           textContent: lessonTextContent.trim() || null,
+          objectives: lessonObjectives.map((objective) => objective.trim()).filter(Boolean),
           videoDurationSeconds: durationSeconds,
           isPreview: lessonIsPreview,
           status: lessonStatus,
@@ -1079,7 +1085,18 @@ export function InstructorCourseCurriculumPage({
               ) : null}
 
               {/* Action */}
-              <div className={`flex shrink-0 items-center gap-3 ${embedded ? "ml-auto" : ""}`}>
+              <div
+                className={`flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center ${embedded ? "sm:ml-auto" : ""}`}
+              >
+                <Button
+                  variant="outline"
+                  onClick={() => setCurriculumImportOpen(true)}
+                  className="rounded-lg border-primary/30 text-primary hover:border-primary/60 hover:bg-primary-soft"
+                  disabled={loading || authLoading || Boolean(error) || !structure}
+                >
+                  <Upload className="h-4 w-4" aria-hidden="true" />
+                  <span>Nhập kế hoạch bài dạy</span>
+                </Button>
                 <Button
                   onClick={handleOpenCreateSection}
                   className="rounded-xl shadow-xs"
@@ -1174,10 +1191,18 @@ export function InstructorCourseCurriculumPage({
                   Hãy bắt đầu xây dựng khóa học bằng cách tạo chương đầu tiên, sau đó thêm các bài
                   học vào giáo trình.
                 </p>
-                <div className="mt-6">
+                <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
                   <Button onClick={handleOpenCreateSection} className="rounded-xl shadow-xs">
                     <Plus className="h-4 w-4" />
                     <span>Tạo chương đầu tiên</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setCurriculumImportOpen(true)}
+                    className="rounded-lg border-primary/30 text-primary hover:border-primary/60 hover:bg-primary-soft"
+                  >
+                    <Upload className="h-4 w-4" aria-hidden="true" />
+                    Nhập kế hoạch bài dạy
                   </Button>
                 </div>
               </div>
@@ -1461,7 +1486,7 @@ export function InstructorCourseCurriculumPage({
 
             <aside
               id="section-editor-structure"
-              className="row-start-2 border-b border-slate-200 bg-white lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:h-dvh lg:overflow-y-auto lg:border-b-0 lg:border-r"
+              className="row-start-2 border-b border-slate-200 bg-white lg:sticky lg:top-0 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:h-dvh lg:self-start lg:overflow-y-auto lg:border-b-0 lg:border-r"
             >
               <div className="flex min-h-[42px] items-center justify-between border-b border-slate-100 px-4 py-3">
                 <h3 className="text-xs font-semibold uppercase tracking-[0.05em] text-[#62748e]">
@@ -1805,7 +1830,7 @@ export function InstructorCourseCurriculumPage({
 
             <aside
               id="lesson-editor-structure"
-              className="row-start-2 border-b border-slate-200 bg-white lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:h-dvh lg:overflow-y-auto lg:border-b-0 lg:border-r"
+              className="row-start-2 border-b border-slate-200 bg-white lg:sticky lg:top-0 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:h-dvh lg:self-start lg:overflow-y-auto lg:border-b-0 lg:border-r"
             >
               <div className="flex min-h-[42px] items-center justify-between border-b border-slate-100 px-4 py-3">
                 <h3 className="text-xs font-semibold uppercase tracking-[0.05em] text-[#62748e]">
@@ -2451,6 +2476,25 @@ export function InstructorCourseCurriculumPage({
           </div>
         </div>
       )}
+
+      {curriculumImportOpen ? (
+        <CurriculumImportDialog
+          courseId={courseId}
+          accessToken={accessToken}
+          hasExistingChapters={Boolean(structure?.sections.length)}
+          onClose={closeCurriculumImport}
+          onApplied={async (result) => {
+            setCurriculumImportOpen(false);
+            await loadData();
+            setFeedback({
+              isOpen: true,
+              title: "Đã nhập giáo trình",
+              description: `Đã thêm ${result.chapterCount} chương và ${result.lessonCount} bài học ở trạng thái bản nháp.`,
+              tone: "success",
+            });
+          }}
+        />
+      ) : null}
 
       {/* ------------------------------------------------------------- */}
       {/* DELETE SECTION CONFIRMATION */}

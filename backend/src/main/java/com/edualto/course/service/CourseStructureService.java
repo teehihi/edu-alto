@@ -112,11 +112,13 @@ public class CourseStructureService {
                             l.getTitle(),
                             l.getSlug(),
                             l.getDescription(),
+                            l.getContent(),
                             l.getLessonType(),
                             l.getPosition(),
                             l.getDurationSeconds(),
                             l.isPreview(),
-                            l.getStatus()
+                            l.getStatus(),
+                            l.getObjectives()
                     ))
                     .toList();
 
@@ -314,6 +316,7 @@ public class CourseStructureService {
                 request.mediaKey(),
                 request.status()
         );
+        lesson.setObjectives(request.objectives());
 
         lesson = lessonRepository.save(lesson);
         return toLessonResponse(lesson);
@@ -362,6 +365,7 @@ public class CourseStructureService {
                 request.mediaKey() != null ? request.mediaKey() : lesson.getMediaKey(),
                 request.status()
         );
+        if (request.objectives() != null) lesson.setObjectives(request.objectives());
 
         lesson = lessonRepository.save(lesson);
         return toLessonResponse(lesson);
@@ -504,7 +508,8 @@ public class CourseStructureService {
                 lesson.getMediaKey(),
                 lesson.getStatus(),
                 lesson.getCreatedAt(),
-                lesson.getUpdatedAt()
+                lesson.getUpdatedAt(),
+                lesson.getObjectives()
         );
     }
 }

@@ -78,6 +78,7 @@ Design tokens foundation:
 - Footer divider: `#DDEFE9`
 - Feature colors: `#F5C34D`, `#F4866D`, `#C77A9A`
 - Radius mặc định: 8px cho button/card; 12px chỉ khi Figma dùng card feature lớn.
+- Focus ring phải dùng màu primary `#20B486`, dày 2px và sát viền với offset 0. Dùng class chung `focus-ring` (`focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-0`) cho các control tương tác.
 
 Không biến EduAlto thành website AI/neon/futuristic. AI là extension tương lai, sản phẩm chính là LMS.
 

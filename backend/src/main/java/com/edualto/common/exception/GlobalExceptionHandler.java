@@ -22,6 +22,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<ErrorResponse> handleUploadSize(MaxUploadSizeExceededException exception, HttpServletRequest request) {
+        logCurriculumImportRejection(HttpStatus.CONTENT_TOO_LARGE, "FILE_TOO_LARGE", request);
         ErrorResponse response = ErrorResponse.of(
                 "FILE_TOO_LARGE",
                 "Kích thước tệp vượt quá giới hạn 5MB. Vui lòng chọn tệp nhỏ hơn.",
@@ -33,6 +34,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException exception, HttpServletRequest request) {
+        logCurriculumImportRejection(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", request);
         List<ErrorDetail> details = exception.getBindingResult()
                 .getFieldErrors()
                 .stream()
@@ -50,6 +52,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> handleNotReadable(HttpMessageNotReadableException exception, HttpServletRequest request) {
+        logCurriculumImportRejection(HttpStatus.BAD_REQUEST, "INVALID_PAYLOAD", request);
         ErrorResponse response = ErrorResponse.of(
                 "INVALID_PAYLOAD",
                 "Dữ liệu yêu cầu không hợp lệ hoặc sai định dạng",
@@ -61,6 +64,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ErrorResponse> handleParameterType(MethodArgumentTypeMismatchException exception, HttpServletRequest request) {
+        logCurriculumImportRejection(HttpStatus.BAD_REQUEST, "INVALID_PARAMETER", request);
         ErrorResponse response = ErrorResponse.of(
                 "INVALID_PARAMETER",
                 "Tham số yêu cầu không đúng định dạng",
@@ -72,6 +76,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ErrorResponse> handleBusiness(BusinessException exception, HttpServletRequest request) {
+        logCurriculumImportRejection(exception.getStatus(), exception.getCode(), request);
         ErrorResponse response = ErrorResponse.of(
                 exception.getCode(),
                 exception.getMessage(),
@@ -83,6 +88,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler({AuthenticationException.class, BadCredentialsException.class})
     public ResponseEntity<ErrorResponse> handleAuthentication(Exception exception, HttpServletRequest request) {
+        logCurriculumImportRejection(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", request);
         ErrorResponse response = ErrorResponse.of(
                 "UNAUTHORIZED",
                 "Vui lòng đăng nhập để tiếp tục",
@@ -102,5 +108,12 @@ public class GlobalExceptionHandler {
                 request.getRequestURI()
         );
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+
+    private void logCurriculumImportRejection(HttpStatus status, String code, HttpServletRequest request) {
+        if (request.getRequestURI().contains("/curriculum-imports")) {
+            log.warn("Curriculum import API rejected: method={}, path={}, status={}, code={}",
+                    request.getMethod(), request.getRequestURI(), status.value(), code);
+        }
     }
 }

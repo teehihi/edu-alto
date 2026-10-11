@@ -76,6 +76,210 @@ body {
   color: var(--edualto-heading);
 }
 
+.analysis-ellipsis::after {
+  content: "...";
+  animation: analysis-ellipsis 1.2s steps(1, end) infinite;
+}
+
+@keyframes analysis-ellipsis {
+  0%,
+  24% {
+    content: "";
+  }
+  25%,
+  49% {
+    content: ".";
+  }
+  50%,
+  74% {
+    content: "..";
+  }
+  75%,
+  100% {
+    content: "...";
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .analysis-ellipsis::after {
+    animation: none;
+    content: "...";
+  }
+}
+
+.gemini-loader {
+  display: inline-flex;
+  width: 80px;
+  height: 80px;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14px;
+}
+
+.gemini-loader__orbit {
+  position: relative;
+  width: 76px;
+  height: 76px;
+  animation: gemini-loader-orbit 2.2s linear infinite;
+}
+
+.gemini-loader__position {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  margin: -10px;
+}
+
+.gemini-loader__position--top {
+  animation: gemini-loader-distance-top 2.2s linear infinite;
+}
+
+.gemini-loader__position--right {
+  animation: gemini-loader-distance-right 2.2s linear infinite;
+}
+
+.gemini-loader__position--bottom {
+  animation: gemini-loader-distance-bottom 2.2s linear infinite;
+}
+
+.gemini-loader__position--left {
+  animation: gemini-loader-distance-left 2.2s linear infinite;
+}
+
+.gemini-loader__dot {
+  display: block;
+  width: 20px;
+  height: 20px;
+  border-radius: 9999px;
+  animation: gemini-loader-dot-scale 2.2s linear infinite;
+}
+
+.gemini-loader__dot--red {
+  background: #ea4335;
+  box-shadow: 0 2px 4px rgb(234 67 53 / 35%);
+}
+
+.gemini-loader__dot--green {
+  background: #34a853;
+  box-shadow: 0 2px 4px rgb(52 168 83 / 35%);
+}
+
+.gemini-loader__dot--blue {
+  background: #4285f4;
+  box-shadow: 0 2px 4px rgb(66 133 244 / 35%);
+}
+
+.gemini-loader__dot--yellow {
+  background: #fbbc05;
+  box-shadow: 0 2px 4px rgb(251 188 5 / 35%);
+}
+
+@keyframes gemini-loader-orbit {
+  from {
+    transform: rotate(0deg) scale(1.0526316);
+  }
+  to {
+    transform: rotate(360deg) scale(1.0526316);
+  }
+}
+
+@keyframes gemini-loader-distance-top {
+  0%,
+  15% {
+    transform: translateY(-22px);
+  }
+  58%,
+  72% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-22px);
+  }
+}
+
+@keyframes gemini-loader-distance-right {
+  0%,
+  15% {
+    transform: translateX(22px);
+  }
+  58%,
+  72% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(22px);
+  }
+}
+
+@keyframes gemini-loader-distance-bottom {
+  0%,
+  15% {
+    transform: translateY(22px);
+  }
+  58%,
+  72% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(22px);
+  }
+}
+
+@keyframes gemini-loader-distance-left {
+  0%,
+  15% {
+    transform: translateX(-22px);
+  }
+  58%,
+  72% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-22px);
+  }
+}
+
+@keyframes gemini-loader-dot-scale {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(0.75);
+  }
+  62% {
+    transform: scale(0.5);
+  }
+  75% {
+    transform: scale(0.8);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gemini-loader__orbit,
+  .gemini-loader__position,
+  .gemini-loader__dot {
+    animation: none;
+  }
+
+  .gemini-loader__position--top {
+    transform: translateY(-22px);
+  }
+  .gemini-loader__position--right {
+    transform: translateX(22px);
+  }
+  .gemini-loader__position--bottom {
+    transform: translateY(22px);
+  }
+  .gemini-loader__position--left {
+    transform: translateX(-22px);
+  }
+}
+
 button,
 a,
 input {
@@ -374,7 +578,7 @@ input::-ms-clear {
 
 @layer components {
   .focus-ring {
-    @apply focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/20 focus-visible:ring-offset-2;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-0;
   }
 
   #lesson-form input:not([type="file"]):focus-visible,
