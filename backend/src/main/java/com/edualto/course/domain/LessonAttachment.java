@@ -22,15 +22,20 @@ public class LessonAttachment {
     @Column(name = "content_length", nullable = false)
     private long contentLength;
 
+    @Column(name = "visible_to_students", nullable = false)
+    private boolean visibleToStudents = true;
+
     protected LessonAttachment() {
     }
 
-    public LessonAttachment(UUID id, String objectKey, String fileName, String contentType, long contentLength) {
+    public LessonAttachment(UUID id, String objectKey, String fileName, String contentType, long contentLength,
+            boolean visibleToStudents) {
         this.id = Objects.requireNonNull(id, "Attachment id must not be null");
         this.objectKey = Objects.requireNonNull(objectKey, "Attachment object key must not be null");
         this.fileName = Objects.requireNonNull(fileName, "Attachment file name must not be null");
         this.contentType = Objects.requireNonNull(contentType, "Attachment content type must not be null");
         this.contentLength = contentLength;
+        this.visibleToStudents = visibleToStudents;
     }
 
     public UUID getId() { return id; }
@@ -38,4 +43,6 @@ public class LessonAttachment {
     public String getFileName() { return fileName; }
     public String getContentType() { return contentType; }
     public long getContentLength() { return contentLength; }
+    public boolean isVisibleToStudents() { return visibleToStudents; }
+    public void setVisibleToStudents(boolean visibleToStudents) { this.visibleToStudents = visibleToStudents; }
 }

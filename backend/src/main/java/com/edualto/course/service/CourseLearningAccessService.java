@@ -58,8 +58,10 @@ public class CourseLearningAccessService {
         return new LearningLessonResponse(lesson.getId(), courseId, lesson.getSectionId(), lesson.getTitle(),
                 lesson.getLessonType(), lesson.getLessonType() == LessonType.TEXT ? lesson.getContent() : null,
                 lesson.getDescription(), lesson.getObjectives(), lesson.getAttachments().stream()
+                        .filter(attachment -> attachment.isVisibleToStudents())
                         .map(attachment -> new LessonAttachmentResponse(attachment.getId(), attachment.getFileName(),
-                                attachment.getContentType(), attachment.getContentLength()))
+                                attachment.getContentType(), attachment.getContentLength(),
+                                attachment.isVisibleToStudents()))
                         .toList(), resolveThumbnailUrl(lesson.getThumbnailKey()));
     }
 

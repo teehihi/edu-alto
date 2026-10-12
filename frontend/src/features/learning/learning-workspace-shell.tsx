@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import Image from "next/image";
 import { House, Menu, Settings, X } from "lucide-react";
 import { PortalBrand } from "@/components/layout/portal-brand";
@@ -18,9 +18,42 @@ export function LearningWorkspaceShell({
 }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [headerVisible, setHeaderVisible] = useState(true);
+  const previousScrollY = useRef(0);
+  const accumulatedScrollDelta = useRef(0);
+
+  useEffect(() => {
+    previousScrollY.current = window.scrollY;
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      const delta = currentScrollY - previousScrollY.current;
+      previousScrollY.current = currentScrollY;
+      accumulatedScrollDelta.current += delta;
+
+      if (currentScrollY <= 24) {
+        accumulatedScrollDelta.current = 0;
+        setHeaderVisible(true);
+        return;
+      }
+
+      if (accumulatedScrollDelta.current >= 10) {
+        accumulatedScrollDelta.current = 0;
+        setHeaderVisible(false);
+      } else if (accumulatedScrollDelta.current <= -10) {
+        accumulatedScrollDelta.current = 0;
+        setHeaderVisible(true);
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   return (
-    <div className="learning-app min-h-screen text-[#101a2c] lg:flex">
+    <div
+      data-header-visible={headerVisible ? "true" : "false"}
+      className="learning-app min-h-screen text-[#101a2c] lg:flex"
+    >
       {mobileNavOpen ? (
         <button
           type="button"
@@ -218,7 +251,14 @@ export function LearningWorkspaceShell({
       </aside>
 
       <div className="flex min-h-screen min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-[58px] items-center justify-between border-b border-slate-200 bg-white px-4 md:px-6 lg:h-[83px]">
+        <header
+          id="learning-workspace-header"
+          inert={!headerVisible}
+          className={cn(
+            "sticky top-0 z-30 flex h-[58px] items-center justify-between border-b border-slate-200 bg-white px-4 transition-transform duration-200 ease-out motion-reduce:transition-none md:px-6 lg:h-[83px]",
+            headerVisible ? "translate-y-0" : "-translate-y-full",
+          )}
+        >
           <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"

@@ -62,7 +62,8 @@ public interface SavedLessonResourceRepository extends JpaRepository<SavedLesson
             join lessons lesson on lesson.id = attachment.lesson_id
             join sections section on section.id = lesson.section_id
             join courses course on course.id = section.course_id
-            where saved.user_id = :userId and (:courseId is null or course.id = :courseId)
+            where saved.user_id = :userId and attachment.visible_to_students = true
+              and (:courseId is null or course.id = :courseId)
             order by saved.created_at desc, saved.id asc
             """, countQuery = """
             select count(*)
@@ -71,7 +72,8 @@ public interface SavedLessonResourceRepository extends JpaRepository<SavedLesson
             join lessons lesson on lesson.id = attachment.lesson_id
             join sections section on section.id = lesson.section_id
             join courses course on course.id = section.course_id
-            where saved.user_id = :userId and (:courseId is null or course.id = :courseId)
+            where saved.user_id = :userId and attachment.visible_to_students = true
+              and (:courseId is null or course.id = :courseId)
             """, nativeQuery = true)
     Page<SavedLessonResourceRow> findAllResponsesByUserId(
             @Param("userId") UUID userId, @Param("courseId") UUID courseId, Pageable pageable);
@@ -88,6 +90,7 @@ public interface SavedLessonResourceRepository extends JpaRepository<SavedLesson
             join sections section on section.id = lesson.section_id
             join courses course on course.id = section.course_id
             where saved.user_id = :userId and saved.attachment_id = :attachmentId
+              and attachment.visible_to_students = true
             """, nativeQuery = true)
     Optional<SavedLessonResourceRow> findResponseByUserIdAndAttachmentId(
             @Param("userId") UUID userId, @Param("attachmentId") UUID attachmentId);
@@ -98,7 +101,8 @@ public interface SavedLessonResourceRepository extends JpaRepository<SavedLesson
             join lessons lesson on lesson.id = attachment.lesson_id
             join sections section on section.id = lesson.section_id
             join courses course on course.id = section.course_id
-            where attachment.id = :attachmentId and lesson.status = 'PUBLISHED' and course.status = 'PUBLISHED'
+            where attachment.id = :attachmentId and attachment.visible_to_students = true
+              and lesson.status = 'PUBLISHED' and course.status = 'PUBLISHED'
             """, nativeQuery = true)
     Optional<PublishedLessonResourceRow> findPublishedLessonByAttachmentId(
             @Param("attachmentId") UUID attachmentId);

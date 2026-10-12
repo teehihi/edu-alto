@@ -13,6 +13,8 @@ import {
   CirclePlay,
   ChevronDown,
   ChevronRight,
+  Download,
+  FileText,
   LoaderCircle,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type SyntheticEvent } from "react";
@@ -25,8 +27,10 @@ import {
   fetchMyEnrollments,
   fetchSavedLessons,
   fetchLessonVideoAccess,
+  fetchLessonResourceDownload,
   saveLearningLesson,
   unsaveLearningLesson,
+  triggerResourceDownload,
   type CourseProgress,
   type LearningCurriculum,
   type LessonContent,
@@ -55,6 +59,8 @@ export function LearningLessonPage({ lessonId }: { lessonId: string }) {
   const [videoExpiresAt, setVideoExpiresAt] = useState<string | null>(null);
   const [videoLoading, setVideoLoading] = useState(false);
   const [videoError, setVideoError] = useState("");
+  const [downloadingAttachmentId, setDownloadingAttachmentId] = useState<string | null>(null);
+  const [resourceError, setResourceError] = useState("");
   const videoPositionRef = useRef(0);
   const videoWasPlayingRef = useRef(false);
   const videoAutoRetryCountRef = useRef(0);
@@ -201,6 +207,22 @@ export function LearningLessonPage({ lessonId }: { lessonId: string }) {
     }
   }
 
+  async function downloadLessonAttachment(attachmentId: string) {
+    if (!lesson) return;
+    setDownloadingAttachmentId(attachmentId);
+    setResourceError("");
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+      const access = await fetchLessonResourceDownload(token, lesson.id, attachmentId);
+      triggerResourceDownload(access.downloadUrl);
+    } catch {
+      setResourceError("Chưa thể tải tài liệu. Vui lòng thử lại.");
+    } finally {
+      setDownloadingAttachmentId(null);
+    }
+  }
+
   async function toggleSaved() {
     setBookmarkBusy(true);
     setError("");
@@ -262,7 +284,9 @@ export function LearningLessonPage({ lessonId }: { lessonId: string }) {
           </div>
         ) : lesson ? (
           <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_400px]">
-            <article className="overflow-hidden rounded-2xl border border-[#e4ece8] bg-white">
+            <article
+              className={`rounded-2xl border border-[#e4ece8] bg-white ${lesson.lessonType === "QUIZ" ? "overflow-clip" : "overflow-hidden"}`}
+            >
               <header className="border-b border-[#edf1ef] bg-gradient-to-r from-[#e8faf4] to-white px-5 py-6 md:px-8">
                 <div className="flex items-start justify-between gap-4">
                   <div>
@@ -272,7 +296,7 @@ export function LearningLessonPage({ lessonId }: { lessonId: string }) {
                         ? "BÀI KIỂM TRA"
                         : lesson.lessonType === "VIDEO"
                           ? "VIDEO BÀI GIẢNG"
-                          : "NỘI DUNG VĂN BẢN"}
+                          : "BÀI ĐỌC"}
                     </p>
                     <h1 className="mt-2 text-2xl font-bold md:text-3xl">{lesson.title}</h1>
                   </div>
@@ -407,6 +431,7 @@ export function LearningLessonPage({ lessonId }: { lessonId: string }) {
                   {lesson.lessonType === "TEXT" && lesson.thumbnailUrl ? (
                     <div className="relative aspect-video max-h-[72vh] bg-[#101a2c]">
                       <Image
+                        unoptimized
                         src={lesson.thumbnailUrl}
                         alt={`Ảnh minh họa bài học: ${lesson.title}`}
                         fill
@@ -418,9 +443,58 @@ export function LearningLessonPage({ lessonId }: { lessonId: string }) {
                   <div className="prose prose-slate max-w-none px-5 py-7 text-[15px] leading-8 text-[#43514b] md:px-8 md:py-9">
                     <p className="whitespace-pre-wrap">
                       {lesson.content?.trim() ||
-                        "Giảng viên đang cập nhật nội dung cho bài học này."}
+                        (lesson.attachments.length
+                          ? "Tài liệu đọc được đính kèm bên dưới."
+                          : "Giảng viên đang cập nhật nội dung cho bài học này.")}
                     </p>
                   </div>
+                  {lesson.attachments.length ? (
+                    <section
+                      aria-labelledby="lesson-attachments-title"
+                      className="border-t border-[#edf1ef] px-5 py-5 md:px-8"
+                    >
+                      <h2
+                        id="lesson-attachments-title"
+                        className="text-base font-semibold text-primary"
+                      >
+                        Tài liệu đính kèm
+                      </h2>
+                      <ul className="mt-3 space-y-2">
+                        {lesson.attachments.map((attachment) => (
+                          <li
+                            key={attachment.id}
+                            className="flex items-center gap-3 rounded-lg border border-[#e2e8f0] p-3"
+                          >
+                            <FileText
+                              aria-hidden="true"
+                              className="h-5 w-5 shrink-0 text-primary"
+                            />
+                            <span className="min-w-0 flex-1 truncate text-sm font-medium text-[#101a2c]">
+                              {attachment.fileName}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => void downloadLessonAttachment(attachment.id)}
+                              disabled={downloadingAttachmentId === attachment.id}
+                              className="focus-ring inline-flex min-h-9 shrink-0 items-center gap-2 rounded-lg border border-primary px-3 text-xs font-semibold text-primary transition hover:bg-primary-soft disabled:cursor-wait disabled:opacity-60"
+                            >
+                              {downloadingAttachmentId === attachment.id ? (
+                                <LoaderCircle className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Download className="h-4 w-4" />
+                              )}
+                              Tải xuống
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                      {resourceError ? (
+                        <p role="alert" className="mt-3 text-sm text-rose-600">
+                          {resourceError}
+                        </p>
+                      ) : null}
+                    </section>
+                  ) : null}
                   <footer className="flex flex-col gap-4 border-t border-[#edf1ef] px-5 py-5 sm:flex-row sm:items-center sm:justify-between md:px-8">
                     <span role="status" className="flex items-center gap-2 text-sm text-[#77837e]">
                       {progress?.completed ? (
@@ -569,7 +643,7 @@ export function LearningLessonPage({ lessonId }: { lessonId: string }) {
                                           ? "Bài kiểm tra"
                                           : item.lessonType === "VIDEO"
                                             ? "Video bài giảng"
-                                            : "Bài học văn bản"}
+                                            : "Bài đọc"}
                                       </span>
                                     </span>
                                     {item.durationSeconds ? (

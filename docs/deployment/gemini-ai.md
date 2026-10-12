@@ -27,7 +27,7 @@ Create repository Actions **secret `GEMINI_API_KEY`** with the API key as its va
 | `AI_REQUEST_TIMEOUT_SECONDS` | `90` | Gemini request deadline |
 | `AI_REQUESTS_PER_MINUTE` | `6` | Shared application request budget per backend process; allows the primary model's 5-RPM quota response to trigger fallback |
 | `AI_DAILY_REQUEST_LIMIT` | `40` | Shared provider budget per UTC day per process |
-| `AI_MAX_CONTEXT_CHARS` | `18000` | Retrieved chatbot source text cap |
+| `AI_MAX_CONTEXT_CHARS` | `18000` | Retrieved chatbot and quiz-generation source text cap |
 | `AI_MAX_IMPORT_CHARS` | `40000` | Extracted import source text cap |
 | `AI_MAX_IMPORT_PAGES` | `60` | PDF page cap |
 
@@ -46,10 +46,16 @@ Edit or remove suggested chapters/lessons before **Thêm vào giáo trình**. Ap
 `POST /api/v1/ai/chat` retrieves before generation:
 
 - Visitors: only curated public EduAlto information (registration, course discovery, features). No lesson, progress or private account data is queried. Public FAQ answers remain available without Gemini being configured.
-- Authenticated active, verified accounts: relevant course descriptions, permitted TEXT/VIDEO/DOCUMENT lesson text, and verified education reference summaries. Published lesson content requires an active enrollment or a public preview; instructors may retrieve their own unpublished lessons. Quiz/assignment answers, student submissions and user progress are not in this corpus.
+- Authenticated active, verified accounts: relevant course descriptions, permitted TEXT/VIDEO lesson text, and verified education reference summaries. Published lesson content requires an active enrollment or a public preview; instructors may retrieve their own unpublished lessons. Quiz/assignment answers, student submissions and user progress are not in this corpus.
 - PostgreSQL full-text search selects sources and GIN indexes accelerate matching. This is lexical RAG, without a paid embedding/vector database. Source links are constructed from authorized records or the verified policy catalog; generated source IDs are filtered against actual retrieved sources.
 
 AI JSON format does not guarantee factual correctness. No real API round trip can be verified until the administrator supplies a valid key and quota. Free Tier prompts and files may be used by Google to improve products, so use sanitized demonstration documents; review [Gemini API terms](https://ai.google.dev/gemini-api/terms) before processing private data.
+
+## Quiz question generation
+
+In the instructor quiz editor, **Tạo bằng AI** lets the instructor choose any combination of lesson title, description, body, saved supporting documents and a newly selected supporting document. Supported documents are PDF, DOC/DOCX, PPT/PPTX, XLS/XLSX and TXT, up to 5 MB per file. Text is extracted on the backend, split into overlapping passages, and ranked with Vietnamese-aware lexical retrieval (BM25-style term matching). Only passages from the instructor's selected sources are sent to Gemini, capped by `AI_MAX_CONTEXT_CHARS`; files are not sent from the browser to Gemini directly. This is lightweight RAG without embeddings or a vector database, similar in approach to chatbot retrieval but scoped to the quiz sources selected in the editor.
+
+The optional **Trọng tâm câu hỏi** field is used as the retrieval query, so relevant passages are prioritized; when it is blank, the lesson title and description guide retrieval, with representative passages used if there are no query terms. The quiz-specific prompt directs Gemini to stay grounded in those passages, ignore instructions embedded in source documents, create varied questions, and return the requested count through a structured JSON schema. The endpoint returns editable question drafts only. The instructor reviews and changes the questions in the editor, then saves the quiz through the existing quiz API. Generation verifies course ownership and that selected saved attachments belong to the lesson.
 
 ## API contract
 
@@ -58,6 +64,7 @@ All success responses use the existing `ApiResponse.data` wrapper.
 - `POST /instructor/courses/{courseId}/curriculum-imports`: multipart `file`, `educationLevel`, `subject`, optional `grade`, `curriculum`, and `schoolYear` (default `2026-2027`); returns 202 `{id,status,preview,message}`.
 - `GET /instructor/courses/{courseId}/curriculum-imports/{id}`: polls the owned job.
 - `POST /instructor/courses/{courseId}/curriculum-imports/{id}/apply`: `{chapters:[{title,introduction,description,lessons:[{title,description,textContent,durationMinutes}]}]}`; returns `{chapterCount,lessonCount}`.
+- `POST /instructor/quiz-question-generations`: multipart `request` JSON with `courseId`, `sectionId`, optional `lessonId`, `title`, `description`, `content`, optional `focus`, source-selection booleans, `attachmentIds` and `questionCount` (1–20); optionally include the newly selected `sourceFile`. Returns `{questions:[{prompt,options:[{label,correct}]}]}` as a draft; the caller saves it only after instructor review.
 - `GET /ai/education-policy`: `educationLevel`, `subject`, `grade`, `schoolYear` context query parameters; returns `{references,notes,verifiedAt}`. Authenticated endpoint. No textbook parameter is used for selection.
 - `POST /ai/chat`: `{message,history:[{role,text}],courseId?}`; returns `{answer,sources:[{id,title,url}],model}`. Visitors are restricted to public system knowledge regardless of supplied course ID.
 

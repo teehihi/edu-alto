@@ -3,4 +3,5 @@ export type LessonAttachment = {
   fileName: string;
   contentType: string;
   contentLength: number;
+  visibleToStudents: boolean;
 };

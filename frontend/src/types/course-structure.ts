@@ -1,6 +1,6 @@
 import type { LessonAttachment } from "@/types/lesson-attachment";
 
-export type LessonType = "TEXT" | "VIDEO" | "DOCUMENT" | "QUIZ" | "ASSIGNMENT";
+export type LessonType = "TEXT" | "VIDEO" | "QUIZ" | "ASSIGNMENT";
 
 export type LessonStatus = "DRAFT" | "PUBLISHED";
 

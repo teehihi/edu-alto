@@ -16,6 +16,8 @@ import {
   Download,
   FileText,
   GraduationCap,
+  PanelRightClose,
+  PanelRightOpen,
   PlayCircle,
   Star,
   Video,
@@ -184,6 +186,7 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+  const [outlineCollapsed, setOutlineCollapsed] = useState(false);
   const [activeLessonId, setActiveLessonId] = useState("");
   const [activeLessonContent, setActiveLessonContent] = useState<LessonContent | null>(null);
   const [activeLessonVideoUrl, setActiveLessonVideoUrl] = useState<string | null>(null);
@@ -475,7 +478,33 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
             </div>
           ) : (
             <>
-              <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,2.1fr)_minmax(320px,1fr)] lg:gap-x-10 lg:gap-y-0">
+              <div className="mb-3 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setOutlineCollapsed((collapsed) => !collapsed)}
+                  aria-label={
+                    outlineCollapsed ? "Hiện giáo trình khóa học" : "Ẩn giáo trình khóa học"
+                  }
+                  aria-controls="course-outline"
+                  aria-expanded={!outlineCollapsed}
+                  className="focus-ring inline-flex min-h-10 items-center gap-2 rounded-lg border border-[#dfe9e4] bg-white px-3 text-sm font-medium text-[#52647d] transition hover:border-primary hover:text-primary"
+                >
+                  {outlineCollapsed ? (
+                    <PanelRightOpen aria-hidden="true" className="h-4 w-4" />
+                  ) : (
+                    <PanelRightClose aria-hidden="true" className="h-4 w-4" />
+                  )}
+                  {outlineCollapsed ? "Hiện giáo trình" : "Ẩn giáo trình"}
+                </button>
+              </div>
+              <div
+                className={cn(
+                  "grid items-start gap-6 lg:gap-x-10 lg:gap-y-0",
+                  outlineCollapsed
+                    ? "lg:grid-cols-1"
+                    : "lg:grid-cols-[minmax(0,2.1fr)_minmax(320px,1fr)]",
+                )}
+              >
                 <section
                   aria-label="Bài học hiện tại"
                   className="min-w-0 lg:col-start-1 lg:row-start-1"
@@ -539,7 +568,7 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
                       ) : null}
                     </article>
                   ) : currentLessonContent?.lessonType === "QUIZ" ? (
-                    <article className="overflow-hidden rounded-2xl border border-[#e2e8f0] bg-white shadow-sm">
+                    <article className="overflow-clip rounded-2xl border border-[#e2e8f0] bg-white shadow-sm">
                       <header className="border-b border-[#e2e8f0] bg-[#f5fbf9] px-4 py-3.5 sm:px-5">
                         <p className="text-xs font-semibold uppercase tracking-wide text-primary">
                           Bài kiểm tra
@@ -559,6 +588,7 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
                       {currentLessonContent.thumbnailUrl ? (
                         <div className="relative aspect-video max-h-[72vh] bg-[#101a2c]">
                           <Image
+                            unoptimized
                             src={currentLessonContent.thumbnailUrl}
                             alt={`Ảnh minh họa bài học: ${currentLessonContent.title}`}
                             fill
@@ -573,7 +603,7 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
                         </span>
                         <div className="min-w-0">
                           <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-                            Bài học văn bản
+                            Bài đọc
                           </p>
                           <h2 className="mt-1 text-lg font-semibold text-[#101a2c]">
                             {currentLessonContent.title}
@@ -630,7 +660,10 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
                 <aside
                   id="course-outline"
                   aria-label="Giáo trình khóa học"
-                  className="scroll-mt-28 flex min-h-[560px] max-h-[811px] flex-col overflow-hidden rounded-2xl border border-[#e2e8f0] bg-[#f8fafc] lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:h-[811px] lg:min-h-[811px]"
+                  className={cn(
+                    "scroll-mt-28 flex min-h-[560px] max-h-[811px] flex-col overflow-hidden rounded-2xl border border-[#e2e8f0] bg-[#f8fafc] lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:h-[811px] lg:min-h-[811px]",
+                    outlineCollapsed && "hidden",
+                  )}
                 >
                   <header className="shrink-0 border-b border-[#e2e8f0] px-4 py-5 sm:px-6">
                     <h2 className="text-lg font-semibold text-primary sm:text-xl">
@@ -760,7 +793,7 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
                                                 ? "Bài học video"
                                                 : lesson.lessonType === "QUIZ"
                                                   ? "Bài kiểm tra"
-                                                  : "Bài học văn bản"}
+                                                  : "Bài đọc"}
                                           </span>
                                         </span>
                                         <span className="inline-flex shrink-0 items-center gap-1 text-xs tabular-nums">
@@ -825,7 +858,7 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
                       className="mt-6 border-t border-[#e2e8f0] pt-5"
                     >
                       <h2 id="lesson-content-title" className="text-lg font-semibold text-primary">
-                        Nội dung bài học
+                        Nội dung bài đọc
                       </h2>
                       {currentLessonContent.content?.trim() ? (
                         <div
@@ -836,9 +869,11 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
                         />
                       ) : (
                         <p className="mt-2 text-sm leading-6 text-[#64748b]">
-                          {waitingForLessonContent
-                            ? "Đang tải nội dung bài học…"
-                            : "Giảng viên đang cập nhật nội dung cho bài học này."}
+                          {currentLessonContent.attachments.length
+                            ? "Tài liệu đọc được đính kèm bên dưới."
+                            : waitingForLessonContent
+                              ? "Đang tải nội dung bài học…"
+                              : "Giảng viên đang cập nhật nội dung cho bài học này."}
                         </p>
                       )}
                     </section>

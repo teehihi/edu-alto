@@ -57,7 +57,7 @@ public class CourseKnowledgeRepository {
                 """ + body + """ 
                 AS body FROM lessons l JOIN sections s ON s.id = l.section_id
                 JOIN courses c ON c.id = s.course_id JOIN users u ON u.id = c.instructor_id
-                WHERE l.lesson_type IN ('TEXT', 'VIDEO', 'DOCUMENT') AND l.status <> 'ARCHIVED'
+                WHERE l.lesson_type IN ('TEXT', 'VIDEO') AND l.status <> 'ARCHIVED'
                 AND ((:canViewOwned AND c.instructor_id = :userId AND c.status <> 'ARCHIVED') OR
                   (c.status = 'PUBLISHED' AND l.status = 'PUBLISHED' AND u.status = 'ACTIVE' AND u.email_verified_at IS NOT NULL
                     AND (l.is_preview = true OR EXISTS (SELECT 1 FROM enrollments e

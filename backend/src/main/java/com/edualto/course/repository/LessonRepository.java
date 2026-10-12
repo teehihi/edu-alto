@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -16,6 +17,9 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID> {
     List<Lesson> findAllBySectionIdInOrderByPositionAsc(Collection<UUID> sectionIds);
 
     Optional<Lesson> findByIdAndSectionId(UUID id, UUID sectionId);
+
+    @EntityGraph(attributePaths = "attachments")
+    Optional<Lesson> findWithAttachmentsByIdAndSectionId(UUID id, UUID sectionId);
 
     Optional<Lesson> findTopBySectionIdOrderByPositionDesc(UUID sectionId);
 

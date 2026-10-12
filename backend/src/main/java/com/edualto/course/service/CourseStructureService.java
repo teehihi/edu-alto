@@ -531,7 +531,8 @@ public class CourseStructureService {
     private List<LessonAttachmentResponse> toAttachmentResponses(Lesson lesson) {
         return lesson.getAttachments().stream()
                 .map(attachment -> new LessonAttachmentResponse(attachment.getId(), attachment.getFileName(),
-                        attachment.getContentType(), attachment.getContentLength()))
+                        attachment.getContentType(), attachment.getContentLength(),
+                        attachment.isVisibleToStudents()))
                 .toList();
     }
 }

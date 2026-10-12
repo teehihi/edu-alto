@@ -6,6 +6,7 @@ import com.edualto.course.dto.LessonAttachmentResponse;
 import com.edualto.course.dto.LessonResourceUploadCompleteRequest;
 import com.edualto.course.dto.LessonResourceUploadUrlRequest;
 import com.edualto.course.dto.LessonResourceUploadUrlResponse;
+import com.edualto.course.dto.UpdateLessonResourceVisibilityRequest;
 import com.edualto.course.service.LessonResourceService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
@@ -14,6 +15,7 @@ import java.io.IOException;
 import java.util.UUID;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -59,6 +61,16 @@ public class InstructorLessonResourceController {
             @PathVariable UUID courseId, @PathVariable UUID sectionId, @PathVariable UUID lessonId,
             @Valid @RequestBody LessonResourceUploadCompleteRequest request) {
         return ApiResponse.ok(resources.completeUpload(principal.id(), courseId, sectionId, lessonId, request));
+    }
+
+    @PatchMapping("/{attachmentId}")
+    @Operation(summary = "Cập nhật quyền hiển thị tài liệu với học viên")
+    public ApiResponse<LessonAttachmentResponse> updateVisibility(
+            @AuthenticationPrincipal AuthenticatedUser principal,
+            @PathVariable UUID courseId, @PathVariable UUID sectionId, @PathVariable UUID lessonId,
+            @PathVariable UUID attachmentId, @Valid @RequestBody UpdateLessonResourceVisibilityRequest request) {
+        return ApiResponse.ok(resources.updateVisibility(principal.id(), courseId, sectionId, lessonId,
+                attachmentId, request));
     }
 
     @DeleteMapping("/{attachmentId}")

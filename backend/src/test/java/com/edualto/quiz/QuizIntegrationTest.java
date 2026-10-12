@@ -74,7 +74,7 @@ class QuizIntegrationTest extends AbstractIntegrationTest {
         enrollments.enroll(student.getId(), course.getId());
 
         String createBody = """
-                {"passingScore":50,"questions":[
+                {"passingScore":50,"questionsPerAttempt":0,"durationMinutes":0,"questions":[
                   {"prompt":"2 + 2 bằng bao nhiêu?","options":[{"label":"3","correct":false},{"label":"4","correct":true}]},
                   {"prompt":"Thủ đô Việt Nam?","options":[{"label":"Hà Nội","correct":true},{"label":"Đà Nẵng","correct":false}]}
                 ]}
@@ -93,7 +93,7 @@ class QuizIntegrationTest extends AbstractIntegrationTest {
         mockMvc.perform(get("/api/v1/lessons/{lessonId}/quiz", lesson.getId())
                         .header("Authorization", bearer(student)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.questions", hasSize(2)))
+                .andExpect(jsonPath("$.data.questions", hasSize(0)))
                 .andExpect(result -> assertThat(result.getResponse().getContentAsString()).doesNotContain("correct"));
 
         mockMvc.perform(get("/api/v1/lessons/{lessonId}/quiz", lesson.getId())
@@ -101,12 +101,21 @@ class QuizIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.error.code").value("ENROLLMENT_REQUIRED"));
 
+        String sessionBody = mockMvc.perform(post("/api/v1/lessons/{lessonId}/quiz-sessions", lesson.getId())
+                        .header("Authorization", bearer(student)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.questions", hasSize(2)))
+                .andExpect(result -> assertThat(result.getResponse().getContentAsString()).doesNotContain("correct"))
+                .andReturn().getResponse().getContentAsString();
+        JsonNode sessionData = objectMapper.readTree(sessionBody).get("data");
+        UUID sessionId = UUID.fromString(sessionData.get("id").asString());
+
         String submitBody = """
-                {"answers":[
+                {"sessionId":"%s","activityEvents":[],"answers":[
                   {"questionId":"%s","optionId":"%s"},
                   {"questionId":"%s","optionId":"%s"}
                 ]}
-                """.formatted(firstQuestionId, wrongOptionId, secondQuestionId, rightOptionId);
+                """.formatted(sessionId, firstQuestionId, wrongOptionId, secondQuestionId, rightOptionId);
         mockMvc.perform(post("/api/v1/lessons/{lessonId}/quiz-attempts", lesson.getId())
                         .header("Authorization", bearer(student)).contentType("application/json").content(submitBody))
                 .andExpect(status().isOk())
@@ -133,7 +142,7 @@ class QuizIntegrationTest extends AbstractIntegrationTest {
         Lesson lesson = lessons.save(new Lesson(UUID.randomUUID(), section.getId(), "Kiểm tra kiến thức", null,
                 null, null, LessonType.QUIZ, 1, 300, false, null, LessonStatus.PUBLISHED));
         String validQuiz = """
-                {"passingScore":70,"questions":[
+                {"passingScore":70,"questionsPerAttempt":0,"durationMinutes":0,"questions":[
                   {"prompt":"Câu hỏi 1?","options":[{"label":"Đúng","correct":true},{"label":"Sai","correct":false}]},
                   {"prompt":"Câu hỏi 2?","options":[{"label":"Có","correct":true},{"label":"Không","correct":false}]}
                 ]}
@@ -143,20 +152,21 @@ class QuizIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(status().isNotFound());
         mockMvc.perform(post("/api/v1/instructor/lessons/{lessonId}/quiz", lesson.getId())
                         .header("Authorization", bearer(instructor)).contentType("application/json")
-                        .content("{\"passingScore\":70,\"questions\":[{\"prompt\":\"Câu hỏi?\",\"options\":[{\"label\":\"A\",\"correct\":true},{\"label\":\"B\",\"correct\":true}]}]}"))
+                        .content("{\"passingScore\":70,\"questionsPerAttempt\":0,\"durationMinutes\":0,\"questions\":[{\"prompt\":\"Câu hỏi?\",\"options\":[{\"label\":\"A\",\"correct\":true},{\"label\":\"B\",\"correct\":true}]}]}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.code").value("QUIZ_REQUIRES_ONE_CORRECT_OPTION"));
         mockMvc.perform(post("/api/v1/instructor/lessons/{lessonId}/quiz", lesson.getId())
                         .header("Authorization", bearer(instructor)).contentType("application/json").content(validQuiz))
                 .andExpect(status().isOk());
         enrollments.enroll(student.getId(), course.getId());
-        String quizJson = mockMvc.perform(get("/api/v1/lessons/{lessonId}/quiz", lesson.getId())
+        String sessionJson = mockMvc.perform(post("/api/v1/lessons/{lessonId}/quiz-sessions", lesson.getId())
                         .header("Authorization", bearer(student)))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
-        JsonNode question = objectMapper.readTree(quizJson).get("data").get("questions").get(0);
+        JsonNode sessionData = objectMapper.readTree(sessionJson).get("data");
+        JsonNode question = sessionData.get("questions").get(0);
         String duplicateAnswers = """
-                {"answers":[{"questionId":"%s","optionId":"%s"},{"questionId":"%s","optionId":"%s"}]}
-                """.formatted(question.get("id").asString(), question.get("options").get(0).get("id").asString(),
+                {"sessionId":"%s","activityEvents":[],"answers":[{"questionId":"%s","optionId":"%s"},{"questionId":"%s","optionId":"%s"}]}
+                """.formatted(sessionData.get("id").asString(), question.get("id").asString(), question.get("options").get(0).get("id").asString(),
                 question.get("id").asString(), question.get("options").get(1).get("id").asString());
         mockMvc.perform(post("/api/v1/lessons/{lessonId}/quiz-attempts", lesson.getId())
                         .header("Authorization", bearer(student)).contentType("application/json").content(duplicateAnswers))

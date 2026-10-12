@@ -25,6 +25,12 @@ public class Quiz {
     @Column(name = "passing_score", nullable = false, precision = 5, scale = 2)
     private BigDecimal passingScore;
 
+    @Column(name = "questions_per_attempt", nullable = false)
+    private int questionsPerAttempt;
+
+    @Column(name = "duration_minutes", nullable = false)
+    private int durationMinutes;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -35,10 +41,13 @@ public class Quiz {
     protected Quiz() {
     }
 
-    public Quiz(UUID lessonId, BigDecimal passingScore, List<QuizQuestion> questions) {
+    public Quiz(UUID lessonId, BigDecimal passingScore, int questionsPerAttempt, int durationMinutes,
+            List<QuizQuestion> questions) {
         this.id = UUID.randomUUID();
         this.lessonId = lessonId;
         this.passingScore = passingScore;
+        this.questionsPerAttempt = questionsPerAttempt;
+        this.durationMinutes = durationMinutes;
         this.createdAt = Instant.now();
         this.questions = new ArrayList<>(questions);
         this.questions.forEach(question -> question.setQuiz(this));
@@ -47,6 +56,20 @@ public class Quiz {
     public UUID getId() { return id; }
     public UUID getLessonId() { return lessonId; }
     public BigDecimal getPassingScore() { return passingScore; }
+    public int getQuestionsPerAttempt() { return questionsPerAttempt; }
+    public int getDurationMinutes() { return durationMinutes; }
     public Instant getCreatedAt() { return createdAt; }
     public List<QuizQuestion> getQuestions() { return questions; }
+
+    public void replaceContent(BigDecimal passingScore, int questionsPerAttempt, int durationMinutes,
+            List<QuizQuestion> replacement) {
+        this.passingScore = passingScore;
+        this.questionsPerAttempt = questionsPerAttempt;
+        this.durationMinutes = durationMinutes;
+        this.questions.clear();
+        replacement.forEach(question -> {
+            question.setQuiz(this);
+            this.questions.add(question);
+        });
+    }
 }

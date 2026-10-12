@@ -6,6 +6,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
@@ -18,6 +19,17 @@ import org.apache.pdfbox.pdmodel.encryption.InvalidPasswordException;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.apache.poi.hwpf.extractor.WordExtractor;
 import org.apache.poi.openxml4j.util.ZipSecureFile;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.DataFormatter;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.apache.poi.sl.usermodel.Shape;
+import org.apache.poi.sl.usermodel.Slide;
+import org.apache.poi.sl.usermodel.SlideShow;
+import org.apache.poi.sl.usermodel.SlideShowFactory;
+import org.apache.poi.sl.usermodel.TextShape;
 import org.apache.poi.xwpf.usermodel.IBodyElement;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
@@ -115,6 +127,146 @@ public class DocumentTextExtractor {
         }
     }
 
+    public String extractQuizSource(String filename, String contentType, byte[] bytes) {
+        if (filename == null || bytes == null || bytes.length == 0) {
+            throw invalidSource("Tài liệu không có nội dung để đọc");
+        }
+        if (bytes.length > MAX_FILE_BYTES) {
+            throw invalidSource("Mỗi tài liệu dùng để tạo câu hỏi không được vượt quá 5 MB");
+        }
+        String extension = filename.toLowerCase(Locale.ROOT);
+        String type = contentType == null ? "application/octet-stream" : contentType.toLowerCase(Locale.ROOT);
+        int maxChars = Math.max(1000, Math.min(properties.maxContextChars(), 40000));
+        try {
+            String text;
+            if (extension.endsWith(".pdf") && (type.equals("application/pdf") || type.equals("application/octet-stream"))) {
+                requireSignature(bytes, new byte[] {'%', 'P', 'D', 'F', '-'}, "Tệp không phải PDF hợp lệ");
+                text = extractPdf(bytes, maxChars);
+            } else if (extension.endsWith(".docx") && isType(type,
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document")) {
+                validateOfficeArchive(bytes, "word/document.xml");
+                text = extractDocx(bytes, maxChars);
+            } else if (extension.endsWith(".doc") && isType(type, "application/msword")) {
+                requireOle2(bytes);
+                text = extractDoc(bytes, maxChars);
+            } else if (extension.endsWith(".txt") && isType(type, "text/plain")) {
+                text = extractPlainText(bytes, maxChars);
+            } else if (extension.endsWith(".pptx") && isType(type,
+                    "application/vnd.openxmlformats-officedocument.presentationml.presentation")) {
+                validateOfficeArchive(bytes, "ppt/presentation.xml");
+                text = extractSlides(bytes, maxChars);
+            } else if (extension.endsWith(".ppt") && isType(type, "application/vnd.ms-powerpoint")) {
+                requireOle2(bytes);
+                text = extractSlides(bytes, maxChars);
+            } else if (extension.endsWith(".xlsx") && isType(type,
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")) {
+                validateOfficeArchive(bytes, "xl/workbook.xml");
+                text = extractSpreadsheet(bytes, maxChars);
+            } else if (extension.endsWith(".xls") && isType(type, "application/vnd.ms-excel")) {
+                requireOle2(bytes);
+                text = extractSpreadsheet(bytes, maxChars);
+            } else {
+                throw invalidSource("Chỉ hỗ trợ PDF, Word, PowerPoint, Excel và tệp văn bản");
+            }
+            String normalized = text.replaceAll("[\\p{Cntrl}&&[^\\r\\n\\t]]", "")
+                    .replace("\r\n", "\n").replace('\r', '\n').trim();
+            if (normalized.isBlank()) throw invalidSource("Tài liệu không có nội dung văn bản để tạo câu hỏi");
+            return normalized;
+        } catch (InvalidPasswordException exception) {
+            throw invalidSource("PDF đang được bảo vệ bằng mật khẩu. Hãy bỏ mật khẩu trước khi dùng làm nguồn câu hỏi");
+        } catch (TextLimitException exception) {
+            throw invalidSource("Tài liệu quá dài để đọc trong một lần. Hãy chia nhỏ tài liệu rồi thử lại");
+        } catch (IOException | RuntimeException exception) {
+            if (exception instanceof BusinessException businessException) throw businessException;
+            throw invalidSource("Không đọc được tài liệu. Hãy kiểm tra định dạng tệp rồi thử lại");
+        }
+    }
+
+    private String extractPlainText(byte[] bytes, int maxChars) throws IOException {
+        String text = new String(bytes, StandardCharsets.UTF_8);
+        if (text.length() > maxChars) throw new TextLimitException();
+        return text;
+    }
+
+    private String extractSlides(byte[] bytes, int maxChars) throws IOException {
+        LimitedTextWriter writer = new LimitedTextWriter(maxChars);
+        try (SlideShow<?, ?> show = SlideShowFactory.create(new ByteArrayInputStream(bytes))) {
+            for (Slide<?, ?> slide : show.getSlides()) {
+                for (Shape shape : slide.getShapes()) {
+                    if (shape instanceof TextShape<?, ?> textShape && !textShape.getText().isBlank()) {
+                        writer.append(textShape.getText());
+                        writer.append("\n");
+                    }
+                }
+                writer.append("\n");
+            }
+        }
+        return writer.text();
+    }
+
+    private String extractSpreadsheet(byte[] bytes, int maxChars) throws IOException {
+        LimitedTextWriter writer = new LimitedTextWriter(maxChars);
+        DataFormatter formatter = new DataFormatter(Locale.ROOT);
+        try (Workbook workbook = WorkbookFactory.create(new ByteArrayInputStream(bytes))) {
+            for (Sheet sheet : workbook) {
+                writer.append(sheet.getSheetName());
+                writer.append("\n");
+                for (Row row : sheet) {
+                    boolean hasValue = false;
+                    for (Cell cell : row) {
+                        String value = formatter.formatCellValue(cell).trim();
+                        if (value.isEmpty()) continue;
+                        if (hasValue) writer.append(" | ");
+                        writer.append(value);
+                        hasValue = true;
+                    }
+                    if (hasValue) writer.append("\n");
+                }
+                writer.append("\n");
+            }
+        }
+        return writer.text();
+    }
+
+    private void validateOfficeArchive(byte[] bytes, String mainDocument) throws IOException {
+        Set<String> names = new HashSet<>();
+        long totalBytes = 0;
+        byte[] buffer = new byte[8192];
+        try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(bytes))) {
+            ZipEntry entry;
+            while ((entry = zip.getNextEntry()) != null) {
+                if (!names.add(entry.getName()) || names.size() > 512 || entry.getName().contains("..")) {
+                    throw invalidSource("Cấu trúc tài liệu Office không hợp lệ");
+                }
+                int count;
+                while ((count = zip.read(buffer)) != -1) {
+                    totalBytes += count;
+                    if (totalBytes > MAX_EXPANDED_ZIP_BYTES) {
+                        throw invalidSource("Tài liệu vượt quá giới hạn giải nén cho phép");
+                    }
+                }
+            }
+        }
+        if (!names.contains(mainDocument) || !names.contains("[Content_Types].xml")) {
+            throw invalidSource("Tệp không có cấu trúc tài liệu Office hợp lệ");
+        }
+    }
+
+    private void requireOle2(byte[] bytes) {
+        if (!isOle2Document(bytes)) throw invalidSource("Tệp Office cũ không đúng định dạng");
+    }
+
+    private void requireSignature(byte[] bytes, byte[] signature, String message) {
+        if (bytes.length < signature.length) throw invalidSource(message);
+        for (int index = 0; index < signature.length; index++) {
+            if (bytes[index] != signature[index]) throw invalidSource(message);
+        }
+    }
+
+    private boolean isType(String contentType, String expected) {
+        return contentType.equals(expected) || contentType.equals("application/octet-stream");
+    }
+
     private boolean isOle2Document(byte[] bytes) {
         byte[] signature = {(byte) 0xD0, (byte) 0xCF, 0x11, (byte) 0xE0, (byte) 0xA1, (byte) 0xB1, 0x1A, (byte) 0xE1};
         if (bytes.length < signature.length) return false;
@@ -163,6 +315,10 @@ public class DocumentTextExtractor {
         if (!names.contains("word/document.xml") || !names.contains("[Content_Types].xml")) {
             throw invalid("Tệp không có nội dung tài liệu Word hợp lệ");
         }
+    }
+
+    private static BusinessException invalidSource(String message) {
+        return new BusinessException(HttpStatus.BAD_REQUEST, "INVALID_QUIZ_SOURCE", message);
     }
 
     private String extractDocx(byte[] bytes, int maxChars) throws IOException {

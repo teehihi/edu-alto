@@ -14,7 +14,6 @@ import {
   FileCode,
   FileQuestion,
   File as FileIcon,
-  FileSpreadsheet,
   FileText,
   ImagePlus,
   Layers,
@@ -57,10 +56,14 @@ import {
   deleteLessonResource,
   getLessonResourceContentType,
   uploadLessonResource,
+  updateLessonResourceVisibility,
 } from "@/lib/lesson-resource-client";
 import { courseDescriptionToText } from "@/lib/course-description";
 import {
   createInstructorQuiz,
+  fetchInstructorQuiz,
+  generateInstructorQuizQuestions,
+  updateInstructorQuiz,
   type CreateInstructorQuizRequest,
 } from "@/lib/instructor-quiz-client";
 import {
@@ -106,8 +109,6 @@ function getLessonTypeIcon(type: LessonType, active = false) {
   switch (type) {
     case "VIDEO":
       return <Video className={iconClassName("text-blue-500")} />;
-    case "DOCUMENT":
-      return <FileSpreadsheet className={iconClassName("text-amber-500")} />;
     case "QUIZ":
       return <FileQuestion className={iconClassName("text-purple-500")} />;
     case "ASSIGNMENT":
@@ -122,8 +123,6 @@ function getLessonTypeLabel(type: LessonType): string {
   switch (type) {
     case "VIDEO":
       return "Video";
-    case "DOCUMENT":
-      return "Tài liệu";
     case "QUIZ":
       return "Trắc nghiệm";
     case "ASSIGNMENT":
@@ -176,7 +175,6 @@ function StudentChapterPreview({
 
 const lessonTypeOptions: Array<{ value: LessonType; label: string }> = [
   { value: "VIDEO", label: "Video" },
-  { value: "DOCUMENT", label: "PDF / Tài liệu" },
   { value: "QUIZ", label: "Quiz" },
   { value: "ASSIGNMENT", label: "Bài tập" },
   { value: "TEXT", label: "Bài đọc" },
@@ -357,6 +355,7 @@ export function InstructorCourseCurriculumPage({
   const [lessonTextContent, setLessonTextContent] = useState("");
   const [lessonVideoFile, setLessonVideoFile] = useState<File | null>(null);
   const [lessonResourceFile, setLessonResourceFile] = useState<File | null>(null);
+  const [lessonResourceVisibleToStudents, setLessonResourceVisibleToStudents] = useState(true);
   const [lessonAttachments, setLessonAttachments] = useState<LessonAttachment[]>([]);
   const [lessonResourceUploading, setLessonResourceUploading] = useState(false);
   const [lessonThumbnailFile, setLessonThumbnailFile] = useState<File | null>(null);
@@ -374,18 +373,78 @@ export function InstructorCourseCurriculumPage({
   const [lessonFormLoading, setLessonFormLoading] = useState(false);
   const [lessonFormError, setLessonFormError] = useState<string | null>(null);
   const [quizPassingScore, setQuizPassingScore] = useState("70");
+  const [quizCreateSubtests, setQuizCreateSubtests] = useState(false);
+  const [quizQuestionsPerAttempt, setQuizQuestionsPerAttempt] = useState("1");
+  const [quizDurationMinutes, setQuizDurationMinutes] = useState("0");
   const [quizQuestions, setQuizQuestions] = useState<QuizDraftQuestion[]>([
     createQuizDraftQuestion(1),
   ]);
+  const [quizLoading, setQuizLoading] = useState(false);
+  const [quizLoadError, setQuizLoadError] = useState<string | null>(null);
+  const [quizLoadedLessonId, setQuizLoadedLessonId] = useState<string | null>(null);
+  const [quizEditable, setQuizEditable] = useState(true);
+  const quizLoadRequestId = useRef(0);
   const [incompleteQuizLessonId, setIncompleteQuizLessonId] = useState<string | null>(null);
   const [pendingQuizPublishLessonId, setPendingQuizPublishLessonId] = useState<string | null>(null);
   const nextQuizQuestionId = useRef(2);
+
+  useEffect(() => {
+    if (!quizCreateSubtests || !quizQuestions.length) return;
+    const questionCount = Number(quizQuestionsPerAttempt);
+    if (!Number.isInteger(questionCount) || questionCount < 1) {
+      setQuizQuestionsPerAttempt("1");
+    } else if (questionCount > quizQuestions.length) {
+      setQuizQuestionsPerAttempt(String(quizQuestions.length));
+    }
+  }, [quizCreateSubtests, quizQuestions.length, quizQuestionsPerAttempt]);
+
   const lessonEditorTabs: Array<{ id: LessonEditorTab; label: string }> = [
     { id: "details", label: "Chi tiết" },
     { id: "resources", label: "Tài liệu" },
     ...(lessonType === "QUIZ" ? [{ id: "quiz" as const, label: "Quiz" }] : []),
     ...(lessonType === "ASSIGNMENT" ? [{ id: "assignment" as const, label: "Bài tập" }] : []),
   ];
+
+  const loadInstructorQuizDraft = (lessonId: string) => {
+    const requestId = ++quizLoadRequestId.current;
+    setQuizLoading(true);
+    setQuizLoadError(null);
+    setQuizLoadedLessonId(null);
+    setQuizEditable(false);
+    setQuizQuestions([]);
+
+    void fetchInstructorQuiz(lessonId, accessToken)
+      .then((quiz) => {
+        if (quizLoadRequestId.current !== requestId) return;
+        const questions = quiz.questions.map((question, index) => ({
+          id: index + 1,
+          prompt: question.prompt,
+          options: question.options.map((option) => ({
+            label: option.label,
+            correct: option.correct,
+          })),
+        }));
+        setQuizPassingScore(String(quiz.passingScore));
+        setQuizCreateSubtests(quiz.questionsPerAttempt > 0);
+        setQuizQuestionsPerAttempt(String(quiz.questionsPerAttempt || 1));
+        setQuizDurationMinutes(String(quiz.durationMinutes));
+        setQuizQuestions(questions);
+        nextQuizQuestionId.current = questions.length + 1;
+        setQuizEditable(quiz.editable);
+        setQuizLoadedLessonId(lessonId);
+      })
+      .catch((error) => {
+        if (quizLoadRequestId.current !== requestId) return;
+        setQuizLoadError(
+          error instanceof ApiClientError
+            ? error.message
+            : "Chưa thể tải câu hỏi của bài kiểm tra.",
+        );
+      })
+      .finally(() => {
+        if (quizLoadRequestId.current === requestId) setQuizLoading(false);
+      });
+  };
 
   // Delete Section Modal state
   const [deleteSectionTarget, setDeleteSectionTarget] = useState<CourseStructureSection | null>(
@@ -644,6 +703,11 @@ export function InstructorCourseCurriculumPage({
   // LESSON CRUD HANDLERS
   // -------------------------------------------------------------
   const handleOpenCreateLesson = (secId: string) => {
+    quizLoadRequestId.current += 1;
+    setQuizLoading(false);
+    setQuizLoadError(null);
+    setQuizLoadedLessonId(null);
+    setQuizEditable(true);
     setTargetSectionId(secId);
     setEditingLesson(null);
     setLessonTitle("");
@@ -654,6 +718,7 @@ export function InstructorCourseCurriculumPage({
     setLessonTextContent("");
     setLessonVideoFile(null);
     setLessonResourceFile(null);
+    setLessonResourceVisibleToStudents(true);
     setLessonAttachments([]);
     setLessonThumbnailFile(null);
     setAssignmentReferenceFile(null);
@@ -668,6 +733,9 @@ export function InstructorCourseCurriculumPage({
     setLessonIsPreview(false);
     setLessonStatus("PUBLISHED");
     setQuizPassingScore("70");
+    setQuizCreateSubtests(false);
+    setQuizQuestionsPerAttempt("1");
+    setQuizDurationMinutes("0");
     setQuizQuestions([createQuizDraftQuestion(1)]);
     nextQuizQuestionId.current = 2;
     setIncompleteQuizLessonId(null);
@@ -677,6 +745,11 @@ export function InstructorCourseCurriculumPage({
   };
 
   const handleOpenEditLesson = (secId: string, lesson: Lesson) => {
+    quizLoadRequestId.current += 1;
+    setQuizLoading(false);
+    setQuizLoadError(null);
+    setQuizLoadedLessonId(null);
+    setQuizEditable(lesson.type !== "QUIZ");
     setTargetSectionId(secId);
     setEditingLesson(lesson);
     setLessonTitle(lesson.title);
@@ -687,6 +760,7 @@ export function InstructorCourseCurriculumPage({
     setLessonTextContent(lesson.textContent || "");
     setLessonVideoFile(null);
     setLessonResourceFile(null);
+    setLessonResourceVisibleToStudents(true);
     setLessonAttachments(lesson.attachments ?? []);
     setLessonThumbnailFile(null);
     setAssignmentReferenceFile(null);
@@ -706,10 +780,13 @@ export function InstructorCourseCurriculumPage({
     setPendingQuizPublishLessonId(null);
     setLessonFormError(null);
     setLessonModalOpen(true);
+    if (lesson.type === "QUIZ") loadInstructorQuizDraft(lesson.id);
   };
 
   const handleCloseLessonModal = () => {
     if (lessonFormLoading || lessonResourceUploading) return;
+    quizLoadRequestId.current += 1;
+    setQuizLoading(false);
     setLessonModalOpen(false);
     if (incompleteQuizLessonId) {
       setIncompleteQuizLessonId(null);
@@ -750,22 +827,32 @@ export function InstructorCourseCurriculumPage({
     }
   };
 
-  const handleLessonResourceFileChange = async (file: File | null) => {
+  const handleLessonResourceFileChange = async (
+    file: File | null,
+    visibleToStudents = true,
+    throwOnError = false,
+  ): Promise<LessonAttachment | null> => {
     setLessonResourceFile(file);
+    setLessonResourceVisibleToStudents(visibleToStudents);
     setLessonFormError(null);
-    if (!file || !editingLesson || !targetSectionId) return;
+    if (!file || !editingLesson || !targetSectionId) return null;
 
     const contentType = getLessonResourceContentType(file);
     if (!contentType) {
-      setLessonFormError("Chỉ hỗ trợ tài liệu PDF, Word, PowerPoint, Excel hoặc văn bản.");
-      return;
+      const error = new Error("Chỉ hỗ trợ tài liệu PDF, Word, PowerPoint, Excel hoặc văn bản.");
+      setLessonFormError(error.message);
+      if (throwOnError) throw error;
+      return null;
     }
     if (file.size < 1 || file.size > 50 * 1024 * 1024) {
-      setLessonFormError("Tài liệu phải có dung lượng từ 1 byte đến 50 MB.");
-      return;
+      const error = new Error("Tài liệu phải có dung lượng từ 1 byte đến 50 MB.");
+      setLessonFormError(error.message);
+      if (throwOnError) throw error;
+      return null;
     }
 
     setLessonResourceUploading(true);
+    let uploadedAttachmentResult: LessonAttachment | null = null;
     try {
       const uploadedAttachment = await uploadLessonResource(
         courseId,
@@ -773,7 +860,9 @@ export function InstructorCourseCurriculumPage({
         editingLesson.id,
         file,
         accessToken,
+        visibleToStudents,
       );
+      uploadedAttachmentResult = uploadedAttachment;
       setLessonAttachments((current) => [...current, uploadedAttachment]);
       setStructure((current) =>
         current
@@ -798,6 +887,7 @@ export function InstructorCourseCurriculumPage({
           : current,
       );
       setLessonResourceFile(null);
+      setLessonResourceVisibleToStudents(true);
       setFeedback({
         isOpen: true,
         title: "Đã lưu tài liệu bài học",
@@ -809,8 +899,77 @@ export function InstructorCourseCurriculumPage({
           ? `Chưa thể lưu tài liệu. ${error.message}`
           : "Chưa thể lưu tài liệu. Vui lòng thử lại.",
       );
+      if (throwOnError) throw error;
+      return null;
     } finally {
       setLessonResourceUploading(false);
+    }
+    return uploadedAttachmentResult;
+  };
+
+  const handleQuizSourceFileUpload = async (
+    file: File,
+    visibleToStudents: boolean,
+  ): Promise<LessonAttachment | null> => {
+    const contentType = getLessonResourceContentType(file);
+    if (!contentType) throw new Error("Chỉ hỗ trợ PDF, Word, PowerPoint, Excel hoặc tệp văn bản.");
+    if (file.size < 1 || file.size > 5 * 1024 * 1024) {
+      throw new Error("Tài liệu tạo câu hỏi phải có dung lượng từ 1 byte đến 5 MB.");
+    }
+    return handleLessonResourceFileChange(file, visibleToStudents, true);
+  };
+
+  const handleQuizAttachmentVisibilityChange = async (
+    attachmentId: string,
+    visibleToStudents: boolean,
+  ) => {
+    if (!editingLesson || !targetSectionId) {
+      throw new Error("Hãy lưu bài học trước khi cập nhật hiển thị tài liệu.");
+    }
+    try {
+      const updatedAttachment = await updateLessonResourceVisibility(
+        courseId,
+        targetSectionId,
+        editingLesson.id,
+        attachmentId,
+        visibleToStudents,
+        accessToken,
+      );
+      setLessonAttachments((current) =>
+        current.map((attachment) =>
+          attachment.id === attachmentId ? updatedAttachment : attachment,
+        ),
+      );
+      setStructure((current) =>
+        current
+          ? {
+              ...current,
+              sections: current.sections.map((section) =>
+                section.id !== targetSectionId
+                  ? section
+                  : {
+                      ...section,
+                      lessons: section.lessons.map((lesson) =>
+                        lesson.id !== editingLesson.id
+                          ? lesson
+                          : {
+                              ...lesson,
+                              attachments: (lesson.attachments ?? []).map((attachment) =>
+                                attachment.id === attachmentId ? updatedAttachment : attachment,
+                              ),
+                            },
+                      ),
+                    },
+              ),
+            }
+          : current,
+      );
+    } catch (error) {
+      throw new Error(
+        error instanceof ApiClientError
+          ? error.message
+          : "Chưa thể cập nhật hiển thị tài liệu. Vui lòng thử lại.",
+      );
     }
   };
 
@@ -858,6 +1017,43 @@ export function InstructorCourseCurriculumPage({
     } finally {
       setLessonFormLoading(false);
     }
+  };
+
+  const handleGenerateQuizQuestions = async (selection: {
+    includeTitle: boolean;
+    includeDescription: boolean;
+    includeContent: boolean;
+    attachmentIds: string[];
+    sourceFile: File | null;
+    pendingFileVisibleToStudents: boolean;
+    focus: string;
+    questionCount: number;
+  }): Promise<QuizDraftQuestion[]> => {
+    if (!targetSectionId) throw new Error("Hãy chọn chương học trước khi tạo câu hỏi.");
+    const result = await generateInstructorQuizQuestions(
+      {
+        courseId,
+        sectionId: targetSectionId,
+        ...(editingLesson ? { lessonId: editingLesson.id } : {}),
+        title: selection.includeTitle ? lessonTitle : "",
+        description: selection.includeDescription ? lessonDescription : "",
+        content: selection.includeContent ? lessonTextContent : "",
+        includeTitle: selection.includeTitle,
+        includeDescription: selection.includeDescription,
+        includeContent: selection.includeContent,
+        focus: selection.focus,
+        attachmentIds: selection.attachmentIds,
+        pendingResourceVisibleToStudents: selection.pendingFileVisibleToStudents,
+        questionCount: selection.questionCount,
+      },
+      selection.sourceFile,
+      accessToken,
+    );
+    return result.questions.map((question) => ({
+      id: nextQuizQuestionId.current++,
+      prompt: question.prompt,
+      options: question.options,
+    }));
   };
 
   const handleSaveLesson = async (e: React.FormEvent) => {
@@ -908,8 +1104,16 @@ export function InstructorCourseCurriculumPage({
     }
 
     const creatingQuiz = lessonType === "QUIZ" && !editingLesson;
+    const editingQuiz = lessonType === "QUIZ" && editingLesson?.type === "QUIZ";
     let quizPayload: CreateInstructorQuizRequest | null = null;
-    if (creatingQuiz) {
+    if (editingQuiz && (quizLoading || quizLoadedLessonId !== editingLesson?.id)) {
+      setLessonFormError(
+        "Đang tải câu hỏi bài kiểm tra. Vui lòng đợi hoặc tải lại câu hỏi trước khi lưu.",
+      );
+      setLessonEditorTab("quiz");
+      return;
+    }
+    if (lessonType === "QUIZ" && (!editingQuiz || quizEditable)) {
       const passingScore = Number(quizPassingScore);
       if (
         !quizPassingScore.trim() ||
@@ -922,6 +1126,25 @@ export function InstructorCourseCurriculumPage({
       }
       if (!quizQuestions.length || quizQuestions.length > 100) {
         setLessonFormError("Bài kiểm tra cần có từ 1 đến 100 câu hỏi.");
+        setLessonEditorTab("quiz");
+        return;
+      }
+      const questionsPerAttempt = quizCreateSubtests ? Number(quizQuestionsPerAttempt) : 0;
+      if (
+        quizCreateSubtests &&
+        (!Number.isInteger(questionsPerAttempt) ||
+          questionsPerAttempt < 1 ||
+          questionsPerAttempt > quizQuestions.length)
+      ) {
+        setLessonFormError("Số câu mỗi đề phải từ 1 đến tổng số câu hỏi trong ngân hàng.");
+        setLessonEditorTab("quiz");
+        return;
+      }
+      const durationMinutes = Number(quizDurationMinutes || 0);
+      if (!Number.isInteger(durationMinutes) || durationMinutes < 0 || durationMinutes > 600) {
+        setLessonFormError(
+          "Thời gian làm bài phải bằng 0 hoặc nằm trong khoảng từ 1 đến 600 phút.",
+        );
         setLessonEditorTab("quiz");
         return;
       }
@@ -943,6 +1166,8 @@ export function InstructorCourseCurriculumPage({
       }
       quizPayload = {
         passingScore,
+        questionsPerAttempt,
+        durationMinutes,
         questions: quizQuestions.map((question) => ({
           prompt: question.prompt.trim(),
           options: question.options
@@ -990,6 +1215,9 @@ export function InstructorCourseCurriculumPage({
       if (editingLesson) {
         savedLessonId = editingLesson.id;
         await updateLesson(courseId, targetSectionId, editingLesson.id, payload, accessToken);
+        if (quizPayload && editingQuiz) {
+          await updateInstructorQuiz(editingLesson.id, quizPayload, accessToken);
+        }
         if (lessonType === "VIDEO" && lessonVideoFile) {
           await uploadLessonVideo(
             courseId,
@@ -1097,6 +1325,7 @@ export function InstructorCourseCurriculumPage({
           savedLessonId,
           lessonResourceFile,
           accessToken,
+          lessonResourceVisibleToStudents,
         );
         setLessonAttachments((current) => [...current, uploadedAttachment]);
         setLessonResourceFile(null);
@@ -2153,16 +2382,18 @@ export function InstructorCourseCurriculumPage({
                 <button
                   type="submit"
                   form="lesson-form"
-                  disabled={lessonFormLoading || lessonResourceUploading}
+                  disabled={lessonFormLoading || lessonResourceUploading || quizLoading}
                   className="focus-ring inline-flex min-h-10 items-center justify-center rounded-lg bg-primary px-3 text-sm font-semibold text-white transition hover:bg-[#159e75] active:bg-[#128763] disabled:cursor-not-allowed disabled:opacity-60 sm:px-4"
                 >
-                  {lessonResourceUploading
-                    ? "Đang lưu tài liệu..."
-                    : lessonFormLoading
-                      ? "Đang lưu..."
-                      : lessonStatus === "PUBLISHED"
-                        ? "Lưu và xuất bản"
-                        : "Lưu bản nháp"}
+                  {quizLoading
+                    ? "Đang tải câu hỏi..."
+                    : lessonResourceUploading
+                      ? "Đang lưu tài liệu..."
+                      : lessonFormLoading
+                        ? "Đang lưu..."
+                        : lessonStatus === "PUBLISHED"
+                          ? "Lưu và xuất bản"
+                          : "Lưu bản nháp"}
                 </button>
               </div>
             </header>
@@ -2588,30 +2819,17 @@ export function InstructorCourseCurriculumPage({
                             onFileChange={setLessonThumbnailFile}
                           />
                         </>
-                      ) : lessonType === "DOCUMENT" ? (
-                        <LessonFileDropzone
-                          id="lesson-document-file"
-                          label="Tài liệu bài học"
-                          hint={
-                            editingLesson
-                              ? "Tài liệu được lưu ngay khi chọn tệp"
-                              : "Tài liệu sẽ được tải lên khi lưu bài học"
-                          }
-                          accept=".pdf,.doc,.docx,.txt,.ppt,.pptx,.xls,.xlsx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                          icon={<FileIcon className="h-6 w-6" aria-hidden="true" />}
-                          file={lessonResourceFile}
-                          disabled={lessonFormLoading || lessonResourceUploading}
-                          onFileChange={handleLessonResourceFileChange}
-                        />
                       ) : (
                         <>
                           <LessonFileDropzone
                             id="lesson-supporting-file"
-                            label="Tài liệu bổ trợ"
+                            label={lessonType === "TEXT" ? "Tài liệu đính kèm" : "Tài liệu bổ trợ"}
                             hint={
-                              editingLesson
-                                ? "Tài liệu được lưu ngay khi chọn tệp"
-                                : "Tài liệu sẽ được tải lên khi lưu bài học"
+                              lessonType === "TEXT"
+                                ? "Đính kèm PDF hoặc tài liệu tham khảo cho bài đọc"
+                                : editingLesson
+                                  ? "Tài liệu được lưu ngay khi chọn tệp"
+                                  : "Tài liệu sẽ được tải lên khi lưu bài học"
                             }
                             accept=".pdf,.doc,.docx,.txt,.ppt,.pptx,.xls,.xlsx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                             icon={<FileIcon className="h-6 w-6" aria-hidden="true" />}
@@ -2635,21 +2853,84 @@ export function InstructorCourseCurriculumPage({
                   ) : null}
 
                   {lessonEditorTab === "quiz" && lessonType === "QUIZ" ? (
-                    lessonType === "QUIZ" && editingLesson ? (
-                      <p className="max-w-[680px] rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
-                        Không hỗ trợ chỉnh sửa câu hỏi sau khi tạo bài kiểm tra. Phần soạn câu hỏi
-                        chỉ khả dụng khi tạo bài mới.
-                      </p>
-                    ) : (
-                      <QuizAuthoringFields
-                        questions={quizQuestions}
-                        onQuestionsChange={setQuizQuestions}
-                        onAddQuestion={() => {
-                          const id = nextQuizQuestionId.current++;
-                          setQuizQuestions((current) => [...current, createQuizDraftQuestion(id)]);
-                        }}
-                      />
-                    )
+                    <div className="max-w-[996px] space-y-4">
+                      {quizLoading ? (
+                        <p
+                          role="status"
+                          className="rounded-lg border border-slate-200 bg-white p-3 text-sm text-[#62748e]"
+                        >
+                          Đang tải câu hỏi bài kiểm tra...
+                        </p>
+                      ) : null}
+                      {quizLoadError ? (
+                        <div
+                          role="alert"
+                          className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800"
+                        >
+                          <span>{quizLoadError}</span>
+                          {editingLesson?.type === "QUIZ" ? (
+                            <button
+                              type="button"
+                              onClick={() => loadInstructorQuizDraft(editingLesson.id)}
+                              className="focus-ring min-h-9 rounded-lg border border-rose-300 px-3 font-semibold hover:bg-rose-100"
+                            >
+                              Tải lại câu hỏi
+                            </button>
+                          ) : null}
+                        </div>
+                      ) : null}
+                      {editingLesson?.type === "QUIZ" &&
+                      quizLoadedLessonId === editingLesson.id &&
+                      !quizEditable ? (
+                        <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                          Bài kiểm tra đã có lượt làm hoặc phiên đang diễn ra. Bạn vẫn có thể sửa
+                          thông tin bài học, nhưng nội dung quiz đã bị khóa để giữ nguyên đề và kết
+                          quả.
+                        </p>
+                      ) : null}
+                      {!quizLoading &&
+                      !quizLoadError &&
+                      (!editingLesson || quizLoadedLessonId === editingLesson.id) ? (
+                        <QuizAuthoringFields
+                          lessonTitle={lessonTitle}
+                          lessonDescription={lessonDescription}
+                          lessonContent={lessonTextContent}
+                          attachments={lessonAttachments}
+                          pendingFile={lessonResourceFile}
+                          pendingFileVisibleToStudents={lessonResourceVisibleToStudents}
+                          questions={quizQuestions}
+                          passingScore={quizPassingScore}
+                          createSubtests={quizCreateSubtests}
+                          questionsPerAttempt={quizQuestionsPerAttempt}
+                          durationMinutes={quizDurationMinutes}
+                          onPassingScoreChange={setQuizPassingScore}
+                          onCreateSubtestsChange={setQuizCreateSubtests}
+                          onQuestionsPerAttemptChange={setQuizQuestionsPerAttempt}
+                          onDurationMinutesChange={setQuizDurationMinutes}
+                          onQuestionsChange={setQuizQuestions}
+                          onGenerateQuestions={handleGenerateQuizQuestions}
+                          onUploadSourceFile={handleQuizSourceFileUpload}
+                          onPendingFileVisibilityChange={setLessonResourceVisibleToStudents}
+                          onClearPendingFile={() => {
+                            setLessonResourceFile(null);
+                            setLessonResourceVisibleToStudents(true);
+                          }}
+                          onAttachmentVisibilityChange={handleQuizAttachmentVisibilityChange}
+                          disabled={
+                            lessonFormLoading ||
+                            quizLoading ||
+                            (Boolean(editingLesson) && !quizEditable)
+                          }
+                          onAddQuestion={() => {
+                            const id = nextQuizQuestionId.current++;
+                            setQuizQuestions((current) => [
+                              ...current,
+                              createQuizDraftQuestion(id),
+                            ]);
+                          }}
+                        />
+                      ) : null}
+                    </div>
                   ) : null}
 
                   {lessonEditorTab === "assignment" && lessonType === "ASSIGNMENT" ? (

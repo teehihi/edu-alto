@@ -4,6 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 
 public record LessonResourceUploadCompleteRequest(
         @NotBlank(message = "Khóa tệp không được để trống") String objectKey,
-        @NotBlank(message = "Tên tệp không được để trống") String fileName
+        @NotBlank(message = "Tên tệp không được để trống") String fileName,
+        Boolean visibleToStudents
 ) {
 }

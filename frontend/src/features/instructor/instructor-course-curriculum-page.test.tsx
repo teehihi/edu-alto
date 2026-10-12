@@ -283,9 +283,6 @@ describe("InstructorCourseCurriculumPage", () => {
     const readingTypeButton = screen.getByRole("button", { name: "Bài đọc" });
     expect(readingTypeButton).toHaveAttribute("aria-pressed", "true");
     expect(readingTypeButton.querySelector("svg")).toHaveClass("text-white");
-    const documentTypeButton = screen.getByRole("button", { name: "PDF / Tài liệu" });
-    expect(documentTypeButton).toHaveClass("group");
-    expect(documentTypeButton.querySelector("svg")).toHaveClass("group-hover:text-primary");
     const titleInput = screen.getByPlaceholderText("Nhập tên bài học");
     await user.type(titleInput, "Bài mới: TypeScript Generics");
 
@@ -331,6 +328,9 @@ describe("InstructorCourseCurriculumPage", () => {
       id: "quiz-1",
       lessonId: "les-quiz",
       passingScore: 70,
+      questionsPerAttempt: 0,
+      durationMinutes: 0,
+      editable: true,
       questions: [],
     });
 
@@ -383,6 +383,8 @@ describe("InstructorCourseCurriculumPage", () => {
         "les-quiz",
         {
           passingScore: 70,
+          questionsPerAttempt: 0,
+          durationMinutes: 0,
           questions: [
             {
               prompt: "Kiểu nào dùng cho chuỗi?",
@@ -452,6 +454,9 @@ describe("InstructorCourseCurriculumPage", () => {
         id: "quiz-1",
         lessonId: "les-quiz-retry",
         passingScore: 70,
+        questionsPerAttempt: 0,
+        durationMinutes: 0,
+        editable: true,
         questions: [],
       });
 

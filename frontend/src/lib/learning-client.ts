@@ -109,13 +109,31 @@ export type LearningCurriculum = {
 export type LearningQuiz = {
   id: string;
   lessonId: string;
+  lessonTitle: string;
   passingScore: number;
+  questionCount: number;
+  questionsPerAttempt: number;
+  durationMinutes: number;
   questions: {
     id: string;
     prompt: string;
     position: number;
     options: { id: string; label: string; position: number }[];
   }[];
+};
+
+export type LearningQuizSession = {
+  id: string;
+  quizId: string;
+  startedAt: string;
+  expiresAt: string | null;
+  passingScore: number;
+  questions: LearningQuiz["questions"];
+};
+
+export type LearningQuizActivityEvent = {
+  eventType: "TAB_HIDDEN" | "WINDOW_BLUR";
+  occurredAt: string;
 };
 
 export type LearningQuizAttempt = {
@@ -126,6 +144,17 @@ export type LearningQuizAttempt = {
   totalQuestions: number;
   passed: boolean;
   submittedAt: string;
+  activityEventCount: number;
+  review: {
+    questionId: string;
+    position: number;
+    prompt: string;
+    selectedOptionId: string | null;
+    selectedOptionLabel: string | null;
+    correctOptionId: string;
+    correctOptionLabel: string;
+    correct: boolean;
+  }[];
 };
 
 export type LearningQuizAnswer = { questionId: string; optionId: string };
@@ -186,15 +215,24 @@ export async function fetchLearningQuiz(accessToken: string, lessonId: string) {
   });
 }
 
+export async function startLearningQuiz(accessToken: string, lessonId: string) {
+  return apiRequest<LearningQuizSession>(`/lessons/${encodeURIComponent(lessonId)}/quiz-sessions`, {
+    method: "POST",
+    accessToken,
+  });
+}
+
 export async function submitLearningQuiz(
   accessToken: string,
   lessonId: string,
+  sessionId: string,
   answers: LearningQuizAnswer[],
+  activityEvents: LearningQuizActivityEvent[],
 ) {
   return apiRequest<LearningQuizAttempt>(`/lessons/${encodeURIComponent(lessonId)}/quiz-attempts`, {
     method: "POST",
     accessToken,
-    body: { answers },
+    body: { sessionId, answers, activityEvents },
   });
 }
 

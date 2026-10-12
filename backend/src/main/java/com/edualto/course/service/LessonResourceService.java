@@ -12,6 +12,7 @@ import com.edualto.course.dto.LessonResourceDownloadResponse;
 import com.edualto.course.dto.LessonResourceUploadCompleteRequest;
 import com.edualto.course.dto.LessonResourceUploadUrlRequest;
 import com.edualto.course.dto.LessonResourceUploadUrlResponse;
+import com.edualto.course.dto.UpdateLessonResourceVisibilityRequest;
 import com.edualto.course.repository.CourseRepository;
 import com.edualto.course.repository.LessonRepository;
 import com.edualto.course.repository.SectionRepository;
@@ -120,8 +121,23 @@ public class LessonResourceService {
                     "Không tìm thấy tài liệu hợp lệ trên kho lưu trữ");
         }
         LessonAttachment attachment = new LessonAttachment(UUID.randomUUID(), request.objectKey(),
-                sanitizeFileName(request.fileName()), metadata.contentType(), metadata.contentLength());
+                sanitizeFileName(request.fileName()), metadata.contentType(), metadata.contentLength(),
+                request.visibleToStudents() == null || request.visibleToStudents());
         lesson.addAttachment(attachment);
+        lessons.save(lesson);
+        return toResponse(attachment);
+    }
+
+    @Transactional
+    public LessonAttachmentResponse updateVisibility(UUID instructorId, UUID courseId, UUID sectionId,
+            UUID lessonId, UUID attachmentId, UpdateLessonResourceVisibilityRequest request) {
+        Lesson lesson = requireInstructorLesson(instructorId, courseId, sectionId, lessonId);
+        LessonAttachment attachment = lesson.getAttachments().stream()
+                .filter(item -> item.getId().equals(attachmentId))
+                .findFirst()
+                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "LESSON_ATTACHMENT_NOT_FOUND",
+                        "Không tìm thấy tài liệu bài học"));
+        attachment.setVisibleToStudents(request.visibleToStudents());
         lessons.save(lesson);
         return toResponse(attachment);
     }
@@ -150,6 +166,7 @@ public class LessonResourceService {
         enrollments.requireEnrollment(studentId, course.getId());
         LessonAttachment attachment = lesson.getAttachments().stream()
                 .filter(item -> item.getId().equals(attachmentId))
+                .filter(LessonAttachment::isVisibleToStudents)
                 .findFirst()
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "LESSON_ATTACHMENT_NOT_FOUND",
                         "Không tìm thấy tài liệu bài học"));
@@ -218,6 +235,6 @@ public class LessonResourceService {
 
     private LessonAttachmentResponse toResponse(LessonAttachment attachment) {
         return new LessonAttachmentResponse(attachment.getId(), attachment.getFileName(),
-                attachment.getContentType(), attachment.getContentLength());
+                attachment.getContentType(), attachment.getContentLength(), attachment.isVisibleToStudents());
     }
 }

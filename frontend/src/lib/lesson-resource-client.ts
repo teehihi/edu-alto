@@ -31,6 +31,7 @@ export async function uploadLessonResource(
   lessonId: string,
   file: File,
   accessToken?: string | null,
+  visibleToStudents = true,
 ): Promise<LessonAttachment> {
   const contentType = getLessonResourceContentType(file);
   if (!contentType) throw new Error("Định dạng tài liệu chưa được hỗ trợ.");
@@ -68,7 +69,23 @@ export async function uploadLessonResource(
 
   return apiRequest<LessonAttachment>(`${basePath}/upload-complete`, {
     method: "POST",
-    body: { objectKey, fileName: file.name },
+    body: { objectKey, fileName: file.name, visibleToStudents },
+    accessToken,
+  });
+}
+
+export function updateLessonResourceVisibility(
+  courseId: string,
+  sectionId: string,
+  lessonId: string,
+  attachmentId: string,
+  visibleToStudents: boolean,
+  accessToken?: string | null,
+) {
+  const basePath = `/instructor/courses/${encodeURIComponent(courseId)}/sections/${encodeURIComponent(sectionId)}/lessons/${encodeURIComponent(lessonId)}/resources`;
+  return apiRequest<LessonAttachment>(`${basePath}/${encodeURIComponent(attachmentId)}`, {
+    method: "PATCH",
+    body: { visibleToStudents },
     accessToken,
   });
 }
