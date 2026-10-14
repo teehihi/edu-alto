@@ -5,22 +5,15 @@ import com.edualto.auth.domain.OtpPurpose;
 import com.edualto.auth.repository.EmailOtpRepository;
 import com.edualto.auth.repository.RefreshTokenRepository;
 import com.edualto.course.repository.CourseRepository;
-import com.edualto.profile.domain.Profile;
 import com.edualto.profile.repository.ProfileRepository;
-import com.edualto.profile.service.ProfileService;
-import com.edualto.profile.dto.AvatarCompleteRequest;
-import com.edualto.storage.dto.ObjectMetadata;
-import com.edualto.storage.dto.PresignedUploadUrl;
+import com.edualto.storage.infrastructure.ImageWebpProcessor;
 import com.edualto.storage.service.StorageService;
 import com.edualto.user.domain.User;
 import com.edualto.user.repository.UserRepository;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,25 +22,16 @@ import org.springframework.http.MediaType;
 import org.springframework.core.env.Environment;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.util.unit.DataSize;
-import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.hamcrest.Matchers.endsWith;
-import static org.hamcrest.Matchers.startsWith;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import com.edualto.AbstractIntegrationTest;
@@ -80,14 +64,11 @@ class AvatarUploadIntegrationTest extends AbstractIntegrationTest {
     @Autowired
     private Environment environment;
 
-    @Autowired
-    private ProfileService profileService;
-
-    @Autowired
-    private PlatformTransactionManager transactionManager;
-
     @MockitoBean
     private StorageService storageService;
+
+    @MockitoBean
+    private ImageWebpProcessor imageWebpProcessor;
 
     @BeforeEach
     void setUp() {
@@ -141,29 +122,24 @@ class AvatarUploadIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void avatarReplacementKeepsOldObjectWhenProfileUpdateRollsBack() throws Exception {
-        registerAndLogin("Rollback Avatar", "rollback-avatar@example.com", "Password1");
-        User user = userRepository.findByEmail("rollback-avatar@example.com").orElseThrow();
-        String oldKey = "avatars/" + user.getId() + "/old.png";
-        String newKey = "avatars/" + user.getId() + "/new.png";
-        profileRepository.save(new Profile(user.getId(), "Developer", "Bio", oldKey));
-        when(storageService.objectExists(newKey)).thenReturn(true);
-        when(storageService.getObjectMetadata(newKey)).thenReturn(new ObjectMetadata("image/png", 1024L, "etag-new"));
+    void avatarPresignedCompletionIsDisabled() throws Exception {
+        String token = registerAndLogin("Rollback Avatar", "rollback-avatar@example.com", "Password1");
 
-        assertThatThrownBy(() -> new TransactionTemplate(transactionManager).executeWithoutResult(transaction -> {
-            profileService.completeAvatarUpload(user.getId(), new AvatarCompleteRequest(newKey));
-            throw new IllegalStateException("Simulated persistence failure");
-        })).isInstanceOf(IllegalStateException.class);
-
-        assertThat(profileRepository.findById(user.getId()).orElseThrow().getAvatarKey()).isEqualTo(oldKey);
-        verify(storageService, never()).deleteObject(oldKey);
+        postJsonWithToken("/api/v1/me/profile/avatar/complete", Map.of(
+                "objectKey", "avatars/old/avatar.png"
+        ), token)
+                .andExpect(status().isGone())
+                .andExpect(jsonPath("$.error.code").value("DIRECT_IMAGE_UPLOAD_DISABLED"));
     }
 
     @Test
     void multipartAvatarSupportsFiveMbAndRejectsOversizedFiles() throws Exception {
         String token = registerAndLogin("Multipart User", "multipart@example.com", "Password1");
         byte[] data = new byte[5 * 1024 * 1024];
-        when(storageService.getPublicUrl(anyString())).thenReturn("https://r2.test/avatar.png");
+        byte[] webpData = new byte[]{'R', 'I', 'F', 'F', 0, 0, 0, 0, 'W', 'E', 'B', 'P'};
+        when(storageService.getPublicUrl(anyString())).thenReturn("https://r2.test/avatar.webp");
+        when(imageWebpProcessor.normalize(any(byte[].class), eq("image/png"), eq(512)))
+                .thenReturn(webpData);
 
         assertThat(DataSize.parse(environment.getRequiredProperty("spring.servlet.multipart.max-file-size")))
                 .isEqualTo(DataSize.ofMegabytes(5));
@@ -173,8 +149,8 @@ class AvatarUploadIntegrationTest extends AbstractIntegrationTest {
                 .file(new MockMultipartFile("file", "avatar.png", "image/png", data))
                 .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.avatarUrl").value("https://r2.test/avatar.png"));
-        verify(storageService).putObject(anyString(), eq("image/png"), eq(data));
+                .andExpect(jsonPath("$.data.avatarUrl").value("https://r2.test/avatar.webp"));
+        verify(storageService).putObject(anyString(), eq("image/webp"), eq(webpData));
 
         mockMvc.perform(multipart("/api/v1/me/profile/avatar")
                 .file(new MockMultipartFile("file", "oversized.png", "image/png", new byte[data.length + 1]))
@@ -197,26 +173,24 @@ class AvatarUploadIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void authenticatedUserCanRequestUploadUrlWithValidMimeAndSize() throws Exception {
+    void authenticatedUserCannotRequestDirectAvatarUploadUrl() throws Exception {
         String token = registerAndLogin("Tran Avatar User", "avatar.test@example.com", "Password123");
-        User user = userRepository.findByEmail("avatar.test@example.com").orElseThrow();
-
-        when(storageService.generatePresignedUploadUrl(anyString(), eq("image/webp"), eq(245678L), any(Duration.class)))
-                .thenAnswer(inv -> new PresignedUploadUrl("https://r2.test/upload-presigned-url", inv.getArgument(0), Instant.now().plusSeconds(900)));
-
         postJsonWithToken("/api/v1/me/profile/avatar/upload-url", Map.of(
                 "contentType", "image/webp",
                 "contentLength", 245678
         ), token)
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.uploadUrl").value("https://r2.test/upload-presigned-url"))
-                .andExpect(jsonPath("$.data.objectKey").value(startsWith("avatars/" + user.getId() + "/")))
-                .andExpect(jsonPath("$.data.objectKey").value(endsWith(".webp")))
-                .andExpect(jsonPath("$.data.expiresAt").exists());
+                .andExpect(status().isGone())
+                .andExpect(jsonPath("$.error.code").value("DIRECT_IMAGE_UPLOAD_DISABLED"));
+
+        postJsonWithToken("/api/v1/me/profile/avatar/complete", Map.of(
+                "objectKey", "avatars/old/avatar.png"
+        ), token)
+                .andExpect(status().isGone())
+                .andExpect(jsonPath("$.error.code").value("DIRECT_IMAGE_UPLOAD_DISABLED"));
     }
 
     @Test
-    void requestUploadUrlRejectsUnsupportedMimeTypeOrOver5Mb() throws Exception {
+    void directAvatarUploadUrlIsDisabledForAllImageTypesAndSizes() throws Exception {
         String token = registerAndLogin("Reject User", "reject.test@example.com", "Password123");
 
         // Unsupported MIME type (e.g. image/gif or application/pdf)
@@ -224,99 +198,16 @@ class AvatarUploadIntegrationTest extends AbstractIntegrationTest {
                 "contentType", "image/gif",
                 "contentLength", 1024
         ), token)
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error.code").value("INVALID_CONTENT_TYPE"));
+                .andExpect(status().isGone())
+                .andExpect(jsonPath("$.error.code").value("DIRECT_IMAGE_UPLOAD_DISABLED"));
 
         // Over 5MB (5MB = 5242880 bytes)
         postJsonWithToken("/api/v1/me/profile/avatar/upload-url", Map.of(
                 "contentType", "image/png",
                 "contentLength", 6 * 1024 * 1024
         ), token)
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isGone())
+                .andExpect(jsonPath("$.error.code").value("DIRECT_IMAGE_UPLOAD_DISABLED"));
     }
 
-    @Test
-    void avatarCompletionRejectsObjectKeyNotOwnedByUser() throws Exception {
-        String token = registerAndLogin("Owner User", "owner.test@example.com", "Password123");
-        UUID anotherUserId = UUID.randomUUID();
-
-        postJsonWithToken("/api/v1/me/profile/avatar/complete", Map.of(
-                "objectKey", "avatars/" + anotherUserId + "/avatar.png"
-        ), token)
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error.code").value("INVALID_OBJECT_KEY"));
-    }
-
-    @Test
-    void avatarCompletionRejectsIfObjectDoesNotExistInStorage() throws Exception {
-        String token = registerAndLogin("Missing Object User", "missing.test@example.com", "Password123");
-        User user = userRepository.findByEmail("missing.test@example.com").orElseThrow();
-        String key = "avatars/" + user.getId() + "/avatar.png";
-
-        when(storageService.objectExists(key)).thenReturn(false);
-
-        postJsonWithToken("/api/v1/me/profile/avatar/complete", Map.of(
-                "objectKey", key
-        ), token)
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error.code").value("AVATAR_NOT_FOUND"));
-    }
-
-    @Test
-    void avatarCompletionRejectsIfMetadataIsInvalidOnStorage() throws Exception {
-        String token = registerAndLogin("Invalid Metadata User", "metadata.test@example.com", "Password123");
-        User user = userRepository.findByEmail("metadata.test@example.com").orElseThrow();
-        String key = "avatars/" + user.getId() + "/avatar.jpg";
-
-        when(storageService.objectExists(key)).thenReturn(true);
-        // Metadata has oversized content
-        when(storageService.getObjectMetadata(key))
-                .thenReturn(new ObjectMetadata("image/jpeg", 10 * 1024 * 1024L, "etag-123"));
-
-        postJsonWithToken("/api/v1/me/profile/avatar/complete", Map.of(
-                "objectKey", key
-        ), token)
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error.code").value("INVALID_AVATAR_METADATA"));
-    }
-
-    @Test
-    void avatarCompletionSucceedsAndPersistsAvatarKeyAndDeletesOldAvatarWhenReplacing() throws Exception {
-        String token = registerAndLogin("Full Flow User", "fullflow.test@example.com", "Password123");
-        User user = userRepository.findByEmail("fullflow.test@example.com").orElseThrow();
-
-        String oldKey = "avatars/" + user.getId() + "/avatar.jpg";
-        String newKey = "avatars/" + user.getId() + "/avatar.webp";
-
-        // Pre-create profile with old avatar
-        Profile existingProfile = new Profile(user.getId(), "Developer", "Bio", oldKey);
-        profileRepository.save(existingProfile);
-
-        when(storageService.objectExists(newKey)).thenReturn(true);
-        when(storageService.getObjectMetadata(newKey))
-                .thenReturn(new ObjectMetadata("image/webp", 150000L, "etag-new"));
-        when(storageService.getPublicUrl(newKey))
-                .thenReturn("https://r2.test/edualto-media/" + newKey);
-
-        // Complete new avatar
-        postJsonWithToken("/api/v1/me/profile/avatar/complete", Map.of(
-                "objectKey", newKey
-        ), token)
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.avatarKey").value(newKey))
-                .andExpect(jsonPath("$.data.avatarUrl").value("https://r2.test/edualto-media/" + newKey));
-
-        // Verify database state
-        Profile updatedProfile = profileRepository.findById(user.getId()).orElseThrow();
-        assertThat(updatedProfile.getAvatarKey()).isEqualTo(newKey);
-
-        // Verify old avatar was deleted from storage
-        verify(storageService).deleteObject(oldKey);
-
-        // Verify GET /api/v1/me/profile returns updated avatar URL
-        mockMvc.perform(get("/api/v1/me/profile").header("Authorization", "Bearer " + token))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.avatarKey").value(newKey))
-                .andExpect(jsonPath("$.data.avatarUrl").value("https://r2.test/edualto-media/" + newKey));
-    }
 }

@@ -16,18 +16,21 @@ import {
   Download,
   FileText,
   GraduationCap,
+  LoaderCircle,
   PanelRightClose,
   PanelRightOpen,
   PlayCircle,
   Star,
   Video,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
+import { FeedbackModal } from "@/components/ui/feedback-modal";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { LearningWorkspaceShell } from "@/features/learning/learning-workspace-shell";
 import { ApiClientError } from "@/lib/api";
 import { useAuthSession } from "@/lib/auth-session";
 import {
+  completeLearningLesson,
   fetchCourseProgress,
   fetchLearningCurriculum,
   fetchLearningLesson,
@@ -42,7 +45,12 @@ import {
   type LearningCurriculum,
   type LessonContent,
 } from "@/lib/learning-client";
-import { fetchCourseReviews, fetchCourseReviewSummary } from "@/lib/review-client";
+import {
+  fetchCourseReviews,
+  fetchCourseReviewSummary,
+  fetchMyCourseReview,
+  saveCourseReview,
+} from "@/lib/review-client";
 import type { CourseReview, CourseReviewSummary } from "@/lib/review-client";
 import { fetchPublicCourseBySlug, fetchPublicCourses } from "@/lib/course-client";
 import type { CourseDetail, CourseListItem } from "@/types/course";
@@ -98,15 +106,33 @@ function formatReviewDate(value: string) {
   }).format(date);
 }
 
-function ReviewCard({ review }: { review: CourseReview }) {
+function mergePublishedOwnReview(reviews: CourseReview[], ownReview: CourseReview | null) {
+  if (!ownReview) return reviews;
+  if (ownReview.status !== "PUBLISHED") {
+    return reviews.filter((review) => review.id !== ownReview.id);
+  }
+  if (reviews.some((review) => review.id === ownReview.id)) {
+    return reviews.map((review) => (review.id === ownReview.id ? ownReview : review));
+  }
+  return [ownReview, ...reviews];
+}
+
+function ReviewCard({
+  review,
+  instructorName,
+  instructorAvatarUrl,
+}: {
+  review: CourseReview;
+  instructorName: string;
+  instructorAvatarUrl?: string | null;
+}) {
   return (
-    <article className="flex gap-4 rounded-xl border border-[#e2e8f0] bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.05)] sm:p-5">
-      <span
-        aria-hidden="true"
-        className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#eaf7f3] text-sm font-semibold text-primary"
-      >
-        {review.studentName.trim().charAt(0) || "H"}
-      </span>
+    <article className="flex items-start gap-4 rounded-xl border border-[#e2e8f0] bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.05)] sm:p-5">
+      <UserAvatar
+        name={review.studentName}
+        avatarUrl={review.studentAvatarUrl}
+        size="sm"
+      />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
           <p className="text-sm font-semibold text-[#101a2c]">{review.studentName}</p>
@@ -127,6 +153,31 @@ function ReviewCard({ review }: { review: CourseReview }) {
         <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[#475569]">
           {review.comment}
         </p>
+        {review.instructorReply ? (
+          <div className="mt-4 flex items-start gap-2.5">
+            <UserAvatar
+              name={instructorName}
+              avatarUrl={instructorAvatarUrl}
+              size="xs"
+            />
+            <div className="min-w-0 flex-1 rounded-xl bg-[#f2f4f7] px-3.5 py-2.5">
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                <p className="text-xs font-semibold text-[#101a2c]">{instructorName}</p>
+                {review.instructorRepliedAt ? (
+                  <time
+                    dateTime={review.instructorRepliedAt}
+                    className="text-[11px] text-[#84908b]"
+                  >
+                    {formatReviewDate(review.instructorRepliedAt)}
+                  </time>
+                ) : null}
+              </div>
+              <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-[#475569]">
+                {review.instructorReply}
+              </p>
+            </div>
+          </div>
+        ) : null}
       </div>
     </article>
   );
@@ -182,6 +233,12 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
   const [progress, setProgress] = useState<CourseProgress | null>(null);
   const [reviews, setReviews] = useState<CourseReview[]>([]);
   const [reviewSummary, setReviewSummary] = useState<CourseReviewSummary | null>(null);
+  const [myReview, setMyReview] = useState<CourseReview | null>(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
+  const [savingReview, setSavingReview] = useState(false);
+  const [reviewError, setReviewError] = useState("");
+  const [reviewSuccessModalOpen, setReviewSuccessModalOpen] = useState(false);
   const [relatedCourses, setRelatedCourses] = useState<CourseListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
@@ -192,6 +249,12 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
   const [activeLessonVideoUrl, setActiveLessonVideoUrl] = useState<string | null>(null);
   const [activeLessonLoading, setActiveLessonLoading] = useState(false);
   const [activeLessonError, setActiveLessonError] = useState("");
+  const [completingLessonId, setCompletingLessonId] = useState<string | null>(null);
+  const [completionFeedback, setCompletionFeedback] = useState<{
+    lessonId: string;
+    message: string;
+    isError: boolean;
+  } | null>(null);
   const [downloadingAttachmentId, setDownloadingAttachmentId] = useState<string | null>(null);
   const [savingAttachmentId, setSavingAttachmentId] = useState<string | null>(null);
   const [savedAttachmentIds, setSavedAttachmentIds] = useState<Set<string>>(() => new Set());
@@ -218,8 +281,15 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
     setProgress(null);
     setReviews([]);
     setReviewSummary(null);
+    setMyReview(null);
+    setReviewRating(5);
+    setReviewComment("");
+    setReviewError("");
+    setReviewSuccessModalOpen(false);
     setRelatedCourses([]);
     setActiveLessonId("");
+    setCompletingLessonId(null);
+    setCompletionFeedback(null);
     setSavedAttachmentIds(new Set());
     setResourceFeedback(null);
     let active = true;
@@ -271,22 +341,52 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
             loadedCurriculum.sections.map((section, index) => [section.id, index === 0]),
           ),
         );
+        const ownReviewRequest = user.roles.includes("STUDENT")
+          ? fetchMyCourseReview(token, courseId)
+          : Promise.resolve(null);
         void Promise.allSettled([
           fetchPublicCourseBySlug(match.courseSlug),
           fetchCourseReviews(courseId),
           fetchCourseReviewSummary(courseId),
+          ownReviewRequest,
           fetchPublicCourses({ size: 5, sort: "newest" }),
-        ] as const).then(([courseResult, reviewsResult, summaryResult, relatedResult]) => {
-          if (!active) return;
-          if (courseResult.status === "fulfilled") setCourse(courseResult.value);
-          if (reviewsResult.status === "fulfilled") setReviews(reviewsResult.value.data);
-          if (summaryResult.status === "fulfilled") setReviewSummary(summaryResult.value);
-          if (relatedResult.status === "fulfilled") {
-            setRelatedCourses(
-              relatedResult.value.filter((item) => item.id !== courseId).slice(0, 4),
-            );
-          }
-        });
+        ] as const).then(
+          ([courseResult, reviewsResult, summaryResult, ownReviewResult, relatedResult]) => {
+            if (!active) return;
+            if (courseResult.status === "fulfilled") setCourse(courseResult.value);
+            if (reviewsResult.status === "fulfilled") {
+              setReviews(
+                mergePublishedOwnReview(
+                  reviewsResult.value.data,
+                  ownReviewResult.status === "fulfilled" ? ownReviewResult.value : null,
+                ),
+              );
+            } else if (ownReviewResult.status === "fulfilled" && ownReviewResult.value) {
+              setReviews(mergePublishedOwnReview([], ownReviewResult.value));
+            }
+            if (summaryResult.status === "fulfilled") setReviewSummary(summaryResult.value);
+            if (ownReviewResult.status === "fulfilled" && ownReviewResult.value) {
+              setMyReview(ownReviewResult.value);
+              setReviewRating(ownReviewResult.value.rating);
+              setReviewComment(ownReviewResult.value.comment);
+            } else if (
+              ownReviewResult.status === "rejected" &&
+              (!(ownReviewResult.reason instanceof ApiClientError) ||
+                ownReviewResult.reason.status !== 404)
+            ) {
+              setReviewError(
+                ownReviewResult.reason instanceof Error
+                  ? ownReviewResult.reason.message
+                  : "Chưa thể tải đánh giá của bạn.",
+              );
+            }
+            if (relatedResult.status === "fulfilled") {
+              setRelatedCourses(
+                relatedResult.value.filter((item) => item.id !== courseId).slice(0, 4),
+              );
+            }
+          },
+        );
       })
       .catch((error: unknown) => {
         if (active) {
@@ -309,6 +409,68 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
       active = false;
     };
   }, [courseId, getAccessToken, router, sessionLoading, user]);
+
+  useEffect(() => {
+    if (
+      sessionLoading ||
+      savingReview ||
+      !user ||
+      enrollment?.courseId !== courseId ||
+      enrollment.status !== "ACTIVE"
+    ) {
+      return;
+    }
+    let active = true;
+    let requestInFlight = false;
+
+    const refreshReviews = async () => {
+      if (!active || requestInFlight || document.visibilityState === "hidden") return;
+      requestInFlight = true;
+      try {
+        const ownReviewRequest = user.roles.includes("STUDENT")
+          ? getAccessToken().then((token) => {
+              if (!token) throw new Error("Phiên đăng nhập đã hết hạn.");
+              return fetchMyCourseReview(token, courseId);
+            })
+          : Promise.resolve(null);
+        const [reviewsResult, summaryResult, ownReviewResult] = await Promise.allSettled([
+          fetchCourseReviews(courseId),
+          fetchCourseReviewSummary(courseId),
+          ownReviewRequest,
+        ] as const);
+        if (!active) return;
+        if (summaryResult.status === "fulfilled") setReviewSummary(summaryResult.value);
+        if (ownReviewResult.status === "fulfilled") setMyReview(ownReviewResult.value);
+        setReviews((current) => {
+          const nextReviews = reviewsResult.status === "fulfilled" ? reviewsResult.value.data : current;
+          const ownReview = ownReviewResult.status === "fulfilled"
+            ? ownReviewResult.value
+            : nextReviews.find((review) => review.studentId === user.id)
+              ?? current.find((review) => review.studentId === user.id)
+              ?? null;
+          return mergePublishedOwnReview(nextReviews, ownReview);
+        });
+      } catch {
+        // Keep the current review list visible when a background refresh fails.
+      } finally {
+        requestInFlight = false;
+      }
+    };
+
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void refreshReviews();
+    };
+    const intervalId = window.setInterval(() => void refreshReviews(), 12_000);
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [courseId, enrollment, getAccessToken, savingReview, sessionLoading, user]);
 
   useEffect(() => {
     if (!activeLessonId) {
@@ -443,6 +605,86 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
       if (token) setProgress(await fetchCourseProgress(token, courseId));
     } catch {
       // Keep the quiz result visible if the progress summary cannot refresh.
+    }
+  }
+
+  async function markLessonComplete(lessonId: string) {
+    setCompletingLessonId(lessonId);
+    setCompletionFeedback(null);
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+      const updatedProgress = await completeLearningLesson(token, lessonId);
+      setProgress((current) => ({
+        ...updatedProgress,
+        completedLessonIds: [
+          ...new Set([
+            ...(updatedProgress.completedLessonIds ?? current?.completedLessonIds ?? []),
+            lessonId,
+          ]),
+        ],
+      }));
+      setCompletionFeedback({
+        lessonId,
+        message: "Đã đánh dấu bài học hoàn thành.",
+        isError: false,
+      });
+    } catch (error) {
+      setCompletionFeedback({
+        lessonId,
+        message:
+          error instanceof ApiClientError
+            ? error.message
+            : error instanceof Error
+              ? error.message
+              : "Chưa thể cập nhật tiến độ bài học. Vui lòng thử lại.",
+        isError: true,
+      });
+    } finally {
+      setCompletingLessonId(null);
+    }
+  }
+
+  async function submitCourseReview(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!reviewComment.trim()) {
+      setReviewError("Hãy chia sẻ trải nghiệm của bạn về khóa học.");
+      return;
+    }
+
+    setSavingReview(true);
+    setReviewError("");
+    setReviewSuccessModalOpen(false);
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+      const savedReview = await saveCourseReview(
+        token,
+        courseId,
+        reviewRating,
+        reviewComment.trim(),
+      );
+      setMyReview(savedReview);
+      setReviews((current) => [
+        savedReview,
+        ...current.filter((review) => review.id !== savedReview.id),
+      ]);
+      setReviewSuccessModalOpen(true);
+      try {
+        setReviewSummary(await fetchCourseReviewSummary(courseId));
+      } catch {
+        // Keep the saved review visible if the summary refresh fails.
+      }
+    } catch (error) {
+      setReviewError(
+        error instanceof ApiClientError
+          ? error.message
+          : error instanceof Error
+            ? error.message
+            : "Chưa thể gửi đánh giá. Vui lòng thử lại.",
+      );
+    } finally {
+      setSavingReview(false);
     }
   }
 
@@ -740,7 +982,10 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
                               >
                                 {section.lessons.map((lesson, lessonIndex) => {
                                   const selected = lesson.id === activeLesson?.id;
-                                  const completed = Boolean(progress?.completed);
+                                  const completed = Boolean(
+                                    progress?.completedLessonIds?.includes(lesson.id) ||
+                                      progress?.completed,
+                                  );
                                   const supported = ["TEXT", "VIDEO", "QUIZ"].includes(
                                     lesson.lessonType,
                                   );
@@ -762,7 +1007,7 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
                                       >
                                         <span className="shrink-0 text-sm tabular-nums">
                                           {completed ? (
-                                            <span className="grid h-5 w-5 place-items-center rounded-sm bg-[#20b486] text-white">
+                                            <span className="grid h-5 w-5 place-items-center rounded-full bg-[#20b486] text-white">
                                               <Check aria-hidden="true" className="h-3.5 w-3.5" />
                                             </span>
                                           ) : selected ? (
@@ -1001,6 +1246,47 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
                       </p>
                     )}
                   </section>
+
+                  {currentLessonContent &&
+                  (currentLessonContent.lessonType === "TEXT" ||
+                    currentLessonContent.lessonType === "VIDEO") ? (
+                    <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-[#e2e8f0] pt-5">
+                      {completionFeedback?.lessonId === currentLessonContent.id &&
+                      completionFeedback.isError ? (
+                        <p
+                          role="alert"
+                          className="text-sm text-rose-700"
+                        >
+                          {completionFeedback.message}
+                        </p>
+                      ) : (
+                        <span />
+                      )}
+                      {progress?.completedLessonIds?.includes(currentLessonContent.id) ||
+                      progress?.completed ? (
+                        <span className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#eaf7f3] px-4 text-sm font-semibold text-[#087a5b]">
+                          <Check aria-hidden="true" className="h-4 w-4" />
+                          Đã hoàn thành
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={Boolean(completingLessonId)}
+                          onClick={() => void markLessonComplete(currentLessonContent.id)}
+                          className="focus-ring inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-white transition hover:bg-[#159e75] active:bg-[#128763] disabled:cursor-wait disabled:opacity-60"
+                        >
+                          {completingLessonId === currentLessonContent.id ? (
+                            <LoaderCircle aria-hidden="true" className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Check aria-hidden="true" className="h-4 w-4" />
+                          )}
+                          {completingLessonId === currentLessonContent.id
+                            ? "Đang cập nhật…"
+                            : "Đánh dấu hoàn thành"}
+                        </button>
+                      )}
+                    </div>
+                  ) : null}
                 </section>
               </div>
 
@@ -1102,6 +1388,73 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
 
               <section id="reviews" className="scroll-mt-28 py-10">
                 <h2 className="text-lg font-semibold text-primary">Đánh giá của học viên</h2>
+                {user?.roles.includes("STUDENT") && enrollment?.status === "ACTIVE" ? (
+                  <form
+                    onSubmit={submitCourseReview}
+                    className="mt-5 rounded-xl border border-[#d8e4df] bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04)] sm:p-5"
+                  >
+                    <h3 className="text-sm font-semibold text-[#101a2c]">
+                      {myReview ? "Cập nhật đánh giá của bạn" : "Chia sẻ trải nghiệm khóa học"}
+                    </h3>
+                    <p className="mt-1 text-xs text-[#64748b]">
+                      Chỉ học viên đã ghi danh mới có thể gửi đánh giá.
+                    </p>
+                    <div className="mt-3 flex items-center gap-1" role="group" aria-label="Chọn số sao">
+                      {[1, 2, 3, 4, 5].map((value) => (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => setReviewRating(value)}
+                          aria-label={`${value} sao`}
+                          aria-pressed={reviewRating === value}
+                          className="focus-ring rounded p-1 text-[#f5b400] transition hover:scale-110"
+                        >
+                          <Star
+                            aria-hidden="true"
+                            className="h-6 w-6"
+                            fill={value <= reviewRating ? "currentColor" : "none"}
+                          />
+                        </button>
+                      ))}
+                      <span className="ml-2 text-sm font-medium text-[#475569]">
+                        {reviewRating}/5
+                      </span>
+                    </div>
+                    <label className="mt-3 block text-sm font-medium text-[#344054]">
+                      Nhận xét
+                      <textarea
+                        value={reviewComment}
+                        onChange={(event) => setReviewComment(event.target.value)}
+                        maxLength={2000}
+                        rows={3}
+                        className="focus-ring mt-1.5 w-full resize-y rounded-lg border border-[#d8e1ed] px-3 py-2.5 text-sm font-normal text-[#101a2c] placeholder:text-[#98a2b3]"
+                        placeholder="Chia sẻ điều bạn thấy hữu ích hoặc có thể cải thiện"
+                        required
+                      />
+                    </label>
+                    <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+                      <span className="text-xs text-[#64748b]">
+                        {reviewComment.length}/2000 ký tự
+                      </span>
+                      <button
+                        type="submit"
+                        disabled={savingReview || !reviewComment.trim()}
+                        className="focus-ring inline-flex min-h-10 items-center justify-center rounded-lg bg-primary px-4 text-sm font-semibold text-white transition hover:bg-[#159e75] active:bg-[#128763] disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {savingReview
+                          ? "Đang lưu…"
+                          : myReview
+                            ? "Cập nhật đánh giá"
+                            : "Gửi đánh giá"}
+                      </button>
+                    </div>
+                    {reviewError ? (
+                      <p role="alert" className="mt-3 text-sm text-rose-700">
+                        {reviewError}
+                      </p>
+                    ) : null}
+                  </form>
+                ) : null}
                 <div className="mt-5 grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-10">
                   <div>
                     <p className="text-xl font-semibold text-[#101a2c]">
@@ -1135,7 +1488,14 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
                   </div>
                   <div className="space-y-3">
                     {reviews.length ? (
-                      reviews.map((review) => <ReviewCard key={review.id} review={review} />)
+                      reviews.map((review) => (
+                        <ReviewCard
+                          key={review.id}
+                          review={review}
+                          instructorName={instructor?.fullName ?? "Giảng viên EduAlto"}
+                          instructorAvatarUrl={instructor?.avatarUrl}
+                        />
+                      ))
                     ) : (
                       <div className="rounded-xl border border-dashed border-[#d8e4df] bg-white px-5 py-8 text-center">
                         <Star aria-hidden="true" className="mx-auto h-6 w-6 text-[#f5b400]" />
@@ -1154,6 +1514,22 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
           )}
         </div>
       </main>
+      <FeedbackModal
+        isOpen={reviewSuccessModalOpen}
+        onClose={() => setReviewSuccessModalOpen(false)}
+        title="Đánh giá đã được lưu"
+        description="Cảm ơn bạn đã chia sẻ trải nghiệm về khóa học."
+        tone="success"
+        confirmText="Đóng"
+      />
+      <FeedbackModal
+        isOpen={Boolean(completionFeedback && !completionFeedback.isError)}
+        onClose={() => setCompletionFeedback(null)}
+        title="Bài học đã hoàn thành"
+        description={completionFeedback?.message}
+        tone="success"
+        confirmText="Đóng"
+      />
     </LearningWorkspaceShell>
   );
 }

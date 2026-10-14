@@ -142,18 +142,3 @@ export type ApiErrorBody = {
   message: string;
   details: ApiErrorDetail[];
 };
-
-export type AvatarUploadUrlRequest = {
-  contentType: string;
-  contentLength: number;
-};
-
-export type AvatarUploadUrlResponse = {
-  uploadUrl: string;
-  objectKey: string;
-  expiresAt: string;
-};
-
-export type AvatarCompleteRequest = {
-  objectKey: string;
-};

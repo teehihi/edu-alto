@@ -143,7 +143,8 @@ public class InstructorCourseController {
     }
 
     @PostMapping("/thumbnail-upload-url")
-    @Operation(summary = "Tạo URL tải lên ảnh thu nhỏ (thumbnail) khóa học")
+    @Deprecated
+    @Operation(summary = "Ngừng sử dụng: hãy tải ảnh multipart để chuẩn hóa trước khi lưu", deprecated = true)
     public ApiResponse<CourseThumbnailUploadUrlResponse> generateThumbnailUploadUrl(
             @AuthenticationPrincipal AuthenticatedUser principal,
             @Valid @RequestBody CourseThumbnailUploadUrlRequest request

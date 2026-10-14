@@ -43,6 +43,7 @@ export type CourseProgress = {
   completedLessons: number;
   progressPercent: number;
   completed: boolean;
+  completedLessonIds?: string[];
 };
 
 export type LearningNote = {

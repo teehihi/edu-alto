@@ -2,9 +2,6 @@ import { apiRequest } from "@/lib/api";
 import type {
   AuthMessageResponse,
   AuthTokenResponse,
-  AvatarCompleteRequest,
-  AvatarUploadUrlRequest,
-  AvatarUploadUrlResponse,
   CurrentUser,
   EmailRequest,
   LoginRequest,
@@ -105,20 +102,6 @@ export const profileApi = {
       body,
     }),
 
-  getAvatarUploadUrl: (accessToken: string, body: AvatarUploadUrlRequest) =>
-    apiRequest<AvatarUploadUrlResponse>("/me/profile/avatar/upload-url", {
-      method: "POST",
-      accessToken,
-      body,
-    }),
-
-  completeAvatarUpload: (accessToken: string, body: AvatarCompleteRequest) =>
-    apiRequest<UserProfile>("/me/profile/avatar/complete", {
-      method: "POST",
-      accessToken,
-      body,
-    }),
-
   uploadAvatarMultipart: (accessToken: string, file: File) => {
     const formData = new FormData();
     formData.append("file", file);
@@ -129,17 +112,3 @@ export const profileApi = {
     });
   },
 };
-
-export async function uploadAvatarFile(uploadUrl: string, file: File): Promise<void> {
-  const response = await fetch(uploadUrl, {
-    method: "PUT",
-    headers: {
-      "Content-Type": file.type,
-    },
-    body: file,
-  });
-
-  if (!response.ok) {
-    throw new Error("Không thể tải ảnh trực tiếp lên hệ thống lưu trữ Cloudflare R2.");
-  }
-}

@@ -6,6 +6,8 @@ import com.edualto.course.domain.CourseStatus;
 import com.edualto.course.repository.CourseRepository;
 import com.edualto.enrollment.domain.EnrollmentStatus;
 import com.edualto.enrollment.repository.EnrollmentRepository;
+import com.edualto.profile.domain.Profile;
+import com.edualto.profile.repository.ProfileRepository;
 import com.edualto.review.domain.CourseReview;
 import com.edualto.review.domain.ReviewStatus;
 import com.edualto.review.dto.CourseReviewRequest;
@@ -15,15 +17,19 @@ import com.edualto.review.dto.CourseReviewSummaryResponse;
 import com.edualto.review.dto.InstructorReviewReplyRequest;
 import com.edualto.review.dto.InstructorReviewSummaryResponse;
 import com.edualto.review.repository.CourseReviewRepository;
+import com.edualto.storage.service.StorageService;
 import com.edualto.user.domain.RoleName;
 import com.edualto.user.domain.User;
 import com.edualto.user.domain.UserStatus;
 import com.edualto.user.service.UserService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.Locale;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -39,28 +45,35 @@ public class CourseReviewService {
     private final EnrollmentRepository enrollments;
     private final CourseRepository courses;
     private final UserService users;
+    private final ProfileRepository profiles;
+    private final StorageService storage;
 
     public CourseReviewService(
             CourseReviewRepository reviews,
             EnrollmentRepository enrollments,
             CourseRepository courses,
-            UserService users
+            UserService users,
+            ProfileRepository profiles,
+            StorageService storage
     ) {
         this.reviews = reviews;
         this.enrollments = enrollments;
         this.courses = courses;
         this.users = users;
+        this.profiles = profiles;
+        this.storage = storage;
     }
 
     @Transactional(readOnly = true)
     public Page<CourseReviewResponse> listPublished(UUID courseId, int page, int size) {
         requirePublishedCourse(courseId);
         validatePagination(page, size);
-        return reviews.findPublicReviews(
+        Page<CourseReviewResponse> result = reviews.findPublicReviews(
                 courseId,
                 ReviewStatus.PUBLISHED,
                 PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by("id")))
         );
+        return withStudentAvatars(result);
     }
 
     @Transactional(readOnly = true)
@@ -77,11 +90,12 @@ public class CourseReviewService {
                 throw new BusinessException(HttpStatus.BAD_REQUEST, "INVALID_REVIEW_STATUS", "Trạng thái đánh giá không hợp lệ");
             }
         }
-        return reviews.findInstructorReviews(
+        Page<CourseReviewResponse> result = reviews.findInstructorReviews(
                 courseId,
                 reviewStatus,
                 PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by("id")))
         );
+        return withStudentAvatars(result);
     }
 
     @Transactional(readOnly = true)
@@ -121,6 +135,20 @@ public class CourseReviewService {
         );
     }
 
+    @Transactional(readOnly = true)
+    public CourseReviewResponse getOwnReview(UUID studentId, UUID courseId) {
+        users.requireActiveStudent(studentId);
+        enrollments.findByStudentIdAndCourseId(studentId, courseId)
+                .filter(enrollment -> enrollment.getStatus() == EnrollmentStatus.ACTIVE)
+                .orElseThrow(() -> new BusinessException(HttpStatus.FORBIDDEN, "ENROLLMENT_REQUIRED",
+                        "Bạn cần ghi danh khóa học để xem đánh giá của mình"));
+        return reviews.findByStudentIdAndCourseId(studentId, courseId)
+                .map(review -> toResponse(review, users.requireById(studentId).getFullName())
+                        .withStudentAvatarUrl(getStudentAvatarUrl(studentId)))
+                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "REVIEW_NOT_FOUND",
+                        "Bạn chưa gửi đánh giá cho khóa học này"));
+    }
+
     @Transactional
     public CourseReviewResponse upsertOwnReview(UUID studentId, UUID courseId, CourseReviewRequest request) {
         users.requireActiveStudent(studentId);
@@ -135,7 +163,8 @@ public class CourseReviewService {
         String comment = request.comment().trim();
         reviews.upsertReview(UUID.randomUUID(), studentId, courseId, request.rating(), comment);
         CourseReview saved = reviews.findByStudentIdAndCourseId(studentId, courseId).orElseThrow();
-        return toResponse(saved, users.requireById(studentId).getFullName());
+        return toResponse(saved, users.requireById(studentId).getFullName())
+                .withStudentAvatarUrl(getStudentAvatarUrl(studentId));
     }
 
     @Transactional
@@ -152,7 +181,8 @@ public class CourseReviewService {
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "REVIEW_NOT_FOUND", "Không tìm thấy đánh giá"));
         review.setStatus(published ? ReviewStatus.PUBLISHED : ReviewStatus.HIDDEN);
         CourseReview saved = reviews.save(review);
-        return toResponse(saved, users.requireById(saved.getStudentId()).getFullName());
+        return toResponse(saved, users.requireById(saved.getStudentId()).getFullName())
+                .withStudentAvatarUrl(getStudentAvatarUrl(saved.getStudentId()));
     }
 
     @Transactional
@@ -163,7 +193,8 @@ public class CourseReviewService {
         CourseReview review = requireCourseReview(courseId, reviewId);
         review.setInstructorReply(request.reply().trim());
         CourseReview saved = reviews.save(review);
-        return toResponse(saved, users.requireById(saved.getStudentId()).getFullName());
+        return toResponse(saved, users.requireById(saved.getStudentId()).getFullName())
+                .withStudentAvatarUrl(getStudentAvatarUrl(saved.getStudentId()));
     }
 
     @Transactional
@@ -175,7 +206,8 @@ public class CourseReviewService {
         }
         review.setInstructorReply(null);
         CourseReview saved = reviews.save(review);
-        return toResponse(saved, users.requireById(saved.getStudentId()).getFullName());
+        return toResponse(saved, users.requireById(saved.getStudentId()).getFullName())
+                .withStudentAvatarUrl(getStudentAvatarUrl(saved.getStudentId()));
     }
 
     private CourseReview requireCourseReview(UUID courseId, UUID reviewId) {
@@ -217,5 +249,26 @@ public class CourseReviewService {
                 review.getCreatedAt(), review.getUpdatedAt(),
                 review.getInstructorReply(), review.getInstructorRepliedAt()
         );
+    }
+
+    private Page<CourseReviewResponse> withStudentAvatars(Page<CourseReviewResponse> page) {
+        Set<UUID> studentIds = page.getContent().stream()
+                .map(CourseReviewResponse::studentId)
+                .collect(Collectors.toSet());
+        Map<UUID, String> avatarUrls = profiles.findAllById(studentIds).stream()
+                .filter(profile -> profile.getAvatarKey() != null && !profile.getAvatarKey().isBlank())
+                .collect(Collectors.toMap(
+                        Profile::getUserId,
+                        profile -> storage.getPublicUrl(profile.getAvatarKey())
+                ));
+        return page.map(review -> review.withStudentAvatarUrl(avatarUrls.get(review.studentId())));
+    }
+
+    private String getStudentAvatarUrl(UUID studentId) {
+        return profiles.findById(studentId)
+                .map(Profile::getAvatarKey)
+                .filter(avatarKey -> !avatarKey.isBlank())
+                .map(storage::getPublicUrl)
+                .orElse(null);
     }
 }

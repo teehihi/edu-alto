@@ -14,8 +14,7 @@ import com.edualto.profile.dto.UserProfileResponse;
 import com.edualto.profile.repository.InstructorProfileRepository;
 import com.edualto.profile.repository.ProfileRepository;
 import com.edualto.profile.repository.StudentProfileRepository;
-import com.edualto.storage.dto.ObjectMetadata;
-import com.edualto.storage.dto.PresignedUploadUrl;
+import com.edualto.storage.infrastructure.ImageWebpProcessor;
 import com.edualto.storage.service.StorageService;
 import com.edualto.storage.service.StorageCleanupService;
 import com.edualto.user.domain.Role;
@@ -23,7 +22,6 @@ import com.edualto.user.domain.RoleName;
 import com.edualto.user.domain.User;
 import com.edualto.user.domain.UserStatus;
 import com.edualto.user.repository.UserRepository;
-import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -47,7 +45,6 @@ public class ProfileService {
     );
 
     private static final long MAX_AVATAR_SIZE_BYTES = 5L * 1024 * 1024; // 5 MB
-    private static final Duration AVATAR_UPLOAD_EXPIRATION = Duration.ofMinutes(15);
     private static final Pattern CUSTOM_HANDLE_PATTERN = Pattern.compile("^[a-zA-Z0-9._-]{3,30}$");
 
     private final ProfileRepository profileRepository;
@@ -56,6 +53,7 @@ public class ProfileService {
     private final UserRepository userRepository;
     private final StorageService storageService;
     private final StorageCleanupService storageCleanup;
+    private final ImageWebpProcessor imageWebpProcessor;
 
     public ProfileService(
             ProfileRepository profileRepository,
@@ -63,7 +61,8 @@ public class ProfileService {
             InstructorProfileRepository instructorProfileRepository,
             UserRepository userRepository,
             StorageService storageService,
-            StorageCleanupService storageCleanup
+            StorageCleanupService storageCleanup,
+            ImageWebpProcessor imageWebpProcessor
     ) {
         this.profileRepository = profileRepository;
         this.studentProfileRepository = studentProfileRepository;
@@ -71,6 +70,7 @@ public class ProfileService {
         this.userRepository = userRepository;
         this.storageService = storageService;
         this.storageCleanup = storageCleanup;
+        this.imageWebpProcessor = imageWebpProcessor;
     }
 
     @Transactional
@@ -285,133 +285,12 @@ public class ProfileService {
 
     @Transactional(readOnly = true)
     public AvatarUploadUrlResponse generateAvatarUploadUrl(UUID userId, AvatarUploadUrlRequest request) {
-        if (!userRepository.existsById(userId)) {
-            throw new BusinessException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Không tìm thấy người dùng");
-        }
-
-        String contentType = request.contentType() != null ? request.contentType().trim().toLowerCase() : "";
-        if (!ALLOWED_AVATAR_CONTENT_TYPES.contains(contentType)) {
-            throw new BusinessException(
-                    HttpStatus.BAD_REQUEST,
-                    "INVALID_CONTENT_TYPE",
-                    "Định dạng hình ảnh không được hỗ trợ. Vui lòng chọn JPEG, PNG hoặc WebP."
-            );
-        }
-
-        if (request.contentLength() == null || request.contentLength() <= 0 || request.contentLength() > MAX_AVATAR_SIZE_BYTES) {
-            throw new BusinessException(
-                    HttpStatus.BAD_REQUEST,
-                    "INVALID_FILE_SIZE",
-                    "Kích thước ảnh đại diện không hợp lệ hoặc vượt quá 5MB."
-            );
-        }
-
-        String extension = switch (contentType) {
-            case "image/jpeg" -> "jpg";
-            case "image/png" -> "png";
-            case "image/webp" -> "webp";
-            default -> "webp";
-        };
-
-        String objectKey = "avatars/" + userId + "/" + UUID.randomUUID() + "." + extension;
-        PresignedUploadUrl presigned = storageService.generatePresignedUploadUrl(
-                objectKey,
-                contentType,
-                request.contentLength(),
-                AVATAR_UPLOAD_EXPIRATION
-        );
-
-        return new AvatarUploadUrlResponse(
-                presigned.uploadUrl(),
-                objectKey,
-                presigned.expiresAt()
-        );
+        throw directImageUploadDisabled();
     }
 
     @Transactional
     public UserProfileResponse completeAvatarUpload(UUID userId, AvatarCompleteRequest request) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Không tìm thấy người dùng"));
-
-        String expectedPrefix = "avatars/" + userId + "/";
-        String objectKey = request.objectKey() != null ? request.objectKey().trim() : "";
-        if (!objectKey.startsWith(expectedPrefix)) {
-            throw new BusinessException(
-                    HttpStatus.BAD_REQUEST,
-                    "INVALID_OBJECT_KEY",
-                    "Mã tệp ảnh đại diện không hợp lệ hoặc không thuộc về tài khoản này."
-            );
-        }
-
-        int lastDot = objectKey.lastIndexOf('.');
-        if (lastDot == -1 || lastDot == objectKey.length() - 1) {
-            throw new BusinessException(
-                    HttpStatus.BAD_REQUEST,
-                    "INVALID_OBJECT_KEY",
-                    "Định dạng tệp ảnh đại diện không hợp lệ."
-            );
-        }
-
-        String ext = objectKey.substring(lastDot + 1).toLowerCase();
-        if (!Set.of("jpg", "jpeg", "png", "webp").contains(ext)) {
-            throw new BusinessException(
-                    HttpStatus.BAD_REQUEST,
-                    "INVALID_OBJECT_KEY",
-                    "Định dạng tệp ảnh đại diện không được hỗ trợ."
-            );
-        }
-
-        if (!storageService.objectExists(objectKey)) {
-            throw new BusinessException(
-                    HttpStatus.BAD_REQUEST,
-                    "AVATAR_NOT_FOUND",
-                    "Không tìm thấy tệp ảnh đại diện đã tải lên trên hệ thống lưu trữ."
-            );
-        }
-
-        ObjectMetadata metadata = storageService.getObjectMetadata(objectKey);
-        if (metadata == null) {
-            throw new BusinessException(
-                    HttpStatus.BAD_REQUEST,
-                    "INVALID_AVATAR_METADATA",
-                    "Không thể đọc thông tin tệp ảnh đại diện từ hệ thống lưu trữ."
-            );
-        }
-
-        String metadataContentType = metadata.contentType() != null ? metadata.contentType().trim().toLowerCase() : "";
-        if (!ALLOWED_AVATAR_CONTENT_TYPES.contains(metadataContentType)) {
-            throw new BusinessException(
-                    HttpStatus.BAD_REQUEST,
-                    "INVALID_AVATAR_METADATA",
-                    "Định dạng ảnh trên hệ thống lưu trữ không hợp lệ."
-            );
-        }
-
-        if (metadata.contentLength() <= 0 || metadata.contentLength() > MAX_AVATAR_SIZE_BYTES) {
-            throw new BusinessException(
-                    HttpStatus.BAD_REQUEST,
-                    "INVALID_AVATAR_METADATA",
-                    "Kích thước ảnh trên hệ thống lưu trữ vượt quá giới hạn 5MB."
-            );
-        }
-
-        Profile profile = profileRepository.findById(userId)
-                .orElseGet(() -> new Profile(userId));
-
-        String previousAvatarKey = profile.getAvatarKey();
-        profile.setAvatarKey(objectKey);
-        profile = profileRepository.save(profile);
-
-        // Delete replaced avatars only after the profile update commits.
-        if (previousAvatarKey != null && !previousAvatarKey.isBlank() && !previousAvatarKey.equals(objectKey)) {
-            storageCleanup.deleteAfterCommit(List.of(previousAvatarKey));
-        }
-
-        StudentProfile studentProfile = studentProfileRepository.findById(userId).orElse(null);
-        InstructorProfile instructorProfile = instructorProfileRepository.findById(userId).orElse(null);
-        String avatarUrl = storageService.getPublicUrl(objectKey);
-
-        return UserProfileResponse.from(user, profile, studentProfile, instructorProfile, avatarUrl);
+        throw directImageUploadDisabled();
     }
 
     @Transactional
@@ -436,15 +315,9 @@ public class ProfileService {
             );
         }
 
-        String extension = switch (mime) {
-            case "image/jpeg" -> "jpg";
-            case "image/png" -> "png";
-            case "image/webp" -> "webp";
-            default -> "webp";
-        };
-
-        String objectKey = "avatars/" + userId + "/" + UUID.randomUUID() + "." + extension;
-        storageService.putObject(objectKey, mime, data);
+        byte[] webpBytes = imageWebpProcessor.normalize(data, mime, 512);
+        String objectKey = "avatars/" + userId + "/" + UUID.randomUUID() + ".webp";
+        storageService.putObject(objectKey, "image/webp", webpBytes);
 
         Profile profile = profileRepository.findById(userId)
                 .orElseGet(() -> new Profile(userId));
@@ -462,5 +335,13 @@ public class ProfileService {
         String avatarUrl = storageService.getPublicUrl(objectKey);
 
         return UserProfileResponse.from(user, profile, studentProfile, instructorProfile, avatarUrl);
+    }
+
+    private BusinessException directImageUploadDisabled() {
+        return new BusinessException(
+                HttpStatus.GONE,
+                "DIRECT_IMAGE_UPLOAD_DISABLED",
+                "Tải ảnh trực tiếp lên hệ thống lưu trữ đã tắt để chuẩn hóa ảnh an toàn. Vui lòng dùng biểu mẫu tải ảnh."
+        );
     }
 }

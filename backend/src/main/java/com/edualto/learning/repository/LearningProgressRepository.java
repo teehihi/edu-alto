@@ -1,6 +1,7 @@
 package com.edualto.learning.repository;
 
 import com.edualto.learning.domain.LearningProgress;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -16,6 +17,14 @@ public interface LearningProgressRepository extends JpaRepository<LearningProgre
             """, nativeQuery = true)
     int completeIfAbsent(@Param("id") UUID id, @Param("enrollmentId") UUID enrollmentId,
                          @Param("courseId") UUID courseId, @Param("sectionId") UUID sectionId, @Param("lessonId") UUID lessonId);
+
+    @Query(value = """
+            select lesson_id
+            from learning_progress
+            where enrollment_id = :enrollmentId and course_id = :courseId
+            """, nativeQuery = true)
+    List<UUID> findCompletedLessonIds(@Param("enrollmentId") UUID enrollmentId,
+                                      @Param("courseId") UUID courseId);
 
     interface ProgressCounts {
         long getTotalLessons();

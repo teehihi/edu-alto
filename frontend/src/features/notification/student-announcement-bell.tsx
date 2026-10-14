@@ -1,72 +1,34 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Bell, ExternalLink, Megaphone } from "lucide-react";
+import { Bell, Megaphone, MoreHorizontal } from "lucide-react";
 import { useAuthSession } from "@/lib/auth-session";
-import { ApiClientError } from "@/lib/api";
-import {
-  fetchStudentInstructorAnnouncements,
-  type StudentInstructorAnnouncement,
-} from "@/lib/instructor-notification-client";
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("vi-VN", { dateStyle: "medium", timeStyle: "short" }).format(
-    new Date(value),
-  );
-}
+import { useStudentNotifications } from "@/features/notification/use-student-notifications";
+import { StudentNotificationFeed } from "@/features/notification/student-notification-feed";
+import { useStudentNotificationReadState } from "@/features/notification/use-student-notification-read-state";
 
 export function StudentAnnouncementBell() {
-  const { user, isAuthenticated, getAccessToken } = useAuthSession();
+  const { user, isAuthenticated } = useAuthSession();
   const [open, setOpen] = useState(false);
-  const [items, setItems] = useState<StudentInstructorAnnouncement[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [loaded, setLoaded] = useState(false);
+  const { items, loaded, error } = useStudentNotifications();
+  const { unreadCount, isRead, markRead, markAllRead } = useStudentNotificationReadState(items);
   const rootRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open || loaded || !isAuthenticated) return;
-    let active = true;
-    setLoading(true);
-    setError("");
-    void getAccessToken()
-      .then((token) => {
-        if (!active) return null;
-        if (!token) throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
-        return fetchStudentInstructorAnnouncements(token);
-      })
-      .then((page) => {
-        if (active && page) {
-          setItems(page.data);
-          setLoaded(true);
-        }
-      })
-      .catch((loadError) => {
-        if (active) {
-          setError(
-            loadError instanceof ApiClientError
-              ? loadError.message
-              : loadError instanceof Error
-                ? loadError.message
-                : "Không thể tải thông báo.",
-          );
-        }
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [getAccessToken, isAuthenticated, loaded, open]);
+  const [actionsOpen, setActionsOpen] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     const handlePointerDown = (event: PointerEvent) => {
-      if (event.target instanceof Node && !rootRef.current?.contains(event.target)) setOpen(false);
+      if (event.target instanceof Node && !rootRef.current?.contains(event.target)) {
+        setOpen(false);
+        setActionsOpen(false);
+      }
     };
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") {
+        setActionsOpen(false);
+        setOpen(false);
+      }
     };
     document.addEventListener("pointerdown", handlePointerDown);
     document.addEventListener("keydown", handleKeyDown);
@@ -82,104 +44,101 @@ export function StudentAnnouncementBell() {
     <div ref={rootRef} className="relative">
       <button
         type="button"
-        onClick={() => setOpen((current) => !current)}
-        aria-label="Thông báo"
+        onClick={() => {
+          setOpen((current) => !current);
+          setActionsOpen(false);
+        }}
+        aria-label={unreadCount > 0 ? `Thông báo, ${unreadCount} chưa xem` : "Thông báo"}
         aria-expanded={open}
         aria-haspopup="dialog"
-        className="focus-ring relative flex h-11 w-11 items-center justify-center rounded-xl text-slate-700 transition-colors hover:text-primary"
+        className={`focus-ring relative flex h-11 w-11 items-center justify-center rounded-xl transition-colors ${
+          open ? "bg-[#EAF7F3] text-primary" : "text-slate-700 hover:bg-slate-50 hover:text-primary"
+        }`}
       >
         <Bell className="h-[21px] w-[21px] stroke-[1.8]" aria-hidden="true" />
+        {unreadCount > 0 ? (
+          <span
+            className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-[#1877F2] ring-2 ring-white"
+            aria-hidden="true"
+          />
+        ) : null}
       </button>
       {open ? (
         <section
           role="dialog"
-          aria-label="Thông báo từ giảng viên"
-          className="absolute right-0 top-full z-[80] mt-3 max-h-[min(70vh,560px)] w-[min(92vw,420px)] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl"
+          aria-label="Thông báo"
+          className="absolute right-0 top-full z-[80] mt-3 max-h-[min(70vh,560px)] w-[min(92vw,440px)] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl"
         >
-          <header className="border-b border-slate-100 px-4 py-3.5">
-            <h2 className="font-semibold text-heading">Thông báo từ giảng viên</h2>
-            <p className="mt-0.5 text-xs text-muted">Cập nhật mới từ các khóa học của bạn</p>
+          <header className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+            <h2 className="text-lg font-semibold text-heading">Thông báo</h2>
+            <div className="relative">
+              <button
+                type="button"
+                aria-label="Tùy chọn thông báo"
+                aria-expanded={actionsOpen}
+                onClick={() => setActionsOpen((current) => !current)}
+                className="focus-ring flex h-8 w-8 items-center justify-center rounded-full text-slate-600 transition-colors hover:bg-slate-100 hover:text-heading"
+              >
+                <MoreHorizontal className="h-5 w-5" aria-hidden="true" />
+              </button>
+              {actionsOpen ? (
+                <div className="absolute right-0 top-full z-10 mt-1 min-w-52 rounded-lg border border-slate-200 bg-white p-1 shadow-lg">
+                  <button
+                    type="button"
+                    disabled={unreadCount === 0}
+                    onClick={() => {
+                      markAllRead();
+                      setActionsOpen(false);
+                    }}
+                    className="focus-ring w-full rounded-md px-3 py-2 text-left text-sm font-medium text-heading transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-400 disabled:hover:bg-white"
+                  >
+                    Đánh dấu tất cả đã đọc
+                  </button>
+                </div>
+              ) : null}
+            </div>
           </header>
           <div className="max-h-[min(60vh,470px)] overflow-y-auto">
-            {loading ? (
-              <div className="space-y-3 p-4" aria-label="Đang tải thông báo" aria-busy="true">
-                {[0, 1, 2].map((item) => (
-                  <div key={item} className="h-24 animate-pulse rounded-lg bg-slate-100" />
-                ))}
-              </div>
+            {!loaded && !error ? (
+              <p className="p-4 text-sm text-muted" role="status">
+                Đang cập nhật thông báo…
+              </p>
             ) : null}
-            {error && !loading ? (
+            {error && !loaded ? (
               <div className="p-4 text-sm text-rose-700" role="alert">
                 {error}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLoaded(false);
-                    setError("");
-                  }}
-                  className="ml-2 font-semibold underline"
-                >
-                  Thử lại
-                </button>
+                <span className="mt-1 block text-xs">Hệ thống sẽ tự thử tải lại.</span>
               </div>
             ) : null}
-            {!loading && !error && items.length === 0 ? (
+            {loaded && items.length === 0 ? (
               <div className="px-5 py-10 text-center">
                 <Megaphone className="mx-auto h-8 w-8 text-primary" aria-hidden="true" />
                 <p className="mt-3 text-sm font-medium text-heading">Chưa có thông báo mới</p>
-                <p className="mt-1 text-xs leading-5 text-muted">
-                  Thông tin từ giảng viên sẽ hiển thị tại đây.
-                </p>
+                <p className="mt-1 text-xs leading-5 text-muted">Thông báo mới sẽ hiển thị tại đây.</p>
               </div>
             ) : null}
-            {!loading && items.length > 0 ? (
-              <ul className="divide-y divide-slate-100">
-                {items.map((item) => (
-                  <li key={item.id} className="p-4">
-                    <article className="flex gap-3">
-                      {item.imageUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={item.imageUrl}
-                          alt=""
-                          className="h-14 w-16 shrink-0 rounded-md object-cover"
-                        />
-                      ) : (
-                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-primary">
-                          <Megaphone size={19} aria-hidden="true" />
-                        </span>
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <h3 className="text-sm font-semibold leading-5 text-heading">
-                          {item.title}
-                        </h3>
-                        <p className="mt-0.5 text-xs text-primary">{item.instructorName}</p>
-                        <time
-                          dateTime={item.publishedAt}
-                          className="mt-1 block text-[11px] text-muted"
-                        >
-                          {formatDate(item.publishedAt)}
-                        </time>
-                      </div>
-                    </article>
-                    <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-600">
-                      {item.description}
-                    </p>
-                    {item.linkUrl ? (
-                      <a
-                        href={item.linkUrl}
-                        target={item.linkUrl.startsWith("http") ? "_blank" : undefined}
-                        rel={item.linkUrl.startsWith("http") ? "noreferrer" : undefined}
-                        className="focus-ring mt-2 inline-flex min-h-8 items-center gap-1.5 rounded text-xs font-semibold text-primary hover:underline"
-                      >
-                        Xem chi tiết <ExternalLink size={13} aria-hidden="true" />
-                      </a>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
+            {items.length > 0 ? (
+              <div className="p-2">
+                <StudentNotificationFeed
+                  items={items}
+                  isRead={isRead}
+                  onRead={(item) => {
+                    markRead(item);
+                    if (item.linkUrl) setOpen(false);
+                  }}
+                />
+              </div>
             ) : null}
           </div>
+          <footer className="border-t border-slate-100 px-4 py-2.5 text-right">
+            <Link
+              href="/learning/notifications"
+              onClick={() => setOpen(false)}
+              className="focus-ring rounded text-xs font-semibold text-primary hover:underline"
+            >
+              Xem tất cả thông báo
+            </Link>
+          </footer>
         </section>
       ) : null}
     </div>

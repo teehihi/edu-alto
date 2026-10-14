@@ -5,6 +5,7 @@ export type CourseReview = {
   courseId: string;
   studentId: string;
   studentName: string;
+  studentAvatarUrl?: string | null;
   rating: number;
   comment: string;
   status: string;
@@ -33,6 +34,12 @@ export async function fetchCourseReviewSummary(courseId: string) {
   return apiRequest<CourseReviewSummary>(
     `/courses/${encodeURIComponent(courseId)}/reviews/summary`,
   );
+}
+
+export async function fetchMyCourseReview(accessToken: string, courseId: string) {
+  return apiRequest<CourseReview>(`/me/courses/${encodeURIComponent(courseId)}/review`, {
+    accessToken,
+  });
 }
 
 export async function fetchInstructorReviewSummary(accessToken: string) {

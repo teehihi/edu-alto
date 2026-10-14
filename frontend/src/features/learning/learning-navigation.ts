@@ -1,9 +1,11 @@
 import {
   BookOpen,
   BookmarkCheck,
+  Bell,
   CalendarDays,
   ClipboardList,
   FolderClosed,
+  Heart,
   Home,
   MessageCircle,
   NotebookPen,
@@ -22,7 +24,9 @@ export type LearningPortalView =
   | "notes"
   | "messages"
   | "teachers"
-  | "reviews";
+  | "reviews"
+  | "notifications"
+  | "favorites";
 
 export const learningNavigationGroups = [
   {
@@ -58,6 +62,12 @@ export const learningNavigationGroups = [
         view: "discussion",
         icon: MessageCircle,
       },
+      {
+        label: "Thông báo",
+        href: "/learning/notifications",
+        view: "notifications",
+        icon: Bell,
+      },
     ],
   },
   {
@@ -68,6 +78,12 @@ export const learningNavigationGroups = [
         href: "/learning/saved-lessons",
         view: "savedLessons",
         icon: BookmarkCheck,
+      },
+      {
+        label: "Khóa học yêu thích",
+        href: "/learning/favorites",
+        view: "favorites",
+        icon: Heart,
       },
       { label: "Ghi chú", href: "/learning/notes", view: "notes", icon: NotebookPen },
       {

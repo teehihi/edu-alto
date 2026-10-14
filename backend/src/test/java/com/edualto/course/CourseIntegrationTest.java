@@ -16,7 +16,6 @@ import com.edualto.profile.domain.Profile;
 import com.edualto.profile.repository.InstructorProfileRepository;
 import com.edualto.profile.repository.ProfileRepository;
 import com.edualto.profile.repository.StudentProfileRepository;
-import com.edualto.storage.dto.PresignedUploadUrl;
 import com.edualto.storage.service.StorageService;
 import com.edualto.user.domain.User;
 import com.edualto.user.repository.UserRepository;
@@ -24,8 +23,6 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.net.URI;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -506,15 +503,11 @@ class CourseIntegrationTest extends AbstractIntegrationTest {
                 "Bio"
         );
 
-        when(storageService.generatePresignedUploadUrl(any(), eq("image/png"), eq(1024L), any(Duration.class)))
-                .thenReturn(new PresignedUploadUrl("https://r2.edualto.com/upload-thumbnail", "courses/thumbnails/dummy.png", Instant.now().plus(Duration.ofMinutes(15))));
-
         postJsonAuth("/api/v1/instructor/courses/thumbnail-upload-url", Map.of(
                 "contentType", "image/png",
                 "contentLength", 1024
         ), instructorToken)
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.uploadUrl").value("https://r2.edualto.com/upload-thumbnail"))
-                .andExpect(jsonPath("$.data.objectKey").isNotEmpty());
+                .andExpect(status().isGone())
+                .andExpect(jsonPath("$.error.code").value("DIRECT_IMAGE_UPLOAD_DISABLED"));
     }
 }

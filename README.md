@@ -35,7 +35,7 @@ EduAlto là LMS foundation dành cho học viên, giảng viên và quản trị
 | Testcontainers (PostgreSQL 16) integration testing | Hoàn thành |
 | Flyway migration (V1–V17) | Hoàn thành |
 | User + Authentication backend slice (HttpOnly cookie) | Hoàn thành |
-| Profile & Cloudflare R2 presigned avatar slice | Hoàn thành |
+| Profile & Cloudflare R2 media upload slice | Hoàn thành |
 | Course catalog & Course structure curriculum slice | Hoàn thành |
 | Frontend UI (Landing, Explore, Course Detail, Profile, Auth Modal) | Hoàn thành |
 
@@ -55,7 +55,7 @@ EduAlto là LMS foundation dành cho học viên, giảng viên và quản trị
 
 - Quản lý hồ sơ cá nhân linh hoạt cho cả Học viên (`StudentProfile`) và Giảng viên (`InstructorProfile`).
 - Tùy chỉnh thông tin chuyên môn: Headline, tiểu sử (bio), website, liên kết mạng xã hội (LinkedIn, GitHub, YouTube, Twitter).
-- Tích hợp Cloudflare R2 / S3-compatible Storage: Cấp phát Presigned URL có thời hạn để client upload ảnh đại diện và tài liệu trực tiếp lên cloud storage an toàn mà không nghẽn băng thông backend.
+- Tích hợp Cloudflare R2 / S3-compatible Storage: ảnh đại diện, ảnh bìa khóa học và ảnh thông báo được chuẩn hóa sang WebP tại backend trước khi lưu; tài liệu vẫn có thể tải trực tiếp bằng presigned URL.
 
 ### Backend Course & Curriculum Structure
 
@@ -190,6 +190,8 @@ docker compose ps
 
 Backend sử dụng Maven Wrapper (`./backend/mvnw`), không yêu cầu cài đặt Maven toàn cục. Khi database chạy trong Docker, backend kết nối qua `localhost`:
 
+Ảnh tải lên được chuyển sang WebP bằng `cwebp`/`dwebp`. Docker image cài sẵn `libwebp-tools`; nếu chạy backend trực tiếp trên macOS, cài công cụ bằng `brew install webp` trước khi khởi động.
+
 ```bash
 export SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/edualto
 export SPRING_DATASOURCE_USERNAME=edualto
@@ -301,11 +303,11 @@ GET  /api/v1/me                                # Lấy thông tin user hiện t�
 PUT  /api/v1/me                                # Cập nhật thông tin cơ bản
 GET  /api/v1/me/profile                        # Lấy hồ sơ cá nhân (Student / Instructor)
 PUT  /api/v1/me/profile                        # Cập nhật thông tin hồ sơ
-POST /api/v1/me/profile/avatar/upload-url      # Xin presigned URL upload avatar lên R2
-POST /api/v1/me/profile/avatar/complete        # Xác nhận avatar đã upload
 POST /api/v1/me/profile/avatar                 # Upload multipart tối đa 5 MB
 GET  /api/v1/profiles/{identifier}             # Hồ sơ công khai, không trả email hoặc trạng thái tài khoản
 ```
+
+Các endpoint presigned ảnh cũ (`/api/v1/me/profile/avatar/upload-url`, `/api/v1/me/profile/avatar/complete` và `/api/v1/instructor/courses/thumbnail-upload-url`) trả `410 Gone` để ảnh gốc không thể bỏ qua bước chuẩn hóa WebP. Dùng các endpoint multipart hiện tại để tải ảnh.
 
 #### 3. Media & Storage (`/api/v1/media`)
 ```text

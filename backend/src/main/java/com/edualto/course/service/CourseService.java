@@ -20,7 +20,7 @@ import com.edualto.course.repository.LessonRepository;
 import com.edualto.course.repository.SectionRepository;
 import com.edualto.profile.domain.Profile;
 import com.edualto.profile.repository.ProfileRepository;
-import com.edualto.storage.dto.PresignedUploadUrl;
+import com.edualto.storage.infrastructure.ImageWebpProcessor;
 import com.edualto.storage.service.StorageService;
 import com.edualto.storage.service.StorageCleanupService;
 import com.edualto.user.domain.RoleName;
@@ -28,7 +28,6 @@ import com.edualto.user.domain.User;
 import com.edualto.user.domain.UserStatus;
 import com.edualto.user.repository.UserRepository;
 import java.math.BigDecimal;
-import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -58,7 +57,6 @@ public class CourseService {
             "image/webp"
     );
     private static final long MAX_THUMBNAIL_SIZE_BYTES = 5L * 1024 * 1024; // 5 MB
-    private static final Duration THUMBNAIL_UPLOAD_EXPIRATION = Duration.ofMinutes(15);
 
     private final CourseRepository courseRepository;
     private final UserRepository userRepository;
@@ -67,6 +65,7 @@ public class CourseService {
     private final SectionRepository sectionRepository;
     private final LessonRepository lessonRepository;
     private final StorageCleanupService storageCleanup;
+    private final ImageWebpProcessor imageWebpProcessor;
 
     public CourseService(
             CourseRepository courseRepository,
@@ -75,7 +74,8 @@ public class CourseService {
             StorageService storageService,
             SectionRepository sectionRepository,
             LessonRepository lessonRepository,
-            StorageCleanupService storageCleanup
+            StorageCleanupService storageCleanup,
+            ImageWebpProcessor imageWebpProcessor
     ) {
         this.courseRepository = courseRepository;
         this.userRepository = userRepository;
@@ -84,6 +84,7 @@ public class CourseService {
         this.sectionRepository = sectionRepository;
         this.lessonRepository = lessonRepository;
         this.storageCleanup = storageCleanup;
+        this.imageWebpProcessor = imageWebpProcessor;
     }
 
     // ==========================================
@@ -326,44 +327,7 @@ public class CourseService {
     @Transactional(readOnly = true)
     public CourseThumbnailUploadUrlResponse generateThumbnailUploadUrl(UUID instructorId, CourseThumbnailUploadUrlRequest request) {
         validateInstructor(instructorId);
-
-        String contentType = request.contentType() != null ? request.contentType().trim().toLowerCase() : "";
-        if (!ALLOWED_THUMBNAIL_CONTENT_TYPES.contains(contentType)) {
-            throw new BusinessException(
-                    HttpStatus.BAD_REQUEST,
-                    "INVALID_CONTENT_TYPE",
-                    "Định dạng hình ảnh không được hỗ trợ. Vui lòng chọn JPEG, PNG hoặc WebP."
-            );
-        }
-
-        if (request.contentLength() == null || request.contentLength() <= 0 || request.contentLength() > MAX_THUMBNAIL_SIZE_BYTES) {
-            throw new BusinessException(
-                    HttpStatus.BAD_REQUEST,
-                    "INVALID_FILE_SIZE",
-                    "Kích thước ảnh bìa khóa học không hợp lệ hoặc vượt quá 5MB."
-            );
-        }
-
-        String extension = switch (contentType) {
-            case "image/jpeg" -> "jpg";
-            case "image/png" -> "png";
-            case "image/webp" -> "webp";
-            default -> "webp";
-        };
-
-        String objectKey = "courses/thumbnails/" + instructorId + "/" + UUID.randomUUID() + "." + extension;
-        PresignedUploadUrl presigned = storageService.generatePresignedUploadUrl(
-                objectKey,
-                contentType,
-                request.contentLength(),
-                THUMBNAIL_UPLOAD_EXPIRATION
-        );
-
-        return new CourseThumbnailUploadUrlResponse(
-                presigned.uploadUrl(),
-                objectKey,
-                presigned.expiresAt()
-        );
+        throw directImageUploadDisabled();
     }
 
     public CourseThumbnailUploadResponse uploadThumbnail(UUID instructorId, String requestedContentType, byte[] data) {
@@ -385,20 +349,23 @@ public class CourseService {
             );
         }
 
-        String extension = switch (contentType) {
-            case "image/jpeg" -> "jpg";
-            case "image/png" -> "png";
-            case "image/webp" -> "webp";
-            default -> throw new IllegalStateException("Validated thumbnail content type is unsupported");
-        };
-        String objectKey = "courses/thumbnails/" + instructorId + "/" + UUID.randomUUID() + "." + extension;
-        storageService.putObject(objectKey, contentType, data);
+        byte[] webpBytes = imageWebpProcessor.normalize(data, contentType, 1600);
+        String objectKey = "courses/thumbnails/" + instructorId + "/" + UUID.randomUUID() + ".webp";
+        storageService.putObject(objectKey, "image/webp", webpBytes);
         return new CourseThumbnailUploadResponse(objectKey);
     }
 
     // ==========================================
     // Internal Helper Methods
     // ==========================================
+
+    private BusinessException directImageUploadDisabled() {
+        return new BusinessException(
+                HttpStatus.GONE,
+                "DIRECT_IMAGE_UPLOAD_DISABLED",
+                "Tải ảnh trực tiếp lên hệ thống lưu trữ đã tắt để chuẩn hóa ảnh an toàn. Vui lòng dùng biểu mẫu tải ảnh."
+        );
+    }
 
     private void validateInstructor(UUID instructorId) {
         User user = userRepository.findById(instructorId)

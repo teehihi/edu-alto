@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import Image from "next/image";
-import { House, Menu, Settings, X } from "lucide-react";
+import { Heart, House, Menu, Settings, X } from "lucide-react";
 import { PortalBrand } from "@/components/layout/portal-brand";
 import { UserMenu } from "@/components/layout/user-menu";
+import { StudentAnnouncementBell } from "@/features/notification/student-announcement-bell";
 import { cn } from "@/lib/cn";
 import { learningNavigationGroups } from "@/features/learning/learning-navigation";
 
@@ -16,6 +18,7 @@ export function LearningWorkspaceShell({
   children: ReactNode;
   title: string;
 }) {
+  const pathname = usePathname();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [headerVisible, setHeaderVisible] = useState(true);
@@ -170,7 +173,13 @@ export function LearningWorkspaceShell({
               <ul className="space-y-1">
                 {group.links.map((item) => {
                   const Icon = item.icon;
-                  const selected = item.href === "/learning/courses";
+                  const selected =
+                    item.href === "/learning"
+                      ? pathname === item.href
+                      : pathname === item.href ||
+                        pathname.startsWith(`${item.href}/`) ||
+                        (item.href === "/learning/courses" &&
+                          pathname.startsWith("/learning/lessons/"));
                   return (
                     <li key={item.href}>
                       <Link
@@ -279,7 +288,18 @@ export function LearningWorkspaceShell({
             </span>
             <span className="truncate text-sm font-bold text-slate-800">{title}</span>
           </div>
-          <UserMenu showNameTrigger />
+          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+            <Link
+              href="/learning/favorites"
+              aria-label="Khóa học yêu thích"
+              title="Khóa học yêu thích"
+              className="focus-ring flex h-10 w-10 items-center justify-center rounded-xl text-slate-700 transition-colors hover:bg-slate-50 hover:text-primary"
+            >
+              <Heart className="h-[21px] w-[21px] stroke-[1.8]" aria-hidden="true" />
+            </Link>
+            <StudentAnnouncementBell />
+            <UserMenu showNameTrigger />
+          </div>
         </header>
 
         <div className="learning-main mx-auto w-full max-w-[1440px] flex-1 px-4 py-6 md:px-7 md:py-8">

@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   ArrowRight,
   ArrowUpRight,
+  Bell,
   BookOpen,
   CalendarDays,
   Check,
@@ -20,6 +21,7 @@ import {
   FileText,
   Download,
   GraduationCap,
+  Heart,
   House,
   LayoutDashboard,
   LoaderCircle,
@@ -41,6 +43,7 @@ import { Fragment, useCallback, useEffect, useMemo, useState, type FormEvent } f
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { UserMenu } from "@/components/layout/user-menu";
 import { PortalBrand } from "@/components/layout/portal-brand";
+import { StudentAnnouncementBell } from "@/features/notification/student-announcement-bell";
 import { ApiClientError } from "@/lib/api";
 import { fetchInstructorCourses, type InstructorCourse } from "@/lib/instructor-course-client";
 import { fetchMyAssignments, submitAssignment, type Assignment } from "@/lib/assignment-client";
@@ -91,6 +94,8 @@ const viewTitles: Record<PortalView, string> = {
   messages: "Tin nhắn",
   teachers: "Giảng viên của tôi",
   reviews: "Đánh giá của tôi",
+  notifications: "Thông báo",
+  favorites: "Khóa học yêu thích",
 };
 
 const upcomingTasks = [
@@ -560,7 +565,16 @@ export function LearningPortal({ view }: { view: PortalView }) {
             </label>
             <span className="text-sm font-bold text-slate-800 lg:hidden">{viewTitles[view]}</span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Link
+              href="/learning/favorites"
+              aria-label="Khóa học yêu thích"
+              title="Khóa học yêu thích"
+              className="focus-ring flex h-10 w-10 items-center justify-center rounded-xl text-slate-700 transition-colors hover:bg-slate-50 hover:text-primary"
+            >
+              <Heart className="h-[21px] w-[21px] stroke-[1.8]" aria-hidden="true" />
+            </Link>
+            <StudentAnnouncementBell />
             {isInstructor ? (
               <Link
                 href="/instructor"
@@ -2367,22 +2381,14 @@ function CourseGridCard({
         <div className="absolute left-3 top-3">
           <span
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold backdrop-blur-md shadow-xs",
+              "inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold",
               archived
-                ? "border-slate-400/30 bg-slate-900/70 text-slate-300"
-                : "border-emerald-400/30 bg-emerald-950/70 text-emerald-200",
+                ? "bg-slate-100 text-slate-700"
+                : hasStarted
+                  ? "bg-primary text-white"
+                  : "bg-emerald-50 text-emerald-800",
             )}
           >
-            <span
-              className={cn(
-                "h-1.5 w-1.5 rounded-full",
-                archived
-                  ? "bg-slate-400"
-                  : hasStarted
-                    ? "bg-emerald-400 animate-pulse"
-                    : "bg-emerald-300",
-              )}
-            />
             {archived
               ? "Đã lưu trữ"
               : progressKnown
@@ -2526,6 +2532,20 @@ function UtilityView({
       copy: "Sau khi học, bạn có thể chia sẻ trải nghiệm để giúp học viên khác chọn đúng khóa học.",
       action: "Xem khóa học",
       href: "/learning/courses",
+    },
+    notifications: {
+      icon: Bell,
+      title: "Thông báo học tập",
+      copy: "Thông báo khóa học và phản hồi đánh giá sẽ được cập nhật tại đây.",
+      action: "Xem thông báo",
+      href: "/learning/notifications",
+    },
+    favorites: {
+      icon: Heart,
+      title: "Khóa học yêu thích",
+      copy: "Những khóa học bạn đã lưu để xem lại sau sẽ được hiển thị tại đây.",
+      action: "Xem khóa học đã lưu",
+      href: "/learning/favorites",
     },
   };
   const config = configs[view];

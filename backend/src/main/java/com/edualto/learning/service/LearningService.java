@@ -60,7 +60,8 @@ public class LearningService {
         long total = counts.getTotalLessons();
         long completed = counts.getCompletedLessons();
         return new CourseProgressResponse(courseId, total, completed,
-                total == 0 ? 0 : (int) (completed * 100 / total), total > 0 && completed == total);
+                total == 0 ? 0 : (int) (completed * 100 / total), total > 0 && completed == total,
+                progress.findCompletedLessonIds(enrollmentId, courseId));
     }
 
     private void requireReadableLesson(LearningLessonResponse lesson) {

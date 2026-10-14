@@ -6,7 +6,6 @@ import com.edualto.course.domain.CourseLevel;
 import com.edualto.course.domain.CourseStatus;
 import com.edualto.course.dto.CourseDetailResponse;
 import com.edualto.course.dto.CourseThumbnailUploadUrlRequest;
-import com.edualto.course.dto.CourseThumbnailUploadUrlResponse;
 import com.edualto.course.dto.CreateCourseRequest;
 import com.edualto.course.dto.InstructorCourseResponse;
 import com.edualto.course.dto.UpdateCourseRequest;
@@ -14,15 +13,13 @@ import com.edualto.course.repository.CourseRepository;
 import com.edualto.course.service.CourseService;
 import com.edualto.profile.domain.Profile;
 import com.edualto.profile.repository.ProfileRepository;
-import com.edualto.storage.dto.PresignedUploadUrl;
+import com.edualto.storage.infrastructure.ImageWebpProcessor;
 import com.edualto.storage.service.StorageService;
 import com.edualto.user.domain.Role;
 import com.edualto.user.domain.RoleName;
 import com.edualto.user.domain.User;
 import com.edualto.user.repository.UserRepository;
 import java.math.BigDecimal;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -56,6 +53,9 @@ class CourseServiceTest {
 
     @Mock
     private StorageService storageService;
+
+    @Mock
+    private ImageWebpProcessor imageWebpProcessor;
 
     @InjectMocks
     private CourseService courseService;
@@ -261,14 +261,14 @@ class CourseServiceTest {
     }
 
     @Test
-    void generateThumbnailUploadUrlRejectsInvalidContentType() {
+    void generateThumbnailUploadUrlIsDisabled() {
         when(userRepository.findById(instructorId)).thenReturn(Optional.of(instructorUser));
 
         CourseThumbnailUploadUrlRequest request = new CourseThumbnailUploadUrlRequest("application/pdf", 1024L);
 
         assertThatThrownBy(() -> courseService.generateThumbnailUploadUrl(instructorId, request))
                 .isInstanceOf(BusinessException.class)
-                .hasFieldOrPropertyWithValue("code", "INVALID_CONTENT_TYPE");
+                .hasFieldOrPropertyWithValue("code", "DIRECT_IMAGE_UPLOAD_DISABLED");
     }
 
     @Test
@@ -279,20 +279,17 @@ class CourseServiceTest {
 
         assertThatThrownBy(() -> courseService.generateThumbnailUploadUrl(instructorId, request))
                 .isInstanceOf(BusinessException.class)
-                .hasFieldOrPropertyWithValue("code", "INVALID_FILE_SIZE");
+                .hasFieldOrPropertyWithValue("code", "DIRECT_IMAGE_UPLOAD_DISABLED");
     }
 
     @Test
-    void generateThumbnailUploadUrlGeneratesPresignedUrl() {
+    void generateThumbnailUploadUrlDoesNotCreatePresignedObject() {
         when(userRepository.findById(instructorId)).thenReturn(Optional.of(instructorUser));
-        when(storageService.generatePresignedUploadUrl(any(), eq("image/png"), eq(2048L), any(Duration.class)))
-                .thenReturn(new PresignedUploadUrl("https://r2.edualto.com/upload", "courses/thumbnails/test.png", Instant.now().plus(Duration.ofMinutes(15))));
 
         CourseThumbnailUploadUrlRequest request = new CourseThumbnailUploadUrlRequest("image/png", 2048L);
 
-        CourseThumbnailUploadUrlResponse response = courseService.generateThumbnailUploadUrl(instructorId, request);
-
-        assertThat(response.uploadUrl()).isEqualTo("https://r2.edualto.com/upload");
-        assertThat(response.objectKey()).startsWith("courses/thumbnails/" + instructorId + "/");
+        assertThatThrownBy(() -> courseService.generateThumbnailUploadUrl(instructorId, request))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("code", "DIRECT_IMAGE_UPLOAD_DISABLED");
     }
 }

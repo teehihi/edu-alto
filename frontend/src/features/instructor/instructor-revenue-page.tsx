@@ -40,6 +40,13 @@ const statusLabels: Record<RevenueStatusFilter, string> = {
   PAYMENT_FAILED: "Thanh toán thất bại",
 };
 
+const transactionStatusStyles: Record<InstructorRevenueStatus, string> = {
+  PAID: "bg-emerald-50 text-emerald-700",
+  PENDING_PAYMENT: "bg-amber-50 text-amber-700",
+  PAYMENT_REVIEW: "bg-sky-50 text-sky-700",
+  PAYMENT_FAILED: "bg-rose-50 text-rose-700",
+};
+
 function getDateRange(period: RevenuePeriod): RevenueDateRange {
   if (period === "all") return {};
   const now = new Date();
@@ -462,10 +469,17 @@ export function InstructorRevenuePage() {
           ) : null}
 
           <div className="mt-3 overflow-x-auto rounded-lg border border-slate-200 bg-white">
-            <table className="w-full min-w-[860px] border-collapse text-left text-sm">
+            <table className="w-full min-w-[980px] border-collapse text-left text-sm">
               <thead className="bg-white text-slate-700">
                 <tr>
-                  {["Khách hàng", "Khóa học", "Ngày", "Phương thức", "Giá trị"].map((heading) => (
+                  {[
+                    "Khách hàng",
+                    "Khóa học",
+                    "Ngày",
+                    "Phương thức",
+                    "Trạng thái thanh toán",
+                    "Giá trị",
+                  ].map((heading) => (
                     <th key={heading} scope="col" className="px-3 py-3 font-normal">
                       <span className="inline-flex min-h-8 items-center gap-1 px-1 text-left">
                         {heading}
@@ -478,7 +492,7 @@ export function InstructorRevenuePage() {
                 {loading ? (
                   <tr>
                     <td
-                      colSpan={5}
+                      colSpan={6}
                       className="border-t border-slate-200 px-4 py-10 text-center text-slate-600"
                     >
                       <RefreshCw className="mr-2 inline h-4 w-4 animate-spin" aria-hidden="true" />
@@ -487,7 +501,7 @@ export function InstructorRevenuePage() {
                   </tr>
                 ) : transactions.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="border-t border-slate-200 px-4 py-10 text-center">
+                    <td colSpan={6} className="border-t border-slate-200 px-4 py-10 text-center">
                       <p className="font-medium text-slate-700">
                         {hasFilters
                           ? "Không tìm thấy giao dịch phù hợp"
@@ -560,6 +574,13 @@ function TransactionRow({ item }: { item: InstructorRevenueTransaction }) {
       </td>
       <td className="whitespace-nowrap px-3 py-3 text-slate-600">{formatDate(item.createdAt)}</td>
       <td className="px-3 py-3 text-primary">{getPaymentMethodLabel(item.paymentMethod)}</td>
+      <td className="whitespace-nowrap px-3 py-3">
+        <span
+          className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${transactionStatusStyles[item.status]}`}
+        >
+          {statusLabels[item.status]}
+        </span>
+      </td>
       <td className="whitespace-nowrap px-3 py-3 font-semibold text-slate-900">
         {formatVNDAmount(item.amount)}
       </td>

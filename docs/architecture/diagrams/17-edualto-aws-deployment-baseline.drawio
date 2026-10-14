@@ -1,0 +1,166 @@
+<mxfile host="app.diagrams.net" modified="2026-10-14T00:00:00.000Z" agent="Codex" version="28.2.3" type="device">
+  <diagram id="edualto-aws-baseline" name="EduAlto AWS baseline">
+    <mxGraphModel dx="1900" dy="1160" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1900" pageHeight="1160" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="aws-cloud" value="AWS Cloud" style="sketch=0;outlineConnect=0;gradientColor=none;html=1;whiteSpace=wrap;fontSize=15;fontStyle=1;strokeColor=#5E6A75;strokeWidth=1.5;fillColor=none;verticalAlign=top;align=left;spacingLeft=34;spacingTop=8;fontColor=#334155;dashed=0;rounded=0;container=0;pointerEvents=0;collapsible=0;recursiveResize=0;shape=mxgraph.aws4.group;grIcon=mxgraph.aws4.group_aws_cloud;" parent="1" vertex="1">
+          <mxGeometry x="330" y="125" width="1090" height="850" as="geometry" />
+        </mxCell>
+        <mxCell id="region" value="AWS Region · production (xác nhận theo RDS endpoint)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#667085;strokeWidth=1;fontColor=#475467;fontSize=13;fontStyle=1;verticalAlign=top;align=left;spacingLeft=14;spacingTop=8;container=0;pointerEvents=0;" parent="1" vertex="1">
+          <mxGeometry x="365" y="175" width="1020" height="770" as="geometry" />
+        </mxCell>
+        <mxCell id="app-context" value="LIGHTSAIL APPLICATION CONTEXT" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#344054;strokeWidth=1.4;dashed=1;fontColor=#D97706;fontSize=14;fontStyle=1;verticalAlign=top;align=left;spacingLeft=12;spacingTop=8;container=0;pointerEvents=0;" parent="1" vertex="1">
+          <mxGeometry x="395" y="235" width="480" height="435" as="geometry" />
+        </mxCell>
+        <mxCell id="rds-context" value="AMAZON RDS · PRIVATE NETWORK" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#344054;strokeWidth=1.4;dashed=1;fontColor=#7A5AF8;fontSize=14;fontStyle=1;verticalAlign=top;align=left;spacingLeft=12;spacingTop=8;container=0;pointerEvents=0;" parent="1" vertex="1">
+          <mxGeometry x="945" y="235" width="420" height="435" as="geometry" />
+        </mxCell>
+        <mxCell id="observability-context" value="AMAZON CLOUDWATCH LOGGING, MONITORING &amp; ALERTING · ĐỀ XUẤT" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#344054;strokeWidth=1.4;dashed=1;fontColor=#D63384;fontSize=14;fontStyle=1;verticalAlign=top;align=left;spacingLeft=12;spacingTop=8;container=0;pointerEvents=0;" parent="1" vertex="1">
+          <mxGeometry x="395" y="710" width="970" height="220" as="geometry" />
+        </mxCell>
+        <mxCell id="lightsail-vpc" value="Lightsail VPC" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#F5A623;strokeWidth=1.2;fontColor=#9A4D00;fontSize=12;fontStyle=1;verticalAlign=top;align=left;spacingLeft=10;spacingTop=7;" parent="1" vertex="1">
+          <mxGeometry x="415" y="280" width="440" height="365" as="geometry" />
+        </mxCell>
+        <mxCell id="ls-icon" value="Amazon Lightsail" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=#F78E04;gradientDirection=north;fillColor=#D05C17;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lightsail;" parent="1" vertex="1">
+          <mxGeometry x="440" y="300" width="60" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ls-title" value="edualto-backend&lt;br&gt;&lt;font style=&quot;font-size:12px;color:#667085&quot;&gt;Lightsail instance · Docker Compose&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=16;fontStyle=1;fontColor=#101A2C;" parent="1" vertex="1">
+          <mxGeometry x="510" y="305" width="320" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="ls-firewall" value="Lightsail firewall&lt;br&gt;&lt;font style=&quot;font-size:11px;color:#475467&quot;&gt;API DNS → Static IP · TCP 443&lt;br&gt;SSH 22 chỉ từ IP quản trị · không public 8080/6379&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF7E6;strokeColor=#F5A623;strokeWidth=1;fontColor=#101A2C;fontSize=12;fontStyle=1;align=left;verticalAlign=middle;spacingLeft=10;" parent="1" vertex="1">
+          <mxGeometry x="435" y="375" width="400" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="docker-network" value="Docker private network" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#98A2B3;strokeWidth=1.1;dashed=1;fontColor=#475467;fontSize=11;fontStyle=1;verticalAlign=top;align=left;spacingLeft=8;spacingTop=6;" parent="1" vertex="1">
+          <mxGeometry x="435" y="450" width="400" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="caddy" value="Caddy&lt;br&gt;&lt;font style=&quot;font-size:10px;color:#475467&quot;&gt;TLS · reverse proxy&lt;br&gt;443 → 8080&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF4E5;strokeColor=#F79009;strokeWidth=1.2;fontColor=#101A2C;fontSize=12;fontStyle=1;align=center;verticalAlign=middle;spacing=5;" parent="1" vertex="1">
+          <mxGeometry x="455" y="490" width="150" height="68" as="geometry" />
+        </mxCell>
+        <mxCell id="spring" value="Spring Boot API&lt;br&gt;&lt;font style=&quot;font-size:10px;color:#475467&quot;&gt;Modular monolith · /api/v1&lt;br&gt;container port 8080&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#EAF7F3;strokeColor=#20B486;strokeWidth=1.2;fontColor=#101A2C;fontSize=12;fontStyle=1;align=center;verticalAlign=middle;spacing=5;" parent="1" vertex="1">
+          <mxGeometry x="640" y="490" width="175" height="68" as="geometry" />
+        </mxCell>
+        <mxCell id="redis" value="Redis&lt;br&gt;&lt;font style=&quot;font-size:10px;color:#667085&quot;&gt;Private · TCP 6379&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FEF3F2;strokeColor=#F04438;strokeWidth=1.1;fontColor=#101A2C;fontSize=11;fontStyle=1;align=center;verticalAlign=middle;spacing=4;" parent="1" vertex="1">
+          <mxGeometry x="640" y="570" width="175" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="runner" value="GitHub Actions self-hosted runner · deploy main sau CI" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F2F4F7;strokeColor=#667085;strokeWidth=1;fontColor=#344054;fontSize=11;fontStyle=1;align=center;verticalAlign=middle;spacing=4;" parent="1" vertex="1">
+          <mxGeometry x="435" y="615" width="400" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="rds-vpc" value="Amazon VPC · private" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#7A5AF8;strokeWidth=1.2;fontColor=#6941C6;fontSize=11;fontStyle=1;verticalAlign=top;align=left;spacingLeft=8;spacingTop=6;" parent="1" vertex="1">
+          <mxGeometry x="965" y="285" width="380" height="355" as="geometry" />
+        </mxCell>
+        <mxCell id="db-subnet-group" value="DB subnet group · private subnets" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#BDB4FE;strokeWidth=1;dashed=1;fontColor=#6941C6;fontSize=10;fontStyle=1;verticalAlign=top;align=left;spacingLeft=8;spacingTop=5;" parent="1" vertex="1">
+          <mxGeometry x="980" y="325" width="350" height="190" as="geometry" />
+        </mxCell>
+        <mxCell id="az-a" value="Private subnet · AZ-a" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F9F8FF;strokeColor=#D9D6FE;strokeWidth=1;fontColor=#6941C6;fontSize=10;fontStyle=1;align=center;verticalAlign=top;spacingTop=5;" parent="1" vertex="1">
+          <mxGeometry x="992" y="355" width="160" height="145" as="geometry" />
+        </mxCell>
+        <mxCell id="az-b" value="Private subnet · AZ-b" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F9F8FF;strokeColor=#D9D6FE;strokeWidth=1;fontColor=#6941C6;fontSize=10;fontStyle=1;align=center;verticalAlign=top;spacingTop=5;" parent="1" vertex="1">
+          <mxGeometry x="1158" y="355" width="160" height="145" as="geometry" />
+        </mxCell>
+        <mxCell id="rds-icon" value="Amazon RDS" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=#4D72F3;gradientDirection=north;fillColor=#3334B9;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=9;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.rds;" parent="1" vertex="1">
+          <mxGeometry x="1040" y="385" width="62" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="rds-primary-label" value="PostgreSQL&lt;br&gt;Primary endpoint" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=10;fontStyle=1;fontColor=#101A2C;" parent="1" vertex="1">
+          <mxGeometry x="1000" y="450" width="145" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="rds-standby" value="Standby&lt;br&gt;&lt;font style=&quot;font-size:9px;color:#667085&quot;&gt;Multi-AZ tùy SLA&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F2F4F7;strokeColor=#D0D5DD;strokeWidth=1;dashed=1;fontColor=#475467;fontSize=10;fontStyle=1;align=center;verticalAlign=middle;spacing=4;" parent="1" vertex="1">
+          <mxGeometry x="1175" y="390" width="125" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="rds-security" value="Public access: No · SG chỉ nhận TCP 5432 từ Lightsail private IP&lt;br&gt;Kết nối DB TLS: sslmode=require" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F4F3FF;strokeColor=#BDB4FE;strokeWidth=1;fontColor=#475467;fontSize=10;align=left;verticalAlign=middle;spacingLeft=8;" parent="1" vertex="1">
+          <mxGeometry x="980" y="530" width="350" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="vercel" value="Vercel&lt;br&gt;&lt;font style=&quot;font-size:11px;color:#475467&quot;&gt;Next.js frontend · external service&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#344054;strokeWidth=1.4;fontColor=#101A2C;fontSize=15;fontStyle=1;align=center;verticalAlign=middle;spacing=8;" parent="1" vertex="1">
+          <mxGeometry x="50" y="175" width="240" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="client-context" value="EXTERNAL CLIENT" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#1F2937;strokeWidth=1.4;dashed=1;fontColor=#111827;fontSize=12;fontStyle=1;verticalAlign=top;align=center;spacingTop=6;" parent="1" vertex="1">
+          <mxGeometry x="40" y="340" width="260" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="users-icon" value="" style="sketch=0;outlineConnect=0;fontColor=#3B82F6;gradientColor=none;fillColor=#3B82F6;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.users;" parent="1" vertex="1">
+          <mxGeometry x="132" y="368" width="75" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="users-label" value="Người học / giảng viên&lt;br&gt;Trình duyệt" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=12;fontStyle=1;fontColor=#344054;" parent="1" vertex="1">
+          <mxGeometry x="70" y="445" width="200" height="38" as="geometry" />
+        </mxCell>
+        <mxCell id="github" value="GitHub Actions&lt;br&gt;&lt;font style=&quot;font-size:10px;color:#667085&quot;&gt;CI · GitHub-hosted runner&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#344054;strokeWidth=1.3;fontColor=#101A2C;fontSize=13;fontStyle=1;align=center;verticalAlign=middle;spacing=7;" parent="1" vertex="1">
+          <mxGeometry x="50" y="755" width="240" height="86" as="geometry" />
+        </mxCell>
+        <mxCell id="r2" value="Cloudflare R2&lt;br&gt;&lt;font style=&quot;font-size:11px;color:#475467&quot;&gt;Object storage · S3-compatible&lt;br&gt;Outside AWS&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF7ED;strokeColor=#F38020;strokeWidth=1.6;fontColor=#101A2C;fontSize=15;fontStyle=1;align=center;verticalAlign=middle;spacing=10;" parent="1" vertex="1">
+          <mxGeometry x="1535" y="385" width="250" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="admin-context" value="EXTERNAL NOTIFICATION RECIPIENTS" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#1F2937;strokeWidth=1.4;dashed=1;fontColor=#D63384;fontSize=11;fontStyle=1;verticalAlign=top;align=center;spacingTop=6;" parent="1" vertex="1">
+          <mxGeometry x="1525" y="745" width="270" height="105" as="geometry" />
+        </mxCell>
+        <mxCell id="admin-email" value="Ops / admin email" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#98A2B3;strokeWidth=1;fontColor=#344054;fontSize=12;fontStyle=1;align=center;verticalAlign=middle;spacing=6;" parent="1" vertex="1">
+          <mxGeometry x="1570" y="785" width="180" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="note" value="TARGET BASELINE — sơ đồ mục tiêu, không phải bản chụp cấu hình đang chạy.&lt;br&gt;Compose production hiện public-map cổng 8080 và chưa khai báo Caddy: cần bổ sung TLS edge 443, đóng public 8080 và giới hạn SSH trước khi áp dụng. CloudWatch / SNS là đề xuất; Region và Multi-AZ cần xác nhận theo cấu hình AWS thực tế." style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF9EB;strokeColor=#FEC84B;strokeWidth=1.2;fontColor=#7A2E0E;fontSize=11;align=left;verticalAlign=middle;spacing=9;" parent="1" vertex="1">
+          <mxGeometry x="330" y="990" width="1090" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="legend" value="LUỒNG ĐÁNH SỐ: HTTPS / API · proxy nội bộ · PostgreSQL qua peering · Redis · CloudWatch → SNS → email · presigned transfer · CI/CD     NÉT ĐỨT: quyền / giám sát / deploy     Cloudflare R2 nằm ngoài AWS Cloud." style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#D0D5DD;strokeWidth=1;fontColor=#475467;fontSize=10;align=left;verticalAlign=middle;spacing=8;" parent="1" vertex="1">
+          <mxGeometry x="330" y="1065" width="1090" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="diagram-title" value="EduAlto | AWS deployment architecture baseline" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=25;fontStyle=1;fontColor=#232F3E;" parent="1" vertex="1"><mxGeometry x="40" y="18" width="1745" height="40" as="geometry" /></mxCell><mxCell id="diagram-subtitle" value="Target architecture · Lightsail application · private Amazon RDS · CloudWatch monitoring · Cloudflare R2 object storage" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=14;fontColor=#52657A;" parent="1" vertex="1"><mxGeometry x="40" y="60" width="1745" height="28" as="geometry" /></mxCell><mxCell id="cw-logs" value="" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=#D65DEB;gradientDirection=north;fillColor=#C925D1;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.cloudwatch;" parent="1" vertex="1"><mxGeometry x="465" y="770" width="58" height="58" as="geometry" /></mxCell><mxCell id="cw-logs-label" value="CloudWatch Logs&lt;br&gt;&lt;font style=&quot;font-size:10px;color:#52657A&quot;&gt;Logs · retention&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;fontSize=12;fontStyle=1;fontColor=#232F3E;" parent="1" vertex="1"><mxGeometry x="415" y="832" width="158" height="40" as="geometry" /></mxCell><mxCell id="cw-metrics" value="" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=#D65DEB;gradientDirection=north;fillColor=#C925D1;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.cloudwatch;" parent="1" vertex="1"><mxGeometry x="680" y="770" width="58" height="58" as="geometry" /></mxCell><mxCell id="cw-metrics-label" value="CloudWatch Metrics&lt;br&gt;&lt;font style=&quot;font-size:10px;color:#52657A&quot;&gt;Instance + RDS health&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;fontSize=12;fontStyle=1;fontColor=#232F3E;" parent="1" vertex="1"><mxGeometry x="630" y="832" width="158" height="40" as="geometry" /></mxCell><mxCell id="cw-alarm" value="" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=#D65DEB;gradientDirection=north;fillColor=#C925D1;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.cloudwatch;" parent="1" vertex="1"><mxGeometry x="895" y="770" width="58" height="58" as="geometry" /></mxCell><mxCell id="cw-alarm-label" value="CloudWatch Alarm&lt;br&gt;&lt;font style=&quot;font-size:10px;color:#52657A&quot;&gt;Threshold · state change&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;fontSize=12;fontStyle=1;fontColor=#232F3E;" parent="1" vertex="1"><mxGeometry x="845" y="832" width="158" height="40" as="geometry" /></mxCell><mxCell id="sns" value="" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=#D65DEB;gradientDirection=north;fillColor=#C925D1;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.sns;" parent="1" vertex="1"><mxGeometry x="1110" y="770" width="58" height="58" as="geometry" /></mxCell><mxCell id="sns-label" value="Amazon SNS&lt;br&gt;&lt;font style=&quot;font-size:10px;color:#52657A&quot;&gt;Confirmed email subscription&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;fontSize=12;fontStyle=1;fontColor=#232F3E;" parent="1" vertex="1"><mxGeometry x="1060" y="832" width="158" height="40" as="geometry" /></mxCell><mxCell id="dashboard" value="" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=#D65DEB;gradientDirection=north;fillColor=#C925D1;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.cloudwatch;" parent="1" vertex="1"><mxGeometry x="675" y="875" width="48" height="48" as="geometry" /></mxCell><mxCell id="dashboard-label" value="CloudWatch Dashboard&lt;br&gt;&lt;font style=&quot;font-size:10px;color:#52657A&quot;&gt;Operational visibility&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=12;fontStyle=1;fontColor=#232F3E;" parent="1" vertex="1"><mxGeometry x="735" y="877" width="270" height="44" as="geometry" /></mxCell><mxCell id="edge-browser-vercel" value="1 · HTTPS · web app" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#59636E;strokeWidth=1.5;endArrow=block;endFill=1;fontColor=#475467;fontSize=10;labelBackgroundColor=#FFFFFF;" parent="1" source="client-context" target="vercel" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="170" y="315" /><mxPoint x="170" y="285" /></Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge-browser-caddy" value="2 · HTTPS 443 · /api/v1 · CORS Vercel" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#59636E;strokeWidth=1.7;startArrow=block;startFill=1;endArrow=block;endFill=1;fontColor=#475467;fontSize=10;labelBackgroundColor=#FFFFFF;" parent="1" source="client-context" target="caddy" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="315" y="420" /><mxPoint x="315" y="524" /><mxPoint x="455" y="524" /></Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge-caddy-api" value="3 · HTTP 8080 · private Docker network" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#667085;strokeWidth=1.3;endArrow=block;endFill=1;fontColor=#475467;fontSize=9;labelBackgroundColor=#FFFFFF;" parent="1" source="caddy" target="spring" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-api-rds" value="4 · PostgreSQL TLS 5432 · VPC peering cùng Region" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#7A5AF8;strokeWidth=1.7;endArrow=block;endFill=1;fontColor=#6941C6;fontSize=10;labelBackgroundColor=#FFFFFF;" parent="1" source="spring" target="rds-icon" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="875" y="524" /><mxPoint x="920" y="524" /><mxPoint x="920" y="416" /><mxPoint x="1040" y="416" /></Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge-api-redis" value="5 · TCP 6379 · private" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#D92D20;strokeWidth=1.2;endArrow=block;endFill=1;fontColor=#B42318;fontSize=9;labelBackgroundColor=#FFFFFF;" parent="1" source="spring" target="redis" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-api-r2" value="8 · S3-compatible API · HTTPS 443" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#F38020;strokeWidth=1.7;endArrow=block;endFill=1;fontColor=#B54708;fontSize=10;labelBackgroundColor=#FFFFFF;" parent="1" source="spring" target="r2" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="840" y="524" /><mxPoint x="900" y="524" /><mxPoint x="900" y="220" /><mxPoint x="1480" y="220" /><mxPoint x="1480" y="460" /></Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge-browser-r2" value="7 · PUT / GET trực tiếp · presigned URL · bucket CORS" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2878B8;strokeWidth=1.7;dashed=1;dashPattern=8 6;endArrow=block;endFill=1;fontColor=#175CD3;fontSize=10;labelBackgroundColor=#FFFFFF;" parent="1" source="client-context" target="r2" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="315" y="420" /><mxPoint x="315" y="110" /><mxPoint x="1660" y="110" /><mxPoint x="1660" y="385" /></Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge-github-runner" value="9 · deploy image · main sau CI" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#667085;strokeWidth=1.3;dashed=1;dashPattern=2 5;endArrow=block;endFill=1;fontColor=#475467;fontSize=9;labelBackgroundColor=#FFFFFF;" parent="1" source="github" target="runner" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="315" y="798" /><mxPoint x="315" y="629" /><mxPoint x="435" y="629" /></Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge-app-logs" value="10 · application logs" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#D63384;strokeWidth=1.3;dashed=1;dashPattern=2 5;endArrow=block;endFill=1;fontColor=#C11574;fontSize=9;labelBackgroundColor=#FFFFFF;" parent="1" source="spring" target="cw-logs" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="625" y="615" /><mxPoint x="520" y="615" /><mxPoint x="520" y="775" /></Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge-rds-metrics" value="Cloud service metrics" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#D63384;strokeWidth=1.3;dashed=1;dashPattern=2 5;endArrow=block;endFill=1;fontColor=#C11574;fontSize=9;labelBackgroundColor=#FFFFFF;" parent="1" source="rds-icon" target="cw-metrics" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="1120" y="650" /><mxPoint x="730" y="650" /><mxPoint x="730" y="775" /></Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge-cw-metrics-alarm" value="6 · metric threshold" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#D63384;strokeWidth=1.5;endArrow=block;endFill=1;fontColor=#C11574;fontSize=9;labelBackgroundColor=#FFFFFF;" parent="1" source="cw-metrics" target="cw-alarm" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-alarm-sns" value="11 · alarm state action" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#D63384;strokeWidth=1.5;endArrow=block;endFill=1;fontColor=#C11574;fontSize=9;labelBackgroundColor=#FFFFFF;" parent="1" source="cw-alarm" target="sns" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-sns-admin" value="12 · email notification" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#69B84F;strokeWidth=1.5;endArrow=block;endFill=1;fontColor=#3B7A2A;fontSize=9;labelBackgroundColor=#FFFFFF;" parent="1" source="sns" target="admin-email" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="1435" y="815" /><mxPoint x="1525" y="815" /></Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge-metrics-dashboard" value="visualize" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2E90FA;strokeWidth=1.2;dashed=1;dashPattern=8 5;endArrow=block;endFill=1;fontColor=#175CD3;fontSize=9;labelBackgroundColor=#FFFFFF;" parent="1" source="cw-metrics" target="dashboard" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -79,6 +79,15 @@ public class CourseReviewController {
         return ApiResponse.ok(service.getInstructorSummary(principal.id()));
     }
 
+    @GetMapping("/api/v1/me/courses/{courseId}/review")
+    @Operation(summary = "Đánh giá của học viên hiện tại cho khóa học đã ghi danh")
+    public ApiResponse<CourseReviewResponse> ownReview(
+            @AuthenticationPrincipal AuthenticatedUser principal,
+            @PathVariable UUID courseId
+    ) {
+        return ApiResponse.ok(service.getOwnReview(principal.id(), courseId));
+    }
+
     @PutMapping("/api/v1/me/courses/{courseId}/review")
     @Operation(summary = "Tạo hoặc cập nhật đánh giá của học viên đã ghi danh")
     public ApiResponse<CourseReviewResponse> upsertOwnReview(

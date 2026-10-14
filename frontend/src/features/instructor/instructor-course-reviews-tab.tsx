@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { CircleAlert, EyeOff, Eye, MessageSquareText, RefreshCw, Star } from "lucide-react";
-import { UserAvatar } from "@/components/ui/user-avatar";
 import { ApiClientError } from "@/lib/api";
+import { ReviewStudentIdentity } from "@/features/instructor/review-student-identity";
 import {
   fetchCourseReviewSummary,
   type CourseReview,
@@ -14,10 +14,6 @@ import {
   setInstructorReviewVisibility,
 } from "@/lib/instructor-community-client";
 import { useInstructorCourseWorkspace } from "@/features/instructor/instructor-course-workspace";
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("vi-VN", { dateStyle: "medium" }).format(new Date(value));
-}
 
 export function InstructorCourseReviewsTab() {
   const { accessToken, course } = useInstructorCourseWorkspace();
@@ -183,15 +179,12 @@ export function InstructorCourseReviewsTab() {
                     <span className="ml-1 text-xs text-slate-500">{review.rating}/5</span>
                   </div>
                   <div className="mt-3 flex items-center gap-2">
-                    <UserAvatar name={review.studentName} size="xs" />
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-slate-900">
-                        {review.studentName}
-                      </p>
-                      <time dateTime={review.createdAt} className="text-xs text-slate-500">
-                        {formatDate(review.createdAt)}
-                      </time>
-                    </div>
+                    <ReviewStudentIdentity
+                      studentId={review.studentId}
+                      studentName={review.studentName}
+                      studentAvatarUrl={review.studentAvatarUrl}
+                      createdAt={review.createdAt}
+                    />
                   </div>
                 </div>
                 <button
