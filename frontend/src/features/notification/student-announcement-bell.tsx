@@ -114,7 +114,9 @@ export function StudentAnnouncementBell() {
               <div className="px-5 py-10 text-center">
                 <Megaphone className="mx-auto h-8 w-8 text-primary" aria-hidden="true" />
                 <p className="mt-3 text-sm font-medium text-heading">Chưa có thông báo mới</p>
-                <p className="mt-1 text-xs leading-5 text-muted">Thông báo mới sẽ hiển thị tại đây.</p>
+                <p className="mt-1 text-xs leading-5 text-muted">
+                  Thông báo mới sẽ hiển thị tại đây.
+                </p>
               </div>
             ) : null}
             {items.length > 0 ? (

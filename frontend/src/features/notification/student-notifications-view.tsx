@@ -49,7 +49,10 @@ export function StudentNotificationsView() {
       </header>
 
       {error && !loaded ? (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700" role="alert">
+        <div
+          className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"
+          role="alert"
+        >
           {error}
         </div>
       ) : null}
@@ -62,7 +65,9 @@ export function StudentNotificationsView() {
         <div className="rounded-xl border border-dashed border-slate-300 bg-white px-5 py-14 text-center">
           <Megaphone className="mx-auto h-8 w-8 text-primary" aria-hidden="true" />
           <h2 className="mt-3 font-semibold text-heading">Chưa có thông báo mới</h2>
-          <p className="mt-1 text-sm text-muted">Thông báo khóa học và phản hồi mới sẽ hiển thị tại đây.</p>
+          <p className="mt-1 text-sm text-muted">
+            Thông báo khóa học và phản hồi mới sẽ hiển thị tại đây.
+          </p>
         </div>
       ) : null}
       {items.length > 0 ? (

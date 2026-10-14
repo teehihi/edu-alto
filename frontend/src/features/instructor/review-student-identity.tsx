@@ -191,7 +191,9 @@ export function ReviewStudentIdentity({
                       {educationLevel ? (
                         <div className="flex justify-between gap-4">
                           <dt className="text-slate-500">Trình độ</dt>
-                          <dd className="text-right font-medium text-slate-800">{educationLevel}</dd>
+                          <dd className="text-right font-medium text-slate-800">
+                            {educationLevel}
+                          </dd>
                         </div>
                       ) : null}
                       {learningGoal ? (
@@ -208,7 +210,11 @@ export function ReviewStudentIdentity({
                       ) : null}
                     </dl>
                   ) : null}
-                  {!profile?.bio && !occupation && !educationLevel && !learningGoal && !interests ? (
+                  {!profile?.bio &&
+                  !occupation &&
+                  !educationLevel &&
+                  !learningGoal &&
+                  !interests ? (
                     <p className="mt-5 text-sm text-slate-500">
                       Học viên chưa bổ sung thông tin giới thiệu.
                     </p>

@@ -128,11 +128,7 @@ function ReviewCard({
 }) {
   return (
     <article className="flex items-start gap-4 rounded-xl border border-[#e2e8f0] bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.05)] sm:p-5">
-      <UserAvatar
-        name={review.studentName}
-        avatarUrl={review.studentAvatarUrl}
-        size="sm"
-      />
+      <UserAvatar name={review.studentName} avatarUrl={review.studentAvatarUrl} size="sm" />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
           <p className="text-sm font-semibold text-[#101a2c]">{review.studentName}</p>
@@ -155,11 +151,7 @@ function ReviewCard({
         </p>
         {review.instructorReply ? (
           <div className="mt-4 flex items-start gap-2.5">
-            <UserAvatar
-              name={instructorName}
-              avatarUrl={instructorAvatarUrl}
-              size="xs"
-            />
+            <UserAvatar name={instructorName} avatarUrl={instructorAvatarUrl} size="xs" />
             <div className="min-w-0 flex-1 rounded-xl bg-[#f2f4f7] px-3.5 py-2.5">
               <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                 <p className="text-xs font-semibold text-[#101a2c]">{instructorName}</p>
@@ -442,12 +434,14 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
         if (summaryResult.status === "fulfilled") setReviewSummary(summaryResult.value);
         if (ownReviewResult.status === "fulfilled") setMyReview(ownReviewResult.value);
         setReviews((current) => {
-          const nextReviews = reviewsResult.status === "fulfilled" ? reviewsResult.value.data : current;
-          const ownReview = ownReviewResult.status === "fulfilled"
-            ? ownReviewResult.value
-            : nextReviews.find((review) => review.studentId === user.id)
-              ?? current.find((review) => review.studentId === user.id)
-              ?? null;
+          const nextReviews =
+            reviewsResult.status === "fulfilled" ? reviewsResult.value.data : current;
+          const ownReview =
+            ownReviewResult.status === "fulfilled"
+              ? ownReviewResult.value
+              : (nextReviews.find((review) => review.studentId === user.id) ??
+                current.find((review) => review.studentId === user.id) ??
+                null);
           return mergePublishedOwnReview(nextReviews, ownReview);
         });
       } catch {
@@ -984,7 +978,7 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
                                   const selected = lesson.id === activeLesson?.id;
                                   const completed = Boolean(
                                     progress?.completedLessonIds?.includes(lesson.id) ||
-                                      progress?.completed,
+                                    progress?.completed,
                                   );
                                   const supported = ["TEXT", "VIDEO", "QUIZ"].includes(
                                     lesson.lessonType,
@@ -1253,10 +1247,7 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
                     <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-[#e2e8f0] pt-5">
                       {completionFeedback?.lessonId === currentLessonContent.id &&
                       completionFeedback.isError ? (
-                        <p
-                          role="alert"
-                          className="text-sm text-rose-700"
-                        >
+                        <p role="alert" className="text-sm text-rose-700">
                           {completionFeedback.message}
                         </p>
                       ) : (
@@ -1399,7 +1390,11 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
                     <p className="mt-1 text-xs text-[#64748b]">
                       Chỉ học viên đã ghi danh mới có thể gửi đánh giá.
                     </p>
-                    <div className="mt-3 flex items-center gap-1" role="group" aria-label="Chọn số sao">
+                    <div
+                      className="mt-3 flex items-center gap-1"
+                      role="group"
+                      aria-label="Chọn số sao"
+                    >
                       {[1, 2, 3, 4, 5].map((value) => (
                         <button
                           key={value}

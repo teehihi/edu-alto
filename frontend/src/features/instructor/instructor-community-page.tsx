@@ -861,7 +861,10 @@ export default function InstructorCommunityPage() {
             <h2 id="delete-review-reply-title" className="text-lg font-semibold text-slate-900">
               Xóa phản hồi này?
             </h2>
-            <p id="delete-review-reply-description" className="mt-2 text-sm leading-6 text-slate-600">
+            <p
+              id="delete-review-reply-description"
+              className="mt-2 text-sm leading-6 text-slate-600"
+            >
               Phản hồi sẽ bị gỡ khỏi đánh giá của học viên.
             </p>
             {replyErrorId === deleteReplyTarget.id ? (

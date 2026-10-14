@@ -107,7 +107,9 @@ export function FavoriteCoursesPage({ inLearningSpace = false }: { inLearningSpa
   );
 
   if (inLearningSpace) {
-    return <LearningWorkspaceShell title="Khóa học yêu thích">{pageContent}</LearningWorkspaceShell>;
+    return (
+      <LearningWorkspaceShell title="Khóa học yêu thích">{pageContent}</LearningWorkspaceShell>
+    );
   }
 
   return (

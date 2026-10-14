@@ -14,13 +14,17 @@ function formatRelativeTime(value: string) {
   if (elapsedSeconds < 3600) return `${Math.floor(elapsedSeconds / 60)} phút trước`;
   if (elapsedSeconds < 86400) return `${Math.floor(elapsedSeconds / 3600)} giờ trước`;
   if (elapsedSeconds < 604800) return `${Math.floor(elapsedSeconds / 86400)} ngày trước`;
-  return new Intl.DateTimeFormat("vi-VN", { day: "numeric", month: "short", year: "numeric" }).format(
-    new Date(createdAt),
-  );
+  return new Intl.DateTimeFormat("vi-VN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(createdAt));
 }
 
 function getCourseTitle(title: string) {
-  return title.startsWith("Phản hồi đánh giá: ") ? title.slice("Phản hồi đánh giá: ".length) : title;
+  return title.startsWith("Phản hồi đánh giá: ")
+    ? title.slice("Phản hồi đánh giá: ".length)
+    : title;
 }
 
 export function StudentNotificationRow({
@@ -59,7 +63,10 @@ export function StudentNotificationRow({
         </time>
       </span>
       {!isRead ? (
-        <span className="mt-3 h-2.5 w-2.5 shrink-0 rounded-full bg-[#1877F2]" aria-label="Chưa xem" />
+        <span
+          className="mt-3 h-2.5 w-2.5 shrink-0 rounded-full bg-[#1877F2]"
+          aria-label="Chưa xem"
+        />
       ) : null}
     </>
   );
@@ -70,7 +77,13 @@ export function StudentNotificationRow({
 
   if (item.linkUrl && /^https?:\/\//i.test(item.linkUrl)) {
     return (
-      <a href={item.linkUrl} target="_blank" rel="noreferrer" onClick={onRead} className={className}>
+      <a
+        href={item.linkUrl}
+        target="_blank"
+        rel="noreferrer"
+        onClick={onRead}
+        className={className}
+      >
         {content}
       </a>
     );
