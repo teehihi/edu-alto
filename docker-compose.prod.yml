@@ -8,6 +8,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - data
 
   backend:
     image: edualto-backend:production
@@ -24,4 +26,13 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: "6379"
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
+    networks:
+      edge:
+        gw_priority: 1
+      data: {}
+
+networks:
+  edge:
+  data:
+    internal: true

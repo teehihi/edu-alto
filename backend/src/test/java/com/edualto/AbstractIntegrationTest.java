@@ -11,7 +11,8 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
         "edualto.auth.otp.fixed-code=123456",
         "edualto.auth.otp.resend-cooldown-seconds=0",
         "edualto.auth.otp.max-attempts=2",
-        "edualto.auth.rate-limit.max-requests=10000"
+        "edualto.auth.rate-limit.max-requests=10000",
+        "edualto.mail.enabled=false"
 })
 @AutoConfigureMockMvc
 public abstract class AbstractIntegrationTest {

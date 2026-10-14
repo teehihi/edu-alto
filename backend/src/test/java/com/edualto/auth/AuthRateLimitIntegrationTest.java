@@ -19,13 +19,15 @@ class AuthRateLimitIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void securityChainLimitsAuthRequestsAndKeepsLogoutAvailable() throws Exception {
+        String clientIp = "203.0.113.9";
         for (String path : new String[]{"login", "register"}) {
             mockMvc.perform(post("/api/v1/auth/" + path)
+                    .header("X-Forwarded-For", clientIp)
                     .contentType(MediaType.APPLICATION_JSON).content("{}"))
                     .andExpect(status().isBadRequest());
         }
         mockMvc.perform(post("/api/v1/auth/login")
-                .header("X-Forwarded-For", "203.0.113.9")
+                .header("X-Forwarded-For", clientIp)
                 .contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isTooManyRequests())
                 .andExpect(header().exists("Retry-After"))

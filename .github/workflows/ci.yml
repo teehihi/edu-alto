@@ -22,7 +22,7 @@ jobs:
     env:
       CI: "true"
       NEXT_TELEMETRY_DISABLED: "1"
-      NEXT_PUBLIC_API_URL: http://localhost:8080/api/v1
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8080/api/v1
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -143,6 +143,21 @@ jobs:
       - name: Deploy backend container
         run: |
           set -euo pipefail
+          required_compose_version="2.33.1"
+          compose_cli_version="$(docker compose version --short | sed 's/^v//')"
+          oldest_compose_version="$(printf '%s\n%s\n' "$required_compose_version" "$compose_cli_version" | sort -V | head -n1)"
+          if [[ "$oldest_compose_version" != "$required_compose_version" ]]; then
+            echo "Docker Compose plugin $required_compose_version or later is required; found $compose_cli_version." >&2
+            exit 1
+          fi
+          if ! systemctl is-active --quiet caddy; then
+            echo "The host Caddy service is not active; the current deployment was left untouched." >&2
+            exit 1
+          fi
+          if ! caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile; then
+            echo "The host Caddy configuration is invalid; the current deployment was left untouched." >&2
+            exit 1
+          fi
           install -m 644 docker-compose.prod.yml "$HOME/edualto/docker-compose.prod.yml"
           if docker container inspect edualto-backend >/dev/null 2>&1; then
             compose_project="$(docker container inspect --format '{{ index .Config.Labels "com.docker.compose.project" }}' edualto-backend)"
