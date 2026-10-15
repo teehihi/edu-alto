@@ -58,7 +58,7 @@ export function StudentAnnouncementBell() {
         <Bell className="h-[21px] w-[21px] stroke-[1.8]" aria-hidden="true" />
         {unreadCount > 0 ? (
           <span
-            className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-[#1877F2] ring-2 ring-white"
+            className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-primary ring-2 ring-white"
             aria-hidden="true"
           />
         ) : null}

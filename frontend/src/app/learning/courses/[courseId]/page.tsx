@@ -1,7 +1,7 @@
 export const instant = false;
 import { LearningCoursePage } from "@/features/learning/learning-course-page";
 
-export const metadata = { title: "Giáo trình của tôi" };
+export const metadata = { title: "Bài học" };
 
 export default async function LearningCourseRoute({
   params,
