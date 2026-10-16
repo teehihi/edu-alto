@@ -40,7 +40,7 @@ export function GuidedTour({
 
     targetElementRef.current = el;
 
-    if (el) {
+    if (el && typeof el.getBoundingClientRect === "function") {
       const rect = el.getBoundingClientRect();
       setTargetRect({
         top: rect.top,
@@ -76,11 +76,13 @@ export function GuidedTour({
           typeof window.matchMedia === "function" &&
           window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-        el.scrollIntoView({
-          behavior: prefersReducedMotion ? "auto" : "smooth",
-          block: "center",
-          inline: "nearest",
-        });
+        if (typeof el.scrollIntoView === "function") {
+          el.scrollIntoView({
+            behavior: prefersReducedMotion ? "auto" : "smooth",
+            block: "center",
+            inline: "nearest",
+          });
+        }
 
         // Delay updating rect slightly until smooth scroll settles
         timeoutId = setTimeout(() => {
