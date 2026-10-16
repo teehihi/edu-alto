@@ -3,10 +3,9 @@
 import {
   BookOpen,
   Check,
-  ChevronLeft,
-  ChevronRight,
   FilePlus2,
   FileText,
+  HelpCircle,
   LoaderCircle,
   Plus,
   Sparkles,
@@ -16,6 +15,11 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState, type ChangeEventHandler } from "react";
 import { createPortal } from "react-dom";
+import { GuidedTour, useGuidedTour } from "@/components/ui/guided-tour";
+import {
+  QUIZ_GUIDED_TOUR_STEPS,
+  QUIZ_TOUR_STORAGE_KEY,
+} from "@/features/instructor/quiz-guided-tour";
 import { courseDescriptionToText } from "@/lib/course-description";
 import type { LessonAttachment } from "@/types/lesson-attachment";
 
@@ -99,7 +103,6 @@ export function QuizAuthoringFields({
   disabled = false,
 }: Props) {
   const [isGenerationOpen, setIsGenerationOpen] = useState(false);
-  const [activeGuideStep, setActiveGuideStep] = useState(0);
   const [includeTitle, setIncludeTitle] = useState(true);
   const [includeDescription, setIncludeDescription] = useState(true);
   const [includeContent, setIncludeContent] = useState(true);
@@ -122,48 +125,28 @@ export function QuizAuthoringFields({
     isGeneratingRef.current = isGenerating;
   }, [isGenerating]);
 
-  const guideSteps = [
-    {
-      title: "Soạn câu hỏi",
-      description: "Nhập nội dung câu hỏi vào ô đầu tiên. Mỗi thẻ bên dưới tương ứng với một câu.",
-      targetId: questions[0] ? `quiz-prompt-${questions[0].id}` : "quiz-passing-score",
+  const [showTourToast, setShowTourToast] = useState(false);
+  const {
+    isOpen: isTourOpen,
+    currentStep: currentTourStep,
+    startTour,
+    closeTour,
+    completeTour,
+    skipTour,
+    goToStep: setTourStep,
+  } = useGuidedTour({
+    steps: QUIZ_GUIDED_TOUR_STEPS,
+    storageKey: QUIZ_TOUR_STORAGE_KEY,
+    autoStart: true,
+    onComplete: () => {
+      setShowTourToast(true);
+      setTimeout(() => setShowTourToast(false), 4000);
     },
-    {
-      title: "Nhập phương án",
-      description: "Điền nội dung các lựa chọn. Dùng nút Thêm phương án nếu cần thêm lựa chọn.",
-      targetId: questions[0] ? `quiz-option-${questions[0].id}-0` : "quiz-passing-score",
+    onSkip: () => {
+      setShowTourToast(true);
+      setTimeout(() => setShowTourToast(false), 4000);
     },
-    {
-      title: "Chọn đáp án đúng",
-      description:
-        "Bấm vòng tròn bên trái phương án đúng. Dấu xanh và nhãn Đáp án sẽ chuyển sang lựa chọn mới; bạn có thể đổi lại trước khi lưu.",
-      targetId: questions[0]
-        ? `quiz-correct-${questions[0].id}-${Math.max(
-            0,
-            questions[0].options.findIndex((option) => option.correct),
-          )}`
-        : "quiz-passing-score",
-    },
-    {
-      title: "Thiết lập và lưu",
-      description:
-        "Chọn điểm đạt, thời gian và có thể bật Tạo đề con. Hoàn tất bằng nút Lưu bài học ở cuối cửa sổ.",
-      targetId: "quiz-passing-score",
-    },
-  ];
-
-  function goToGuideStep(stepIndex: number) {
-    const boundedIndex = Math.min(Math.max(stepIndex, 0), guideSteps.length - 1);
-    setActiveGuideStep(boundedIndex);
-    window.requestAnimationFrame(() => {
-      const target = document.getElementById(guideSteps[boundedIndex].targetId);
-      target?.scrollIntoView({
-        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
-        block: "center",
-      });
-      target?.focus({ preventScroll: true });
-    });
-  }
+  });
 
   useEffect(() => {
     if (!isGenerationOpen) return;
@@ -718,11 +701,18 @@ export function QuizAuthoringFields({
           <div className="max-w-[560px]">
             <h3 className="text-base font-semibold text-primary">Câu hỏi ôn tập</h3>
             <p className="mt-1 text-[13px] leading-5 text-[#62748e]">
-              Theo hướng dẫn thao tác bên dưới để soạn câu hỏi, chọn đáp án đúng và thiết lập bài
-              kiểm tra.
+              Soạn thảo câu hỏi trắc nghiệm, cấu hình điểm đạt và hoàn tất bài học.
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => startTour(0)}
+              className="focus-ring inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 shadow-xs transition hover:bg-slate-50 hover:text-slate-900 active:scale-[0.98]"
+            >
+              <HelpCircle className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+              Hướng dẫn
+            </button>
             <button
               type="button"
               disabled={controlsDisabled}
@@ -738,6 +728,7 @@ export function QuizAuthoringFields({
             </button>
             <button
               type="button"
+              data-tour="quiz-add-question-btn"
               disabled={controlsDisabled || questions.length >= 100}
               onClick={onAddQuestion}
               className="focus-ring inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-primary bg-primary px-3 text-xs font-semibold text-white shadow-xs transition hover:bg-primary-dark active:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-50"
@@ -748,92 +739,10 @@ export function QuizAuthoringFields({
           </div>
         </div>
 
-        <section
-          aria-label="Hướng dẫn thao tác tạo quiz"
-          className="rounded-xl border border-[#cfe9df] bg-[#f5fbf9] p-4 md:p-5"
+        <div
+          data-tour="quiz-settings"
+          className="grid gap-4 rounded-lg border border-slate-200 bg-white p-4 md:grid-cols-2 xl:grid-cols-3"
         >
-          <div className="flex items-start gap-3">
-            <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#e5f6ef] text-primary">
-              <BookOpen className="h-4 w-4" aria-hidden="true" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <h4 className="text-sm font-semibold text-[#101a2c]">Hướng dẫn từng bước</h4>
-                <span className="text-xs font-medium text-[#62748e]">
-                  Bước {activeGuideStep + 1} / {guideSteps.length}
-                </span>
-              </div>
-              <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {guideSteps.map((step, index) => (
-                  <button
-                    key={step.title}
-                    type="button"
-                    aria-current={activeGuideStep === index ? "step" : undefined}
-                    onClick={() => goToGuideStep(index)}
-                    className={`focus-ring flex min-h-9 items-center gap-2 rounded-lg border px-2.5 text-left text-xs font-medium transition ${activeGuideStep === index ? "border-primary bg-white text-primary" : "border-[#dfe9e4] bg-transparent text-[#62748e] hover:bg-white"}`}
-                  >
-                    <span
-                      className={`inline-flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] ${activeGuideStep === index ? "bg-primary text-white" : "bg-white text-[#62748e]"}`}
-                    >
-                      {index + 1}
-                    </span>
-                    <span className="min-w-0 truncate">{step.title}</span>
-                  </button>
-                ))}
-              </div>
-              <div
-                aria-live="polite"
-                className="mt-3 rounded-lg border border-[#dfe9e4] bg-white p-3"
-              >
-                <p className="text-sm font-semibold text-[#101a2c]">
-                  {guideSteps[activeGuideStep].title}
-                </p>
-                <p className="mt-1 text-xs leading-5 text-[#62748e]">
-                  {guideSteps[activeGuideStep].description}
-                </p>
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                  <button
-                    type="button"
-                    onClick={() => goToGuideStep(activeGuideStep)}
-                    className="focus-ring inline-flex min-h-9 items-center rounded-lg border border-primary/30 px-3 text-xs font-semibold text-primary transition hover:bg-[#f5fbf9]"
-                  >
-                    Đi tới thao tác
-                  </button>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      disabled={activeGuideStep === 0}
-                      onClick={() => goToGuideStep(activeGuideStep - 1)}
-                      className="focus-ring inline-flex size-9 items-center justify-center rounded-lg border border-[#dfe9e4] text-[#52647d] transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-                      aria-label="Bước trước"
-                    >
-                      <ChevronLeft className="size-4" aria-hidden="true" />
-                    </button>
-                    {activeGuideStep < guideSteps.length - 1 ? (
-                      <button
-                        type="button"
-                        onClick={() => goToGuideStep(activeGuideStep + 1)}
-                        className="focus-ring inline-flex min-h-9 items-center gap-1 rounded-lg bg-primary px-3 text-xs font-semibold text-white transition hover:bg-[#159e75]"
-                      >
-                        Bước tiếp theo <ChevronRight className="size-3.5" aria-hidden="true" />
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => goToGuideStep(0)}
-                        className="focus-ring inline-flex min-h-9 items-center gap-1 rounded-lg bg-primary px-3 text-xs font-semibold text-white transition hover:bg-[#159e75]"
-                      >
-                        Xem lại hướng dẫn <ChevronRight className="size-3.5" aria-hidden="true" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <div className="grid gap-4 rounded-lg border border-slate-200 bg-white p-4 md:grid-cols-2 xl:grid-cols-3">
           <div>
             <label
               htmlFor="quiz-passing-score"
@@ -959,6 +868,7 @@ export function QuizAuthoringFields({
             </label>
             <input
               id={`quiz-prompt-${question.id}`}
+              data-tour={questionIndex === 0 ? "quiz-question-prompt" : undefined}
               type="text"
               maxLength={2000}
               value={question.prompt}
@@ -974,11 +884,21 @@ export function QuizAuthoringFields({
               className="focus-ring h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-[13px] text-heading placeholder:text-slate-400"
             />
 
-            <div className="space-y-2">
+            <div
+              data-tour={questionIndex === 0 ? "quiz-options-area" : undefined}
+              className="space-y-2"
+            >
               {question.options.map((option, optionIndex) => (
                 <div key={optionIndex} className="flex items-center gap-3">
                   <input
                     id={`quiz-correct-${question.id}-${optionIndex}`}
+                    data-tour={
+                      questionIndex === 0 &&
+                      (option.correct ||
+                        (!question.options.some((cand) => cand.correct) && optionIndex === 0))
+                        ? "quiz-correct-answer"
+                        : undefined
+                    }
                     type="radio"
                     name={`quiz-correct-${question.id}`}
                     aria-label={`Đáp án đúng câu ${questionIndex + 1}, phương án ${optionLabels[optionIndex]}`}
@@ -1094,6 +1014,29 @@ export function QuizAuthoringFields({
           </fieldset>
         ))}
       </section>
+
+      <GuidedTour
+        isOpen={isTourOpen}
+        steps={QUIZ_GUIDED_TOUR_STEPS}
+        currentStep={currentTourStep}
+        onStepChange={setTourStep}
+        onClose={closeTour}
+        onComplete={completeTour}
+        onSkip={skipTour}
+      />
+
+      {showTourToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-5 right-5 z-[9999] flex items-center gap-2.5 rounded-xl border border-emerald-200 bg-white px-4 py-3 text-xs font-medium text-heading shadow-xl animate-in fade-in slide-in-from-bottom-3"
+        >
+          <Check className="size-4 shrink-0 text-primary" aria-hidden="true" />
+          <span>
+            Hoàn tất hướng dẫn! Bạn có thể xem lại bất cứ lúc nào từ nút <strong>Hướng dẫn</strong>.
+          </span>
+        </div>
+      )}
     </>
   );
 }

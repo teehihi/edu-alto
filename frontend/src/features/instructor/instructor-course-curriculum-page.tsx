@@ -2276,7 +2276,7 @@ export function InstructorCourseCurriculumPage({
           >
             <aside
               id="lesson-editor-global-sidebar"
-              className="hidden bg-[#101a2c] text-white lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:flex lg:min-h-dvh lg:flex-col"
+              className="sticky top-0 hidden h-dvh bg-[#101a2c] text-white lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:flex lg:min-h-0 lg:self-start lg:flex-col"
             >
               <InstructorWorkspaceSidebar
                 activeSection="courses"
@@ -2382,6 +2382,7 @@ export function InstructorCourseCurriculumPage({
                 <button
                   type="submit"
                   form="lesson-form"
+                  data-tour="quiz-save-button"
                   disabled={lessonFormLoading || lessonResourceUploading || quizLoading}
                   className="focus-ring inline-flex min-h-10 items-center justify-center rounded-lg bg-primary px-3 text-sm font-semibold text-white transition hover:bg-[#159e75] active:bg-[#128763] disabled:cursor-not-allowed disabled:opacity-60 sm:px-4"
                 >
