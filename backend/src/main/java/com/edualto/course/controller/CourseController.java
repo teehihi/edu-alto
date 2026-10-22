@@ -3,6 +3,7 @@ package com.edualto.course.controller;
 import com.edualto.common.api.ApiResponse;
 import com.edualto.common.api.PageMeta;
 import com.edualto.course.domain.CourseLevel;
+import com.edualto.course.dto.CourseCatalogResponse;
 import com.edualto.course.dto.CourseDetailResponse;
 import com.edualto.course.dto.CourseCurriculumResponse;
 import com.edualto.course.dto.CourseLessonPreviewResponse;
@@ -48,7 +49,7 @@ public class CourseController {
             @RequestParam(required = false, defaultValue = "0") int page,
             @RequestParam(required = false, defaultValue = "12") int size
     ) {
-        Page<CourseListItemResponse> coursesPage = courseService.getPublicCatalog(
+        CourseCatalogResponse catalog = courseService.getPublicCatalog(
                 keyword,
                 level,
                 minPrice,
@@ -62,13 +63,13 @@ public class CourseController {
         );
 
         PageMeta pageMeta = new PageMeta(
-                coursesPage.getNumber(),
-                coursesPage.getSize(),
-                coursesPage.getTotalElements(),
-                coursesPage.getTotalPages()
+                catalog.page(),
+                catalog.size(),
+                catalog.totalElements(),
+                catalog.totalPages()
         );
 
-        return ApiResponse.page(coursesPage.getContent(), pageMeta);
+        return ApiResponse.page(catalog.items(), pageMeta);
     }
 
     @GetMapping("/{slug}")

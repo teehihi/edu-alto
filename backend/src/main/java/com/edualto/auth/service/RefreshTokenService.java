@@ -6,8 +6,11 @@ import com.edualto.common.exception.BusinessException;
 import com.edualto.user.domain.User;
 import java.security.SecureRandom;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -19,6 +22,7 @@ public class RefreshTokenService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final HashingService hashingService;
     private final Clock clock;
+    private final AuthSessionRedisService authSessionRedisService;
     private final SecureRandom secureRandom = new SecureRandom();
     private final long refreshTokenTtlDays;
 
@@ -26,11 +30,13 @@ public class RefreshTokenService {
             RefreshTokenRepository refreshTokenRepository,
             HashingService hashingService,
             Clock clock,
+            AuthSessionRedisService authSessionRedisService,
             @Value("${edualto.auth.refresh-token-ttl-days}") long refreshTokenTtlDays
     ) {
         this.refreshTokenRepository = refreshTokenRepository;
         this.hashingService = hashingService;
         this.clock = clock;
+        this.authSessionRedisService = authSessionRedisService;
         this.refreshTokenTtlDays = refreshTokenTtlDays;
     }
 
@@ -46,6 +52,18 @@ public class RefreshTokenService {
                 deviceName,
                 clock.instant().plusSeconds(refreshTokenTtlDays * 24 * 60 * 60)
         ));
+        Set<String> roles = user.getRoles() != null
+                ? user.getRoles().stream().map(r -> r.getName().name()).collect(Collectors.toSet())
+                : Set.of();
+        authSessionRedisService.saveSession(
+                user.getId(),
+                hash,
+                user.getEmail(),
+                user.getFullName(),
+                roles,
+                deviceName,
+                Duration.ofDays(refreshTokenTtlDays)
+        );
         return rawToken;
     }
 
@@ -53,19 +71,23 @@ public class RefreshTokenService {
     public User rotate(String rawToken) {
         RefreshToken token = requireUsable(rawToken);
         token.revoke();
+        authSessionRedisService.invalidateToken(hashingService.sha256(rawToken));
         return token.getUser();
     }
 
     @Transactional
     public void revoke(String rawToken) {
-        refreshTokenRepository.findByTokenHash(hashingService.sha256(rawToken))
+        String hash = hashingService.sha256(rawToken);
+        refreshTokenRepository.findByTokenHash(hash)
                 .ifPresent(RefreshToken::revoke);
+        authSessionRedisService.invalidateToken(hash);
     }
 
     @Transactional
     public void revokeAll(User user) {
         refreshTokenRepository.findByUserAndRevokedAtIsNull(user)
                 .forEach(RefreshToken::revoke);
+        authSessionRedisService.invalidateUserSession(user.getId());
     }
 
     private RefreshToken requireUsable(String rawToken) {

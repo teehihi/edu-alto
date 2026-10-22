@@ -1,10 +1,12 @@
 package com.edualto.course.service;
 
+import com.edualto.common.config.RedisCacheConfig;
 import com.edualto.common.exception.BusinessException;
 import com.edualto.common.util.SlugUtils;
 import com.edualto.course.domain.Course;
 import com.edualto.course.domain.CourseLevel;
 import com.edualto.course.domain.CourseStatus;
+import com.edualto.course.dto.CourseCatalogResponse;
 import com.edualto.course.dto.CourseDetailResponse;
 import com.edualto.course.dto.CourseInstructorSummaryResponse;
 import com.edualto.course.dto.CourseListItemResponse;
@@ -37,6 +39,9 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -91,8 +96,12 @@ public class CourseService {
     // Public Catalog Methods
     // ==========================================
 
+    @Cacheable(
+            value = RedisCacheConfig.CACHE_COURSES_CATALOG,
+            key = "{#keyword, #level, #minPrice, #maxPrice, #isFree, #language, #instructorId, #sortBy, #page, #size}"
+    )
     @Transactional(readOnly = true)
-    public Page<CourseListItemResponse> getPublicCatalog(
+    public CourseCatalogResponse getPublicCatalog(
             String keyword,
             CourseLevel level,
             BigDecimal minPrice,
@@ -119,7 +128,7 @@ public class CourseService {
 
         Page<Course> coursesPage = courseRepository.findAll(spec, pageable);
         if (coursesPage.isEmpty()) {
-            return coursesPage.map(c -> null); // Empty page
+            return new CourseCatalogResponse(List.of(), coursesPage.getNumber(), coursesPage.getSize(), 0, 0);
         }
 
         Set<UUID> instructorIds = coursesPage.getContent().stream()
@@ -128,7 +137,7 @@ public class CourseService {
 
         Map<UUID, CourseInstructorSummaryResponse> instructorMap = resolveInstructorSummaries(instructorIds);
 
-        return coursesPage.map(course -> {
+        List<CourseListItemResponse> items = coursesPage.getContent().stream().map(course -> {
             String thumbnailUrl = resolveThumbnailUrl(course.getThumbnailKey());
             CourseInstructorSummaryResponse instructor = instructorMap.get(course.getInstructorId());
             return new CourseListItemResponse(
@@ -145,9 +154,18 @@ public class CourseService {
                     course.getPublishedAt(),
                     instructor
             );
-        });
+        }).toList();
+
+        return new CourseCatalogResponse(
+                items,
+                coursesPage.getNumber(),
+                coursesPage.getSize(),
+                coursesPage.getTotalElements(),
+                coursesPage.getTotalPages()
+        );
     }
 
+    @Cacheable(value = RedisCacheConfig.CACHE_COURSES_DETAIL, key = "#slug")
     @Transactional(readOnly = true)
     public CourseDetailResponse getPublicCourseBySlug(String slug) {
         if (slug == null || slug.isBlank()) {
@@ -184,6 +202,9 @@ public class CourseService {
     // Instructor Management Methods
     // ==========================================
 
+    @Caching(evict = {
+            @CacheEvict(value = RedisCacheConfig.CACHE_COURSES_CATALOG, allEntries = true)
+    })
     @Transactional
     public InstructorCourseResponse createCourse(UUID instructorId, CreateCourseRequest request) {
         validateInstructor(instructorId);
@@ -233,6 +254,11 @@ public class CourseService {
         return toInstructorCourseResponse(course);
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = RedisCacheConfig.CACHE_COURSES_CATALOG, allEntries = true),
+            @CacheEvict(value = RedisCacheConfig.CACHE_COURSES_DETAIL, allEntries = true),
+            @CacheEvict(value = RedisCacheConfig.CACHE_COURSES_CURRICULUM, allEntries = true)
+    })
     @Transactional
     public InstructorCourseResponse updateCourse(UUID instructorId, UUID courseId, UpdateCourseRequest request) {
         Course course = getCourseAndCheckOwnership(instructorId, courseId);
@@ -274,6 +300,11 @@ public class CourseService {
         return toInstructorCourseResponse(course);
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = RedisCacheConfig.CACHE_COURSES_CATALOG, allEntries = true),
+            @CacheEvict(value = RedisCacheConfig.CACHE_COURSES_DETAIL, allEntries = true),
+            @CacheEvict(value = RedisCacheConfig.CACHE_COURSES_CURRICULUM, allEntries = true)
+    })
     @Transactional
     public InstructorCourseResponse publishCourse(UUID instructorId, UUID courseId) {
         Course course = getCourseAndCheckOwnership(instructorId, courseId);
@@ -293,6 +324,11 @@ public class CourseService {
         return toInstructorCourseResponse(course);
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = RedisCacheConfig.CACHE_COURSES_CATALOG, allEntries = true),
+            @CacheEvict(value = RedisCacheConfig.CACHE_COURSES_DETAIL, allEntries = true),
+            @CacheEvict(value = RedisCacheConfig.CACHE_COURSES_CURRICULUM, allEntries = true)
+    })
     @Transactional
     public InstructorCourseResponse archiveCourse(UUID instructorId, UUID courseId) {
         Course course = getCourseAndCheckOwnership(instructorId, courseId);
@@ -301,6 +337,11 @@ public class CourseService {
         return toInstructorCourseResponse(course);
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = RedisCacheConfig.CACHE_COURSES_CATALOG, allEntries = true),
+            @CacheEvict(value = RedisCacheConfig.CACHE_COURSES_DETAIL, allEntries = true),
+            @CacheEvict(value = RedisCacheConfig.CACHE_COURSES_CURRICULUM, allEntries = true)
+    })
     @Transactional
     public void deleteDraftCourse(UUID instructorId, UUID courseId) {
         Course course = getCourseAndCheckOwnership(instructorId, courseId);
