@@ -11,19 +11,32 @@ import {
   LoaderCircle,
   LockKeyhole,
   Percent,
+  RotateCcw,
   ShieldCheck,
+  WifiOff,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  cancelCheckoutOrder,
   createCheckoutOrder,
+  fetchActivePendingOrder,
+  fetchOrderDetails,
   formatOrderCode,
   type CheckoutOrder,
   type PaymentMethod,
 } from "@/lib/commerce-client";
 import { AppHeader } from "@/components/layout/app-header";
 import { Footer } from "@/components/layout/footer";
-import { readCart, type CartCourse } from "@/lib/cart";
+import { clearCart, readCart, type CartCourse } from "@/lib/cart";
+import {
+  backupCart,
+  clearCartBackup,
+  clearPendingCheckoutSession,
+  getPendingCheckoutSession,
+  restoreCartFromBackup,
+  savePendingCheckoutSession,
+} from "@/lib/checkout-session";
 import { ApiClientError } from "@/lib/api";
 import { formatVND } from "@/lib/format";
 import { useAuthSession } from "@/lib/auth-session";
@@ -59,21 +72,141 @@ export function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("MOMO");
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [isOffline, setIsOffline] = useState(false);
+  const [isRecovered, setIsRecovered] = useState(false);
   const [createdOrder, setCreatedOrder] = useState<CheckoutOrder | null>(null);
   const closeMessage = useCallback(() => setMessage(""), []);
 
+  // Offline / Online network state detection
+  useEffect(() => {
+    const handleOffline = () => setIsOffline(true);
+    const handleOnline = () => setIsOffline(false);
+    if (typeof window !== "undefined") {
+      setIsOffline(!navigator.onLine);
+      window.addEventListener("offline", handleOffline);
+      window.addEventListener("online", handleOnline);
+    }
+    return () => {
+      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("online", handleOnline);
+    };
+  }, []);
+
+  // Hydration & local state restoration
   useEffect(() => {
     setIsMounted(true);
-    setCourses(readCart());
+    let currentCourses = readCart();
+    if (!currentCourses.length) {
+      const backup = restoreCartFromBackup();
+      if (backup.length) {
+        currentCourses = backup;
+        setCourses(backup);
+      }
+    } else {
+      setCourses(currentCourses);
+    }
+
     const sync = () => setCourses(readCart());
     window.addEventListener("edualto:cart-changed", sync);
     window.addEventListener("storage", sync);
+
+    // Check localStorage pending checkout session for immediate recovery
+    const localSession = getPendingCheckoutSession();
+    if (localSession) {
+      setCreatedOrder(localSession.order);
+      setPaymentMethod(localSession.paymentMethod);
+      if (localSession.phoneNumber) setPhoneNumber(localSession.phoneNumber);
+      if (localSession.promotionCode) setPromotionCode(localSession.promotionCode);
+      if (!currentCourses.length && localSession.courses.length) {
+        setCourses(localSession.courses);
+      }
+      setIsRecovered(true);
+    }
+
     return () => {
       window.removeEventListener("edualto:cart-changed", sync);
       window.removeEventListener("storage", sync);
     };
   }, []);
 
+  // Query server for active pending order when logged in
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const token = await getAccessToken();
+        if (!token || cancelled) return;
+        const activeOrder = await fetchActivePendingOrder(token);
+        if (cancelled) return;
+        if (activeOrder) {
+          setCreatedOrder(activeOrder);
+          if (activeOrder.paymentMethod) {
+            setPaymentMethod(activeOrder.paymentMethod);
+          }
+          setIsRecovered(true);
+          const current = readCart().length ? readCart() : restoreCartFromBackup();
+          savePendingCheckoutSession(
+            activeOrder,
+            current,
+            phoneNumber,
+            activeOrder.paymentMethod,
+            promotionCode,
+          );
+        } else {
+          // If server reports no active pending order, clean up local cache if expired
+          const localSession = getPendingCheckoutSession();
+          if (localSession) {
+            clearPendingCheckoutSession();
+            setCreatedOrder(null);
+            setIsRecovered(false);
+          }
+        }
+      } catch {
+        // Silently skip if network error occurs in background
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, getAccessToken, phoneNumber, promotionCode]);
+
+  // Real-time payment status polling while waiting for transfer
+  useEffect(() => {
+    if (!createdOrder || !user) return;
+    const interval = setInterval(async () => {
+      try {
+        const token = await getAccessToken();
+        if (!token) return;
+        const details = await fetchOrderDetails(token, createdOrder.orderId);
+        if (details.status === "PAID") {
+          clearPendingCheckoutSession();
+          clearCart();
+          clearCartBackup();
+          router.push(
+            `/checkout/result?orderId=${encodeURIComponent(createdOrder.orderId)}&status=PAID`,
+          );
+        } else if (
+          details.status === "PAYMENT_FAILED" ||
+          details.status === "CANCELLED" ||
+          details.status === "EXPIRED"
+        ) {
+          clearPendingCheckoutSession();
+          setCreatedOrder(null);
+          setIsRecovered(false);
+          setMessage(
+            "Đơn hàng đã hết hạn hoặc bị hủy. Giỏ hàng đã được khôi phục để bạn thao tác lại.",
+          );
+        }
+      } catch {
+        // Network hiccup, will retry next tick
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [createdOrder, user, getAccessToken, router]);
+
+  // Scroll to manual payment instructions when order is created
   useEffect(() => {
     if (createdOrder) {
       const el = document.getElementById("manual-payment-instructions");
@@ -82,6 +215,29 @@ export function CheckoutPage() {
       }
     }
   }, [createdOrder]);
+
+  const handleCancelPendingOrder = async () => {
+    if (!createdOrder) return;
+    setCancelling(true);
+    try {
+      const token = await getAccessToken();
+      if (token) {
+        await cancelCheckoutOrder(token, createdOrder.orderId);
+      }
+      clearPendingCheckoutSession();
+      setCreatedOrder(null);
+      setIsRecovered(false);
+      const backup = restoreCartFromBackup();
+      if (backup.length && !readCart().length) {
+        setCourses(backup);
+      }
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Chưa thể hủy đơn hàng. Vui lòng thử lại.");
+    } finally {
+      setCancelling(false);
+    }
+  };
+
   const subtotal = courses.reduce((sum, course) => sum + course.price, 0);
   const isInstructor =
     user?.roles.some((role) => role === "INSTRUCTOR" || role === "ROLE_INSTRUCTOR") ?? false;
@@ -124,6 +280,68 @@ export function CheckoutPage() {
               </span>
             </nav>
           </div>
+
+          {/* Network offline warning banner */}
+          {isOffline && (
+            <div className="mb-6 flex items-start gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-900 shadow-xs">
+              <WifiOff className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+              <div className="text-sm">
+                <p className="font-bold">Đang mất kết nối mạng (Ngoại tuyến)</p>
+                <p className="mt-0.5 text-xs text-amber-800">
+                  Thông tin thanh toán và mã đơn hàng đã được lưu trữ an toàn trên thiết bị của bạn.
+                  Vui lòng kiểm tra lại đường truyền Internet và{" "}
+                  <strong>không thực hiện chuyển khoản lại nhiều lần</strong> để tránh bị trừ tiền
+                  trùng lặp.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Active order recovery notice */}
+          {createdOrder && (
+            <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-emerald-300 bg-emerald-50/90 p-4 sm:flex-row sm:items-center sm:justify-between text-emerald-950 shadow-xs">
+              <div className="flex items-start gap-3">
+                <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                <div className="text-sm">
+                  <p className="font-bold text-[#101a2c]">
+                    {isRecovered
+                      ? "Đã khôi phục đơn hàng đang chờ thanh toán"
+                      : "Đơn hàng đang chờ thanh toán"}
+                    : {formatOrderCode(createdOrder.orderId)}
+                  </p>
+                  <p className="mt-0.5 text-xs text-slate-600">
+                    Mã nội dung chuyển khoản:{" "}
+                    <span className="font-mono font-bold text-emerald-800">
+                      {createdOrder.instructions?.transferReference ||
+                        formatOrderCode(createdOrder.orderId)}
+                    </span>
+                    {createdOrder.expiresAt
+                      ? ` · Hạn thanh toán đến ${new Intl.DateTimeFormat("vi-VN", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          day: "2-digit",
+                          month: "2-digit",
+                        }).format(new Date(createdOrder.expiresAt))}`
+                      : ""}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleCancelPendingOrder}
+                disabled={cancelling}
+                className="focus-ring self-start sm:self-auto inline-flex h-9 items-center gap-1.5 rounded-xl border border-rose-200 bg-white px-3 text-xs font-semibold text-rose-700 shadow-2xs hover:bg-rose-50 hover:border-rose-300 transition disabled:opacity-50"
+              >
+                {cancelling ? (
+                  <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <RotateCcw className="h-3.5 w-3.5" />
+                )}
+                Hủy đơn để tạo lại
+              </button>
+            </div>
+          )}
+
           {!isMounted || authLoading ? (
             <div className="mt-6 grid items-start gap-8 lg:gap-10 lg:grid-cols-[minmax(0,1fr)_400px]">
               <div className="rounded-2xl border border-slate-200/90 bg-white p-6 sm:p-8 shadow-xs animate-pulse space-y-6">
@@ -147,6 +365,12 @@ export function CheckoutPage() {
                 id="checkout-form"
                 onSubmit={async (event) => {
                   event.preventDefault();
+                  if (isOffline) {
+                    setMessage(
+                      "Thiết bị đang mất kết nối mạng. Vui lòng kiểm tra lại đường truyền trước khi thanh toán.",
+                    );
+                    return;
+                  }
                   if (!user) {
                     router.push(`/login?next=${encodeURIComponent("/checkout")}`);
                     return;
@@ -157,11 +381,19 @@ export function CheckoutPage() {
                     const token = await getAccessToken();
                     if (!token)
                       throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+                    backupCart(courses);
                     const order = await createCheckoutOrder(
                       token,
                       courses.map((course) => course.id),
                       paymentMethod,
                       phoneNumber,
+                      promotionCode,
+                    );
+                    savePendingCheckoutSession(
+                      order,
+                      courses,
+                      phoneNumber,
+                      paymentMethod,
                       promotionCode,
                     );
                     if (order.paymentForm) {
@@ -173,6 +405,7 @@ export function CheckoutPage() {
                       return;
                     }
                     setCreatedOrder(order);
+                    setIsRecovered(false);
                     setSubmitting(false);
                   } catch (reason) {
                     setMessage(
@@ -264,19 +497,23 @@ export function CheckoutPage() {
                           paymentMethod === method
                             ? "border-primary bg-primary/5 text-slate-900 shadow-xs"
                             : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50 text-slate-700",
+                          Boolean(createdOrder) &&
+                            paymentMethod !== method &&
+                            "opacity-60 cursor-not-allowed",
                         )}
                       >
                         <input
                           type="radio"
                           name="payment-method"
                           value={method}
+                          disabled={Boolean(createdOrder)}
                           checked={paymentMethod === method}
                           onChange={() => {
                             setPaymentMethod(method);
                             setCreatedOrder(null);
                             setMessage("");
                           }}
-                          className="h-5 w-5 shrink-0 appearance-none rounded-full border-2 border-slate-300 bg-white transition-colors checked:border-primary checked:bg-[radial-gradient(circle,#20b486_0_45%,white_48%)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-2"
+                          className="h-5 w-5 shrink-0 appearance-none rounded-full border-2 border-slate-300 bg-white transition-colors checked:border-primary checked:bg-[radial-gradient(circle,#20b486_0_45%,white_48%)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-2 disabled:cursor-not-allowed"
                         />
                         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -347,7 +584,12 @@ export function CheckoutPage() {
                   </span>
                 </div>
                 {createdOrder?.instructions && (
-                  <ManualPaymentInstructions order={createdOrder} method={paymentMethod} />
+                  <ManualPaymentInstructions
+                    order={createdOrder}
+                    method={paymentMethod}
+                    onCancel={handleCancelPendingOrder}
+                    cancelling={cancelling}
+                  />
                 )}
               </form>
               <aside className="sticky top-24 space-y-5 rounded-2xl border border-slate-200/90 bg-white p-6 shadow-xs">
@@ -427,23 +669,25 @@ export function CheckoutPage() {
                 </div>
                 <button
                   form="checkout-form"
-                  disabled={submitting || Boolean(createdOrder)}
-                  className="focus-ring inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-semibold text-white shadow-xs transition hover:bg-primary-hover active:scale-[0.99] disabled:cursor-wait disabled:opacity-60"
+                  disabled={submitting || Boolean(createdOrder) || isOffline}
+                  className="focus-ring inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-semibold text-white shadow-xs transition hover:bg-primary-hover active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {submitting && <LoaderCircle className="h-4 w-4 animate-spin" />}
                   {submitting
-                    ? "Đang tạo đơn hàng..."
-                    : createdOrder
-                      ? "Đơn hàng đã được tạo"
-                      : paymentMethod === "VNPAY"
-                        ? "Thanh toán qua VNPay Sandbox"
-                        : paymentMethod === "STRIPE"
-                          ? "Thanh toán qua Stripe"
-                          : paymentMethod === "MOMO"
-                            ? "Thanh toán qua MoMo"
-                            : paymentMethod === "SEPAY"
-                              ? "Lấy mã QR thanh toán SePay"
-                              : "Tạo hướng dẫn chuyển khoản"}
+                    ? "Đang xử lý tạo đơn..."
+                    : isOffline
+                      ? "Mất kết nối mạng"
+                      : createdOrder
+                        ? "Đang chờ thanh toán"
+                        : paymentMethod === "VNPAY"
+                          ? "Thanh toán qua VNPay Sandbox"
+                          : paymentMethod === "STRIPE"
+                            ? "Thanh toán qua Stripe"
+                            : paymentMethod === "MOMO"
+                              ? "Thanh toán qua MoMo"
+                              : paymentMethod === "SEPAY"
+                                ? "Lấy mã QR thanh toán SePay"
+                                : "Tạo hướng dẫn chuyển khoản"}
                 </button>
                 <p className="flex items-center justify-center gap-1.5 text-xs text-slate-500">
                   <ShieldCheck className="h-4 w-4 shrink-0 text-primary" />
@@ -478,7 +722,7 @@ export function CheckoutPage() {
       <FeedbackModal
         isOpen={Boolean(message)}
         onClose={closeMessage}
-        title="Không thể tạo đơn hàng"
+        title="Thông báo đơn hàng"
         description={message}
         tone="error"
         confirmText="Đã hiểu"
@@ -490,9 +734,13 @@ export function CheckoutPage() {
 function ManualPaymentInstructions({
   order,
   method,
+  onCancel,
+  cancelling,
 }: {
   order: CheckoutOrder;
   method: PaymentMethod;
+  onCancel?: () => void;
+  cancelling?: boolean;
 }) {
   const details = order.instructions;
   const [copiedContent, setCopiedContent] = useState(false);
@@ -638,6 +886,21 @@ function ManualPaymentInstructions({
           >
             <Download className="h-3.5 w-3.5" />
             Tải ảnh mã QR
+          </button>
+        )}
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={cancelling}
+            className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-lg border border-rose-200 bg-white px-3 text-xs font-semibold text-rose-700 shadow-xs hover:border-rose-300 hover:bg-rose-50 transition disabled:opacity-50"
+          >
+            {cancelling ? (
+              <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <RotateCcw className="h-3.5 w-3.5" />
+            )}
+            Hủy đơn này
           </button>
         )}
         <Link

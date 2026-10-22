@@ -5,6 +5,7 @@ import com.edualto.commerce.dto.AdminOrderResponse;
 import com.edualto.commerce.dto.InstructorRevenueTransactionResponse;
 import com.edualto.commerce.dto.InstructorRevenueSummaryResponse;
 import com.edualto.commerce.dto.InstructorCourseRevenueResponse;
+import com.edualto.commerce.gateway.PaymentInitCommand.ItemInfo;
 import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -83,6 +84,54 @@ public class CommerceRepository {
         return Optional.of(new OrderResponse(header.id(), header.status(), header.currency(), header.subtotal(),
                 header.discountTotal(), header.total(),
                 header.createdAt(), header.expiresAt(), header.paymentReviewReason(), items));
+    }
+
+    public Optional<ActivePendingOrder> findActivePendingOrder(UUID studentId) {
+        List<ActivePendingOrder> list = jdbc.query("""
+                select o.id, o.status, o.currency, o.subtotal, o.discount_total, o.total,
+                       o.transfer_reference, o.phone_number, o.expires_at, p.provider
+                from orders o
+                join payments p on p.order_id = o.id
+                where o.student_id = ?
+                  and o.status in ('PENDING_PAYMENT', 'PAYMENT_REVIEW')
+                  and p.status in ('PENDING', 'REVIEW')
+                  and (o.expires_at is null or o.expires_at > current_timestamp)
+                order by o.created_at desc limit 1
+                """, (rs, rowNum) -> {
+                    UUID orderId = rs.getObject("id", UUID.class);
+                    List<UUID> courseIds = jdbc.query("select course_id from order_items where order_id = ? order by id",
+                            (r, n) -> r.getObject("course_id", UUID.class), orderId);
+                    return new ActivePendingOrder(
+                            orderId,
+                            rs.getString("status"),
+                            rs.getString("currency"),
+                            rs.getBigDecimal("subtotal"),
+                            rs.getBigDecimal("discount_total"),
+                            rs.getBigDecimal("total"),
+                            rs.getString("transfer_reference"),
+                            rs.getString("phone_number"),
+                            rs.getObject("expires_at", OffsetDateTime.class),
+                            rs.getString("provider"),
+                            courseIds
+                    );
+                }, studentId);
+        return list.stream().findFirst();
+    }
+
+    public void updatePaymentProvider(UUID orderId, String provider) {
+        jdbc.update("update payments set provider = ?, updated_at = current_timestamp where order_id = ? and status in ('PENDING', 'REVIEW')",
+                provider, orderId);
+    }
+
+    public List<ItemInfo> findOrderItemInfos(UUID orderId) {
+        return jdbc.query("""
+                select course_id, course_title, coalesce(list_price, unit_price) as price
+                from order_items where order_id = ? order by id
+                """, (rs, rowNum) -> new ItemInfo(
+                rs.getObject("course_id", UUID.class),
+                rs.getString("course_title"),
+                rs.getBigDecimal("price")
+        ), orderId);
     }
 
     public Optional<PaymentOrder> lockPaymentOrder(String txnRef) {
@@ -416,5 +465,11 @@ public class CommerceRepository {
 
     public record PaymentOrder(UUID orderId, long amountMinorUnits, String paymentStatus, String provider,
                                String orderStatus, UUID studentId) {
+    }
+
+    public record ActivePendingOrder(UUID orderId, String status, String currency, BigDecimal subtotal,
+                                     BigDecimal discountTotal, BigDecimal total, String transferReference,
+                                     String phoneNumber, OffsetDateTime expiresAt, String provider,
+                                     List<UUID> courseIds) {
     }
 }

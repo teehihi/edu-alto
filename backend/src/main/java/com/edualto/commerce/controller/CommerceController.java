@@ -41,6 +41,15 @@ public class CommerceController {
         return ApiResponse.ok(commerce.createOrder(principal.id(), request, servletRequest.getRemoteAddr()));
     }
 
+    @GetMapping("/me/orders/active-pending")
+    @Operation(summary = "Lấy thông tin đơn hàng đang chờ thanh toán dở dang nếu có")
+    public ApiResponse<OrderCreatedResponse> getActivePendingOrder(
+            @AuthenticationPrincipal AuthenticatedUser principal,
+            HttpServletRequest servletRequest
+    ) {
+        return ApiResponse.ok(commerce.getActivePendingOrder(principal.id(), servletRequest.getRemoteAddr()).orElse(null));
+    }
+
     @GetMapping("/me/orders/{orderId}")
     @Operation(summary = "Xem trạng thái đơn hàng của bạn")
     public ApiResponse<OrderResponse> getOrder(
