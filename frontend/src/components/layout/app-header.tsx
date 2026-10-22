@@ -391,7 +391,7 @@ export const AppHeader = memo(function AppHeader({
                 ) : null}
                 {isAdmin ? (
                   <Link
-                    href="/admin/payments"
+                    href="/admin/dashboard"
                     onClick={() => setIsOpen(false)}
                     className={cn(
                       "focus-ring flex items-center gap-2.5 rounded-xl border px-4 py-2.5 text-sm font-semibold transition",

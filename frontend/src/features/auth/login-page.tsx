@@ -157,7 +157,13 @@ function resolveLoginDestination(next: string | null, roles: string[] = []): str
     }
   }
 
-  return roles.some((role) => role === "INSTRUCTOR" || role === "ROLE_INSTRUCTOR")
-    ? "/instructor"
-    : "/";
+  if (roles.some((role) => role === "ADMIN" || role === "ROLE_ADMIN")) {
+    return "/admin/dashboard";
+  }
+
+  if (roles.some((role) => role === "INSTRUCTOR" || role === "ROLE_INSTRUCTOR")) {
+    return "/instructor";
+  }
+
+  return "/";
 }
