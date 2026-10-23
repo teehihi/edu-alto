@@ -68,8 +68,9 @@ export type AdminAnalytics = {
   totalEnrollmentsCount: number;
 };
 
-export function fetchAdminDashboardSummary(accessToken: string) {
-  return apiRequest<AdminDashboardSummary>("/admin/dashboard/summary", { accessToken });
+export function fetchAdminDashboardSummary(accessToken: string, timeRange?: string) {
+  const query = timeRange ? `?timeRange=${encodeURIComponent(timeRange)}` : "";
+  return apiRequest<AdminDashboardSummary>(`/admin/dashboard/summary${query}`, { accessToken });
 }
 
 export function fetchAdminUsers(
@@ -97,6 +98,33 @@ export function updateAdminUserStatus(accessToken: string, userId: string, statu
     method: "PATCH",
     accessToken,
     body: { status },
+  });
+}
+
+export function updateAdminUserRoles(accessToken: string, userId: string, roles: string[]) {
+  return apiRequest<void>(`/admin/users/${encodeURIComponent(userId)}/roles`, {
+    method: "PATCH",
+    accessToken,
+    body: { roles },
+  });
+}
+
+export function createAdminUser(
+  accessToken: string,
+  payload: { fullName: string; email: string; password: string; roles: string[] },
+) {
+  return apiRequest<AdminUserItem>("/admin/users", {
+    method: "POST",
+    accessToken,
+    body: payload,
+  });
+}
+
+export function resetAdminUserPassword(accessToken: string, userId: string, newPassword: string) {
+  return apiRequest<void>(`/admin/users/${encodeURIComponent(userId)}/reset-password`, {
+    method: "POST",
+    accessToken,
+    body: { newPassword },
   });
 }
 

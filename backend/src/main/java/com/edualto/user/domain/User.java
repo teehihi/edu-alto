@@ -86,6 +86,17 @@ public class User {
         roles.add(role);
     }
 
+    public void setRoles(Set<Role> roles) {
+        this.roles.clear();
+        if (roles != null) {
+            this.roles.addAll(roles);
+        }
+    }
+
+    public void setStatus(UserStatus status) {
+        this.status = status;
+    }
+
     public void activate() {
         this.status = UserStatus.ACTIVE;
         this.emailVerifiedAt = Instant.now();

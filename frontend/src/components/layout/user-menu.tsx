@@ -262,10 +262,10 @@ export function UserMenu({
             href="/profile"
             onClick={closeMenu}
             className={cn(
-              "ml-2 hidden max-w-44 truncate text-xs font-semibold sm:inline hover:underline",
+              "ml-2 hidden max-w-xs truncate text-xs font-semibold sm:inline hover:underline",
               dark ? "text-slate-200" : "text-[#27332f]",
             )}
-            title="Xem trang cá nhân"
+            title={user.fullName || "Tài khoản"}
           >
             {user.fullName || "Tài khoản"}
           </Link>
