@@ -56,6 +56,9 @@ springdoc:
     path: /swagger-ui.html
 
 edualto:
+  admin:
+    email: ${EDUALTO_ADMIN_EMAIL:admin@edualto.vn}
+    password: ${EDUALTO_ADMIN_PASSWORD:}
   ai:
     enabled: ${AI_ENABLED:false}
     api-key: ${GEMINI_API_KEY:}
