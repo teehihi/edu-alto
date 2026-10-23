@@ -44,31 +44,39 @@ export function AdminDashboardPage() {
   const [pendingOrders, setPendingOrders] = useState<PaymentReviewOrder[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
 
-  const loadData = useCallback(async () => {
-    setLoadingSummary(true);
-    setLoadingOrders(true);
-    try {
-      const token = await getAccessToken();
-      if (!token) return;
+  const loadData = useCallback(
+    async (selectedRange = timeRange) => {
+      setLoadingSummary(true);
+      setLoadingOrders(true);
+      try {
+        const token = await getAccessToken();
+        if (!token) return;
 
-      const [summaryRes, ordersRes] = await Promise.allSettled([
-        fetchAdminDashboardSummary(token),
-        fetchPaymentReviewOrders(token, 0, 5),
-      ]);
+        const [summaryRes, ordersRes] = await Promise.allSettled([
+          fetchAdminDashboardSummary(token, selectedRange),
+          fetchPaymentReviewOrders(token, 0, 5),
+        ]);
 
-      if (summaryRes.status === "fulfilled" && summaryRes.value) {
-        setSummary(summaryRes.value);
+        if (summaryRes.status === "fulfilled" && summaryRes.value) {
+          setSummary(summaryRes.value);
+        }
+        if (ordersRes.status === "fulfilled" && ordersRes.value) {
+          setPendingOrders(Array.isArray(ordersRes.value?.data) ? ordersRes.value.data : []);
+        }
+      } catch {
+        // Fallback
+      } finally {
+        setLoadingSummary(false);
+        setLoadingOrders(false);
       }
-      if (ordersRes.status === "fulfilled" && ordersRes.value) {
-        setPendingOrders(Array.isArray(ordersRes.value?.data) ? ordersRes.value.data : []);
-      }
-    } catch {
-      // Fallback
-    } finally {
-      setLoadingSummary(false);
-      setLoadingOrders(false);
-    }
-  }, [getAccessToken]);
+    },
+    [getAccessToken, timeRange],
+  );
+
+  const handleTimeRangeChange = (newRange: "today" | "7days" | "30days" | "thisYear") => {
+    setTimeRange(newRange);
+    void loadData(newRange);
+  };
 
   useEffect(() => {
     void loadData();
@@ -108,7 +116,7 @@ export function AdminDashboardPage() {
               <button
                 key={item.id}
                 type="button"
-                onClick={() => setTimeRange(item.id)}
+                onClick={() => handleTimeRangeChange(item.id)}
                 className={`focus-ring rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
                   timeRange === item.id
                     ? "bg-primary text-white shadow-xs"
@@ -141,7 +149,13 @@ export function AdminDashboardPage() {
         <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs transition hover:shadow-md">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-muted uppercase tracking-wider">
-              Tổng doanh thu đã nhận
+              {timeRange === "today"
+                ? "Doanh thu hôm nay"
+                : timeRange === "7days"
+                  ? "Doanh thu 7 ngày qua"
+                  : timeRange === "thisYear"
+                    ? "Doanh thu năm nay"
+                    : "Doanh thu 30 ngày qua"}
             </span>
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-primary">
               <DollarSign className="h-5 w-5" />
@@ -248,7 +262,15 @@ export function AdminDashboardPage() {
         <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs lg:col-span-2">
           <div className="flex items-center justify-between border-b border-slate-100 pb-4">
             <div>
-              <h3 className="text-base font-bold text-heading">Biểu đồ doanh thu 6 tháng qua</h3>
+              <h3 className="text-base font-bold text-heading">
+                {timeRange === "today"
+                  ? "Biểu đồ doanh thu hôm nay theo khung giờ"
+                  : timeRange === "7days"
+                    ? "Biểu đồ doanh thu 7 ngày qua"
+                    : timeRange === "thisYear"
+                      ? "Biểu đồ doanh thu các tháng trong năm"
+                      : "Biểu đồ doanh thu 30 ngày qua"}
+              </h3>
               <p className="mt-0.5 text-xs text-muted">
                 Dữ liệu tổng hợp từ các đơn hàng đã thanh toán thực tế trong hệ thống
               </p>

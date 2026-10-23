@@ -679,9 +679,16 @@ function CourseDetailPageInner({ slug }: { slug: string }) {
   const hasAnyPreview = lessons.some((lesson) => lesson.preview);
 
   return (
-    <div suppressHydrationWarning className="min-h-screen bg-white text-heading antialiased">
-      <div className="bg-gradient-to-b from-[#E6F7F2] via-[#F2FAF7] to-white">
-        <AppHeader transparent />
+    <div
+      suppressHydrationWarning
+      className="min-h-screen flex flex-col justify-between text-heading antialiased"
+      style={{
+        background:
+          "linear-gradient(180deg, #E6F7F2 0%, #F2FAF7 320px, #FFFFFF 680px, #FFFFFF 100%)",
+      }}
+    >
+      <div>
+        <AppHeader transparent transparentBg="bg-[#E6F7F2]" />
         {cartFlight ? <CourseCartFlight flight={cartFlight} onComplete={finishCartFlight} /> : null}
         <main>
           {loading ? (
@@ -802,7 +809,7 @@ function CourseDetailPageInner({ slug }: { slug: string }) {
               </div>
 
               {/* Main Content Layout with Sticky Sidebar */}
-              <div className="bg-white">
+              <div>
                 <div className="mx-auto grid max-w-[1440px] gap-10 px-5 pb-16 sm:px-10 lg:grid-cols-[minmax(0,1fr)_390px] lg:px-20">
                   {/* Sticky Enrollment Sidebar Card */}
                   <aside

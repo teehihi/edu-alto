@@ -39,9 +39,21 @@ public class AdminRepository {
     }
 
     public AdminDashboardSummaryResponse getDashboardSummary() {
-        // 1. Total revenue from PAID orders
+        return getDashboardSummary("30days");
+    }
+
+    public AdminDashboardSummaryResponse getDashboardSummary(String timeRange) {
+        String range = (timeRange != null && !timeRange.isBlank()) ? timeRange : "30days";
+        String dateFilter = switch (range) {
+            case "today" -> " AND created_at >= CURRENT_DATE";
+            case "7days" -> " AND created_at >= (CURRENT_DATE - INTERVAL '6 days')";
+            case "thisYear" -> " AND created_at >= DATE_TRUNC('year', CURRENT_DATE)";
+            default -> " AND created_at >= (CURRENT_DATE - INTERVAL '29 days')";
+        };
+
+        // 1. Total revenue for selected range
         BigDecimal totalRevenue = jdbc.queryForObject(
-                "SELECT COALESCE(SUM(total), 0) FROM orders WHERE status = 'PAID'",
+                "SELECT COALESCE(SUM(total), 0) FROM orders WHERE status = 'PAID'" + dateFilter,
                 BigDecimal.class
         );
         if (totalRevenue == null) {
@@ -79,8 +91,8 @@ public class AdminRepository {
         long totalStudents = ((Number) userStats.getOrDefault("students", 0L)).longValue();
         long totalInstructors = ((Number) userStats.getOrDefault("instructors", 0L)).longValue();
 
-        // 5. Monthly revenue (last 6 months)
-        List<MonthlyRevenueDto> monthlyStats = getMonthlyRevenueStats();
+        // 5. Chart revenue stats according to range
+        List<MonthlyRevenueDto> monthlyStats = getRevenueStatsForRange(range);
 
         // 6. Category / Level distribution
         List<CategoryDistributionDto> categoryDistribution = getCategoryDistribution(totalCourses);
@@ -101,6 +113,106 @@ public class AdminRepository {
                 categoryDistribution,
                 topCourses
         );
+    }
+
+    private List<MonthlyRevenueDto> getRevenueStatsForRange(String range) {
+        if ("today".equalsIgnoreCase(range)) {
+            String sql = """
+                    SELECT 
+                      CASE 
+                        WHEN EXTRACT(HOUR FROM o.created_at) < 6 THEN '00h - 06h'
+                        WHEN EXTRACT(HOUR FROM o.created_at) < 12 THEN '06h - 12h'
+                        WHEN EXTRACT(HOUR FROM o.created_at) < 18 THEN '12h - 18h'
+                        ELSE '18h - 24h'
+                      END as block_label,
+                      COALESCE(SUM(o.total), 0) as revenue,
+                      COUNT(o.id) as orders_count
+                    FROM orders o
+                    WHERE o.status = 'PAID' AND o.created_at >= CURRENT_DATE
+                    GROUP BY block_label
+                    """;
+            Map<String, MonthlyRevenueDto> dbResults = new HashMap<>();
+            jdbc.query(sql, rs -> {
+                String label = rs.getString("block_label");
+                BigDecimal revenue = rs.getBigDecimal("revenue");
+                long count = rs.getLong("orders_count");
+                dbResults.put(label, new MonthlyRevenueDto(label, revenue, count, false));
+            });
+            List<String> blocks = List.of("00h - 06h", "06h - 12h", "12h - 18h", "18h - 24h");
+            List<MonthlyRevenueDto> list = new ArrayList<>();
+            for (String block : blocks) {
+                list.add(dbResults.getOrDefault(block, new MonthlyRevenueDto(block, BigDecimal.ZERO, 0L, false)));
+            }
+            return list;
+        }
+
+        if ("7days".equalsIgnoreCase(range)) {
+            String sql = """
+                    SELECT 
+                      TO_CHAR(o.created_at, 'YYYY-MM-DD') as day_key,
+                      COALESCE(SUM(o.total), 0) as revenue,
+                      COUNT(o.id) as orders_count
+                    FROM orders o
+                    WHERE o.status = 'PAID' AND o.created_at >= (CURRENT_DATE - INTERVAL '6 days')
+                    GROUP BY TO_CHAR(o.created_at, 'YYYY-MM-DD')
+                    """;
+            Map<String, MonthlyRevenueDto> dbResults = new HashMap<>();
+            jdbc.query(sql, rs -> {
+                String dayKey = rs.getString("day_key");
+                BigDecimal revenue = rs.getBigDecimal("revenue");
+                long count = rs.getLong("orders_count");
+                dbResults.put(dayKey, new MonthlyRevenueDto(dayKey, revenue, count, false));
+            });
+            LocalDate now = LocalDate.now();
+            List<MonthlyRevenueDto> list = new ArrayList<>();
+            for (int i = 6; i >= 0; i--) {
+                LocalDate target = now.minusDays(i);
+                String dayKey = target.toString();
+                String label = target.getDayOfMonth() + "/" + target.getMonthValue();
+                boolean isCurrent = (i == 0);
+                if (dbResults.containsKey(dayKey)) {
+                    MonthlyRevenueDto item = dbResults.get(dayKey);
+                    list.add(new MonthlyRevenueDto(label, item.revenue(), item.ordersCount(), isCurrent));
+                } else {
+                    list.add(new MonthlyRevenueDto(label, BigDecimal.ZERO, 0L, isCurrent));
+                }
+            }
+            return list;
+        }
+
+        if ("thisYear".equalsIgnoreCase(range)) {
+            String sql = """
+                    SELECT 
+                      EXTRACT(MONTH FROM o.created_at)::int as month_num,
+                      COALESCE(SUM(o.total), 0) as revenue,
+                      COUNT(o.id) as orders_count
+                    FROM orders o
+                    WHERE o.status = 'PAID' AND o.created_at >= DATE_TRUNC('year', CURRENT_DATE)
+                    GROUP BY EXTRACT(MONTH FROM o.created_at)
+                    """;
+            Map<Integer, MonthlyRevenueDto> dbResults = new HashMap<>();
+            jdbc.query(sql, rs -> {
+                int monthNum = rs.getInt("month_num");
+                BigDecimal revenue = rs.getBigDecimal("revenue");
+                long count = rs.getLong("orders_count");
+                dbResults.put(monthNum, new MonthlyRevenueDto("T" + monthNum, revenue, count, false));
+            });
+            int currentMonth = LocalDate.now().getMonthValue();
+            List<MonthlyRevenueDto> list = new ArrayList<>();
+            for (int m = 1; m <= 12; m++) {
+                String label = "T" + m;
+                boolean isCurrent = (m == currentMonth);
+                if (dbResults.containsKey(m)) {
+                    MonthlyRevenueDto item = dbResults.get(m);
+                    list.add(new MonthlyRevenueDto(label, item.revenue(), item.ordersCount(), isCurrent));
+                } else {
+                    list.add(new MonthlyRevenueDto(label, BigDecimal.ZERO, 0L, isCurrent));
+                }
+            }
+            return list;
+        }
+
+        return getMonthlyRevenueStats();
     }
 
     private List<MonthlyRevenueDto> getMonthlyRevenueStats() {
