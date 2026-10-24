@@ -37,6 +37,7 @@ public class RedisCacheConfig implements CachingConfigurer {
     public static final String CACHE_COURSES_CURRICULUM = "courses:curriculum";
     public static final String CACHE_AUTH_SESSIONS = "auth:sessions";
     public static final String CACHE_AUTH_REFRESH_TOKENS = "auth:refresh-tokens";
+    public static final String CACHE_ROLE_PERMISSIONS = "rbac:role_permissions";
 
     private RedisSerializer<Object> createRedisSerializer() {
         ObjectMapper mapper = new ObjectMapper();
@@ -71,6 +72,7 @@ public class RedisCacheConfig implements CachingConfigurer {
         cacheConfigs.put(CACHE_COURSES_CURRICULUM, baseConfig.entryTtl(Duration.ofMinutes(30)));
         cacheConfigs.put(CACHE_AUTH_SESSIONS, baseConfig.entryTtl(Duration.ofMinutes(15)));
         cacheConfigs.put(CACHE_AUTH_REFRESH_TOKENS, baseConfig.entryTtl(Duration.ofDays(14)));
+        cacheConfigs.put(CACHE_ROLE_PERMISSIONS, baseConfig.entryTtl(Duration.ofHours(2)));
 
         log.info("Khởi tạo RedisCacheManager thành công với các namespace cache: courses:catalog (15m), courses:detail (30m), courses:curriculum (30m), auth:sessions (15m)");
 
