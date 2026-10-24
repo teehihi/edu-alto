@@ -74,7 +74,6 @@ class AuthFlowIntegrationTest extends AbstractIntegrationTest {
         jdbcTemplate.update("delete from email_otps");
         jdbcTemplate.update("delete from user_roles");
         jdbcTemplate.update("delete from users");
-        jdbcTemplate.update("delete from roles");
     }
 
     @Test

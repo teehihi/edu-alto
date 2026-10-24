@@ -36,6 +36,7 @@ public class SecurityConfig {
             HttpSecurity http,
             JwtAuthenticationFilter jwtAuthenticationFilter,
             AuthRateLimitFilter authRateLimitFilter,
+            PermissionAuthorizationManager permissionAuthorizationManager,
             AuthenticationEntryPoint authenticationEntryPoint,
             AccessDeniedHandler accessDeniedHandler
     ) throws Exception {
@@ -49,10 +50,32 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, "/api/v1/ai/chat").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/ai/education-policy").permitAll()
                         .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/api/v1/payments/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/health", "/api/v1/courses", "/api/v1/courses/**", "/api/v1/instructors", "/api/v1/media/**", "/api/v1/profiles", "/api/v1/profiles/*", "/api/v1/profiles/**", "/api/v1/users/*/profile").permitAll()
                         .requestMatchers("/api/v1/auth/**").permitAll()
-                        .anyRequest().authenticated()
+                        .requestMatchers(
+                                "/api/v1/me/**",
+                                "/api/v1/checkout",
+                                "/api/v1/checkout/**",
+                                "/api/v1/cart/**",
+                                "/api/v1/orders/**",
+                                "/api/v1/courses/*/enrollments",
+                                "/api/v1/enrollments/**",
+                                "/api/v1/learning/**",
+                                "/api/v1/lessons/**",
+                                "/api/v1/assignments/**",
+                                "/api/v1/learning-notes/**",
+                                "/api/v1/saved-lessons/**",
+                                "/api/v1/saved-lesson-resources/**",
+                                "/api/v1/wishlists/**",
+                                "/api/v1/quizzes/*/attempt",
+                                "/api/v1/quizzes/*/attempts/**",
+                                "/api/v1/student/**",
+                                "/api/v1/messaging/**",
+                                "/api/v1/notifications/**"
+                        ).authenticated()
+                        .anyRequest().access(permissionAuthorizationManager)
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         http.addFilterBefore(authRateLimitFilter, JwtAuthenticationFilter.class);

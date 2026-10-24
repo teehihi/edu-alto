@@ -21,6 +21,7 @@ import {
   Menu,
   Search,
   Settings,
+  ShieldCheck,
   Users,
   X,
 } from "lucide-react";
@@ -30,7 +31,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-client";
 import { cn } from "@/lib/cn";
 
-export type AdminSection = "dashboard" | "payments" | "courses" | "users" | "analytics";
+export type AdminSection = "dashboard" | "payments" | "courses" | "users" | "roles" | "analytics";
 
 const navigationItems: {
   label: string;
@@ -62,6 +63,12 @@ const navigationItems: {
     icon: Users,
     href: "/admin/users",
     section: "users",
+  },
+  {
+    label: "Vai trò & Phân quyền",
+    icon: ShieldCheck,
+    href: "/admin/roles",
+    section: "roles",
   },
   {
     label: "Báo cáo & Thống kê",

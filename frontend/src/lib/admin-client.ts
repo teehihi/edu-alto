@@ -131,3 +131,47 @@ export function resetAdminUserPassword(accessToken: string, userId: string, newP
 export function fetchAdminAnalytics(accessToken: string) {
   return apiRequest<AdminAnalytics>("/admin/analytics", { accessToken });
 }
+
+export type AdminPermission = {
+  id: string;
+  name: string;
+  apiPath: string;
+  method: string;
+  module: string;
+  description: string | null;
+  createdAt: string;
+};
+
+export type AdminRoleDetail = {
+  id: string;
+  name: string;
+  description: string | null;
+  userCount: number;
+  permissions: AdminPermission[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export function fetchAdminRoles(accessToken: string) {
+  return apiRequest<AdminRoleDetail[]>("/admin/roles", { accessToken });
+}
+
+export function fetchAdminRoleById(accessToken: string, roleId: string) {
+  return apiRequest<AdminRoleDetail>(`/admin/roles/${encodeURIComponent(roleId)}`, { accessToken });
+}
+
+export function updateAdminRolePermissions(
+  accessToken: string,
+  roleId: string,
+  payload: { description?: string; permissionIds: string[] },
+) {
+  return apiRequest<AdminRoleDetail>(`/admin/roles/${encodeURIComponent(roleId)}/permissions`, {
+    method: "PUT",
+    accessToken,
+    body: payload,
+  });
+}
+
+export function fetchAdminPermissions(accessToken: string) {
+  return apiRequest<AdminPermission[]>("/admin/permissions", { accessToken });
+}
