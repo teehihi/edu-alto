@@ -1,5 +1,6 @@
 package com.edualto.course.service;
 
+import com.edualto.common.config.RedisCacheConfig;
 import com.edualto.common.exception.BusinessException;
 import com.edualto.course.domain.Course;
 import com.edualto.course.domain.CourseStatus;
@@ -18,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,6 +41,7 @@ public class PublicCourseCurriculumService {
         this.lessonRepository = lessonRepository;
     }
 
+    @Cacheable(value = RedisCacheConfig.CACHE_COURSES_CURRICULUM, key = "#slug")
     @Transactional(readOnly = true)
     public CourseCurriculumResponse getCurriculum(String slug) {
         Course course = getPublishedCourse(slug);
