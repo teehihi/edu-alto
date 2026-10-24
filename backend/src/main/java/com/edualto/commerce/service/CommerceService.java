@@ -22,6 +22,7 @@ import com.edualto.commerce.gateway.provider.StripePaymentGateway;
 import com.edualto.commerce.gateway.provider.VietQrPaymentGateway;
 import com.edualto.commerce.gateway.provider.VnPayPaymentGateway;
 import com.edualto.commerce.repository.CommerceRepository;
+import com.edualto.commerce.repository.CommerceRepository.ActivePendingOrder;
 import com.edualto.commerce.repository.CommerceRepository.CheckoutCourse;
 import com.edualto.commerce.repository.CommerceRepository.PaymentOrder;
 import com.edualto.commerce.repository.PromotionRepository;
@@ -33,9 +34,11 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -175,6 +178,51 @@ public class CommerceService {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "INVALID_COURSE_PRICE", "Giá khóa học không hợp lệ cho thanh toán VND");
         }
 
+        Optional<ActivePendingOrder> activePending = repository.findActivePendingOrder(studentId);
+        if (activePending.isPresent()) {
+            ActivePendingOrder existing = activePending.get();
+            Set<UUID> existingCourseIds = new HashSet<>(existing.courseIds());
+            Set<UUID> requestCourseIds = new HashSet<>(request.courseIds());
+            if (existingCourseIds.equals(requestCourseIds)) {
+                if (!existing.provider().equalsIgnoreCase(request.paymentMethod().name())) {
+                    repository.updatePaymentProvider(existing.orderId(), request.paymentMethod().name());
+                }
+                List<PaymentInitCommand.ItemInfo> itemInfos = courses.stream()
+                        .map(course -> new PaymentInitCommand.ItemInfo(course.id(), course.title(), course.price()))
+                        .toList();
+                long existingAmountMinor = existing.total().movePointRight(2).longValue();
+                PaymentInitCommand initCommand = new PaymentInitCommand(
+                        existing.orderId(),
+                        studentId,
+                        existing.total(),
+                        existingAmountMinor,
+                        clientIp,
+                        existing.transferReference(),
+                        existing.expiresAt(),
+                        itemInfos
+                );
+                PaymentInitResult initResult = gateway.initializePayment(initCommand);
+                return new OrderCreatedResponse(
+                        existing.orderId(),
+                        existing.status(),
+                        existing.currency(),
+                        existing.subtotal(),
+                        existing.discountTotal(),
+                        existing.total(),
+                        request.paymentMethod().name(),
+                        initResult.paymentUrl(),
+                        initResult.paymentForm(),
+                        existing.expiresAt(),
+                        initResult.instructions()
+                );
+            } else {
+                repository.markPaymentFailed(existing.orderId());
+                if (repository.orderHasPromotion(existing.orderId())) {
+                    promotions.releaseReservation(existing.orderId());
+                }
+            }
+        }
+
         UUID orderId = UUID.randomUUID();
         String transferReference = manualTransferReference(orderId);
 
@@ -262,6 +310,49 @@ public class CommerceService {
                 expiresAt,
                 initResult.instructions()
         );
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<OrderCreatedResponse> getActivePendingOrder(UUID studentId, String clientIp) {
+        users.requireActiveLearner(studentId);
+        Optional<ActivePendingOrder> active = repository.findActivePendingOrder(studentId);
+        if (active.isEmpty()) {
+            return Optional.empty();
+        }
+        ActivePendingOrder order = active.get();
+        PaymentMethod method;
+        try {
+            method = PaymentMethod.valueOf(order.provider().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException | NullPointerException e) {
+            method = PaymentMethod.VIETQR;
+        }
+        PaymentGateway gateway = gatewayRegistry.getGateway(method);
+        List<PaymentInitCommand.ItemInfo> itemInfos = repository.findOrderItemInfos(order.orderId());
+        long amountMinor = order.total().movePointRight(2).longValue();
+        PaymentInitCommand initCommand = new PaymentInitCommand(
+                order.orderId(),
+                studentId,
+                order.total(),
+                amountMinor,
+                clientIp,
+                order.transferReference(),
+                order.expiresAt(),
+                itemInfos
+        );
+        PaymentInitResult initResult = gateway.initializePayment(initCommand);
+        return Optional.of(new OrderCreatedResponse(
+                order.orderId(),
+                order.status(),
+                order.currency(),
+                order.subtotal(),
+                order.discountTotal(),
+                order.total(),
+                method.name(),
+                initResult.paymentUrl(),
+                initResult.paymentForm(),
+                order.expiresAt(),
+                initResult.instructions()
+        ));
     }
 
     @Transactional(readOnly = true)

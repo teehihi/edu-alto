@@ -13,6 +13,7 @@ import {
 } from "@/lib/commerce-client";
 import { formatVND } from "@/lib/format";
 import { removeCourseFromCart } from "@/lib/cart";
+import { clearPendingCheckoutSession, clearCartBackup } from "@/lib/checkout-session";
 
 export function CheckoutResultPage() {
   const { user, isLoading: sessionLoading, getAccessToken } = useAuthSession();
@@ -58,6 +59,8 @@ export function CheckoutResultPage() {
           setError("");
           if (result.status === "PAID") {
             for (const item of result.items) removeCourseFromCart(item.courseId);
+            clearPendingCheckoutSession();
+            clearCartBackup();
           }
           if (
             !terminalReturn &&

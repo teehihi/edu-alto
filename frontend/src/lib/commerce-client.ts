@@ -89,3 +89,7 @@ export async function cancelCheckoutOrder(accessToken: string, orderId: string) 
     accessToken,
   });
 }
+
+export async function fetchActivePendingOrder(accessToken: string) {
+  return apiRequest<CheckoutOrder | null>("/me/orders/active-pending", { accessToken });
+}
