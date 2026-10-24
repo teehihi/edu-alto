@@ -374,7 +374,7 @@ export function UserMenu({
 
             {isAdmin ? (
               <Link
-                href="/admin/payments"
+                href="/admin/dashboard"
                 role="menuitem"
                 onClick={closeMenu}
                 className={cn(

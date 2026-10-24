@@ -112,7 +112,7 @@ describe("UserMenu", () => {
     expect(screen.getByText("Quản trị viên")).toBeInTheDocument();
     const adminLink = screen.getByRole("menuitem", { name: /Quản trị hệ thống/i });
     expect(adminLink).toBeInTheDocument();
-    expect(adminLink).toHaveAttribute("href", "/admin/payments");
+    expect(adminLink).toHaveAttribute("href", "/admin/dashboard");
   });
 
   it("renders instructor role badge and instructor dashboard link when user is INSTRUCTOR", async () => {
