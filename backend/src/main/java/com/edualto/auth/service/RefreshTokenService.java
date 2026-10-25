@@ -9,8 +9,11 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -18,6 +21,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class RefreshTokenService {
+
+    private static final Logger log = LoggerFactory.getLogger(RefreshTokenService.class);
 
     private final RefreshTokenRepository refreshTokenRepository;
     private final HashingService hashingService;
@@ -69,9 +74,19 @@ public class RefreshTokenService {
 
     @Transactional(noRollbackFor = BusinessException.class)
     public User rotate(String rawToken) {
+        String tokenHash = hashingService.sha256(rawToken);
+
+        authSessionRedisService.getSessionByTokenHash(tokenHash).ifPresent(session -> {
+            if (session.expiresAt() != null && clock.instant().isAfter(session.expiresAt())) {
+                authSessionRedisService.invalidateToken(tokenHash);
+                throw invalidRefreshToken();
+            }
+            log.debug("Xác thực refresh token từ Redis cache thành công cho user [{}]", session.userId());
+        });
+
         RefreshToken token = requireUsable(rawToken);
         token.revoke();
-        authSessionRedisService.invalidateToken(hashingService.sha256(rawToken));
+        authSessionRedisService.invalidateToken(tokenHash);
         return token.getUser();
     }
 
@@ -91,9 +106,14 @@ public class RefreshTokenService {
     }
 
     private RefreshToken requireUsable(String rawToken) {
-        RefreshToken token = refreshTokenRepository.findByTokenHash(hashingService.sha256(rawToken))
-                .orElseThrow(this::invalidRefreshToken);
+        String tokenHash = hashingService.sha256(rawToken);
+        RefreshToken token = refreshTokenRepository.findByTokenHash(tokenHash)
+                .orElseThrow(() -> {
+                    authSessionRedisService.invalidateToken(tokenHash);
+                    return invalidRefreshToken();
+                });
         if (!token.isUsable()) {
+            authSessionRedisService.invalidateToken(tokenHash);
             throw invalidRefreshToken();
         }
         return token;
