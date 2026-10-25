@@ -92,7 +92,6 @@ Không biến EduAlto thành website AI/neon/futuristic. AI là extension tươn
 - Mọi form phải có label, validation state và message tiếng Việt.
 - Mọi button/action quan trọng phải có hover, active, focus-visible, disabled và loading style.
 - Responsive phải có layout riêng cho mobile/tablet khi cần, không chỉ scale desktop.
-- Tuyệt đối không sử dụng mock data hay hardcode số liệu: Mọi màn hình, bảng biểu, danh sách và báo cáo thống kê phải gọi API backend thực tế để lấy dữ liệu từ cơ sở dữ liệu. Khi hệ thống chưa có dữ liệu, phải hiển thị empty state hoặc fallback an toàn (0, danh sách rỗng), tuyệt đối không tự tạo mảng dữ liệu giả để lấp đầy giao diện.
 
 ## Backend rules
 
@@ -180,4 +179,3 @@ Findings phải phân loại Critical, High, Medium hoặc Low. Critical/High ph
 - Không tạo abstraction vô nghĩa.
 - Không copy nguyên design từ thư viện ngoài làm mất consistency.
 - Không expose lỗi kỹ thuật như `AxiosError: 500` cho end user.
-- Không sử dụng mock data, dummy data hay hardcode số liệu/danh sách trên giao diện; toàn bộ dữ liệu hiển thị phải được kết nối và gọi từ API thực tế.
