@@ -130,6 +130,16 @@ public class CertificateRepository {
         return findByStudentAndCourse(studentId, courseId);
     }
 
+    public Optional<Certificate> findByCertificateNumber(String certificateNumber) {
+        List<Certificate> certificates = jdbcTemplate.query(
+                "select id, certificate_number, course_id, course_title, student_name, instructor_name, issued_at "
+                        + "from certificates where certificate_number = ?",
+                CERTIFICATE_ROW_MAPPER,
+                certificateNumber
+        );
+        return certificates.stream().findFirst();
+    }
+
     private Optional<Certificate> findByStudentAndCourse(UUID studentId, UUID courseId) {
         List<Certificate> certificates = jdbcTemplate.query(
                 "select id, certificate_number, course_id, course_title, student_name, instructor_name, issued_at "

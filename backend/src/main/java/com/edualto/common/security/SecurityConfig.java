@@ -1,6 +1,7 @@
 package com.edualto.common.security;
 
 import com.edualto.auth.infrastructure.AuthRateLimitFilter;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
@@ -52,7 +53,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/ai/chat").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/ai/education-policy").permitAll()
                         .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/api/v1/payments/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/health", "/api/v1/courses", "/api/v1/courses/**", "/api/v1/instructors", "/api/v1/media/**", "/api/v1/profiles", "/api/v1/profiles/*", "/api/v1/profiles/**", "/api/v1/users/*/profile").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/health", "/api/v1/courses", "/api/v1/courses/**", "/api/v1/instructors", "/api/v1/media/**", "/api/v1/profiles", "/api/v1/profiles/*", "/api/v1/profiles/**", "/api/v1/users/*/profile", "/api/v1/certificates/verify/*", "/api/v1/certificates/*/pdf").permitAll()
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers(
                                 "/api/v1/me/**",
@@ -97,11 +98,16 @@ public class SecurityConfig {
     @Bean
     CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        List<String> origins = Arrays.stream(allowedOrigins.split(","))
+        List<String> patterns = new ArrayList<>(Arrays.stream(allowedOrigins.split(","))
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
-                .toList();
-        configuration.setAllowedOrigins(origins);
+                .toList());
+        patterns.add("http://192.168.*.*:[*]");
+        patterns.add("http://10.*.*.*:[*]");
+        patterns.add("http://172.*.*.*:[*]");
+        patterns.add("http://localhost:[*]");
+        patterns.add("http://127.0.0.1:[*]");
+        configuration.setAllowedOriginPatterns(patterns);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setExposedHeaders(List.of("Authorization"));

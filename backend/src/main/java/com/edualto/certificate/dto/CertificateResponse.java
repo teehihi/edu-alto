@@ -10,6 +10,8 @@ public record CertificateResponse(
         String courseTitle,
         String studentName,
         String instructorName,
-        Instant issuedAt
+        Instant issuedAt,
+        String verificationUrl,
+        String qrCodeDataUrl
 ) {
 }

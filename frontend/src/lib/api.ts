@@ -33,9 +33,18 @@ export type ApiRequestOptions = Omit<RequestInit, "body" | "headers"> & {
   headers?: HeadersInit;
 };
 
-const API_BASE_URL = normalizeBaseUrl(
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080/api/v1",
-);
+export function getApiBaseUrl(): string {
+  const envUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080/api/v1";
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname;
+    if (hostname !== "localhost" && hostname !== "127.0.0.1" && envUrl.includes("localhost")) {
+      return normalizeBaseUrl(envUrl.replace("localhost", hostname));
+    }
+  }
+  return normalizeBaseUrl(envUrl);
+}
+
+const API_BASE_URL = getApiBaseUrl();
 
 type UnauthorizedAccessTokenHandler = (rejectedToken: string) => Promise<string | null>;
 
@@ -57,7 +66,7 @@ async function requestPayload(
   const isBinaryBody = typeof Blob !== "undefined" && body instanceof Blob;
   let response: Response;
   try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
+    response = await fetch(`${getApiBaseUrl()}${path}`, {
       ...init,
       credentials: "include",
       headers: buildHeaders(headers, body, accessToken, isFormData, isBinaryBody),
@@ -121,6 +130,41 @@ export async function apiPageRequest<T>(
     throw new Error("Dữ liệu danh sách không hợp lệ. Vui lòng thử lại.");
   }
   return { data: payload.data, meta: payload.meta as PageResult<T>["meta"] };
+}
+
+export async function apiBlobRequest(path: string, options: ApiRequestOptions = {}): Promise<Blob> {
+  const { accessToken, body, headers, ...init } = options;
+  const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
+  const isBinaryBody = typeof Blob !== "undefined" && body instanceof Blob;
+  let response: Response;
+  try {
+    response = await fetch(`${getApiBaseUrl()}${path}`, {
+      ...init,
+      credentials: "include",
+      headers: buildHeaders(headers, body, accessToken, isFormData, isBinaryBody),
+      body:
+        body === undefined
+          ? undefined
+          : isFormData || isBinaryBody
+            ? (body as BodyInit)
+            : JSON.stringify(body),
+    });
+  } catch (error) {
+    if (init.signal?.aborted || (error instanceof Error && error.name === "AbortError"))
+      throw error;
+    throw new ApiClientError(0, {
+      code: "NETWORK_ERROR",
+      message: "Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng hoặc thử lại sau.",
+      details: [],
+    });
+  }
+
+  if (!response.ok) {
+    const payload = await parseJson(response);
+    throw toApiError(response.status, payload);
+  }
+
+  return response.blob();
 }
 
 function buildHeaders(

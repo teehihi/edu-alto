@@ -97,11 +97,15 @@ export function CertificateListView() {
           <h2 className="mt-4 line-clamp-2 text-base font-semibold text-heading">
             {certificate.courseTitle}
           </h2>
-          <p className="mt-1 text-sm text-muted">Giảng viên: {certificate.instructorName}</p>
-          <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-500">
-            <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" /> Cấp ngày{" "}
-            {formatDate(certificate.issuedAt)}
-          </p>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+            <span className="flex items-center gap-1.5">
+              <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" /> Cấp ngày{" "}
+              {formatDate(certificate.issuedAt)}
+            </span>
+            <span className="font-mono text-[11px] font-semibold text-primary">
+              {certificate.certificateNumber}
+            </span>
+          </div>
           <Link
             href={`/learning/certificates/${encodeURIComponent(certificate.courseId)}`}
             className="focus-ring mt-auto inline-flex min-h-10 items-center justify-between rounded-md px-2 pt-3 text-sm font-semibold text-primary hover:underline"
