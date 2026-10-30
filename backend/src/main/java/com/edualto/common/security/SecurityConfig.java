@@ -74,7 +74,10 @@ public class SecurityConfig {
                                 "/api/v1/quizzes/*/attempts/**",
                                 "/api/v1/student/**",
                                 "/api/v1/messaging/**",
-                                "/api/v1/notifications/**"
+                                "/api/v1/notifications/**",
+                                "/api/v1/discussions/**",
+                                "/ws",
+                                "/ws/**"
                         ).authenticated()
                         .anyRequest().access(permissionAuthorizationManager)
                 )
@@ -102,11 +105,16 @@ public class SecurityConfig {
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
                 .toList());
-        patterns.add("http://192.168.*.*:[*]");
-        patterns.add("http://10.*.*.*:[*]");
-        patterns.add("http://172.*.*.*:[*]");
-        patterns.add("http://localhost:[*]");
-        patterns.add("http://127.0.0.1:[*]");
+        patterns.add("http://192.168.*:*");
+        patterns.add("http://192.168.*");
+        patterns.add("http://10.*:*");
+        patterns.add("http://10.*");
+        patterns.add("http://172.*:*");
+        patterns.add("http://172.*");
+        patterns.add("http://localhost:*");
+        patterns.add("http://localhost");
+        patterns.add("http://127.0.0.1:*");
+        patterns.add("http://127.0.0.1");
         configuration.setAllowedOriginPatterns(patterns);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));

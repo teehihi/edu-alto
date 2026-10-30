@@ -38,7 +38,7 @@ public class CourseLearningAccessService {
         Course course = courses.findById(courseId)
                 .filter(item -> item.getStatus() == CourseStatus.PUBLISHED)
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "COURSE_NOT_FOUND", "Không tìm thấy khóa học"));
-        return new LearningCourseResponse(course.getId(), course.getInstructorId(), course.getPrice());
+        return new LearningCourseResponse(course.getId(), course.getInstructorId(), course.getPrice(), course.getTitle());
     }
 
     @Transactional
@@ -46,7 +46,7 @@ public class CourseLearningAccessService {
         Course course = courses.findForEnrollment(courseId)
                 .filter(item -> item.getStatus() == CourseStatus.PUBLISHED)
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "COURSE_NOT_FOUND", "Không tìm thấy khóa học"));
-        return new LearningCourseResponse(course.getId(), course.getInstructorId(), course.getPrice());
+        return new LearningCourseResponse(course.getId(), course.getInstructorId(), course.getPrice(), course.getTitle());
     }
 
     public LearningLessonResponse requirePublishedLesson(UUID lessonId) {

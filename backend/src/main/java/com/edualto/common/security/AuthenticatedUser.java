@@ -1,5 +1,6 @@
 package com.edualto.common.security;
 
+import java.security.Principal;
 import java.util.Collection;
 import java.util.UUID;
 import org.springframework.security.core.GrantedAuthority;
@@ -9,7 +10,7 @@ public record AuthenticatedUser(
         UUID id,
         String email,
         Collection<? extends GrantedAuthority> authorities
-) implements UserDetails {
+) implements UserDetails, Principal {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
@@ -24,5 +25,10 @@ public record AuthenticatedUser(
     @Override
     public String getUsername() {
         return email;
+    }
+
+    @Override
+    public String getName() {
+        return id != null ? id.toString() : email;
     }
 }

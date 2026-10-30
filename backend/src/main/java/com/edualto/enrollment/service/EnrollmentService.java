@@ -10,7 +10,10 @@ import com.edualto.enrollment.domain.EnrollmentStatus;
 import com.edualto.enrollment.dto.EnrollmentResponse;
 import com.edualto.enrollment.dto.InstructorCourseStudentResponse;
 import com.edualto.enrollment.repository.EnrollmentRepository;
+import com.edualto.notification.domain.NotificationType;
+import com.edualto.notification.service.RealtimeNotificationService;
 import com.edualto.storage.service.StorageService;
+import com.edualto.user.domain.User;
 import com.edualto.user.service.UserService;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -27,19 +30,22 @@ public class EnrollmentService {
     private final CourseRepository courseRepository;
     private final UserService users;
     private final StorageService storage;
+    private final RealtimeNotificationService realtimeNotifications;
 
     public EnrollmentService(
             EnrollmentRepository enrollments,
             CourseLearningAccessService courses,
             CourseRepository courseRepository,
             UserService users,
-            StorageService storage
+            StorageService storage,
+            RealtimeNotificationService realtimeNotifications
     ) {
         this.enrollments = enrollments;
         this.courses = courses;
         this.courseRepository = courseRepository;
         this.users = users;
         this.storage = storage;
+        this.realtimeNotifications = realtimeNotifications;
     }
 
     @Transactional
@@ -57,6 +63,17 @@ public class EnrollmentService {
             throw new BusinessException(HttpStatus.CONFLICT, "PAYMENT_REQUIRED", "Khóa học này cần được thanh toán trước khi ghi danh");
         }
         enrollments.insertIfAbsent(UUID.randomUUID(), studentId, courseId);
+
+        // Notify the instructor in real-time
+        User student = users.requireById(studentId);
+        realtimeNotifications.sendNotification(
+                course.instructorId(),
+                NotificationType.NEW_ENROLLMENT,
+                "Học viên mới đăng ký khóa học",
+                "Học viên " + student.getFullName() + " vừa đăng ký khóa học \"" + course.title() + "\".",
+                "/instructor/courses/" + courseId
+        );
+
         return enrollments.findByStudentIdAndCourseId(studentId, courseId).orElseThrow().getId();
     }
 

@@ -1,9 +1,16 @@
 import type { Metadata, Viewport } from "next";
+import { Inter } from "next/font/google";
 import { AuthSessionProvider } from "@/lib/auth-session";
 import { LearningAssistant } from "@/components/learning-assistant";
 import { CookieConsentManager } from "@/components/layout/cookie-consent-manager";
 import { QueryProvider } from "@/lib/query-provider";
 import "./globals.css";
+
+const inter = Inter({
+  subsets: ["latin", "vietnamese"],
+  display: "swap",
+  variable: "--font-inter",
+});
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://edualto.vercel.app";
 
@@ -58,8 +65,13 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="vi" data-scroll-behavior="smooth" suppressHydrationWarning>
-      <body className="font-sans antialiased" suppressHydrationWarning>
+    <html
+      lang="vi"
+      data-scroll-behavior="smooth"
+      className={inter.variable}
+      suppressHydrationWarning
+    >
+      <body className={`${inter.className} font-sans antialiased`} suppressHydrationWarning>
         <QueryProvider>
           <AuthSessionProvider>
             {children}

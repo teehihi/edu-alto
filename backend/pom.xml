@@ -18,7 +18,7 @@
     <description>EduAlto modular monolith backend foundation</description>
 
     <properties>
-        <java.version>25</java.version>
+        <java.version>22</java.version>
         <springdoc.version>3.0.2</springdoc.version>
         <aws.sdk.version>2.29.50</aws.sdk.version>
         <apache.poi.version>5.5.1</apache.poi.version>

@@ -2,16 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  Award,
-  ArrowLeft,
-  Check,
-  Download,
-  ExternalLink,
-  Loader2,
-  Printer,
-  Share2,
-} from "lucide-react";
+import { ArrowLeft, Check, Download, ExternalLink, Loader2, Printer, Share2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { AppHeader } from "@/components/layout/app-header";
 import { ApiClientError } from "@/lib/api";
@@ -204,8 +195,14 @@ export function CourseCertificatePage({ courseId }: { courseId: string }) {
             </div>
 
             <article className="certificate-print-sheet mx-auto mt-4 flex min-h-[440px] max-w-5xl flex-col items-center justify-center rounded-2xl border-[8px] border-double border-[#20b486] bg-white px-6 py-10 text-center shadow-sm sm:min-h-[580px] sm:px-16">
-              <Award className="h-12 w-12 text-primary print:h-16 print:w-16" aria-hidden="true" />
-              <p className="mt-3 text-xs font-semibold tracking-[0.28em] text-primary">EDUALTO</p>
+              <img
+                src="/images/logo-with-text.png"
+                alt="EduAlto Logo"
+                className="h-12 w-auto object-contain sm:h-14 print:h-16"
+              />
+              <p className="mt-2 text-[11px] font-semibold text-slate-400 uppercase tracking-widest">
+                Nền tảng học tập trực tuyến
+              </p>
               <h1 className="mt-4 text-3xl font-semibold text-heading sm:text-4xl">
                 Chứng nhận hoàn thành
               </h1>
@@ -238,12 +235,20 @@ export function CourseCertificatePage({ courseId }: { courseId: string }) {
                 </div>
 
                 <div className="hidden flex-col items-center justify-center text-center sm:flex">
-                  <p className="text-[11px] font-semibold text-heading">
-                    HỆ THỐNG CHỨNG CHỈ ĐIỆN TỬ
+                  <div className="relative flex h-[88px] w-[88px] flex-col items-center justify-center rounded-full border-2 border-dashed border-[#D4AF37] bg-gradient-to-br from-[#FAFAF5] to-[#EAF7F3] p-1.5 shadow-xs">
+                    <div className="flex h-full w-full flex-col items-center justify-center rounded-full border border-primary/40 bg-white/95 px-1 text-center">
+                      <span className="text-[8.5px] font-bold text-heading">TEM BẢO MẬT</span>
+                      <span className="text-[7.5px] font-bold text-[#B8860B]">CHỐNG LÀM GIẢ</span>
+                      <div className="my-0.5 flex items-center justify-center gap-0.5 text-[8.5px] text-[#D4AF37]">
+                        {"★".repeat(5)}
+                      </div>
+                      <span className="text-[7px] font-bold text-primary">EDUALTO VERIFIED</span>
+                    </div>
+                  </div>
+                  <p className="mt-2 text-[11px] font-semibold text-heading">
+                    HỆ THỐNG CHỨNG THỰC ĐIỆN TỬ
                   </p>
-                  <p className="mt-0.5 text-[10px] text-slate-400">
-                    Bảo lưu và xác thực bởi EduAlto
-                  </p>
+                  <p className="text-[10px] text-slate-500">Bảo lưu & đối soát bởi EduAlto</p>
                 </div>
 
                 <div className="flex flex-col items-center sm:items-end">

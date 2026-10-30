@@ -2493,9 +2493,9 @@ function UtilityView({
     },
     discussion: {
       icon: MessageCircle,
-      title: "Cùng trao đổi với lớp học",
-      copy: "Các cuộc thảo luận sẽ hiện tại đây khi khóa học của bạn mở hoạt động nhóm.",
-      action: "Xem khóa học",
+      title: "Hỏi đáp & Thảo luận bài học",
+      copy: "Tham gia đặt câu hỏi gắn liền với mốc thời gian của video bài giảng và nhận giải đáp từ giảng viên ngay trong bài học.",
+      action: "Mở khóa học của bạn",
       href: "/learning/courses",
     },
     resources: {

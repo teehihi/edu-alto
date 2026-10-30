@@ -27,9 +27,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain
     ) throws ServletException, IOException {
+        String token = null;
         String authorization = request.getHeader("Authorization");
         if (StringUtils.hasText(authorization) && authorization.startsWith("Bearer ")) {
-            jwtTokenService.parseAccessToken(authorization.substring(7))
+            token = authorization.substring(7);
+        } else if (request.getRequestURI().startsWith("/ws") && StringUtils.hasText(request.getParameter("token"))) {
+            token = request.getParameter("token");
+        }
+
+        if (token != null) {
+            jwtTokenService.parseAccessToken(token)
                     .ifPresent(principal -> {
                         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                                 principal,
