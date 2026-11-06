@@ -2,8 +2,17 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, Download, ExternalLink, Loader2, Printer, Share2 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import {
+  ArrowLeft,
+  Check,
+  Download,
+  Image as ImageIcon,
+  Loader2,
+  Printer,
+  Share2,
+} from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { toPng } from "html-to-image";
 import { AppHeader } from "@/components/layout/app-header";
 import { ApiClientError } from "@/lib/api";
 import { useAuthSession } from "@/lib/auth-session";
@@ -12,10 +21,8 @@ import {
   fetchMyCourseCertificate,
   type CourseCertificate,
 } from "@/lib/certificate-client";
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("vi-VN", { dateStyle: "long" }).format(new Date(value));
-}
+import { CertificateSheet } from "@/features/certificate/certificate-sheet";
+import { CertificateShareModal } from "@/features/certificate/certificate-share-modal";
 
 export function CourseCertificatePage({ courseId }: { courseId: string }) {
   const { user, isLoading: sessionLoading, getAccessToken } = useAuthSession();
@@ -24,7 +31,11 @@ export function CourseCertificatePage({ courseId }: { courseId: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [downloading, setDownloading] = useState(false);
+  const [downloadingImage, setDownloadingImage] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+
+  const certificateRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -79,32 +90,46 @@ export function CourseCertificatePage({ courseId }: { courseId: string }) {
     }
   };
 
+  const handleDownloadPng = async () => {
+    if (!certificateRef.current || !certificate || downloadingImage) return;
+    setDownloadingImage(true);
+    try {
+      const dataUrl = await toPng(certificateRef.current, {
+        cacheBust: true,
+        quality: 0.95,
+        pixelRatio: 2,
+        backgroundColor: "#ffffff",
+      });
+      const link = document.createElement("a");
+      link.download = `certificate-${certificate.certificateNumber}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch {
+      alert("Không thể xuất ảnh chứng chỉ lúc này. Vui lòng thử lại hoặc tải file PDF.");
+    } finally {
+      setDownloadingImage(false);
+    }
+  };
+
   const handleShare = async () => {
     if (!certificate) return;
     const verifyUrl =
       certificate.verificationUrl ||
       `${window.location.origin}/certificates/verify/${encodeURIComponent(certificate.certificateNumber)}`;
 
-    if (navigator.share) {
+    // Copy to clipboard for immediate utility and tests
+    if (navigator?.clipboard?.writeText) {
       try {
-        await navigator.share({
-          title: `Chứng nhận hoàn thành: ${certificate.courseTitle}`,
-          text: `Chứng nhận hoàn thành khóa học "${certificate.courseTitle}" cấp cho ${certificate.studentName} trên EduAlto.`,
-          url: verifyUrl,
-        });
-        return;
-      } catch (err) {
-        if ((err as Error).name === "AbortError") return;
+        await navigator.clipboard.writeText(verifyUrl);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 3000);
+      } catch {
+        // Fallback
       }
     }
 
-    try {
-      await navigator.clipboard.writeText(verifyUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 3000);
-    } catch {
-      alert(`Liên kết xác thực chứng chỉ của bạn:\n${verifyUrl}`);
-    }
+    // Open share modal
+    setShareModalOpen(true);
   };
 
   return (
@@ -114,14 +139,14 @@ export function CourseCertificatePage({ courseId }: { courseId: string }) {
         <div className="mx-auto flex max-w-5xl items-center justify-between print:hidden">
           <Link
             href="/learning/certificates"
-            className="focus-ring inline-flex items-center gap-2 rounded text-sm font-medium text-slate-600 hover:text-primary"
+            className="focus-ring inline-flex items-center gap-2 rounded text-sm font-medium text-slate-600 hover:text-primary transition"
           >
             <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Danh sách chứng chỉ
           </Link>
           {copied && (
             <span
               role="status"
-              className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-800"
+              className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800 animate-in fade-in"
             >
               <Check className="h-3.5 w-3.5" aria-hidden="true" /> Đã sao chép liên kết xác thực!
             </span>
@@ -151,11 +176,12 @@ export function CourseCertificatePage({ courseId }: { courseId: string }) {
           </section>
         ) : certificate ? (
           <>
+            {/* Action Bar */}
             <div className="mx-auto mt-6 flex max-w-5xl flex-wrap items-center justify-end gap-2.5 print:hidden">
               <button
                 type="button"
                 onClick={handleShare}
-                className="focus-ring inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-heading shadow-xs hover:bg-slate-50"
+                className="focus-ring inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-heading shadow-xs hover:bg-slate-50 transition active:scale-95"
               >
                 {copied ? (
                   <>
@@ -170,9 +196,27 @@ export function CourseCertificatePage({ courseId }: { courseId: string }) {
 
               <button
                 type="button"
+                onClick={() => void handleDownloadPng()}
+                disabled={downloadingImage}
+                className="focus-ring inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-xs hover:bg-slate-50 transition disabled:opacity-60 active:scale-95"
+              >
+                {downloadingImage ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin text-primary" aria-hidden="true" />{" "}
+                    Đang xuất ảnh...
+                  </>
+                ) : (
+                  <>
+                    <ImageIcon className="h-4 w-4 text-primary" aria-hidden="true" /> Tải ảnh (PNG)
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
                 onClick={handleDownloadPdf}
                 disabled={downloading}
-                className="focus-ring inline-flex min-h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-white hover:bg-[#159e75] disabled:cursor-not-allowed disabled:opacity-60"
+                className="focus-ring inline-flex min-h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-white shadow-xs hover:bg-[#159e75] transition disabled:cursor-not-allowed disabled:opacity-60 active:scale-95"
               >
                 {downloading ? (
                   <>
@@ -188,100 +232,45 @@ export function CourseCertificatePage({ courseId }: { courseId: string }) {
               <button
                 type="button"
                 onClick={() => window.print()}
-                className="focus-ring inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-xs hover:bg-slate-50"
+                className="focus-ring inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-xs hover:bg-slate-50 transition active:scale-95"
               >
                 <Printer className="h-4 w-4 text-slate-600" aria-hidden="true" /> In chứng chỉ
               </button>
             </div>
 
-            <article className="certificate-print-sheet mx-auto mt-4 flex min-h-[440px] max-w-5xl flex-col items-center justify-center rounded-2xl border-[8px] border-double border-[#20b486] bg-white px-6 py-10 text-center shadow-sm sm:min-h-[580px] sm:px-16">
-              <img
-                src="/images/logo-with-text.png"
-                alt="EduAlto Logo"
-                className="h-12 w-auto object-contain sm:h-14 print:h-16"
+            {/* Standardized A4 Landscape Certificate Sheet */}
+            <div className="mt-4">
+              <CertificateSheet
+                ref={certificateRef}
+                studentName={certificate.studentName}
+                courseTitle={certificate.courseTitle}
+                instructorName={certificate.instructorName}
+                certificateNumber={certificate.certificateNumber}
+                issuedAt={certificate.issuedAt}
+                qrCodeDataUrl={certificate.qrCodeDataUrl}
+                verificationUrl={certificate.verificationUrl}
               />
-              <p className="mt-2 text-[11px] font-semibold text-slate-400 uppercase tracking-widest">
-                Nền tảng học tập trực tuyến
-              </p>
-              <h1 className="mt-4 text-3xl font-semibold text-heading sm:text-4xl">
-                Chứng nhận hoàn thành
-              </h1>
-              <p className="mt-5 text-sm text-slate-500">Chứng nhận rằng</p>
-              <p className="mt-2 text-2xl font-semibold text-primary sm:text-3xl">
-                {certificate.studentName}
-              </p>
-              <div className="mx-auto mt-2 h-0.5 w-40 bg-primary/40" />
+            </div>
 
-              <p className="mt-5 max-w-2xl text-sm leading-7 text-slate-600">
-                đã hoàn thành xuất sắc toàn bộ nội dung xuất bản của khóa học
-              </p>
-              <h2 className="mt-2 max-w-3xl text-xl font-semibold text-heading sm:text-2xl">
-                {certificate.courseTitle}
-              </h2>
-              <p className="mt-2 text-sm text-slate-500">
-                Giảng viên hướng dẫn: {certificate.instructorName}
-              </p>
-
-              <div className="mt-10 flex w-full flex-col items-center justify-between gap-6 border-t border-slate-100 pt-6 text-sm sm:flex-row">
-                <div className="text-center sm:text-left">
-                  <p className="text-xs font-medium text-slate-500">Ngày cấp</p>
-                  <p className="mt-1 font-semibold text-heading">
-                    {formatDate(certificate.issuedAt)}
-                  </p>
-                  <p className="mt-3 text-xs font-medium text-slate-500">Mã chứng nhận</p>
-                  <p className="mt-1 font-mono text-xs font-bold text-primary">
-                    {certificate.certificateNumber}
-                  </p>
-                </div>
-
-                <div className="hidden flex-col items-center justify-center text-center sm:flex">
-                  <div className="relative flex h-[88px] w-[88px] flex-col items-center justify-center rounded-full border-2 border-dashed border-[#D4AF37] bg-gradient-to-br from-[#FAFAF5] to-[#EAF7F3] p-1.5 shadow-xs">
-                    <div className="flex h-full w-full flex-col items-center justify-center rounded-full border border-primary/40 bg-white/95 px-1 text-center">
-                      <span className="text-[8.5px] font-bold text-heading">TEM BẢO MẬT</span>
-                      <span className="text-[7.5px] font-bold text-[#B8860B]">CHỐNG LÀM GIẢ</span>
-                      <div className="my-0.5 flex items-center justify-center gap-0.5 text-[8.5px] text-[#D4AF37]">
-                        {"★".repeat(5)}
-                      </div>
-                      <span className="text-[7px] font-bold text-primary">EDUALTO VERIFIED</span>
-                    </div>
-                  </div>
-                  <p className="mt-2 text-[11px] font-semibold text-heading">
-                    HỆ THỐNG CHỨNG THỰC ĐIỆN TỬ
-                  </p>
-                  <p className="text-[10px] text-slate-500">Bảo lưu & đối soát bởi EduAlto</p>
-                </div>
-
-                <div className="flex flex-col items-center sm:items-end">
-                  {certificate.qrCodeDataUrl ? (
-                    <div className="flex flex-col items-center">
-                      <img
-                        src={certificate.qrCodeDataUrl}
-                        alt="Mã QR xác thực chứng chỉ"
-                        className="h-20 w-20 rounded border border-slate-200 bg-white p-1 shadow-2xs"
-                      />
-                      <Link
-                        href={
-                          certificate.verificationUrl ||
-                          `/certificates/verify/${encodeURIComponent(certificate.certificateNumber)}`
-                        }
-                        target="_blank"
-                        className="focus-ring mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
-                      >
-                        Quét để xác thực <ExternalLink className="h-3 w-3" aria-hidden="true" />
-                      </Link>
-                    </div>
-                  ) : (
-                    <div className="text-center sm:text-right">
-                      <p className="text-xs text-slate-500">Xác thực tại</p>
-                      <p className="mt-1 font-mono text-xs text-primary">edualto.vn/verify</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </article>
+            {/* Quick Share Modal */}
+            <CertificateShareModal
+              open={shareModalOpen}
+              onClose={() => setShareModalOpen(false)}
+              title={`Chứng nhận hoàn thành: ${certificate.courseTitle}`}
+              url={
+                certificate.verificationUrl ||
+                (typeof window !== "undefined"
+                  ? `${window.location.origin}/certificates/verify/${encodeURIComponent(certificate.certificateNumber)}`
+                  : "")
+              }
+              studentName={certificate.studentName}
+              courseTitle={certificate.courseTitle}
+              certificateNumber={certificate.certificateNumber}
+            />
           </>
         ) : null}
       </main>
+
       <style>{`
         @media print {
           body {

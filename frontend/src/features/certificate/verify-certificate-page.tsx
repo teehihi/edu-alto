@@ -10,15 +10,16 @@ import {
   Copy,
   Download,
   ExternalLink,
+  Image as ImageIcon,
   Loader2,
-  QrCode,
   Share2,
   ShieldAlert,
   ShieldCheck,
   Sparkles,
   UserCheck,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { toPng } from "html-to-image";
 import { AppHeader } from "@/components/layout/app-header";
 import { ApiClientError } from "@/lib/api";
 import {
@@ -26,6 +27,8 @@ import {
   verifyCertificate,
   type CertificateVerificationResult,
 } from "@/lib/certificate-client";
+import { CertificateSheet } from "@/features/certificate/certificate-sheet";
+import { CertificateShareModal } from "@/features/certificate/certificate-share-modal";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("vi-VN", {
@@ -50,8 +53,12 @@ export function VerifyCertificatePage({
   const [loading, setLoading] = useState(!initialData);
   const [error, setError] = useState("");
   const [downloading, setDownloading] = useState(false);
+  const [downloadingImage, setDownloadingImage] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+
+  const certificateRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -98,6 +105,27 @@ export function VerifyCertificatePage({
     }
   };
 
+  const handleDownloadPng = async () => {
+    if (!certificateRef.current || !data || downloadingImage) return;
+    setDownloadingImage(true);
+    try {
+      const dataUrl = await toPng(certificateRef.current, {
+        cacheBust: true,
+        quality: 0.95,
+        pixelRatio: 2,
+        backgroundColor: "#ffffff",
+      });
+      const link = document.createElement("a");
+      link.download = `certificate-${data.certificateNumber}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch {
+      alert("Không thể xuất ảnh chứng chỉ lúc này. Vui lòng thử lại hoặc tải file PDF.");
+    } finally {
+      setDownloadingImage(false);
+    }
+  };
+
   const handleCopyLink = async () => {
     const targetUrl =
       data?.verificationUrl ||
@@ -105,26 +133,17 @@ export function VerifyCertificatePage({
         ? window.location.href
         : `https://edualto.vn/certificates/verify/${code}`);
 
-    if (navigator.share) {
+    if (navigator?.clipboard?.writeText) {
       try {
-        await navigator.share({
-          title: `Xác thực chứng chỉ EduAlto: ${data?.studentName ?? code}`,
-          text: `Chứng chỉ hoàn thành khóa học "${data?.courseTitle}" cấp cho ${data?.studentName} trên hệ thống EduAlto.`,
-          url: targetUrl,
-        });
-        return;
-      } catch (err) {
-        if ((err as Error).name === "AbortError") return;
+        await navigator.clipboard.writeText(targetUrl);
+        setCopiedLink(true);
+        setTimeout(() => setCopiedLink(false), 3000);
+      } catch {
+        // Fallback
       }
     }
 
-    try {
-      await navigator.clipboard.writeText(targetUrl);
-      setCopiedLink(true);
-      setTimeout(() => setCopiedLink(false), 3000);
-    } catch {
-      alert(`Liên kết xác thực:\n${targetUrl}`);
-    }
+    setShareModalOpen(true);
   };
 
   const handleCopyCode = async () => {
@@ -232,7 +251,7 @@ export function VerifyCertificatePage({
                   <button
                     type="button"
                     onClick={handleCopyLink}
-                    className="focus-ring inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-xs font-semibold text-heading shadow-2xs hover:bg-slate-50"
+                    className="focus-ring inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-xs font-semibold text-heading shadow-2xs hover:bg-slate-50 transition active:scale-95"
                   >
                     {copiedLink ? (
                       <>
@@ -248,9 +267,28 @@ export function VerifyCertificatePage({
 
                   <button
                     type="button"
+                    onClick={() => void handleDownloadPng()}
+                    disabled={downloadingImage}
+                    className="focus-ring inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 transition disabled:opacity-60 active:scale-95"
+                  >
+                    {downloadingImage ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin text-primary" aria-hidden="true" />{" "}
+                        Đang xuất ảnh...
+                      </>
+                    ) : (
+                      <>
+                        <ImageIcon className="h-4 w-4 text-primary" aria-hidden="true" /> Tải ảnh
+                        (PNG)
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={handleDownload}
                     disabled={downloading}
-                    className="focus-ring inline-flex min-h-10 items-center gap-2 rounded-lg bg-primary px-5 text-xs font-semibold text-white shadow-xs hover:bg-[#159e75] disabled:cursor-not-allowed disabled:opacity-60"
+                    className="focus-ring inline-flex min-h-10 items-center gap-2 rounded-lg bg-primary px-5 text-xs font-semibold text-white shadow-xs hover:bg-[#159e75] transition disabled:cursor-not-allowed disabled:opacity-60 active:scale-95"
                   >
                     {downloading ? (
                       <>
@@ -331,100 +369,19 @@ export function VerifyCertificatePage({
               </div>
             </section>
 
-            {/* 3. Certificate Visual Replica Card with Anti-Counterfeit Security Stamp */}
-            <article className="relative overflow-hidden rounded-2xl border-4 border-double border-[#20b486] bg-white p-6 shadow-sm md:p-12">
-              <div className="mx-auto max-w-3xl text-center">
-                <div className="mb-3 flex flex-col items-center justify-center">
-                  <img
-                    src="/images/logo-with-text.png"
-                    alt="EduAlto Logo"
-                    className="h-12 w-auto object-contain sm:h-14"
-                  />
-                  <span className="mt-2 text-[11px] font-semibold text-slate-500 uppercase tracking-widest">
-                    EduAlto Official E-Certificate
-                  </span>
-                </div>
-
-                <h2 className="mt-4 text-2xl font-bold text-heading sm:text-3xl md:text-4xl">
-                  Chứng nhận hoàn thành
-                </h2>
-                <p className="mt-3 text-sm text-slate-500">Chứng nhận rằng học viên</p>
-
-                <p className="mt-2 text-2xl font-bold text-primary sm:text-3xl">
-                  {data.studentName}
-                </p>
-                <div className="mx-auto mt-2 h-0.5 w-32 bg-primary/40" />
-
-                <p className="mt-4 text-sm text-slate-600">
-                  đã hoàn thành xuất sắc toàn bộ nội dung xuất bản của khóa học
-                </p>
-
-                <h3 className="mt-2 text-xl font-bold text-heading sm:text-2xl">
-                  {data.courseTitle}
-                </h3>
-
-                <p className="mt-2 text-sm text-slate-500">
-                  Giảng viên hướng dẫn:{" "}
-                  <span className="font-semibold text-heading">{data.instructorName}</span>
-                </p>
-
-                {/* Footer of the visual certificate */}
-                <div className="mt-10 flex flex-col items-center justify-between gap-6 border-t border-slate-100 pt-6 sm:flex-row">
-                  {/* Left: Issue Date & Verification ID */}
-                  <div className="text-center sm:text-left">
-                    <p className="text-xs font-medium text-slate-500">Ngày cấp chứng chỉ</p>
-                    <p className="mt-0.5 text-sm font-bold text-heading">
-                      {formatShortDate(data.issuedAt)}
-                    </p>
-                    <p className="mt-3 text-xs font-medium text-slate-500">Mã số văn bằng</p>
-                    <p className="mt-0.5 font-mono text-xs font-bold text-primary">
-                      {data.certificateNumber}
-                    </p>
-                  </div>
-
-                  {/* Center: Official Anti-Counterfeit Security Seal Stamp */}
-                  <div className="flex flex-col items-center justify-center text-center">
-                    <div className="relative flex h-[88px] w-[88px] flex-col items-center justify-center rounded-full border-2 border-dashed border-[#D4AF37] bg-gradient-to-br from-[#FAFAF5] to-[#EAF7F3] p-1.5 shadow-xs">
-                      <div className="flex h-full w-full flex-col items-center justify-center rounded-full border border-primary/40 bg-white/95 px-1 text-center">
-                        <span className="text-[8.5px] font-bold text-heading">TEM BẢO MẬT</span>
-                        <span className="text-[7.5px] font-bold text-[#B8860B]">CHỐNG LÀM GIẢ</span>
-                        <div className="my-0.5 flex items-center justify-center gap-0.5 text-[8.5px] text-[#D4AF37]">
-                          {"★".repeat(5)}
-                        </div>
-                        <span className="text-[7px] font-bold text-primary">EDUALTO VERIFIED</span>
-                      </div>
-                    </div>
-                    <p className="mt-2 text-[11px] font-semibold text-heading">
-                      HỆ THỐNG CHỨNG THỰC ĐIỆN TỬ
-                    </p>
-                    <p className="text-[10px] text-slate-500">Bảo lưu &amp; đối soát bởi EduAlto</p>
-                  </div>
-
-                  {/* Right: Dynamic QR Code */}
-                  <div className="flex flex-col items-center sm:items-end">
-                    {data.qrCodeDataUrl ? (
-                      <div className="flex flex-col items-center">
-                        <img
-                          src={data.qrCodeDataUrl}
-                          alt={`Mã QR xác thực chứng chỉ ${data.certificateNumber}`}
-                          className="h-20 w-20 rounded-lg border border-slate-200 bg-white p-1 shadow-2xs"
-                        />
-                        <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-primary">
-                          <QrCode className="h-3 w-3" aria-hidden="true" /> Quét mã để đối soát
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="text-center sm:text-right">
-                        <p className="text-xs text-slate-500">Xác thực trực tuyến tại</p>
-                        <p className="mt-0.5 font-mono text-xs font-bold text-primary">
-                          edualto.vn/verify
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </article>
+            {/* 3. Certificate Visual Replica Card with Anti-Counterfeit Security Stamp & Signatures */}
+            <div className="mt-4">
+              <CertificateSheet
+                ref={certificateRef}
+                studentName={data.studentName}
+                courseTitle={data.courseTitle}
+                instructorName={data.instructorName}
+                certificateNumber={data.certificateNumber}
+                issuedAt={data.issuedAt}
+                qrCodeDataUrl={data.qrCodeDataUrl}
+                verificationUrl={data.verificationUrl}
+              />
+            </div>
 
             {/* 4. Course Details & Public Exploration Callout */}
             <section className="flex flex-col items-start justify-between gap-4 rounded-xl border border-slate-200 bg-white p-6 shadow-xs sm:flex-row sm:items-center">
@@ -447,9 +404,54 @@ export function VerifyCertificatePage({
                 Xem nội dung khóa học <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
               </Link>
             </section>
+
+            {/* Quick Share Modal */}
+            <CertificateShareModal
+              open={shareModalOpen}
+              onClose={() => setShareModalOpen(false)}
+              title={`Xác thực chứng chỉ: ${data.courseTitle}`}
+              url={
+                data.verificationUrl ||
+                (typeof window !== "undefined"
+                  ? `${window.location.origin}/certificates/verify/${encodeURIComponent(data.certificateNumber)}`
+                  : "")
+              }
+              studentName={data.studentName}
+              courseTitle={data.courseTitle}
+              certificateNumber={data.certificateNumber}
+            />
           </div>
         ) : null}
       </main>
+
+      <style>{`
+        @media print {
+          body {
+            background: white !important;
+          }
+          body * {
+            visibility: hidden;
+          }
+          .certificate-print-sheet,
+          .certificate-print-sheet * {
+            visibility: visible;
+          }
+          .certificate-print-sheet {
+            position: absolute !important;
+            inset: 0 !important;
+            width: 100% !important;
+            max-width: none !important;
+            min-height: 100vh !important;
+            margin: 0 !important;
+            box-shadow: none !important;
+            border-width: 6px !important;
+          }
+          @page {
+            size: landscape;
+            margin: 10mm;
+          }
+        }
+      `}</style>
     </div>
   );
 }
