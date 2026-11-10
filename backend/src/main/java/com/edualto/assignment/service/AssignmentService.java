@@ -11,6 +11,8 @@ import com.edualto.assignment.dto.SubmissionRequest;
 import com.edualto.assignment.repository.AssignmentRepository;
 import com.edualto.assignment.repository.AssignmentSubmissionRepository;
 import com.edualto.common.exception.BusinessException;
+import com.edualto.learning.domain.LearningActivityType;
+import com.edualto.learning.service.LearningActivityService;
 import com.edualto.course.domain.Course;
 import com.edualto.course.domain.CourseStatus;
 import com.edualto.course.repository.CourseRepository;
@@ -21,6 +23,7 @@ import com.edualto.user.repository.UserRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Function;
@@ -35,13 +38,16 @@ public class AssignmentService {
     private final AssignmentSubmissionRepository submissions;
     private final CourseRepository courses;
     private final UserRepository users;
+    private final LearningActivityService learningActivities;
 
     public AssignmentService(AssignmentRepository assignments, AssignmentSubmissionRepository submissions,
-            CourseRepository courses, UserRepository users) {
+            CourseRepository courses, UserRepository users,
+            LearningActivityService learningActivities) {
         this.assignments = assignments;
         this.submissions = submissions;
         this.courses = courses;
         this.users = users;
+        this.learningActivities = learningActivities;
     }
 
     @Transactional
@@ -128,6 +134,20 @@ public class AssignmentService {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "SCORE_EXCEEDS_MAX", "Điểm không được vượt quá điểm tối đa của bài tập");
         }
         submission.grade(request.score(), request.feedback(), instructorId);
+
+        String gradeMeta = String.format(Locale.ROOT, "{\"score\":%.2f,\"maxScore\":%.2f}",
+                request.score().doubleValue(), assignment.getMaxScore().doubleValue());
+        learningActivities.recordActivityDirect(
+                submission.getStudentId(),
+                assignment.getCourseId(),
+                null,
+                null,
+                LearningActivityType.ASSIGNMENT_GRADED,
+                submission.getId(),
+                submission.getGradedAt(),
+                gradeMeta
+        );
+
         User student = users.findById(submission.getStudentId()).orElse(null);
         return toSubmissionResponse(submission, student);
     }
@@ -170,6 +190,17 @@ public class AssignmentService {
             }
             submission.updateResponse(request.responseText());
         }
+        learningActivities.recordActivityDirect(
+                studentId,
+                assignment.getCourseId(),
+                null,
+                null,
+                LearningActivityType.ASSIGNMENT_SUBMITTED,
+                submission.getId(),
+                submission.getSubmittedAt(),
+                null
+        );
+
         Course course = courses.findById(assignment.getCourseId()).orElseThrow();
         return toAssignmentResponse(assignment, course, submission);
     }

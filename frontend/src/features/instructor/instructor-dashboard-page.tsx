@@ -10,6 +10,7 @@ import {
   MoreHorizontal,
   Plus,
   RefreshCw,
+  TrendingUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
@@ -543,6 +544,13 @@ export function InstructorDashboardPage() {
         <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-2xl font-semibold text-primary">Tổng quan</h1>
           <div className="flex items-center gap-2 self-end sm:self-auto">
+            <Link
+              href="/instructor/analytics"
+              className="focus-ring inline-flex h-10 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 shadow-xs hover:bg-slate-50 transition"
+            >
+              <TrendingUp className="h-4 w-4 text-primary" aria-hidden="true" />
+              <span>Phân tích số liệu</span>
+            </Link>
             <Button type="button" variant="primary" onClick={openCreateCourse}>
               <Plus className="h-4 w-4" aria-hidden="true" /> Thêm khóa học
             </Button>

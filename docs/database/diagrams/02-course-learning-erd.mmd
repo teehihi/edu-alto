@@ -71,6 +71,18 @@ erDiagram
     int video_second
     text body
   }
+  learning_activities {
+    uuid id PK
+    uuid student_id FK
+    uuid course_id FK
+    uuid section_id FK
+    uuid lesson_id FK
+    varchar activity_type
+    timestamptz occurred_at
+    jsonb metadata
+    timestamptz created_at
+    timestamptz updated_at
+  }
 
   users ||--o| instructor_profiles : may_be
   instructor_profiles ||--o{ courses : creates
@@ -87,3 +99,6 @@ erDiagram
   users ||--o{ notes : writes
   courses ||--o{ notes : scopes
   lessons ||--o{ notes : anchors
+  users ||--o{ learning_activities : performs
+  courses ||--o{ learning_activities : scopes
+  lessons ||--o{ learning_activities : targets

@@ -30,6 +30,7 @@ import {
   fetchSavedLessons,
   fetchLessonVideoAccess,
   fetchLessonResourceDownload,
+  recordLearningActivity,
   saveLearningLesson,
   unsaveLearningLesson,
   triggerResourceDownload,
@@ -69,6 +70,36 @@ export function LearningLessonPage({ lessonId }: { lessonId: string }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [currentVideoTime, setCurrentVideoTime] = useState(0);
   const [activeTab, setActiveTab] = useState<"content" | "qa">("content");
+  const lastTimeRef = useRef(0);
+  const watchSecondsAccumulatorRef = useRef(0);
+
+  const flushVideoWatchTime = useCallback(async () => {
+    const seconds = watchSecondsAccumulatorRef.current;
+    if (!lesson || seconds < 5) return;
+    watchSecondsAccumulatorRef.current = 0;
+    try {
+      const token = await getAccessToken();
+      if (!token) return;
+      await recordLearningActivity(token, {
+        courseId: lesson.courseId,
+        sectionId: lesson.sectionId,
+        lessonId: lesson.id,
+        activityType: "VIDEO_WATCHED",
+        metadata: JSON.stringify({
+          duration_seconds: Math.round(seconds),
+          position_seconds: Math.round(videoPositionRef.current),
+        }),
+      });
+    } catch {
+      // Bỏ qua lỗi telemetry nền để không làm gián đoạn trải nghiệm học tập
+    }
+  }, [getAccessToken, lesson]);
+
+  useEffect(() => {
+    return () => {
+      void flushVideoWatchTime();
+    };
+  }, [flushVideoWatchTime]);
 
   const handleSeekVideo = useCallback((seconds: number) => {
     if (videoRef.current) {
@@ -351,14 +382,28 @@ export function LearningLessonPage({ lessonId }: { lessonId: string }) {
                         aria-label={`Video bài học: ${lesson.title}`}
                         onTimeUpdate={(event) => {
                           const time = event.currentTarget.currentTime;
+                          const delta = time - lastTimeRef.current;
+                          if (delta > 0 && delta < 5) {
+                            watchSecondsAccumulatorRef.current += delta;
+                            if (watchSecondsAccumulatorRef.current >= 60) {
+                              void flushVideoWatchTime();
+                            }
+                          }
+                          lastTimeRef.current = time;
                           videoPositionRef.current = time;
                           setCurrentVideoTime(time);
                         }}
-                        onPlay={() => {
+                        onPlay={(event) => {
                           videoWasPlayingRef.current = true;
+                          lastTimeRef.current = event.currentTarget.currentTime;
                         }}
                         onPause={() => {
                           videoWasPlayingRef.current = false;
+                          void flushVideoWatchTime();
+                        }}
+                        onEnded={() => {
+                          videoWasPlayingRef.current = false;
+                          void flushVideoWatchTime();
                         }}
                         onLoadedMetadata={handleVideoMetadataLoaded}
                         onError={handleVideoError}

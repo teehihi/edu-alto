@@ -12,6 +12,8 @@ import com.edualto.course.repository.CourseRepository;
 import com.edualto.course.repository.LessonRepository;
 import com.edualto.course.repository.SectionRepository;
 import com.edualto.course.service.CourseLearningAccessService;
+import com.edualto.learning.domain.LearningActivityType;
+import com.edualto.learning.service.LearningActivityService;
 import com.edualto.enrollment.service.EnrollmentService;
 import com.edualto.learning.repository.LearningProgressRepository;
 import com.edualto.quiz.domain.Quiz;
@@ -53,6 +55,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -78,6 +81,7 @@ public class QuizService {
     private final EnrollmentService enrollments;
     private final LearningProgressRepository progress;
     private final CertificateService certificates;
+    private final LearningActivityService learningActivities;
 
     public QuizService(QuizRepository quizzes, QuizAttemptRepository attempts,
             QuizAttemptAnswerRepository attemptAnswers, QuizAttemptSessionRepository sessions,
@@ -85,7 +89,8 @@ public class QuizService {
             QuizAttemptActivityEventRepository activityEvents, LessonRepository lessons,
             SectionRepository sections, CourseRepository courses, UserRepository users,
             CourseLearningAccessService learningAccess, EnrollmentService enrollments,
-            LearningProgressRepository progress, CertificateService certificates) {
+            LearningProgressRepository progress, CertificateService certificates,
+            LearningActivityService learningActivities) {
         this.quizzes = quizzes;
         this.attempts = attempts;
         this.attemptAnswers = attemptAnswers;
@@ -100,6 +105,7 @@ public class QuizService {
         this.enrollments = enrollments;
         this.progress = progress;
         this.certificates = certificates;
+        this.learningActivities = learningActivities;
     }
 
     @Transactional
@@ -268,9 +274,44 @@ public class QuizService {
                         attempt.getId(), event.eventType(), boundEventTime(event.occurredAt(), startedAt)))
                 .toList();
         activityEvents.saveAll(persistedEvents);
+
+        long durationSeconds = (startedAt != null && attempt.getSubmittedAt() != null)
+                ? Math.max(0, Duration.between(startedAt, attempt.getSubmittedAt()).getSeconds())
+                : 0L;
+        String quizMeta = String.format(Locale.ROOT,
+                "{\"score\":%.2f,\"passed\":%b,\"correctCount\":%d,\"totalCount\":%d,\"durationSeconds\":%d}",
+                attempt.getScore().doubleValue(),
+                attempt.isPassed(),
+                attempt.getCorrectAnswers(),
+                attempt.getTotalQuestions(),
+                durationSeconds);
+        learningActivities.recordActivityDirect(
+                studentId,
+                lesson.courseId(),
+                lesson.sectionId(),
+                lesson.id(),
+                LearningActivityType.QUIZ_SUBMITTED,
+                attempt.getId(),
+                attempt.getSubmittedAt(),
+                quizMeta
+        );
+
         if (attempt.isPassed()) {
-            progress.completeIfAbsent(UUID.randomUUID(), enrollmentId, lesson.courseId(), lesson.sectionId(), lesson.id());
+            UUID progressId = UUID.randomUUID();
+            int inserted = progress.completeIfAbsent(progressId, enrollmentId, lesson.courseId(), lesson.sectionId(), lesson.id());
             certificates.issueIfEligible(studentId, lesson.courseId());
+            if (inserted > 0) {
+                learningActivities.recordActivityDirect(
+                        studentId,
+                        lesson.courseId(),
+                        lesson.sectionId(),
+                        lesson.id(),
+                        LearningActivityType.LESSON_COMPLETED,
+                        progressId,
+                        Instant.now(),
+                        null
+                );
+            }
         }
         return toAttemptResponse(attempt, assignedQuestions, questions, request.answers(), persistedEvents.size());
     }

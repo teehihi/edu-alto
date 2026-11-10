@@ -322,3 +322,50 @@ export async function fetchLearningCurriculum(accessToken: string, slug: string)
     accessToken,
   });
 }
+
+export type RecordLearningActivityInput = {
+  courseId: string;
+  sectionId?: string | null;
+  lessonId?: string | null;
+  activityType: string;
+  occurredAt?: string | null;
+  metadata?: string | null;
+};
+
+export type LearningActivitySummary = {
+  totalActivities: number;
+  distinctActiveDays: number;
+  countByCategory: Record<string, number>;
+};
+
+export type LearningActivitySyncResponse = {
+  lessonsSynced: number;
+  quizzesSynced: number;
+  assignmentsSynced: number;
+  enrollmentsSynced: number;
+  totalActivities: number;
+};
+
+export async function recordLearningActivity(
+  accessToken: string,
+  activity: RecordLearningActivityInput,
+) {
+  return apiRequest<void>("/learning/activities", {
+    method: "POST",
+    accessToken,
+    body: activity,
+  });
+}
+
+export async function fetchMyLearningActivitySummary(accessToken: string) {
+  return apiRequest<LearningActivitySummary>("/learning/activities/me/summary", {
+    accessToken,
+  });
+}
+
+export async function syncLearningActivities(accessToken: string) {
+  return apiRequest<LearningActivitySyncResponse>("/learning/activities/sync", {
+    method: "POST",
+    accessToken,
+  });
+}

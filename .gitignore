@@ -18,3 +18,6 @@ target/
 frontend/.next/
 frontend/node_modules/
 backend/target/
+.pytest_cache/
+__pycache__/
+*.pyc

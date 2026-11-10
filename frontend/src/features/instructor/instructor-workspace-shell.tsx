@@ -24,6 +24,7 @@ import {
   MessageSquare,
   Search,
   Settings,
+  TrendingUp,
   UserRound,
   X,
 } from "lucide-react";
@@ -34,7 +35,7 @@ import { useAuth } from "@/features/auth/auth-client";
 import { cn } from "@/lib/cn";
 import type { AuthUser } from "@/lib/auth";
 
-type InstructorWorkspaceSection = "dashboard" | "courses" | "community" | "revenue";
+type InstructorWorkspaceSection = "dashboard" | "courses" | "analytics" | "community" | "revenue";
 
 const navigation = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/instructor", section: "dashboard" },
@@ -43,6 +44,12 @@ const navigation = [
     icon: BookOpen,
     href: "/instructor/courses/overview",
     section: "courses",
+  },
+  {
+    label: "Phân tích & Thống kê",
+    icon: TrendingUp,
+    href: "/instructor/analytics",
+    section: "analytics",
   },
   {
     label: "Cộng đồng",
@@ -415,11 +422,13 @@ export function InstructorWorkspaceShell({
     propActiveSection ??
     (pathname.startsWith("/instructor/courses")
       ? "courses"
-      : pathname.startsWith("/instructor/community")
-        ? "community"
-        : pathname.startsWith("/instructor/revenue")
-          ? "revenue"
-          : "dashboard");
+      : pathname.startsWith("/instructor/analytics")
+        ? "analytics"
+        : pathname.startsWith("/instructor/community")
+          ? "community"
+          : pathname.startsWith("/instructor/revenue")
+            ? "revenue"
+            : "dashboard");
 
   return (
     <InstructorWorkspaceContext.Provider

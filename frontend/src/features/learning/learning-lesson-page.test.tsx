@@ -52,6 +52,7 @@ describe("LearningLessonPage video playback", () => {
       videoUrl: "https://media.example/video-1?signature=one",
       expiresAt: new Date(Date.now() + 10 * 60_000).toISOString(),
     });
+    vi.spyOn(learningClient, "recordLearningActivity").mockResolvedValue(undefined);
   });
 
   it("loads the authenticated signed playback URL into a responsive video player", async () => {

@@ -48,7 +48,7 @@ Core identity ERD:
 | Identity | `users`, `roles`, `user_roles`, `email_otps`, `refresh_tokens` | `auth`, `user` | RUN #3 triển khai phân quyền theo role. `permissions` và `role_permissions` là extension quyền chi tiết cho giai đoạn sau. |
 | Profile | `student_profiles`, `instructor_profiles` | `profile`, `instructor` | Profile mở rộng user, không thay thế `users`. |
 | Course catalog | `categories`, `courses`, `course_categories`, `sections`, `lessons`, `lesson_contents` | `course`, `lesson` | Public listing chỉ trả course `PUBLISHED`. |
-| Participation | `enrollments`, `learning_progress`, `notes` | `enrollment`, `learning` | Unique enrollment theo student/course. |
+| Participation | `enrollments`, `learning_progress`, `learning_activities`, `notes` | `enrollment`, `learning` | Unique enrollment theo student/course; timeline và nhật ký sự kiện học tập theo student/course/time. |
 | Assessment | `quizzes`, `questions`, `question_options`, `quiz_attempts`, `quiz_answers`, `assignments`, `assignment_submissions` | `quiz`, `assignment` | Policy chấm điểm và deadline nằm ở service. |
 | Content and collaboration | `documents`, `saved_documents`, `discussions`, `discussion_comments`, `conversations`, `conversation_participants`, `messages` | `document`, `discussion`, `messaging` | WebSocket chỉ broadcast sau khi persist message. |
 | Commerce | `orders`, `order_items`, `payments`, `manual_payment_confirmations`, `promotions`, `promotion_redemptions` | `commerce` | Giá trị đơn hàng và lượt đổi ưu đãi được snapshot; chỉ thanh toán thành công mới tính lượt đã sử dụng. |
@@ -212,6 +212,28 @@ Constraints:
 - unique `(enrollment_id, lesson_id)`
 - `completed_at` marks completion.
 - `progress_percent numeric(5,2)` remains bounded by service validation and optional check.
+
+`learning_activities` (Lịch sử và nhật ký hoạt động học tập - EDU-101 / EDU-97)
+
+- `id uuid primary key`
+- `student_id uuid not null references users(id) on delete cascade`
+- `course_id uuid not null references courses(id) on delete cascade`
+- `section_id uuid null references sections(id) on delete set null`
+- `lesson_id uuid null references lessons(id) on delete set null`
+- `activity_type varchar(50) not null` (13 event types chuẩn hóa)
+- `occurred_at timestamptz not null` (thời điểm diễn ra hành động phía client, UTC)
+- `metadata jsonb not null default '{}'::jsonb` (dữ liệu bổ sung: thiết bị, thời lượng video, điểm số...)
+- `created_at timestamptz not null default current_timestamp`
+- `updated_at timestamptz not null default current_timestamp`
+
+Constraints và Indexes:
+- check `chk_learning_activity_time`: `occurred_at <= current_timestamp + interval '5 minutes'` chống gian lận timestamp trong tương lai xa.
+- check `chk_learning_activity_type`: 13 loại sự kiện chuẩn hóa (Course, Lesson, Assessment, Interaction).
+- composite index `idx_learning_activities_student_time(student_id, occurred_at desc)`: timeline học tập cá nhân.
+- composite index `idx_learning_activities_student_course_time(student_id, course_id, occurred_at desc)`: tiến trình cá nhân theo từng khóa học.
+- composite index `idx_learning_activities_course_time(course_id, occurred_at desc)`: luồng hoạt động thời gian thực của khóa học cho giảng viên.
+- composite index `idx_learning_activities_course_type_time(course_id, activity_type, occurred_at desc)`: lọc và thống kê theo từng loại hoạt động.
+- partial composite index `idx_learning_activities_lesson_time(lesson_id, occurred_at desc) where lesson_id is not null`: phân tích tương tác theo bài học cụ thể.
 
 `notes`
 

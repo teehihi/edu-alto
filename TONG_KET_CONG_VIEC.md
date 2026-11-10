@@ -1,125 +1,135 @@
-# TỔNG KẾT TRIỂN KHAI TÍNH NĂNG NỀN TẢNG EDUALTO
+# TỔNG KẾT TRIỂN KHAI TÍNH NĂNG & DỮ LIỆU NỀN TẢNG EDUALTO
 
-Tài liệu này ghi lại chi tiết các công việc đã triển khai, hoàn thành và kiểm thử toàn diện trên nền tảng EduAlto, bao gồm 3 tính năng trọng tâm:
-1. **Cấp và xác thực chứng chỉ điện tử (E-Certificate)**: Tự động cấp, xuất file PDF bảo mật cao cấp và trang xác thực công khai qua mã QR (EDU-47, EDU-89, EDU-90).
-2. **Hệ thống Hỏi & Đáp / Thảo luận bài học (Lesson Q&A Discussions)**: Thảo luận gắn mốc thời gian video, bình luận phân cấp, huy hiệu Giảng viên (EDU-15 / EDU-49).
-3. **Hệ thống WebSocket gửi thông báo tức thời (Real-time Push Notifications)**: Đẩy thông báo tức thời qua WebSocket STOMP khi giảng viên giải đáp thắc mắc hoặc học viên mới đăng ký khóa học.
+Tài liệu này ghi lại chi tiết toàn bộ các công việc, tính năng và dữ liệu đã được triển khai, chuẩn hóa và kiểm thử toàn diện trên nền tảng học tập trực tuyến EduAlto, bao gồm 3 phân hệ trọng tâm:
 
----
-
-## 1. Nghiệp vụ & Kiến trúc đã hoàn thành
-
-### 1.1. Cấp và xác thực chứng chỉ điện tử (EDU-47 / EDU-89 / EDU-90)
-- **Tự động cấp chứng chỉ**: Học viên hoàn thành 100% bài học sẽ được tự động cấp chứng chỉ định danh chuẩn `EA-<HEX>`. Sử dụng khóa bi quan (`SELECT ... FOR UPDATE`) chống cấp trùng lặp.
-- **Xuất PDF với Tem bảo mật chống làm giả**:
-  - Dùng **Apache PDFBox 3.0.8**, khổ ngang **A4 Landscape**.
-  - Nhúng logo chính thức của EduAlto (`images/logo-with-text.png`).
-  - Tem bảo mật vector đa tầng: Vành hoa cúc 36 cánh răng cưa mạ vàng kim (`#D4AF37`), dải ruy băng đôi, vành tròn men ngọc `#20B486` và chùm 5 ngôi sao vàng.
-  - Viền vi chữ bảo mật (Microtext Border): Dải vi chữ 4.2pt chống photocopy giả mạo.
-  - Mã băm SHA-256 chống sửa đổi dữ liệu (SEC-HASH).
-  - Mã QR Code động dẫn trực tiếp tới trang xác thực.
-- **Trang xác thực công khai qua mã QR**:
-  - Truy cập công khai không cần đăng nhập tại `/certificates/verify/{code}`.
-  - Tối ưu Server-Side Pre-fetch hiển thị tức thì (0ms loading) trên di động.
-  - 4 khối thẻ thông số (Học viên, Ngày cấp, Mã văn bằng, Giảng viên).
-  - Tải file PDF gốc, chia sẻ mạng xã hội (Web Share API) và xem nội dung khóa học.
-
-### 1.2. Hệ thống Thảo luận & Hỏi đáp bài học (EDU-15 / EDU-49)
-- **Gắn mốc thời gian video (Video Timestamp)**:
-  - Cho phép đính kèm thời điểm video (ví dụ: `02:05`) khi đặt câu hỏi thắc mắc.
-  - Bấm vào mốc thời gian sẽ tự động tua trình phát video bài học đến đúng giây tương ứng.
-- **Tương tác đa tầng (Threaded Discussions & Comments)**:
-  - Hỗ trợ câu hỏi gốc và các phản hồi lồng nhau (`parent_comment_id`).
-  - Tự động nhận diện và gán huy hiệu nổi bật cho Giảng viên phụ trách khóa học (`isCourseInstructor`).
-  - Lọc câu hỏi có mốc video, tìm kiếm nội dung câu hỏi, sắp xếp theo mới nhất / cũ nhất.
-  - Phân quyền: Học viên/Giảng viên có quyền xóa bài đăng hoặc bình luận của chính mình; Giảng viên khóa học và Admin có toàn quyền điều hành thảo luận.
-- **Cơ sở dữ liệu**: Bảng `discussions` và `discussion_comments` với khóa ngoại, chỉ mục tìm kiếm và soft delete (`deleted_at`).
-
-### 1.3. Hệ thống WebSocket gửi thông báo tức thời (Real-time Push Notifications)
-- **Hạ tầng WebSocket & STOMP**:
-  - Kích hoạt STOMP broker tại `/ws` với hỗ trợ SockJS fallback.
-  - Xác thực bảo mật: Hỗ trợ query parameter `?token=` trong HTTP upgrade handshake và header `Authorization: Bearer <token>` trong STOMP `CONNECT` frame.
-  - Prefix kênh: `/topic`, `/queue`, tiền tố cá nhân `/user`.
-  - Tích hợp `Principal` trong Spring Security để định tuyến đích danh người dùng (`/user/queue/notifications`) và `/topic/notifications/{userId}`.
-- **Tự động kích hoạt thông báo đẩy**:
-  - **Giảng viên trả lời câu hỏi**: Khi giảng viên (hoặc bạn học) phản hồi thắc mắc trong bài học, hệ thống đẩy ngay thông báo tới tác giả câu hỏi kèm đường dẫn quay lại bài học.
-  - **Học viên mới đăng ký khóa học**: Khi học viên ghi danh thành công, hệ thống gửi thông báo đẩy ngay lập tức cho giảng viên phụ trách khóa học.
-- **Bền vững hóa dữ liệu (Persistence)**:
-  - Bảng `notifications` lưu trữ lịch sử, loại thông báo (`NotificationType`), trạng thái đã đọc (`read_at`), tiêu đề, nội dung và liên kết điều hướng.
-  - Phân quyền RBAC qua migration `V33`: Phân quyền `VIEW_REALTIME_NOTIFICATIONS`, `MARK_REALTIME_NOTIFICATION_READ`, `MARK_ALL_REALTIME_NOTIFICATIONS_READ` cho `STUDENT`, `INSTRUCTOR` và `ADMIN`.
-- **Phía Frontend Client**:
-  - Client STOMP thuần (`realtime-notification-client.ts`): Kết nối native WebSocket, tự động parse frame STOMP, quản lý heartbeat ping/pong và reconnect thông minh theo hàm mũ.
-  - Hook React `useRealtimeNotifications.ts`: Quản lý danh sách thông báo, số lượng chưa đọc (`unreadCount`), trạng thái trực tiếp (`isConnected`).
-  - Component `RealtimeNotificationRow.tsx`: Trình bày thẻ thông báo chuẩn UX, icon theo loại (emerald cho hỏi đáp, blue cho ghi danh mới), định dạng thời gian tương đối ("Vừa xong", "5 phút trước"), chấm xanh chưa đọc.
-  - Tích hợp `StudentAnnouncementBell`: Chuông thông báo hoạt động cho cả Học viên và Giảng viên, có badge "Trực tiếp", đồng bộ số lượng chưa xem và nút "Đánh dấu tất cả đã đọc".
+1. **Bảng điều khiển phân tích số liệu học tập và doanh thu cho giảng viên (Instructor Analytics Dashboard - EDU-48 / EDU-15)**:
+   - Trực quan hóa số lượng học viên đăng ký mới, tỷ lệ hoàn thành khóa học và doanh thu từng tháng.
+   - Hệ thống thẻ KPI tổng hợp, biểu đồ trực quan đa chế độ xem, bộ lọc theo khóa học và xuất báo cáo CSV.
+2. **Khảo sát và phân tích các nguồn dữ liệu học thuật hiện có (Academic Data Sources Analysis - EDU-96 / EDU-101)**:
+   - Khảo sát chuyên sâu cơ sở dữ liệu PostgreSQL (Flyway `V1` $\to$ `V33`).
+   - Phân tích 6 nguồn dữ liệu: `enrollment`, `grades`, `quizzes`, `assignments`, `attendance` (hiện diện số), `course progress`.
+   - Thiết kế sơ đồ quan hệ thực thể học thuật (ERD) giữa Student, Course, Lesson, Assessment.
+   - Xây dựng ma trận đánh giá mức độ đầy đủ dữ liệu cho Machine Learning (ML Readiness Matrix).
+3. **Thu thập hoạt động học tập & Pipeline dữ liệu học thuật (Learning Activity Tracking & Academic Data Pipeline - EDU-97, EDU-98, EDU-99, EDU-100 / EDU-101)**:
+   - Thiết kế bảng CSDL `learning_activities` (Flyway `V34`) ghi nhận đa dạng các sự kiện học tập thời gian thực (Heartbeat video, làm bài kiểm tra, nộp bài tập, thảo luận).
+   - Xây dựng backend `LearningActivityService`, REST API và cơ chế đồng bộ tự động.
+   - Tích hợp frontend Heartbeat tracking tại trình phát bài giảng `learning-lesson-page.tsx`.
+   - Xây dựng bộ công cụ Python ETL Pipeline trích xuất, làm sạch, chuẩn hóa điểm số và phát hiện ngoại lai (`clean_and_validate_dataset.py`, `run_academic_pipeline.py`).
 
 ---
 
-## 2. Danh mục tệp tin triển khai
+## 1. Chi tiết Nghiệp vụ & Kiến trúc Triển khai
 
-### Backend (Java / Spring Boot / WebSocket STOMP)
-- `backend/src/main/resources/db/migration/V32__lesson_discussions_and_comments.sql` *(Tạo mới)*: Migration bảng thảo luận và bình luận hỏi đáp.
-- `backend/src/main/resources/db/migration/V33__realtime_notifications.sql` *(Tạo mới)*: Migration bảng thông báo đẩy và cấu hình quyền RBAC.
-- `backend/src/main/java/com/edualto/common/config/WebSocketConfig.java` *(Tạo mới)*: Cấu hình STOMP broker, SockJS, JWT ChannelInterceptor.
-- `backend/src/main/java/com/edualto/common/security/AuthenticatedUser.java`: Thêm `java.security.Principal` định danh ID người dùng cho STOMP destination.
-- `backend/src/main/java/com/edualto/common/security/JwtAuthenticationFilter.java`: Hỗ trợ token query param cho handshake `/ws`.
-- `backend/src/main/java/com/edualto/common/security/SecurityConfig.java`: Cho phép bảo mật `/ws` và CORS LAN.
-- `backend/src/main/java/com/edualto/notification/domain/Notification.java` *(Tạo mới)*: Entity thông báo.
-- `backend/src/main/java/com/edualto/notification/domain/NotificationType.java` *(Tạo mới)*: Enum loại thông báo (`DISCUSSION_REPLY`, `NEW_ENROLLMENT`...).
-- `backend/src/main/java/com/edualto/notification/repository/NotificationRepository.java` *(Tạo mới)*: Repository truy vấn thông báo và đếm unread.
-- `backend/src/main/java/com/edualto/notification/service/RealtimeNotificationService.java` *(Tạo mới)*: Dịch vụ gửi STOMP push và lưu thông báo.
-- `backend/src/main/java/com/edualto/notification/controller/RealtimeNotificationController.java` *(Tạo mới)*: REST API `/api/v1/me/realtime-notifications`.
-- `backend/src/main/java/com/edualto/discussion/`: Trọn bộ module thảo luận (`Discussion`, `DiscussionComment`, DTOs, Repository, Service, Controller).
-- `backend/src/main/java/com/edualto/discussion/service/DiscussionService.java`: Kích hoạt thông báo khi có phản hồi mới.
-- `backend/src/main/java/com/edualto/enrollment/service/EnrollmentService.java`: Kích hoạt thông báo tới giảng viên khi có học viên ghi danh mới.
-
-### Frontend (Next.js / TypeScript / Tailwind CSS)
-- `frontend/src/lib/discussion-client.ts` *(Tạo mới)*: API client cho tính năng hỏi đáp bài học.
-- `frontend/src/lib/realtime-notification-client.ts` *(Tạo mới)*: Client WebSocket STOMP native & REST methods.
-- `frontend/src/features/notification/use-realtime-notifications.ts` *(Tạo mới)*: Hook quản lý trạng thái realtime notifications.
-- `frontend/src/features/notification/realtime-notification-row.tsx` *(Tạo mới)*: Component hiển thị một mục thông báo đẩy thời gian thực.
-- `frontend/src/features/notification/student-announcement-bell.tsx`: Nâng cấp chuông thông báo, tích hợp realtime socket, badge "Trực tiếp", hỗ trợ cả Học viên & Giảng viên.
-- `frontend/src/features/learning/learning-lesson-discussions.tsx` *(Tạo mới)*: Giao diện Hỏi đáp bài học, liên kết tua video.
-- `frontend/src/features/learning/learning-lesson-page.tsx`: Tích hợp tab Hỏi & Đáp vào giao diện học tập.
-- `frontend/src/features/certificate/verify-certificate-page.tsx`: Giao diện xác thực chứng chỉ qua mã QR.
-
----
-
-## 3. Kết quả kiểm thử tự động (Unit & Integration Tests)
-
-1. **Kiểm thử Hỏi & Đáp bài học (Discussions)**:
-   - File test: `frontend/src/features/learning/learning-lesson-discussions.test.tsx`
-   - Kết quả: **4/4 passed (100%)**
-   - Bao gồm: Render danh sách thảo luận, tạo câu hỏi có mốc video, tua video khi bấm timestamp, phản hồi bình luận.
-
-2. **Kiểm thử Chuông thông báo Real-time (WebSocket Bell)**:
-   - File test: `frontend/src/features/notification/student-announcement-bell.test.tsx`
-   - Kết quả: **3/3 passed (100%)**
-   - Bao gồm: Hiển thị badge số lượng chưa đọc, mở dialog hiển thị trạng thái kết nối trực tiếp, hiển thị thông báo đẩy, thao tác đánh dấu tất cả đã đọc.
-
-3. **Kiểm thử Xác thực chứng chỉ điện tử (Verify Certificate)**:
-   - File test: `frontend/src/features/certificate/verify-certificate-page.test.tsx`
-   - Kết quả: **3/3 passed (100%)**
+### 1.1. Bảng điều khiển phân tích số liệu học tập và doanh thu cho giảng viên (EDU-48)
+- **Mục tiêu nghiệp vụ:** Cung cấp cho giảng viên bức tranh toàn diện và trực quan nhất về hiệu quả kinh doanh và chất lượng học tập của toàn bộ các khóa học đang giảng dạy trong 12 tháng gần nhất.
+- **Backend (`com.edualto.analytics`):**
+  - **DTOs chuẩn hóa:**
+    - `InstructorMonthlyTrendDto`: Lưu trữ dữ liệu từng tháng (`month`, `label`, `newEnrollments`, `completedCount`, `revenue`, `completionRate`).
+    - `InstructorAnalyticsSummaryDto`: Tổng hợp KPI (Tổng doanh thu, doanh thu tháng này, tổng học viên, học viên mới tháng này, tỷ lệ hoàn thành trung bình %, chứng chỉ đã cấp).
+    - `InstructorCoursePerformanceDto`: Báo cáo chi tiết theo từng khóa học (số học viên, bài học hoàn thành, tỷ lệ hoàn thành %, doanh thu, điểm đánh giá).
+    - `InstructorAnalyticsOverviewResponse`: Payload thống nhất cho dashboard.
+  - **Repository & Truy vấn SQL:**
+    - Sử dụng PostgreSQL `generate_series` tạo chuỗi 12 tháng liên tục theo múi giờ `Asia/Ho_Chi_Minh`.
+    - Kết hợp dữ liệu từ `enrollments`, `learning_progress`, `certificates`, `orders`, `order_items`, `payments` và `course_reviews`.
+    - Hỗ trợ lọc tổng quan toàn sàn hoặc lọc chi tiết theo từng khóa học cụ thể (`courseId`).
+  - **Service & Bảo mật:**
+    - `InstructorAnalyticsService`: Xác thực vai trò giảng viên hoạt động (`requireActiveInstructor`), kiểm tra quyền sở hữu khóa học (`ownsCourse`), tính toán tỷ lệ hoàn thành có trọng số.
+  - **REST API:**
+    - `GET /api/v1/instructor/analytics/overview` (hỗ trợ query param `courseId`).
+    - `GET /api/v1/instructor/analytics/courses/{courseId}`.
+- **Frontend (`features/instructor/instructor-analytics-page.tsx`):**
+  - Route riêng biệt `/instructor/analytics` với title và SEO metadata "Phân tích số liệu học tập và doanh thu".
+  - **4 khối thẻ KPI tổng hợp:** Doanh thu tích lũy, Học viên đăng ký, Tỷ lệ hoàn thành khóa học, Chứng chỉ đã cấp kèm chỉ số biến động trong tháng hiện tại.
+  - **Biểu đồ cột trực quan hóa:** So sánh số lượng học viên đăng ký mới và số lượng học viên hoàn thành (cấp chứng chỉ) trong 12 tháng, tooltip tương tác chi tiết khi rê chuột.
+  - **Biểu đồ miền doanh thu:** Đường cong doanh thu theo tháng với dải màu gradient EduAlto (`#20B486`), định dạng tiền tệ VND chuẩn Việt Nam.
+  - **Tab chuyển đổi góc nhìn:** Cho phép xem tổng hợp tất cả chỉ số hoặc lọc riêng từng biểu đồ (Học viên mới, Doanh thu, Tỷ lệ hoàn thành).
+  - **Bảng thống kê hiệu quả từng khóa học:** Chi tiết từng khóa học kèm trạng thái (Bản nháp, Đang xuất bản, Đã lưu trữ), giá bán, số học viên, thanh tiến độ hoàn thành (%), số chứng chỉ, doanh thu và đánh giá sao.
+  - **Xuất báo cáo CSV:** Cho phép xuất toàn bộ dữ liệu 12 tháng và chi tiết khóa học ra tệp tin CSV có gắn tiền tố UTF-8 BOM (`\uFEFF`) chống lỗi font tiếng Việt trong Excel.
+  - **Tích hợp Workspace Shell & Dashboard:** Bổ sung mục "Phân tích & Thống kê" vào sidebar điều hướng và nút "Phân tích số liệu" tại tiêu đề trang tổng quan `/instructor`.
 
 ---
 
-## 4. Hướng dẫn nghiệm thu tính năng
+### 1.2. Phân tích các nguồn dữ liệu học thuật hiện có (EDU-96)
+- **Mục tiêu nghiên cứu:** Rà soát toàn bộ cấu trúc CSDL EduAlto, xác định quan hệ thực thể và đánh giá mức độ sẵn sàng dữ liệu phục vụ huấn luyện các mô hình Machine Learning & AI trong EdTech.
+- **Khảo sát 6 nguồn dữ liệu học thuật:**
+  1. `enrollment`: Bảng `enrollments` (`student_id`, `course_id`, `status`, `enrolled_at`) xác định mốc thời gian bắt đầu học ($T_0$) và cohort học viên.
+  2. `grades`: Điểm formative qua `quiz_attempts.score` (thang 0-100), `passed`, chi tiết `quiz_attempt_answers.is_correct` và điểm summative qua `assignment_submissions.score`, `feedback`.
+  3. `quizzes`: Cấu trúc `quizzes`, `quiz_questions`, `quiz_options`, phiên thi `quiz_attempt_sessions` và tín hiệu giám sát hành vi `quiz_attempt_activity_events` (`TAB_HIDDEN`, `COPY`, `PASTE`).
+  4. `assignments`: Đề bài `assignments` (`due_at`, `max_score`), bài nộp văn bản của học viên `assignment_submissions.response_text` phục vụ bài toán NLP/LLM.
+  5. `attendance` (Hiện diện số): Đo lường sự chuyên cần qua dấu vết số: timestamp `learning_progress.completed_at`, lịch học `calendar_events`, thời lượng phiên làm quiz, và ghi chú theo giây video `learning_notes.video_second`.
+  6. `course progress`: Tiến độ `learning_progress` ($\frac{\text{CompletedLessons}}{\text{TotalLessons}} \times 100\%$) và mốc tốt nghiệp `certificates.issued_at`.
+- **Sơ đồ quan hệ thực thể học thuật (Academic ERD):**
+  - Mô hình hóa đầy đủ quan hệ giữa Student (`users`), Course, Section, Lesson, Quiz, QuizAttempt, Assignment, AssignmentSubmission, Progress và Certificate.
+- **Đánh giá mức độ sẵn sàng cho Machine Learning (ML Readiness Matrix):**
+  - *Dự báo nguy cơ bỏ học (Drop-out Prediction):* **7.5 / 10** (Sẵn sàng triển khai Baseline Logistic Regression, Random Forest, XGBoost).
+  - *Mô hình hóa năng lực kiến thức (Knowledge Tracing - BKT/DKT):* **5.5 / 10** (Cần bổ sung taxonomy kỹ năng gắn với câu hỏi quiz).
+  - *Hệ thống gợi ý bài học cá nhân hóa (Learning-to-Rank):* **6.0 / 10** (Cần bổ sung log hiển thị gợi ý để có nhãn âm huấn luyện ranker).
+  - *Chấm bài tự luận tự động (Automated Essay Scoring & LLM):* **7.0 / 10** (Sẵn sàng cho Few-shot LLM Prompting).
+- **Tài liệu lưu trữ:** [`docs/architecture/edu-96-academic-data-sources-analysis.md`](file:///c:/edu-alto/docs/architecture/edu-96-academic-data-sources-analysis.md).
 
-### Kịch bản 1: Giảng viên phản hồi câu hỏi của học viên (WebSocket Push)
-1. **Tab 1 (Học viên)**: Đăng nhập tài khoản học viên, vào bài học bất kỳ, chọn tab **Hỏi đáp**, đăng câu hỏi kèm mốc thời gian video.
-2. **Tab 2 (Giảng viên phụ trách)**: Đăng nhập tài khoản giảng viên, mở câu hỏi và gửi câu trả lời.
-3. **Quan sát Tab 1**:
-   - Không cần tải lại trang: Chuông thông báo trên Header lập tức xuất hiện chấm thông báo mới.
-   - Bấm chuông: Có badge **"Trực tiếp"** và thông báo *"Giảng viên đã giải đáp câu hỏi của bạn: [Tên câu hỏi]"*.
-   - Bấm vào thông báo sẽ tự động chuyển đến đúng bài học và đánh dấu đã đọc.
+---
 
-### Kịch bản 2: Học viên mới đăng ký khóa học (WebSocket Push)
-1. **Tab 2 (Giảng viên)**: Đang mở trang web.
-2. **Tab 1 (Học viên)**: Ghi danh một khóa học của Giảng viên đó.
-3. **Quan sát Tab 2**:
-   - Chuông của Giảng viên lập tức báo có thông báo mới: *"Học viên mới đăng ký khóa học: Học viên [Tên] vừa đăng ký khóa học [Tên khóa học]"*.
+### 1.3. Thu thập hoạt động học tập & Pipeline dữ liệu học thuật (EDU-97 -> EDU-100)
+- **Bảng CSDL `learning_activities` (Flyway `V34__learning_activities.sql`):**
+  - Lưu vết các sự kiện tương tác chi tiết: `LESSON_START`, `LESSON_COMPLETE`, `VIDEO_PLAY`, `VIDEO_PAUSE`, `VIDEO_HEARTBEAT`, `QUIZ_START`, `QUIZ_SUBMIT`, `ASSIGNMENT_SUBMIT`, `DISCUSSION_POST`, `NOTE_TAKE`.
+  - Các trường dữ liệu: `id`, `user_id`, `course_id`, `section_id`, `lesson_id`, `activity_type`, `duration_seconds`, `progress_percent`, `metadata` (JSONB), `occurred_at`.
+- **Backend & Hook nghiệp vụ:**
+  - `LearningActivityService` và `LearningActivityController` (`/api/v1/learning/activities`).
+  - Tự động ghi nhận activity khi hoàn thành bài học (`LearningService`), nộp quiz (`QuizService`), nộp bài tập (`AssignmentService`).
+- **Frontend Tracking Heartbeat:**
+  - `learning-lesson-page.tsx`: Gửi tín hiệu Heartbeat định kỳ khi học viên xem video hoặc đọc bài giảng, lưu vết thời gian xem thực tế (Dwell Time).
+- **Pipeline làm sạch & Chuẩn hóa dữ liệu (`scripts/data_pipeline/`):**
+  - Kịch bản `clean_and_validate_dataset.py`:
+    - Loại bỏ trùng lặp bản ghi và xử lý nộp trùng (Semantic duplicates - Best Score Policy).
+    - Xử lý giá trị khuyết thiếu (Imputation theo Median nhóm).
+    - Chuẩn hóa và chặn trần ngoại lai (IQR capping cho thời gian học, chặn điểm âm / điểm vượt khung).
+    - Chuẩn hóa điểm số đa hình thức về Thang điểm 10 Việt Nam và Thang điểm [0.0, 1.0].
+  - Báo cáo chất lượng dataset tại `data/DATASET_QUALITY_REPORT.md` đạt **100% ĐẠT CHUẨN (VERIFIED & CLEANED)**.
 
-### Kịch bản 3: Hỏi đáp gắn mốc video
-1. Trong bài học có video, kéo thanh tiến trình video đến một thời điểm (ví dụ: `01:45`).
-2. Bấm vào nút đính kèm mốc video hiện tại và gửi thắc mắc.
-3. Câu hỏi hiển thị huy hiệu `01:45`. Khi bấm vào huy hiệu này, trình phát video lập tức nhảy tới đúng giây thứ 105.
+---
+
+## 2. Danh mục Tệp tin Triển khai & Cập nhật
+
+### 2.1. Backend (Java / Spring Boot / PostgreSQL)
+- `backend/src/main/resources/db/migration/V34__learning_activities.sql` *(Tạo mới)*: CSDL theo dõi hoạt động học tập.
+- `backend/src/main/java/com/edualto/analytics/controller/InstructorAnalyticsController.java` *(Tạo mới)*: REST API phân tích số liệu giảng viên.
+- `backend/src/main/java/com/edualto/analytics/dto/` *(Tạo mới)*: Bộ 4 DTOs tổng hợp doanh thu, học viên, tỷ lệ hoàn thành và hiệu quả khóa học.
+- `backend/src/main/java/com/edualto/analytics/repository/InstructorAnalyticsRepository.java` *(Tạo mới)*: Repository SQL tổng hợp số liệu 12 tháng.
+- `backend/src/main/java/com/edualto/analytics/service/InstructorAnalyticsService.java` *(Tạo mới)*: Dịch vụ phân tích số liệu giảng viên.
+- `backend/src/test/java/com/edualto/analytics/InstructorAnalyticsServiceTest.java` *(Tạo mới)*: Unit test cho Analytics Service.
+- `backend/src/main/java/com/edualto/learning/domain/` & `dto/`: Domain entity, Enum và DTOs cho `LearningActivity`.
+- `backend/src/main/java/com/edualto/learning/service/LearningActivityService.java` *(Tạo mới)*: Dịch vụ ghi nhận và đồng bộ hoạt động học tập.
+- `backend/src/main/java/com/edualto/learning/controller/LearningActivityController.java` *(Tạo mới)*: REST API theo dõi hoạt động.
+- `backend/src/test/java/com/edualto/learning/LearningActivityServiceTest.java` *(Tạo mới)*: Unit test cho Learning Activity Service.
+- Các cập nhật tích hợp hook: `AssignmentService.java`, `LearningService.java`, `QuizService.java`.
+
+### 2.2. Frontend (Next.js 16 / TypeScript / React / Tailwind CSS)
+- `frontend/src/app/instructor/analytics/page.tsx` *(Tạo mới)*: Trang route Bảng điều khiển phân tích số liệu.
+- `frontend/src/features/instructor/instructor-analytics-page.tsx` *(Tạo mới)*: Component giao diện biểu đồ và thống kê chi tiết.
+- `frontend/src/features/instructor/instructor-analytics-page.test.tsx` *(Tạo mới)*: Bộ kiểm thử component tự động cho trang phân tích.
+- `frontend/src/lib/instructor-analytics-client.ts` *(Tạo mới)*: API client gọi dịch vụ phân tích số liệu.
+- `frontend/src/features/instructor/instructor-workspace-shell.tsx`: Bổ sung mục "Phân tích & Thống kê" vào sidebar.
+- `frontend/src/features/instructor/instructor-dashboard-page.tsx`: Bổ sung liên kết nhanh tới trang phân tích.
+- `frontend/src/features/learning/learning-lesson-page.tsx`: Tích hợp video heartbeat tracking.
+- `frontend/src/lib/learning-client.ts`: Bổ sung API client gửi learning activity.
+
+### 2.3. Tài liệu Kỹ thuật & Pipeline Scripts
+- `docs/architecture/edu-96-academic-data-sources-analysis.md` *(Tạo mới)*: Báo cáo khảo sát nguồn dữ liệu học thuật và đánh giá ML readiness.
+- `docs/architecture/academic-data-pipeline.md` *(Tạo mới)*: Tài liệu kiến trúc luồng dữ liệu học thuật.
+- `docs/architecture/data-cleaning-and-validation.md` *(Tạo mới)*: Quy trình làm sạch và xác thực dữ liệu.
+- `docs/database/learning-activity-schema-design.md` *(Tạo mới)*: Thiết kế chi tiết CSDL bảng hoạt động học tập.
+- `scripts/academic_pipeline/`: Bộ công cụ Python trích xuất và tổng hợp dữ liệu học thuật.
+- `scripts/data_pipeline/`: Bộ công cụ Python làm sạch, xác thực và xuất dataset.
+- `data/DATASET_QUALITY_REPORT.md` & `cleaned_learning_dataset.csv`: Báo cáo nghiệm thu chất lượng dữ liệu sạch.
+
+---
+
+## 3. Kết quả Kiểm thử Toàn diện (Quality Gates)
+
+| Bước kiểm tra | Công cụ thực hiện | Tiêu chuẩn chất lượng | Kết quả |
+|---|---|---|:---:|
+| **1. Lint siêu tốc** | `Oxlint` | 0 Error, 0 Warning | **100% ĐẠT (0 error, 0 warning)** |
+| **2. Định dạng code** | `Oxfmt` | Đúng format chuẩn toàn bộ file | **100% ĐẠT** |
+| **3. Kiểm tra kiểu TypeScript** | `tsc --noEmit` | 0 lỗi kiểu dữ liệu | **100% ĐẠT (0 error)** |
+| **4. Unit & Component Test Frontend** | `Vitest` | Kiểm thử thành công các component | **100% ĐẠT** |
+| **5. Unit Test Backend** | `Maven / JUnit 5` | Kiểm thử logic nghiệp vụ Service | **100% ĐẠT** |
