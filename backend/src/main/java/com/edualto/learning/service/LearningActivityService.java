@@ -202,7 +202,7 @@ public class LearningActivityService {
         long totalActivities = activityRepository.countByStudentId(studentId);
 
         Long distinctDays = jdbcTemplate.queryForObject(
-                "SELECT COUNT(DISTINCT DATE_TRUNC('day', occurred_at)) FROM learning_activities WHERE student_id = ?",
+                "SELECT COUNT(DISTINCT DATE_TRUNC('day', occurred_at AT TIME ZONE 'Asia/Ho_Chi_Minh')) FROM learning_activities WHERE student_id = ?",
                 Long.class,
                 studentId
         );
@@ -310,6 +310,64 @@ public class LearningActivityService {
                 ON CONFLICT (source_id, activity_type) DO NOTHING
                 """);
 
+        int certificatesSynced = jdbcTemplate.update("""
+                INSERT INTO learning_activities (id, student_id, course_id, section_id, lesson_id, activity_type, source_id, metadata, occurred_at, created_at, updated_at)
+                SELECT gen_random_uuid(), c.student_id, c.course_id, NULL, NULL, 'CERTIFICATE_ISSUED', c.id,
+                       jsonb_build_object('certificateNumber', c.certificate_number),
+                       c.issued_at, current_timestamp, current_timestamp
+                FROM certificates c
+                JOIN enrollments e ON e.id = c.enrollment_id AND e.status = 'ACTIVE'
+                ON CONFLICT (source_id, activity_type) DO NOTHING
+                """);
+
+        int notesSynced = jdbcTemplate.update("""
+                INSERT INTO learning_activities (id, student_id, course_id, section_id, lesson_id, activity_type, source_id, metadata, occurred_at, created_at, updated_at)
+                SELECT gen_random_uuid(), ln.user_id, s.course_id, l.section_id, l.id, 'NOTE_CREATED', ln.id,
+                       CASE WHEN ln.video_second IS NOT NULL
+                            THEN jsonb_build_object('videoSecond', ln.video_second)
+                            ELSE NULL END,
+                       ln.created_at, current_timestamp, current_timestamp
+                FROM learning_notes ln
+                JOIN lessons l ON l.id = ln.lesson_id
+                JOIN sections s ON s.id = l.section_id
+                JOIN enrollments e ON e.student_id = ln.user_id AND e.course_id = s.course_id AND e.status = 'ACTIVE'
+                ON CONFLICT (source_id, activity_type) DO NOTHING
+                """);
+
+        int discussionsSynced = jdbcTemplate.update("""
+                INSERT INTO learning_activities (id, student_id, course_id, section_id, lesson_id, activity_type, source_id, metadata, occurred_at, created_at, updated_at)
+                SELECT gen_random_uuid(), d.author_id, d.course_id, l.section_id, d.lesson_id, 'QUESTION_ASKED', d.id,
+                       CASE WHEN d.video_timestamp_seconds IS NOT NULL
+                            THEN jsonb_build_object('videoTimestampSeconds', d.video_timestamp_seconds)
+                            ELSE NULL END,
+                       d.created_at, current_timestamp, current_timestamp
+                FROM discussions d
+                JOIN courses c ON c.id = d.course_id
+                JOIN lessons l ON l.id = d.lesson_id
+                JOIN enrollments e ON e.student_id = d.author_id AND e.course_id = d.course_id AND e.status = 'ACTIVE'
+                WHERE d.deleted_at IS NULL
+                  AND d.author_id <> c.instructor_id
+                ON CONFLICT (source_id, activity_type) DO NOTHING
+                """);
+
+        int commentsSynced = jdbcTemplate.update("""
+                INSERT INTO learning_activities (id, student_id, course_id, section_id, lesson_id, activity_type, source_id, metadata, occurred_at, created_at, updated_at)
+                SELECT gen_random_uuid(), dc.author_id, d.course_id, l.section_id, d.lesson_id, 'COMMENT_POSTED', dc.id,
+                       CASE WHEN dc.parent_comment_id IS NOT NULL
+                            THEN jsonb_build_object('discussionId', dc.discussion_id::text, 'parentCommentId', dc.parent_comment_id::text)
+                            ELSE jsonb_build_object('discussionId', dc.discussion_id::text) END,
+                       dc.created_at, current_timestamp, current_timestamp
+                FROM discussion_comments dc
+                JOIN discussions d ON d.id = dc.discussion_id
+                JOIN courses c ON c.id = d.course_id
+                JOIN lessons l ON l.id = d.lesson_id
+                JOIN enrollments e ON e.student_id = dc.author_id AND e.course_id = d.course_id AND e.status = 'ACTIVE'
+                WHERE dc.deleted_at IS NULL
+                  AND d.deleted_at IS NULL
+                  AND dc.author_id <> c.instructor_id
+                ON CONFLICT (source_id, activity_type) DO NOTHING
+                """);
+
         long totalActivities = activityRepository.count();
 
         return new LearningActivitySyncResponse(
@@ -317,6 +375,10 @@ public class LearningActivityService {
                 quizzesSynced,
                 assignmentsSubmitted + assignmentsGraded,
                 enrollmentsSynced,
+                certificatesSynced,
+                notesSynced,
+                discussionsSynced,
+                commentsSynced,
                 totalActivities
         );
     }

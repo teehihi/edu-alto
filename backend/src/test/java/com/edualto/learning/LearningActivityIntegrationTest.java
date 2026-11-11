@@ -25,6 +25,7 @@ import com.edualto.user.domain.User;
 import com.edualto.user.repository.RoleRepository;
 import com.edualto.user.repository.UserRepository;
 import java.math.BigDecimal;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -75,6 +76,7 @@ class LearningActivityIntegrationTest extends AbstractIntegrationTest {
     void cleanFixtures() {
         for (UUID courseId : fixtureCourseIds) {
             jdbcTemplate.update("delete from learning_activities where course_id = ?", courseId);
+            jdbcTemplate.update("delete from certificates where course_id = ?", courseId);
             jdbcTemplate.update("delete from discussions where course_id = ?", courseId);
             jdbcTemplate.update("delete from learning_progress where course_id = ?", courseId);
             jdbcTemplate.update("delete from enrollments where course_id = ?", courseId);
@@ -312,6 +314,131 @@ class LearningActivityIntegrationTest extends AbstractIntegrationTest {
                 course.getId()
         );
         assertThat(totalForCourse).isEqualTo(13);
+    }
+
+    @Test
+    void countsDistinctActiveDaysInVietnamTimezoneAndBackfillsExtendedLegacyEntities() throws Exception {
+        User admin = createUser(RoleName.ADMIN);
+        User instructor = createUser(RoleName.INSTRUCTOR);
+        User studentA = createUser(RoleName.STUDENT);
+        User studentB = createUser(RoleName.STUDENT);
+
+        Course course = createPublishedCourse(instructor);
+        Section section = sectionRepository.save(new Section(UUID.randomUUID(), course.getId(), "Chương TZ", null, 1));
+        Lesson videoLesson = lessonRepository.save(new Lesson(
+                UUID.randomUUID(), section.getId(), "Bài TZ Video", null, null, "Mô tả",
+                LessonType.VIDEO, 1, 420, false, null, LessonStatus.PUBLISHED));
+
+        String adminToken = jwtTokenService.createAccessToken(admin);
+        String studentAToken = jwtTokenService.createAccessToken(studentA);
+        String studentBToken = jwtTokenService.createAccessToken(studentB);
+
+        // Ensure timezone grouping uses Asia/Ho_Chi_Minh (+07:00)
+        // Student A: 2026-10-01T16:30:00Z (23:30 VN Oct 1) & 2026-10-01T17:30:00Z (00:30 VN Oct 2) -> same UTC day, 2 VN days
+        mockMvc.perform(post("/api/v1/courses/{courseId}/enrollments", course.getId())
+                        .header("Authorization", "Bearer " + studentAToken))
+                .andExpect(status().isOk());
+        jdbcTemplate.update(
+                "UPDATE learning_activities SET occurred_at = ? WHERE student_id = ? AND activity_type = 'COURSE_ENROLLED'",
+                Timestamp.from(Instant.parse("2026-10-01T16:30:00Z")),
+                studentA.getId()
+        );
+
+        UUID ev2 = UUID.randomUUID();
+        jdbcTemplate.update("""
+                INSERT INTO learning_activities (id, student_id, course_id, section_id, lesson_id, activity_type, occurred_at)
+                VALUES (?, ?, ?, ?, ?, 'VIDEO_WATCHED', ?)
+                """,
+                ev2, studentA.getId(), course.getId(), section.getId(), videoLesson.getId(), Timestamp.from(Instant.parse("2026-10-01T17:30:00Z")));
+
+        mockMvc.perform(get("/api/v1/learning/activities/me/summary")
+                        .header("Authorization", "Bearer " + studentAToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalActivities").value(2))
+                .andExpect(jsonPath("$.data.distinctActiveDays").value(2));
+
+        // Student B: 2026-10-01T17:30:00Z (00:30 VN Oct 2) & 2026-10-02T16:30:00Z (23:30 VN Oct 2) -> 2 UTC days, 1 VN day
+        UUID studentBEnrollmentId = UUID.randomUUID();
+        jdbcTemplate.update("""
+                INSERT INTO enrollments (id, student_id, course_id, status, enrolled_at, created_at, updated_at)
+                VALUES (?, ?, ?, 'ACTIVE', ?, current_timestamp, current_timestamp)
+                """, studentBEnrollmentId, studentB.getId(), course.getId(), Timestamp.from(Instant.parse("2026-10-01T17:30:00Z")));
+
+        jdbcTemplate.update("""
+                INSERT INTO learning_activities (id, student_id, course_id, section_id, lesson_id, activity_type, occurred_at)
+                VALUES (?, ?, ?, ?, ?, 'LESSON_VIEWED', ?)
+                """,
+                UUID.randomUUID(), studentB.getId(), course.getId(), section.getId(), videoLesson.getId(), Timestamp.from(Instant.parse("2026-10-02T16:30:00Z")));
+
+        // Legacy domain rows without real-time events for Student B (+ an instructor discussion/comment that must be excluded)
+        UUID noteId = UUID.randomUUID();
+        jdbcTemplate.update("""
+                INSERT INTO learning_notes (id, user_id, lesson_id, title, content, video_second, created_at, updated_at)
+                VALUES (?, ?, ?, 'Ghi chú lịch sử', 'Nội dung ghi chú', 88, ?, current_timestamp)
+                """, noteId, studentB.getId(), videoLesson.getId(), Timestamp.from(Instant.parse("2026-10-02T01:00:00Z")));
+
+        UUID studentDiscussionId = UUID.randomUUID();
+        UUID instructorDiscussionId = UUID.randomUUID();
+        jdbcTemplate.update("""
+                INSERT INTO discussions (id, course_id, lesson_id, author_id, title, body, video_timestamp_seconds, status, created_at, updated_at)
+                VALUES (?, ?, ?, ?, 'Câu hỏi cũ', 'Nội dung câu hỏi cũ', 95, 'OPEN', ?, current_timestamp),
+                       (?, ?, ?, ?, 'Thông báo giảng viên', 'Nội dung giảng viên', NULL, 'OPEN', ?, current_timestamp)
+                """,
+                studentDiscussionId, course.getId(), videoLesson.getId(), studentB.getId(), Timestamp.from(Instant.parse("2026-10-02T02:00:00Z")),
+                instructorDiscussionId, course.getId(), videoLesson.getId(), instructor.getId(), Timestamp.from(Instant.parse("2026-10-02T02:30:00Z")));
+
+        UUID studentCommentId = UUID.randomUUID();
+        UUID instructorCommentId = UUID.randomUUID();
+        jdbcTemplate.update("""
+                INSERT INTO discussion_comments (id, discussion_id, author_id, body, created_at, updated_at)
+                VALUES (?, ?, ?, 'Bình luận học viên', ?, current_timestamp),
+                       (?, ?, ?, 'Phản hồi giảng viên', ?, current_timestamp)
+                """,
+                studentCommentId, studentDiscussionId, studentB.getId(), Timestamp.from(Instant.parse("2026-10-02T03:00:00Z")),
+                instructorCommentId, studentDiscussionId, instructor.getId(), Timestamp.from(Instant.parse("2026-10-02T04:00:00Z")));
+
+        UUID certId = UUID.randomUUID();
+        jdbcTemplate.update("""
+                INSERT INTO certificates (id, student_id, course_id, enrollment_id, certificate_number, student_name, course_title, instructor_name, issued_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                certId, studentB.getId(), course.getId(), studentBEnrollmentId,
+                "EA-HIST-" + UUID.randomUUID().toString().substring(0, 8),
+                studentB.getFullName(), course.getTitle(), instructor.getFullName(),
+                Timestamp.from(Instant.parse("2026-10-02T05:00:00Z")));
+
+        mockMvc.perform(post("/api/v1/learning/activities/sync")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.enrollmentsSynced").value(1))
+                .andExpect(jsonPath("$.data.certificatesSynced").value(1))
+                .andExpect(jsonPath("$.data.notesSynced").value(1))
+                .andExpect(jsonPath("$.data.discussionsSynced").value(1))
+                .andExpect(jsonPath("$.data.commentsSynced").value(1));
+
+        // Second sync is idempotent
+        mockMvc.perform(post("/api/v1/learning/activities/sync")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.enrollmentsSynced").value(0))
+                .andExpect(jsonPath("$.data.certificatesSynced").value(0))
+                .andExpect(jsonPath("$.data.notesSynced").value(0))
+                .andExpect(jsonPath("$.data.discussionsSynced").value(0))
+                .andExpect(jsonPath("$.data.commentsSynced").value(0));
+
+        assertThat(countActivities(course.getId(), studentB.getId(), "CERTIFICATE_ISSUED")).isEqualTo(1);
+        assertThat(countActivities(course.getId(), studentB.getId(), "NOTE_CREATED")).isEqualTo(1);
+        assertThat(countActivities(course.getId(), studentB.getId(), "QUESTION_ASKED")).isEqualTo(1);
+        assertThat(countActivities(course.getId(), studentB.getId(), "COMMENT_POSTED")).isEqualTo(1);
+        assertThat(countActivities(course.getId(), instructor.getId(), "QUESTION_ASKED")).isEqualTo(0);
+        assertThat(countActivities(course.getId(), instructor.getId(), "COMMENT_POSTED")).isEqualTo(0);
+
+        // Student B's 6 events all occurred on 2026-10-02 in Asia/Ho_Chi_Minh (despite 17:30Z on Oct 1 + 16:30Z on Oct 2)
+        mockMvc.perform(get("/api/v1/learning/activities/me/summary")
+                        .header("Authorization", "Bearer " + studentBToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalActivities").value(6))
+                .andExpect(jsonPath("$.data.distinctActiveDays").value(1));
     }
 
     private int countActivities(UUID courseId, UUID studentId, String activityType) {

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -309,8 +310,8 @@ class LearningActivityServiceTest {
 
     @Test
     void syncHistoricalActivities_ExecutesBatchAndReturnsCounts() {
-        when(jdbcTemplate.update(any(String.class))).thenReturn(5, 3, 2, 4, 1);
-        when(activityRepository.count()).thenReturn(15L);
+        when(jdbcTemplate.update(any(String.class))).thenReturn(5, 3, 2, 4, 1, 2, 6, 3, 4);
+        when(activityRepository.count()).thenReturn(30L);
 
         LearningActivitySyncResponse response = service.syncHistoricalActivities();
 
@@ -319,14 +320,21 @@ class LearningActivityServiceTest {
         assertThat(response.quizzesSynced()).isEqualTo(3);
         assertThat(response.assignmentsSynced()).isEqualTo(6);
         assertThat(response.enrollmentsSynced()).isEqualTo(1);
-        assertThat(response.totalActivities()).isEqualTo(15L);
+        assertThat(response.certificatesSynced()).isEqualTo(2);
+        assertThat(response.notesSynced()).isEqualTo(6);
+        assertThat(response.discussionsSynced()).isEqualTo(3);
+        assertThat(response.commentsSynced()).isEqualTo(4);
+        assertThat(response.totalActivities()).isEqualTo(30L);
     }
 
     @Test
     void getStudentSummary_ReturnsAggregatedMetrics() {
         when(activityRepository.countByStudentId(studentId)).thenReturn(25L);
-        when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), eq(studentId)))
-                .thenReturn(7L);
+        when(jdbcTemplate.queryForObject(
+                contains("Asia/Ho_Chi_Minh"),
+                eq(Long.class),
+                eq(studentId)
+        )).thenReturn(7L);
         doAnswer(invocation -> {
             RowCallbackHandler rch = invocation.getArgument(1);
             ResultSet rs1 = mock(ResultSet.class);
