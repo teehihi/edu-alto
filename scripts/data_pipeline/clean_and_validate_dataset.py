@@ -12,6 +12,7 @@ Performs:
 import os
 import sys
 from datetime import datetime
+from pathlib import Path
 from typing import Dict, Any, Tuple
 import numpy as np
 import pandas as pd
@@ -69,11 +70,43 @@ class EduAltoDataCleaner:
 
         semantic_keys = ["student_id", "course_id", "assessment_id"]
         if strategy == "best_score":
-            # Giữ lại bản ghi có raw_score cao nhất
-            valid_students = valid_students.sort_values(by=semantic_keys + ["raw_score"], ascending=[True, True, True, False])
+            # Prefer valid in-bounds scores [0, max_score] scaled by max_score so raw outliers
+            # (e.g. 170/100 before capping) or mixed max_score scales do not outrank valid attempts.
+            raw_num = pd.to_numeric(valid_students["raw_score"], errors="coerce")
+            if "max_score" in valid_students.columns:
+                max_num = pd.to_numeric(valid_students["max_score"], errors="coerce")
+                valid_students["_is_valid_score"] = (
+                    raw_num.notna()
+                    & max_num.notna()
+                    & (max_num > 0)
+                    & (raw_num >= 0)
+                    & (raw_num <= max_num)
+                )
+                valid_students["_norm_score"] = np.where(
+                    max_num > 0,
+                    (raw_num.clip(lower=0.0) / max_num).clip(upper=1.0),
+                    np.nan,
+                )
+            else:
+                valid_students["_is_valid_score"] = raw_num.notna() & (raw_num >= 0)
+                valid_students["_norm_score"] = raw_num.clip(lower=0.0)
+
+            sort_cols = semantic_keys + ["_is_valid_score", "_norm_score"]
+            sort_asc = [True, True, True, False, False]
+            if "submitted_at" in valid_students.columns:
+                sort_cols.append("submitted_at")
+                sort_asc.append(False)
+
+            valid_students = valid_students.sort_values(
+                by=sort_cols,
+                ascending=sort_asc,
+                na_position="last",
+            )
             semantic_dups_mask = valid_students.duplicated(subset=semantic_keys, keep="first")
             semantic_dups_count = int(semantic_dups_mask.sum())
-            valid_students = valid_students[~semantic_dups_mask]
+            valid_students = valid_students[~semantic_dups_mask].drop(
+                columns=["_is_valid_score", "_norm_score"]
+            )
         else:
             # Giữ lại bản ghi nộp sau cùng (submitted_at)
             valid_students = valid_students.sort_values(by=semantic_keys + ["submitted_at"], ascending=[True, True, True, False])
@@ -189,16 +222,22 @@ class EduAltoDataCleaner:
         - Tỷ lệ hoàn thành khóa học (Course Completion Rate %).
         """
         # 1. Thang chuẩn 10 (Học thuật Việt Nam)
-        df["score_scale_10"] = ((df["raw_score"] / df["max_score"]) * 10.0).round(2)
+        score_ratio = np.where(df["max_score"] > 0, df["raw_score"] / df["max_score"], 0.0)
+        df["score_scale_10"] = np.round(score_ratio * 10.0, 2)
 
         # 2. Thang chuẩn 100
-        df["score_scale_100"] = ((df["raw_score"] / df["max_score"]) * 100.0).round(2)
+        df["score_scale_100"] = np.round(score_ratio * 100.0, 2)
 
         # 3. Chuẩn hóa Min-Max [0, 1]
-        df["score_normalized_0_1"] = (df["raw_score"] / df["max_score"]).round(4)
+        df["score_normalized_0_1"] = np.round(score_ratio, 4)
 
         # 4. Tỷ lệ hoàn thành bài học (%)
-        df["completion_rate_percent"] = ((df["completed_lessons_count"] / df["total_lessons_count"]) * 100.0).round(1)
+        completion_ratio = np.where(
+            df["total_lessons_count"] > 0,
+            df["completed_lessons_count"] / df["total_lessons_count"],
+            0.0,
+        )
+        df["completion_rate_percent"] = np.round(completion_ratio * 100.0, 1)
 
         # 5. Xếp loại học lực
         def classify_grade(score):
@@ -321,7 +360,7 @@ Tất cả các hình thức đánh giá (Quiz thang 100, Assignment thang 10, M
 ---
 *Báo cáo được khởi tạo tự động bởi EduAlto Data Quality Pipeline (Ticket EDU-100).*
 """
-        os.makedirs(os.path.dirname(self.report_path), exist_ok=True)
+        Path(self.report_path).parent.mkdir(parents=True, exist_ok=True)
         with open(self.report_path, "w", encoding="utf-8") as f:
             f.write(report_md)
         return report_md
@@ -361,7 +400,7 @@ Tất cả các hình thức đánh giá (Quiz thang 100, Assignment thang 10, M
         print(f"      -> Tỷ lệ học viên đạt: {self.audit_log['score_statistics']['pass_rate_percent']}%")
         
         # Save cleaned dataset
-        os.makedirs(os.path.dirname(self.output_path), exist_ok=True)
+        Path(self.output_path).parent.mkdir(parents=True, exist_ok=True)
         df.to_csv(self.output_path, index=False, encoding="utf-8-sig")
         print(f"\n[SUCCESS] Đã lưu dataset sạch tại: {self.output_path}")
         

@@ -12,6 +12,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 import pandas as pd
+from sqlalchemy import inspect
 
 from .db import DatabaseClient
 
@@ -136,6 +137,17 @@ class AcademicDataExtractor:
         df = self.db.query_to_dataframe(q_notes, params)
         for _, row in df.iterrows():
             changed_pairs.add((str(row["student_id"]), str(row["course_id"])))
+
+        # 10. Learning activities telemetry (V34 table when present)
+        if inspect(self.db.engine).has_table("learning_activities"):
+            q_act = """
+                SELECT DISTINCT student_id, course_id
+                FROM learning_activities
+                WHERE updated_at > :wm OR occurred_at > :wm
+            """
+            df = self.db.query_to_dataframe(q_act, params)
+            for _, row in df.iterrows():
+                changed_pairs.add((str(row["student_id"]), str(row["course_id"])))
 
         logger.info("Identified %d unique student-course pairs with changes.", len(changed_pairs))
         return changed_pairs

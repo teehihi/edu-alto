@@ -72,6 +72,57 @@ def test_remove_duplicates(sample_dirty_df):
     assert len(s1_rows) == 1
     assert s1_rows.iloc[0]["raw_score"] == 85.0
 
+
+def test_remove_duplicates_best_score_prefers_valid_over_outlier_and_normalizes_scale():
+    cleaner = EduAltoDataCleaner()
+    df = pd.DataFrame([
+        {
+            "record_id": "R_OUTLIER",
+            "student_id": "S1",
+            "course_id": "C1",
+            "assessment_id": "A1",
+            "raw_score": 170.0,
+            "max_score": 100.0,
+            "submitted_at": "2026-09-01 09:00:00",
+        },
+        {
+            "record_id": "R_VALID",
+            "student_id": "S1",
+            "course_id": "C1",
+            "assessment_id": "A1",
+            "raw_score": 95.0,
+            "max_score": 100.0,
+            "submitted_at": "2026-09-02 09:00:00",
+        },
+        {
+            "record_id": "R_SCALE_100",
+            "student_id": "S2",
+            "course_id": "C1",
+            "assessment_id": "A2",
+            "raw_score": 60.0,
+            "max_score": 100.0,
+            "submitted_at": "2026-09-01 10:00:00",
+        },
+        {
+            "record_id": "R_SCALE_10",
+            "student_id": "S2",
+            "course_id": "C1",
+            "assessment_id": "A2",
+            "raw_score": 9.0,
+            "max_score": 10.0,
+            "submitted_at": "2026-09-02 10:00:00",
+        },
+    ])
+
+    deduped = cleaner.remove_duplicates(df, strategy="best_score")
+    assert len(deduped) == 2
+    s1_pick = deduped[deduped["student_id"] == "S1"].iloc[0]
+    s2_pick = deduped[deduped["student_id"] == "S2"].iloc[0]
+    assert s1_pick["record_id"] == "R_VALID"
+    assert s1_pick["raw_score"] == 95.0
+    assert s2_pick["record_id"] == "R_SCALE_10"
+    assert s2_pick["raw_score"] == 9.0
+
 def test_handle_missing_values(sample_dirty_df):
     cleaner = EduAltoDataCleaner()
     df = cleaner.handle_missing_values(sample_dirty_df)

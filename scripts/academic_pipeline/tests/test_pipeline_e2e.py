@@ -174,3 +174,12 @@ def test_full_and_incremental_pipeline_e2e(sqlite_engine: Engine, temp_dir: Path
     # std2 must still be intact
     std2_new = df_updated[df_updated["student_id"] == "u-std2"].iloc[0]
     assert std2_new["completed_lessons_count"] == 0
+
+    # Verify DB metrics table persistence includes last_activity_at
+    with sqlite_engine.connect() as conn:
+        row = conn.execute(text(
+            "SELECT last_activity_at, is_inactive FROM academic_student_course_metrics WHERE student_id = 'u-std1' AND course_id = 'c-101'"
+        )).fetchone()
+        assert row is not None
+        assert row[0] is not None
+        assert "2026-12-01" in row[0]

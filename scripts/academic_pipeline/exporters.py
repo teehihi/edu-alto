@@ -216,7 +216,7 @@ class AcademicDataExporter:
                 "quizzes_passed_count", "avg_quiz_score", "assignments_submitted_count",
                 "avg_assignment_score_pct", "total_interactions_count", "learning_notes_count",
                 "has_certificate", "certificate_number", "academic_engagement_score",
-                "academic_status", "days_since_last_activity", "is_inactive"
+                "academic_status", "days_since_last_activity", "is_inactive", "last_activity_at"
             ]
             
             # Prepare rows
@@ -225,10 +225,14 @@ class AcademicDataExporter:
 
             for _, row in subset.iterrows():
                 row_dict = row.to_dict()
-                # Clean NaNs
+                # Normalize pandas/numpy values cleanly for both PostgreSQL and SQLite bindings
                 for k, v in row_dict.items():
                     if pd.isna(v):
                         row_dict[k] = None
+                    elif isinstance(v, pd.Timestamp):
+                        row_dict[k] = v.to_pydatetime() if is_postgres else v.isoformat()
+                    elif hasattr(v, "item"):
+                        row_dict[k] = v.item()
 
                 if is_postgres:
                     upsert_sql = f"""
