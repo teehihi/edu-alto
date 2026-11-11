@@ -122,7 +122,7 @@ CREATE TABLE learning_activities (
 13. `QUESTION_ASKED`: Học viên đang ghi danh mở chủ đề thảo luận/câu hỏi mới (`DiscussionService.createDiscussion()`).
     - *Metadata mẫu*: `{"videoTimestampSeconds":75}` hoặc `null`
 14. `COMMENT_POSTED`: Học viên đang ghi danh phản hồi bình luận trao đổi (`DiscussionService.addComment()`, không ghi nhầm bình luận của giảng viên vào log học tập của học viên).
-    - *Metadata mẫu*: `{"discussionId":"..."}` hoặc `{"discussionId":"...","parentId":"..."}`
+    - *Metadata mẫu*: `{"discussionId":"..."}` hoặc `{"discussionId":"...","parentCommentId":"..."}`
 
 ---
 
@@ -136,7 +136,8 @@ CREATE TABLE learning_activities (
 - Sử dụng `TIMESTAMPTZ` (Timestamp with time zone) trong PostgreSQL:
   - Dữ liệu luôn được chuẩn hóa và lưu trữ nội bộ theo múi giờ **UTC**.
   - Khi serialize qua REST API, thời gian được định dạng theo chuẩn quốc tế **ISO-8601** (`yyyy-MM-dd'T'HH:mm:ss.SSSXXX`).
-  - Giao diện người dùng (Next.js client) sẽ tự động format hiển thị theo múi giờ địa phương của học viên (`Asia/Ho_Chi_Minh` - UTC+7).
+  - Các truy vấn thống kê ngày học tích cực (`active_learning_days_count` / `LearningActivityService.getStudentSummary()`) nhóm theo ngày tại múi giờ Việt Nam (`occurred_at AT TIME ZONE 'Asia/Ho_Chi_Minh'`, UTC+7) nhằm phản ánh chính xác thói quen học buổi tối/sáng sớm của học viên Việt Nam.
+  - Giao diện người dùng (Next.js client) tự động format hiển thị theo múi giờ địa phương của học viên (`Asia/Ho_Chi_Minh` - UTC+7).
 
 ### 4.3 Cơ chế bảo vệ chống gian lận & Time-drift (Anti-Tampering & Clock Drift Guard)
 Nhằm ngăn chặn các trường hợp client cố tình gửi timestamp trong tương lai xa (ví dụ: gian lận tiến độ học hoặc đồng hồ client bị sai lệch):
@@ -221,15 +222,15 @@ Controller -> Service -> Domain -> Repository -> Database
    - `RecordLearningActivityRequest.java`: DTO nhận yêu cầu ghi nhận hoạt động từ client với validation chặt chẽ.
    - `LearningActivityResponse.java`: DTO trả về thông tin hoạt động, làm giàu tiêu đề khóa học (`courseTitle`), tiêu đề bài học (`lessonTitle`), tên hiển thị tiếng Việt và nhóm sự kiện.
    - `LearningActivityTypeInfoDto.java`: DTO cung cấp metadata của các loại sự kiện để frontend hiển thị dropdown/filter.
-   - `LearningActivitySummaryResponse.java`: DTO tổng hợp số liệu hoạt động theo danh mục và số ngày học tích cực.
-   - `LearningActivitySyncResponse.java`: DTO kết quả đồng bộ lịch sử (`lessonsSynced`, `quizzesSynced`, `assignmentsSynced`, `enrollmentsSynced`, `totalActivities`).
-4. **Service & Event Hooks**:
+   - `LearningActivitySummaryResponse.java`: DTO tổng hợp số liệu hoạt động theo danh mục và số ngày học tích cực (nhóm ngày theo `Asia/Ho_Chi_Minh`).
+   - `LearningActivitySyncResponse.java`: DTO kết quả đồng bộ lịch sử (`lessonsSynced`, `quizzesSynced`, `assignmentsSynced`, `enrollmentsSynced`, `certificatesSynced`, `notesSynced`, `discussionsSynced`, `commentsSynced`, `totalActivities`).
+4. **Service, Event Hooks & Frontend Telemetry**:
    - `LearningActivityService.java`:
      - Kiểm tra quyền ghi danh học viên thông qua `EnrollmentService` (trừ sự kiện `COURSE_ENROLLED`).
      - Chuẩn hóa/validate chuỗi JSON `metadata` (`normalizeMetadataJson`) và kiểm tra time drift.
      - Cung cấp `recordActivityDirect(...)` idempotent theo `(sourceId, activityType)` và `@EventListener onCourseEnrolled(CourseEnrolledEvent)` để tránh chu trình phụ thuộc giữa `learning` và `enrollment`.
-     - Cung cấp `syncHistoricalActivities()` đồng bộ dữ liệu lịch sử (`learning_progress`, `quiz_attempts`, `assignment_submissions`, `enrollments`) với `ON CONFLICT (source_id, activity_type) DO NOTHING`.
-   - Các producer thời gian thực (`EDU-98`): `EnrollmentService`, `CommerceService`, `CertificateService`, `LearningService`, `QuizService`, `AssignmentService`, `LearningNoteService`, `DiscussionService` và các thành phần UI học tập (`learning-lesson-page.tsx`, `learning-course-page.tsx`, `learning-portal.tsx`).
+     - Cung cấp `syncHistoricalActivities()` đồng bộ dữ liệu lịch sử từ `learning_progress`, `quiz_attempts`, `assignment_submissions`, `enrollments`, `certificates`, `learning_notes`, `discussions` và `discussion_comments` (lọc theo ghi danh `ACTIVE` và loại trừ giảng viên khỏi log hỏi đáp/bình luận của học viên) với `ON CONFLICT (source_id, activity_type) DO NOTHING`.
+   - Các producer thời gian thực (`EDU-98`): `EnrollmentService`, `CommerceService`, `CertificateService`, `LearningService`, `QuizService`, `AssignmentService`, `LearningNoteService`, `DiscussionService` cùng hook tái sử dụng [`useLearningTelemetry`](../../frontend/src/features/learning/use-learning-telemetry.ts) dùng chung bởi [`learning-lesson-page.tsx`](../../frontend/src/features/learning/learning-lesson-page.tsx), [`learning-course-page.tsx`](../../frontend/src/features/learning/learning-course-page.tsx) và [`learning-portal.tsx`](../../frontend/src/features/learning/learning-portal.tsx).
 5. **Controller**:
    - `LearningActivityController.java`: Phơi bày các RESTful API endpoints theo chuẩn `/api/v1/learning/activities`.
 
@@ -248,10 +249,10 @@ Controller -> Service -> Domain -> Repository -> Database
 
 ## 7. Kiểm thử & Đảm bảo Chất lượng (Quality Verification)
 
-- **Unit Test**: `LearningActivityServiceTest.java` (11 test cases) — bao phủ `recordActivity`, validate JSON metadata (`INVALID_ACTIVITY_METADATA`), time drift, lọc timeline, RBAC giảng viên, 14 `LearningActivityType`, idempotency `recordActivityDirect`, `syncHistoricalActivities` và `getStudentSummary`.
-- **Integration Test (Testcontainers PostgreSQL 16)**: `LearningActivityIntegrationTest.java` — kiểm thử end-to-end toàn bộ 12+ bước vòng đời học tập thực tế (`COURSE_ENROLLED`, `VIDEO_WATCHED`, `LESSON_VIEWED`, `NOTE_CREATED`, `QUIZ_STARTED`, `QUIZ_SUBMITTED`, `QUESTION_ASKED`, `COMMENT_POSTED` phân tách học viên/giảng viên, `LESSON_COMPLETED`, `COURSE_COMPLETED`, `CERTIFICATE_ISSUED`), kiểm tra `INVALID_ACTIVITY_METADATA` (`400`), phân quyền `STUDENT` / `INSTRUCTOR` / `ADMIN` cho `/sync`, và backfill dữ liệu lịch sử.
+- **Unit Test**: `LearningActivityServiceTest.java` (11 test cases) — bao phủ `recordActivity`, validate JSON metadata (`INVALID_ACTIVITY_METADATA`), time drift, lọc timeline, RBAC giảng viên, 14 `LearningActivityType`, idempotency `recordActivityDirect`, `syncHistoricalActivities` (bao gồm 8 nhóm bảng lịch sử) và `getStudentSummary` (`Asia/Ho_Chi_Minh`).
+- **Integration Test (Testcontainers PostgreSQL 16)**: `LearningActivityIntegrationTest.java` — kiểm thử end-to-end toàn bộ 12+ bước vòng đời học tập thực tế (`COURSE_ENROLLED`, `VIDEO_WATCHED`, `LESSON_VIEWED`, `NOTE_CREATED`, `QUIZ_STARTED`, `QUIZ_SUBMITTED`, `QUESTION_ASKED`, `COMMENT_POSTED` phân tách học viên/giảng viên, `LESSON_COMPLETED`, `COURSE_COMPLETED`, `CERTIFICATE_ISSUED`), kiểm tra `INVALID_ACTIVITY_METADATA` (`400`), phân quyền `STUDENT` / `INSTRUCTOR` / `ADMIN` cho `/sync`, nhóm ngày học `Asia/Ho_Chi_Minh` qua ranh giới ngày UTC và backfill mở rộng cho chứng chỉ/ghi chú/thảo luận/bình luận.
 - **Unit Test Thanh toán & Ghi danh**: `CommerceServiceTest.java` (`manualConfirmationAndGatewayIpnEmitCourseEnrolledActivity`).
-- **Frontend Telemetry Tests (Vitest)**: `learning-lesson-page.test.tsx` — kiểm thử phát `LESSON_VIEWED`, `VIDEO_WATCHED` (pause + unmount `keepalive: true`), `RESOURCE_DOWNLOADED` và đọc bài `TEXT` (`reading_time_seconds`).
+- **Frontend Telemetry Tests (Vitest)**: `use-learning-telemetry.test.ts` & `learning-lesson-page.test.tsx` — kiểm thử hook `useLearningTelemetry` (`LESSON_VIEWED`, `VIDEO_WATCHED` gồm batch 60s + pause + unmount `keepalive: true`, `RESOURCE_DOWNLOADED`, đọc bài `TEXT` với `visibilitychange` pause/resume `reading_time_seconds` và reset sạch khi đổi bài học).
 - **Code & Style Conventions**:
   - Không sử dụng wildcard import (`.*`), 100% explicit imports.
   - Thông báo lỗi và mô tả giao diện bằng tiếng Việt theo đúng nguyên tắc `AGENTS.md`.

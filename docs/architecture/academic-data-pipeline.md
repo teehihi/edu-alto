@@ -98,7 +98,7 @@ Khóa chính xác định bản ghi: `(student_id, course_id)`.
 | | `video_timestamp_questions_count` | Integer | Số câu hỏi gắn mốc thời gian video cụ thể |
 | | `learning_notes_count` | Integer | Số ghi chú cá nhân học viên đã lưu |
 | | `has_reviewed_course`, `review_rating` | Boolean, Float | Trạng thái đánh giá khóa học & số sao (1-5) |
-| **Telemetry V34 (`learning_activities`)** | `total_learning_events_count`, `active_learning_days_count` | Integer | Tổng sự kiện học tập & số ngày học có hoạt động thực tế |
+| **Telemetry V34 (`learning_activities`)** | `total_learning_events_count`, `active_learning_days_count` | Integer | Tổng sự kiện học tập & số ngày học có hoạt động thực tế (nhóm theo ngày `Asia/Ho_Chi_Minh`, UTC+7) |
 | | `lesson_views_count`, `resource_downloads_count`, `quiz_starts_count` | Integer | Số lượt mở bài giảng, tải tài liệu và mở lượt thi quiz |
 | | `video_watch_seconds`, `text_reading_seconds`, `quiz_duration_seconds` | Integer | Thời lượng xem video, đọc bài giảng TEXT và thời gian làm quiz (giây) |
 | | `total_study_time_seconds` | Integer | Tổng thời gian học chủ động đo từ telemetry (`video + text + quiz`) |
@@ -144,13 +144,29 @@ Khóa chính xác định bản ghi: `(student_id, course_id)`.
 
 ---
 
-## 5. Kết quả Kiểm thử Tự động (Unit & Integration Tests)
+## 5. Khởi tạo Dữ liệu Cohort & Kết quả Kiểm thử Tự động (Unit & Integration Tests)
+
+Để chạy pipeline trực tiếp trên PostgreSQL cục bộ với quy mô lớp học đa hành vi (bao gồm đầy đủ 5 trạng thái `COMPLETED`, `EXCELLING`, `ON_TRACK`, `AT_RISK`, `JUST_STARTED` và 14 loại sự kiện `learning_activities`), sử dụng tập lệnh idempotent:
+
+```bash
+# Chạy với thời gian hiện tại (phục vụ demo dashboard mới nhất)
+.venv/bin/python scripts/data_pipeline/seed_dev_cohort.py --students 300 --seed 42
+.venv/bin/python scripts/run_academic_pipeline.py --mode full --export-entities
+
+# Hoặc cố định mốc tham chiếu để tái lập dữ liệu đồng nhất 100% giữa các máy thành viên
+.venv/bin/python scripts/data_pipeline/seed_dev_cohort.py --students 300 --seed 42 --reset-cohort --reference-now 2026-11-11T07:00:00Z
+.venv/bin/python scripts/run_academic_pipeline.py --mode full --export-entities --reference-time 2026-11-11T07:00:00Z
+```
+
+Lưu ý: Thư mục xuất cục bộ `data/academic_exports/` được khai báo trong `.gitignore` để tránh xung đột checkpoint/file trung gian giữa các thành viên; tập sạch chuẩn hóa dùng chung được lưu tại `data/cleaned_learning_dataset.csv`. `DatabaseClient.normalize_dataframe` và `AcademicDataExporter` tự động chuyển đổi đối tượng `uuid.UUID`, `JSONB dict` và `Decimal` từ PostgreSQL sang chuỗi chuẩn UTF-8/JSON trước khi ghi CSV, JSON, JSONL và Parquet.
 
 Bộ kiểm thử của `scripts/academic_pipeline/tests/` bao gồm:
 - `test_database_config_defaults`: Kiểm thử cấu hình kết nối PostgreSQL.
 - `test_database_config_from_spring_url`: Kiểm thử phân tích cấu hình từ Spring Boot JDBC URL.
 - `test_state_manager_lifecycle`: Kiểm thử lưu trữ an toàn nguyên tử, khôi phục và reset watermark.
+- `test_normalize_dataframe_converts_uuid_jsonb_and_decimal` & `test_exporter_handles_uuid_and_dict_across_all_formats`: Kiểm thử chuẩn hóa kiểu dữ liệu PostgreSQL (`UUID`, `JSONB dict`, `Decimal`) và xuất đồng bộ CSV/JSON/JSONL/Parquet tiếng Việt.
 - `test_aggregate_complete_student_telemetry`: Kiểm thử tính toán đầy đủ các chỉ số học thuật, điểm gắn kết tổng hợp và trạng thái hoàn thành khóa học.
 - `test_aggregate_learning_activities_telemetry`: Kiểm thử tổng hợp telemetry từ `learning_activities` (bao gồm phân biệt `LESSON_VIEWED` mở bài vs dwell-time `reading_time_seconds`, `VIDEO_WATCHED`, `QUIZ_STARTED`/`QUIZ_SUBMITTED`, `RESOURCE_DOWNLOADED`).
+- `test_aggregate_activities_vietnam_timezone_day_grouping`: Kiểm thử nhóm ngày học tích cực theo múi giờ `Asia/Ho_Chi_Minh` (`+07:00`) qua các mốc ranh giới ngày UTC.
 - `test_merge_incremental`: Kiểm thử tính năng ghi đè bản ghi cũ và bổ sung bản ghi mới trong trích xuất gia tăng.
 - `test_full_and_incremental_pipeline_e2e`: Kiểm thử toàn vẹn vòng đời tích hợp: Chạy Full (kèm `export_entities=True`) -> Kiểm tra định dạng xuất (CSV, JSON, Parquet, `entities/raw_activities.csv`) -> Chạy Incremental không thay đổi -> Thêm tiến độ mới, chứng chỉ & telemetry mới -> Chạy Incremental phát hiện và cập nhật dữ liệu chính xác trong CSV & bảng metrics.

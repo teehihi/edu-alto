@@ -110,7 +110,9 @@ flowchart TD
 .venv/bin/python scripts/data_pipeline/generate_raw_dataset.py
 .venv/bin/python scripts/data_pipeline/clean_and_validate_dataset.py
 
-# 1b. Kết nối trực tiếp đầu ra EDU-99 -> EDU-100 (Real DB ETL)
+# 1b. Khởi tạo cohort 300 học viên (khi cần dữ liệu phong phú trong DB dev) -> EDU-99 -> EDU-100
+# (Thêm --reference-now / --reference-time cùng 1 mốc UTC nếu cần cả team tái lập giống hệt từng timestamp)
+.venv/bin/python scripts/data_pipeline/seed_dev_cohort.py --students 300 --seed 42
 .venv/bin/python scripts/run_academic_pipeline.py --mode full --export-entities
 .venv/bin/python scripts/data_pipeline/clean_and_validate_dataset.py \
     --input data/academic_exports/student_course_academic_summary.parquet \
@@ -122,7 +124,7 @@ flowchart TD
 
 ### 4.2. Chạy bộ kiểm thử tự động (Unit & Integration Tests)
 ```bash
-.venv/bin/python -m pytest scripts/data_pipeline/test_data_pipeline.py -v
+.venv/bin/python -m pytest scripts/data_pipeline/test_data_pipeline.py scripts/data_pipeline/test_seed_dev_cohort.py -v
 ```
 
 Các kịch bản kiểm thử tự động bao gồm:
