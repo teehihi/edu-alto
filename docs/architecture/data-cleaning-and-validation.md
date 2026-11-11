@@ -2,47 +2,53 @@
 
 - **Mã nhiệm vụ (Jira Ticket):** `EDU-100` (Epic: `EDU-101` - Phân hệ Phân tích dữ liệu & Trí tuệ nhân tạo)
 - **Tiêu đề:** Thực hiện làm sạch và xác thực dữ liệu.
-- **Ngôn ngữ triển khai:** Python 3.13 (`pandas`, `numpy`, `scipy`, `pytest`)
-- **Tập tin thực thi chính:** [`scripts/data_pipeline/clean_and_validate_dataset.py`](file:///c:/edu-alto/scripts/data_pipeline/clean_and_validate_dataset.py)
-- **Tập lệnh sinh dữ liệu mẫu:** [`scripts/data_pipeline/generate_raw_dataset.py`](file:///c:/edu-alto/scripts/data_pipeline/generate_raw_dataset.py)
-- **Bộ kiểm thử tự động:** [`scripts/data_pipeline/test_data_pipeline.py`](file:///c:/edu-alto/scripts/data_pipeline/test_data_pipeline.py)
-- **Báo cáo kết quả tự động:** [`data/DATASET_QUALITY_REPORT.md`](file:///c:/edu-alto/data/DATASET_QUALITY_REPORT.md)
+- **Ngôn ngữ triển khai:** Python 3.13 (`pandas`, `numpy`, `pyarrow`, `pytest`)
+- **Tập tin thực thi chính:** [`scripts/data_pipeline/clean_and_validate_dataset.py`](../../scripts/data_pipeline/clean_and_validate_dataset.py)
+- **Tập lệnh sinh dữ liệu mẫu:** [`scripts/data_pipeline/generate_raw_dataset.py`](../../scripts/data_pipeline/generate_raw_dataset.py)
+- **Nguồn trích xuất thực từ DB (EDU-99):** [`scripts/academic_pipeline/pipeline.py`](../../scripts/academic_pipeline/pipeline.py)
+- **Bộ kiểm thử tự động:** [`scripts/data_pipeline/test_data_pipeline.py`](../../scripts/data_pipeline/test_data_pipeline.py)
+- **Báo cáo kết quả tự động:** [`data/DATASET_QUALITY_REPORT.md`](../../data/DATASET_QUALITY_REPORT.md)
 
 ---
 
 ## 1. Mục tiêu và Phạm vi Nhiệm vụ EDU-100
 
-Trong hệ sinh thái EduAlto LMS, dữ liệu học tập thu thập từ học viên (điểm kiểm tra Quiz, bài tập Assignment, thời lượng xem video, tần suất học tập) thường chứa các sai số do lỗi đường truyền, hành vi nộp bài nhiều lần, lỗi nhập liệu hoặc sự khác biệt về thang điểm giữa các giảng viên.
+Trong hệ sinh thái EduAlto LMS, dữ liệu học tập thu thập từ học viên (điểm kiểm tra Quiz, bài tập Assignment, thời lượng xem video, thời gian đọc bài giảng TEXT, tần suất học tập) đến từ hai nguồn: tập dữ liệu thô tổng hợp từ pipeline ETL thực tế (`EDU-99`, `student_course_academic_summary.*` và thư mục `entities/` gồm `raw_quizzes.csv`, `raw_assignments.csv`, `raw_activities.csv`, ...) hoặc tập dữ liệu mô phỏng lỗi (`generate_raw_dataset.py`).
 
-Nhiệm vụ **EDU-100** xây dựng quy trình chuẩn hóa và làm sạch dữ liệu tự động, giải quyết triệt để 5 yêu cầu nghiệp vụ:
+Nhiệm vụ **EDU-100** xây dựng quy trình chuẩn hóa và làm sạch dữ liệu tự động (`EduAltoDataCleaner`), kết nối trực tiếp đầu ra của **EDU-99** với 5 công đoạn chuẩn hóa:
 1. **Xử lý missing values**: Thống kê, loại bỏ các bản ghi khuyết thiếu định danh bắt buộc (`student_id`), áp dụng kỹ thuật điền dữ liệu thông minh (*Intelligent Imputation*) theo trung vị nhóm cho các cột số.
 2. **Kiểm tra dữ liệu bất thường (Anomalies & Outliers)**: Phát hiện và chặn trần/chặn sàn theo biên logic học thuật ($0 \le \text{điểm} \le \text{max\_score}$, thời lượng học $> 0$, tiến độ hoàn thành $\le \text{tổng bài}$) và loại trừ ngoại lai thống kê bằng phương pháp khoảng tứ phân vị (IQR).
-3. **Chuẩn hóa thang điểm (Score Normalization)**: Đồng bộ tất cả các loại hình đánh giá (Quiz thang 100, Assignment thang 10, Midterm thang 50, Final Project thang 100) về **Thang điểm 10 chuẩn học thuật Việt Nam** $[0.0, 10.0]$, **Thang điểm chuẩn hóa Min-Max** $[0.0, 1.0]$ cho Machine Learning, và tự động xếp loại học lực (*Xuất sắc, Giỏi, Khá, Trung bình, Yếu*).
-4. **Kiểm tra dữ liệu trùng lặp (Duplicate Detection)**: Loại bỏ trùng lặp hoàn toàn (*Exact Duplicates* do click đúp) và xử lý trùng lặp nộp bài nhiều lần (*Semantic Duplicates*) theo chính sách **Best Score Policy** (giữ kết quả cao nhất của học viên).
-5. **Tạo báo cáo chất lượng dataset**: Tự động sinh báo cáo kiểm toán chất lượng (*Data Quality & Profiling Report*) chi tiết về kích thước mẫu trước/sau, tỷ lệ làm sạch, phân phối thống kê và bảng kiểm định toàn vẹn dữ liệu.
+3. **Chuẩn hóa thang điểm (Score Normalization)**: Đồng bộ tất cả các loại hình đánh giá (Quiz thang 100, Assignment thang 10/50/100, Midterm, Final Project, Course Overall) về **Thang điểm 10 chuẩn học thuật Việt Nam** $[0.0, 10.0]$, **Thang điểm chuẩn hóa Min-Max** $[0.0, 1.0]$ cho Machine Learning, và tự động xếp loại học lực (*Xuất sắc, Giỏi, Khá, Trung bình, Yếu*).
+4. **Kiểm tra dữ liệu trùng lặp (Duplicate Detection)**: Loại bỏ trùng lặp hoàn toàn (*Exact Duplicates* do click đúp) và xử lý trùng lặp nộp bài nhiều lần (*Semantic Duplicates*) theo chính sách **Best Score Policy** (ưu tiên điểm hợp lệ trong khung `[0, max_score]` quy đổi tỷ lệ trước) hoặc **Latest Policy**.
+5. **Tạo báo cáo chất lượng dataset**: Tự động sinh báo cáo kiểm toán chất lượng (*Data Quality & Profiling Report*) chi tiết về chế độ nguồn (`source_mode`), kích thước mẫu trước/sau, chỉ số tín hiệu học tập tích hợp từ `learning_activities` (khi có), phân phối thống kê và bảng kiểm định toàn vẹn dữ liệu.
 
 ---
 
-## 2. Kiến trúc Module Pipeline
+## 2. Kiến trúc Module Pipeline & Kết nối EDU-99
 
 ```mermaid
 flowchart TD
-    RawData["Tập dữ liệu thô (data/raw_learning_dataset.csv)"]
-    
+    SyntheticRaw["Dữ liệu thô mô phỏng\n(data/raw_learning_dataset.csv)"]
+    Edu99Summary["EDU-99 Summary Export\n(student_course_academic_summary.csv / .parquet / .json / .jsonl)"]
+    Edu99Entities["EDU-99 Raw Entities\n(entities/raw_quizzes.csv, raw_assignments.csv, raw_activities.csv, ...)"]
+
     subgraph Pipeline ["EduAltoDataCleaner Pipeline (clean_and_validate_dataset.py)"]
-        Step1["1. Kiểm tra & Loại bỏ trùng lặp\n(Exact duplicates & Semantic Best Score)"]
+        Adapter["0. Adapter & Auto-Detection\n(synthetic | academic-summary | academic-entities)"]
+        Step1["1. Kiểm tra & Loại bỏ trùng lặp\n(Exact duplicates & Semantic Best Score / Latest)"]
         Step2["2. Xử lý Missing Values\n(Drop missing IDs + Median Imputation)"]
         Step3["3. Xử lý Ngoại lai & Bất thường\n(Logic boundaries + IQR Capping)"]
         Step4["4. Chuẩn hóa thang điểm\n(Thang 10, Thang 100, Min-Max [0,1], Xếp loại)"]
         Step5["5. Khởi tạo Báo cáo Chất lượng\n(Data Quality Report & Integrity Checks)"]
-        
-        Step1 --> Step2 --> Step3 --> Step4 --> Step5
+
+        Adapter --> Step1 --> Step2 --> Step3 --> Step4 --> Step5
     end
-    
-    CleanData["Dataset đã chuẩn hóa (data/cleaned_learning_dataset.csv)"]
-    Report["Báo cáo chất lượng (data/DATASET_QUALITY_REPORT.md)"]
-    
-    RawData --> Step1
+
+    CleanData["Dataset đã chuẩn hóa\n(cleaned_learning_dataset.csv / .parquet)"]
+    Report["Báo cáo chất lượng\n(data/DATASET_QUALITY_REPORT.md)"]
+
+    SyntheticRaw --> Adapter
+    Edu99Summary --> Adapter
+    Edu99Entities --> Adapter
     Step4 --> CleanData
     Step5 --> Report
 ```
@@ -88,7 +94,8 @@ flowchart TD
   - $\text{score\_scale\_10} < 5.0 \implies \text{Yếu}$
 
 ### 3.5. Nhiệm vụ 5: Tạo Báo cáo Chất lượng Dataset
-- Khởi tạo file Markdown độc lập tại [`data/DATASET_QUALITY_REPORT.md`](file:///c:/edu-alto/data/DATASET_QUALITY_REPORT.md).
+- Khởi tạo file Markdown độc lập tại [`data/DATASET_QUALITY_REPORT.md`](../../data/DATASET_QUALITY_REPORT.md).
+- Ghi nhận rõ chế độ nguồn dữ liệu (`synthetic`, `academic-summary`, `academic-entities`) và thống kê tín hiệu học tập từ `learning_activities` khi chạy với nguồn `EDU-99`.
 - Trình bày bảng so sánh trước và sau khi làm sạch (*Before vs. After*).
 - Thống kê tỷ lệ đỗ (*Pass rate*), phân vị $Q_1, Q_2, Q_3$, độ lệch chuẩn và phân phối xếp loại.
 - Bảng tự động kiểm định 5 tiêu chuẩn toàn vẹn (*Completeness, Validity, Uniqueness, Consistency, AI Readiness*).
@@ -99,24 +106,30 @@ flowchart TD
 
 ### 4.1. Khởi chạy toàn bộ Pipeline
 ```bash
-# 1. Sinh dữ liệu thô mẫu (nếu cần thử nghiệm)
-python scripts/data_pipeline/generate_raw_dataset.py
+# 1a. Sinh dữ liệu thô mẫu (khi chạy kịch bản synthetic)
+.venv/bin/python scripts/data_pipeline/generate_raw_dataset.py
+.venv/bin/python scripts/data_pipeline/clean_and_validate_dataset.py
 
-# 2. Chạy pipeline làm sạch, chuẩn hóa và xuất báo cáo
-python scripts/data_pipeline/clean_and_validate_dataset.py
+# 1b. Kết nối trực tiếp đầu ra EDU-99 -> EDU-100 (Real DB ETL)
+.venv/bin/python scripts/run_academic_pipeline.py --mode full --export-entities
+.venv/bin/python scripts/data_pipeline/clean_and_validate_dataset.py \
+    --input data/academic_exports/student_course_academic_summary.parquet \
+    --entities-dir data/academic_exports/entities \
+    --source academic-entities \
+    --output data/cleaned_learning_dataset.csv \
+    --report data/DATASET_QUALITY_REPORT.md
 ```
 
-### 4.2. Chạy bộ kiểm thử tự động (Unit Tests)
+### 4.2. Chạy bộ kiểm thử tự động (Unit & Integration Tests)
 ```bash
-python -m pytest scripts/data_pipeline/test_data_pipeline.py -v
+.venv/bin/python -m pytest scripts/data_pipeline/test_data_pipeline.py -v
 ```
 
-**Kết quả kiểm thử đạt 100%:**
-```text
-scripts/data_pipeline/test_data_pipeline.py::test_remove_duplicates PASSED
-scripts/data_pipeline/test_data_pipeline.py::test_handle_missing_values PASSED
-scripts/data_pipeline/test_data_pipeline.py::test_detect_and_handle_anomalies PASSED
-scripts/data_pipeline/test_data_pipeline.py::test_normalize_scores PASSED
-scripts/data_pipeline/test_data_pipeline.py::test_full_pipeline_end_to_end PASSED
-============================== 5 passed in 0.67s ==============================
-```
+Các kịch bản kiểm thử tự động bao gồm:
+- `test_remove_duplicates` & `test_remove_duplicates_best_score_prefers_valid_over_outlier_and_normalizes_scale`
+- `test_handle_missing_values`
+- `test_detect_and_handle_anomalies`
+- `test_normalize_scores`
+- `test_full_pipeline_end_to_end`
+- `test_edu99_summary_and_entities_connect_to_edu100_e2e` (kết nối toàn trình `AcademicPipeline` -> `EduAltoDataCleaner` qua cả `.parquet` summary và thư mục `entities/`)
+- `test_cleaner_handles_empty_and_all_nan_sparse_dataframe`

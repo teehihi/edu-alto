@@ -27,18 +27,19 @@ Ticket EDU-101 / EDU-97 đặt ra 4 yêu cầu cốt lõi:
 
 ### 2.1 Bảng `learning_activities`
 
-Bảng `learning_activities` được quản lý bởi migration script `backend/src/main/resources/db/migration/V34__learning_activities.sql`.
+Bảng `learning_activities` được quản lý bởi migration script `backend/src/main/resources/db/migration/V34__learning_activities.sql` và tinh chỉnh quyền RBAC tại `V35__fix_learning_activity_rbac.sql`.
 
 ```sql
 CREATE TABLE learning_activities (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY,
     student_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
     section_id UUID REFERENCES sections(id) ON DELETE SET NULL,
     lesson_id UUID REFERENCES lessons(id) ON DELETE SET NULL,
     activity_type VARCHAR(50) NOT NULL,
-    occurred_at TIMESTAMPTZ NOT NULL,
-    metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+    source_id UUID,
+    occurred_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    metadata JSONB,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -55,10 +56,12 @@ CREATE TABLE learning_activities (
             'QUIZ_STARTED',
             'QUIZ_SUBMITTED',
             'ASSIGNMENT_SUBMITTED',
+            'ASSIGNMENT_GRADED',
             'QUESTION_ASKED',
             'COMMENT_POSTED'
         )
     ),
+    CONSTRAINT uk_learning_activities_source_type UNIQUE (source_id, activity_type),
     CONSTRAINT chk_learning_activity_time CHECK (
         occurred_at <= CURRENT_TIMESTAMP + INTERVAL '5 minutes'
     )
@@ -74,9 +77,10 @@ CREATE TABLE learning_activities (
 | `course_id` | `UUID` | No | FK tới `courses(id)`. Khóa học mà hoạt động diễn ra. Xóa course sẽ cascade. |
 | `section_id` | `UUID` | Yes | FK tới `sections(id)`. Chương học tương ứng (nếu hành động gắn với chương). Xóa section sẽ `SET NULL`. |
 | `lesson_id` | `UUID` | Yes | FK tới `lessons(id)`. Bài học tương ứng. Xóa lesson sẽ `SET NULL` để bảo toàn lịch sử tổng thể. |
-| `activity_type` | `VARCHAR(50)` | No | Loại sự kiện chuẩn hóa (CHECK constraint bảo đảm không có giá trị bất thường). |
-| `occurred_at` | `TIMESTAMPTZ` | No | Thời điểm thực sự diễn ra sự kiện ở phía client (UTC). |
-| `metadata` | `JSONB` | No | Dữ liệu ngữ cảnh động (thời lượng video, điểm số, id câu hỏi, định dạng tệp...) với giá trị mặc định `{}`. |
+| `activity_type` | `VARCHAR(50)` | No | Loại sự kiện chuẩn hóa (CHECK constraint 14 giá trị). |
+| `source_id` | `UUID` | Yes | Định danh thực thể nguồn (enrollment/progress/attempt/submission/note/discussion/comment/certificate) giúp chống ghi trùng idempotent theo `(source_id, activity_type)`. |
+| `occurred_at` | `TIMESTAMPTZ` | No | Thời điểm thực sự diễn ra sự kiện (UTC). |
+| `metadata` | `JSONB` | Yes | Dữ liệu ngữ cảnh động dạng JSON (thời lượng video/đọc bài, điểm số, id câu hỏi, tệp tải về...); `NULL` khi không có payload bổ sung. |
 | `created_at` | `TIMESTAMPTZ` | No | Thời điểm server tiếp nhận và ghi nhận bản ghi vào CSDL (Audit timestamp). |
 | `updated_at` | `TIMESTAMPTZ` | No | Thời điểm bản ghi được cập nhật lần cuối. |
 
@@ -84,41 +88,41 @@ CREATE TABLE learning_activities (
 
 ## 3. Chuẩn hóa Event Types (Standardized Event Types)
 
-13 sự kiện được chuẩn hóa và phân loại thành 4 nhóm nghiệp vụ rõ ràng trong Enum `LearningActivityType.java`:
+14 sự kiện được chuẩn hóa và phân loại thành 4 nhóm nghiệp vụ rõ ràng trong Enum `LearningActivityType.java`:
 
 ### 3.1 Nhóm Khóa học (Course Lifecycle)
-1. `COURSE_ENROLLED`: Học viên ghi danh hoặc mua khóa học thành công.
-   - *Metadata mẫu*: `{"source": "checkout", "order_id": "...", "price": 499000}`
-2. `COURSE_COMPLETED`: Học viên hoàn thành tất cả các bài học và điều kiện tiên quyết của khóa học.
-   - *Metadata mẫu*: `{"completed_lessons_count": 42, "total_duration_hours": 18.5}`
-3. `CERTIFICATE_ISSUED`: Chứng chỉ hoàn thành khóa học được cấp phát.
-   - *Metadata mẫu*: `{"certificate_code": "CERT-2026-X99", "issued_by": "EduAlto Academy"}`
+1. `COURSE_ENROLLED`: Học viên ghi danh miễn phí (`EnrollmentService` phát `CourseEnrolledEvent`) hoặc hoàn tất thanh toán khóa học (`CommerceService` xác nhận thủ công / webhook / IPN).
+   - *Metadata mẫu*: `{"source":"free_enrollment"}` hoặc `{"source":"checkout","orderId":"..."}`
+2. `COURSE_COMPLETED`: Học viên hoàn thành 100% bài học đã xuất bản trong khóa học (tại `LearningService.complete()` hoặc khi pass bài quiz cuối cùng ở `QuizService.submit()`).
+   - *Metadata mẫu*: `{"source":"lesson_completion"}` hoặc `{"source":"quiz_pass"}`
+3. `CERTIFICATE_ISSUED`: Chứng chỉ hoàn thành khóa học được cấp phát (`CertificateService` qua `CertificateRepository.issueIfEligibleWithStatus`).
+   - *Metadata mẫu*: `{"certificateNumber":"EA-..."}`
 
 ### 3.2 Nhóm Bài học & Tương tác nội dung (Lesson & Media Interaction)
-4. `LESSON_VIEWED`: Học viên mở bài học để bắt đầu đọc hoặc học.
-   - *Metadata mẫu*: `{"device": "desktop", "browser": "Chrome"}`
-5. `LESSON_COMPLETED`: Học viên hoàn thành nội dung bài học.
-   - *Metadata mẫu*: `{"reading_time_seconds": 320}`
-6. `VIDEO_WATCHED`: Học viên phát và theo dõi video bài giảng.
-   - *Metadata mẫu*: `{"watch_duration_seconds": 450, "playback_rate": 1.25, "completed_segment": "0-450"}`
-7. `NOTE_CREATED`: Học viên ghi chú nhanh vào bài học hoặc mốc thời gian video.
-   - *Metadata mẫu*: `{"video_timestamp_seconds": 185, "note_id": "..."}`
-8. `RESOURCE_DOWNLOADED`: Học viên tải xuống tài liệu bài học (PDF, mã nguồn đính kèm...).
-   - *Metadata mẫu*: `{"file_name": "spring-boot-architecture.pdf", "file_size_bytes": 1048576}`
+4. `LESSON_VIEWED`: Ghi nhận 2 ngữ cảnh qua `POST /api/v1/learning/activities` từ frontend (`learning-lesson-page.tsx`, `learning-course-page.tsx`): khi mở bài học (`{"lesson_type":"VIDEO|TEXT|QUIZ"}`) và khi flush thời gian đọc chủ động bài `TEXT` (`{"lesson_type":"TEXT","reading_time_seconds":120}`).
+5. `LESSON_COMPLETED`: Học viên hoàn thành nội dung bài học (`LearningService.complete()`, `QuizService.submit()`).
+   - *Metadata mẫu*: `{"duration_seconds":600}` hoặc `null`
+6. `VIDEO_WATCHED`: Học viên phát và theo dõi video bài giảng (frontend flush khi pause, visibility hidden, đổi bài học, hoàn thành hoặc unmount).
+   - *Metadata mẫu*: `{"duration_seconds":45,"position_seconds":120}`
+7. `NOTE_CREATED`: Học viên tạo ghi chú mới trong bài học (`LearningNoteService.create()`).
+   - *Metadata mẫu*: `{"videoSecond":42}` hoặc `null`
+8. `RESOURCE_DOWNLOADED`: Học viên tải xuống tài liệu bài học (`learning-lesson-page.tsx`, `learning-course-page.tsx`, `learning-portal.tsx`).
+   - *Metadata mẫu*: `{"attachment_id":"...","file_name":"slides.pdf"}`
 
 ### 3.3 Nhóm Đánh giá & Kiểm tra (Assessment & Evaluation)
-9. `QUIZ_STARTED`: Học viên bắt đầu một lượt làm bài kiểm tra trắc nghiệm.
-   - *Metadata mẫu*: `{"quiz_id": "...", "attempt_number": 1}`
-10. `QUIZ_SUBMITTED`: Học viên nộp bài trắc nghiệm.
-    - *Metadata mẫu*: `{"quiz_id": "...", "attempt_number": 1, "score": 85.0, "passed": true, "time_spent_seconds": 720}`
-11. `ASSIGNMENT_SUBMITTED`: Học viên nộp bài tập lớn/bài tập thực hành.
-    - *Metadata mẫu*: `{"assignment_id": "...", "submission_id": "...", "attachment_count": 2}`
+9. `QUIZ_STARTED`: Học viên mở phiên làm bài kiểm tra mới (`QuizService.start()`).
+   - *Metadata mẫu*: `{"quizId":"...","questionCount":10,"durationMinutes":15}`
+10. `QUIZ_SUBMITTED`: Học viên nộp bài trắc nghiệm (`QuizService.submit()`).
+    - *Metadata mẫu*: `{"score":85.00,"passed":true,"correctCount":9,"totalCount":10,"durationSeconds":420}`
+11. `ASSIGNMENT_SUBMITTED`: Học viên nộp bài tập tự luận (`AssignmentService.submit()`).
+12. `ASSIGNMENT_GRADED`: Giảng viên chấm điểm bài tập tự luận của học viên (`AssignmentService.grade()`).
+    - *Metadata mẫu*: `{"score":90.00,"maxScore":100.00}`
 
 ### 3.4 Nhóm Tương tác Xã hội & Thảo luận (Social & Discussion Interaction)
-12. `QUESTION_ASKED`: Học viên đặt câu hỏi hoặc mở chủ đề thảo luận trong bài học/khóa học.
-    - *Metadata mẫu*: `{"discussion_id": "...", "title": "Lỗi kết nối DataSource"}`
-13. `COMMENT_POSTED`: Học viên hoặc giảng viên phản hồi bình luận trao đổi.
-    - *Metadata mẫu*: `{"comment_id": "...", "parent_comment_id": "..."}`
+13. `QUESTION_ASKED`: Học viên đang ghi danh mở chủ đề thảo luận/câu hỏi mới (`DiscussionService.createDiscussion()`).
+    - *Metadata mẫu*: `{"videoTimestampSeconds":75}` hoặc `null`
+14. `COMMENT_POSTED`: Học viên đang ghi danh phản hồi bình luận trao đổi (`DiscussionService.addComment()`, không ghi nhầm bình luận của giảng viên vào log học tập của học viên).
+    - *Metadata mẫu*: `{"discussionId":"..."}` hoặc `{"discussionId":"...","parentId":"..."}`
 
 ---
 
@@ -209,21 +213,23 @@ Controller -> Service -> Domain -> Repository -> Database
 ### 6.1 Các lớp thành phần
 
 1. **Domain**:
-   - `LearningActivity.java`: JPA Entity ánh xạ bảng `learning_activities`, sử dụng UUID ID và JSONB converter.
-   - `LearningActivityType.java`: Enum định nghĩa 13 sự kiện, kèm tên hiển thị tiếng Việt (`displayName`), phân nhóm (`category`) và mô tả chi tiết.
+   - `LearningActivity.java`: JPA Entity ánh xạ bảng `learning_activities`, sử dụng UUID ID, `sourceId` và JSONB column transformer (`CAST(? AS jsonb)`).
+   - `LearningActivityType.java`: Enum định nghĩa 14 sự kiện chuẩn hóa, kèm tên hiển thị tiếng Việt (`displayName`) và phân nhóm (`category`).
 2. **Repository**:
-   - `LearningActivityRepository.java`: Cung cấp các phương thức tìm kiếm linh hoạt theo `studentId`, `courseId`, `occurredAt BETWEEN`, tính tổng hoạt động, và đếm số lượng học viên tích cực duy nhất (`countDistinctActiveStudents`).
+   - `LearningActivityRepository.java`: Cung cấp các phương thức tìm kiếm linh hoạt theo `studentId`, `courseId`, `occurredAt BETWEEN`, kiểm tra tồn tại theo `(sourceId, activityType)` (`existsBySourceIdAndActivityType`), tính tổng hoạt động, và đếm số lượng học viên tích cực duy nhất (`countDistinctActiveStudents`).
 3. **DTOs**:
    - `RecordLearningActivityRequest.java`: DTO nhận yêu cầu ghi nhận hoạt động từ client với validation chặt chẽ.
    - `LearningActivityResponse.java`: DTO trả về thông tin hoạt động, làm giàu tiêu đề khóa học (`courseTitle`), tiêu đề bài học (`lessonTitle`), tên hiển thị tiếng Việt và nhóm sự kiện.
    - `LearningActivityTypeInfoDto.java`: DTO cung cấp metadata của các loại sự kiện để frontend hiển thị dropdown/filter.
-   - `LearningActivitySummaryResponse.java`: DTO tổng hợp số liệu hoạt động.
-4. **Service**:
-   - `LearningActivityService.java`: 
+   - `LearningActivitySummaryResponse.java`: DTO tổng hợp số liệu hoạt động theo danh mục và số ngày học tích cực.
+   - `LearningActivitySyncResponse.java`: DTO kết quả đồng bộ lịch sử (`lessonsSynced`, `quizzesSynced`, `assignmentsSynced`, `enrollmentsSynced`, `totalActivities`).
+4. **Service & Event Hooks**:
+   - `LearningActivityService.java`:
      - Kiểm tra quyền ghi danh học viên thông qua `EnrollmentService` (trừ sự kiện `COURSE_ENROLLED`).
-     - Kiểm tra time drift và tồn tại khóa học/bài học.
-     - Kiểm tra quyền sở hữu của Giảng viên khi truy vấn hoạt động khóa học.
-     - Sử dụng batch loading để phân giải `courseTitle` và `lessonTitle` (tránh vấn đề N+1 query).
+     - Chuẩn hóa/validate chuỗi JSON `metadata` (`normalizeMetadataJson`) và kiểm tra time drift.
+     - Cung cấp `recordActivityDirect(...)` idempotent theo `(sourceId, activityType)` và `@EventListener onCourseEnrolled(CourseEnrolledEvent)` để tránh chu trình phụ thuộc giữa `learning` và `enrollment`.
+     - Cung cấp `syncHistoricalActivities()` đồng bộ dữ liệu lịch sử (`learning_progress`, `quiz_attempts`, `assignment_submissions`, `enrollments`) với `ON CONFLICT (source_id, activity_type) DO NOTHING`.
+   - Các producer thời gian thực (`EDU-98`): `EnrollmentService`, `CommerceService`, `CertificateService`, `LearningService`, `QuizService`, `AssignmentService`, `LearningNoteService`, `DiscussionService` và các thành phần UI học tập (`learning-lesson-page.tsx`, `learning-course-page.tsx`, `learning-portal.tsx`).
 5. **Controller**:
    - `LearningActivityController.java`: Phơi bày các RESTful API endpoints theo chuẩn `/api/v1/learning/activities`.
 
@@ -233,23 +239,19 @@ Controller -> Service -> Domain -> Repository -> Database
 | :--- | :--- | :--- | :--- |
 | `POST` | `/api/v1/learning/activities` | `RECORD_LEARNING_ACTIVITY` | Ghi nhận một hoạt động học tập mới từ client. |
 | `GET` | `/api/v1/learning/activities/me` | `VIEW_MY_LEARNING_ACTIVITIES` | Lấy lịch sử hoạt động cá nhân của học viên đăng nhập (hỗ trợ lọc `courseId`, `from`, `to`, phân trang). |
-| `GET` | `/api/v1/learning/activities/courses/{courseId}` | `VIEW_COURSE_LEARNING_ACTIVITIES` | Giảng viên xem luồng hoạt động của khóa học (kiểm tra quyền sở hữu khóa học, lọc `activityType`, `from`, `to`, phân trang). |
-| `GET` | `/api/v1/learning/activities/types` | `VIEW_LEARNING_ACTIVITY_TYPES` | Lấy danh sách 13 loại sự kiện chuẩn hóa kèm tên hiển thị tiếng Việt và danh mục để render UI. |
+| `GET` | `/api/v1/learning/activities/me/summary` | `VIEW_MY_LEARNING_ACTIVITY_SUMMARY` | Thống kê tổng hoạt động, số ngày học và số sự kiện theo nhóm. |
+| `GET` | `/api/v1/learning/activities/courses/{courseId}` | `VIEW_COURSE_LEARNING_ACTIVITIES` | Giảng viên xem luồng hoạt động của khóa học (kiểm tra quyền sở hữu khóa học, lọc `from`, `to`, phân trang). |
+| `GET` | `/api/v1/learning/activities/types` | `VIEW_LEARNING_ACTIVITY_TYPES` | Lấy danh sách 14 loại sự kiện chuẩn hóa kèm tên hiển thị tiếng Việt và danh mục để render UI. |
+| `POST` | `/api/v1/learning/activities/sync` | `SYNC_LEARNING_ACTIVITIES` (`ADMIN` only per `V35`) | Backfill dữ liệu hoạt động lịch sử từ các module LMS vào `learning_activities`. |
 
 ---
 
-## 7. Kết quả Kiểm thử & Đảm bảo Chất lượng (Quality Verification)
+## 7. Kiểm thử & Đảm bảo Chất lượng (Quality Verification)
 
-- **Unit Test**: `LearningActivityServiceTest.java`
-  - Đã xây dựng 6 kịch bản kiểm thử toàn diện:
-    1. `recordActivity_CourseEnrolled_SavesWithoutEnrollmentCheck`: Ghi nhận sự kiện ghi danh không yêu cầu kiểm tra enrollment trước.
-    2. `recordActivity_LessonViewed_RequiresEnrollmentAndResolvesLesson`: Ghi nhận bài học yêu cầu enrollment và phân giải tiêu đề bài học.
-    3. `recordActivity_FutureTimestamp_ThrowsBadRequest`: Chặn và trả về lỗi BAD_REQUEST khi timestamp lệch tương lai > 5 phút.
-    4. `getStudentActivities_FiltersByCourseAndTime`: Lọc timeline cá nhân theo khóa học và dải thời gian với phân trang chính xác.
-    5. `getCourseActivitiesForInstructor_WhenNotInstructor_ThrowsForbidden`: Chặn truy cập trái phép của giảng viên không sở hữu khóa học.
-    6. `getStandardizedActivityTypes_ReturnsAll13StandardTypes`: Xác thực trả về đầy đủ 13 loại sự kiện chuẩn hóa.
-  - **Kết quả chạy thử**: `Tests run: 6, Failures: 0, Errors: 0, Skipped: 0` (Thời gian chạy: 1.32s, `BUILD SUCCESS`).
+- **Unit Test**: `LearningActivityServiceTest.java` (11 test cases) — bao phủ `recordActivity`, validate JSON metadata (`INVALID_ACTIVITY_METADATA`), time drift, lọc timeline, RBAC giảng viên, 14 `LearningActivityType`, idempotency `recordActivityDirect`, `syncHistoricalActivities` và `getStudentSummary`.
+- **Integration Test (Testcontainers PostgreSQL 16)**: `LearningActivityIntegrationTest.java` — kiểm thử end-to-end toàn bộ 12+ bước vòng đời học tập thực tế (`COURSE_ENROLLED`, `VIDEO_WATCHED`, `LESSON_VIEWED`, `NOTE_CREATED`, `QUIZ_STARTED`, `QUIZ_SUBMITTED`, `QUESTION_ASKED`, `COMMENT_POSTED` phân tách học viên/giảng viên, `LESSON_COMPLETED`, `COURSE_COMPLETED`, `CERTIFICATE_ISSUED`), kiểm tra `INVALID_ACTIVITY_METADATA` (`400`), phân quyền `STUDENT` / `INSTRUCTOR` / `ADMIN` cho `/sync`, và backfill dữ liệu lịch sử.
+- **Unit Test Thanh toán & Ghi danh**: `CommerceServiceTest.java` (`manualConfirmationAndGatewayIpnEmitCourseEnrolledActivity`).
+- **Frontend Telemetry Tests (Vitest)**: `learning-lesson-page.test.tsx` — kiểm thử phát `LESSON_VIEWED`, `VIDEO_WATCHED` (pause + unmount `keepalive: true`), `RESOURCE_DOWNLOADED` và đọc bài `TEXT` (`reading_time_seconds`).
 - **Code & Style Conventions**:
   - Không sử dụng wildcard import (`.*`), 100% explicit imports.
   - Thông báo lỗi và mô tả giao diện bằng tiếng Việt theo đúng nguyên tắc `AGENTS.md`.
-  - Giữ toàn bộ thay đổi ở trạng thái unstaged, sẵn sàng cho review.

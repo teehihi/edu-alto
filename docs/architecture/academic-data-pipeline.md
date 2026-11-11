@@ -36,6 +36,7 @@ flowchart TD
         Certificates["certificates"]
         Reviews["course_reviews"]
         Notes["learning_notes"]
+        Activities["learning_activities (V34/V35)"]
     end
 
     subgraph Pipeline ["Academic Data Pipeline (scripts/academic_pipeline)"]
@@ -45,11 +46,12 @@ flowchart TD
         Exporter["AcademicDataExporter"]
     end
 
-    subgraph Outputs ["Analytical Marts & Feature Store"]
-        CSV["CSV Summary (Excel/BI)"]
+    subgraph Outputs ["Analytical Marts & Clean Pipeline (EDU-100)"]
+        CSV["CSV Summary + entities/*.csv"]
         JSON["JSON / JSONL (APIs)"]
         Parquet["Apache Parquet (ML / Colab / S3)"]
         DBMart["PostgreSQL Mart (academic_student_course_metrics)"]
+        Cleaner["EDU-100 Data Cleaner (clean_and_validate_dataset.py)"]
     end
 
     StateMgr -->|Get Watermark| Extractor
@@ -61,6 +63,8 @@ flowchart TD
     Exporter --> Parquet
     Exporter --> DBMart
     Exporter -->|Advance Watermark on Success| StateMgr
+    CSV --> Cleaner
+    Parquet --> Cleaner
 ```
 
 ---
@@ -94,9 +98,14 @@ Khóa chính xác định bản ghi: `(student_id, course_id)`.
 | | `video_timestamp_questions_count` | Integer | Số câu hỏi gắn mốc thời gian video cụ thể |
 | | `learning_notes_count` | Integer | Số ghi chú cá nhân học viên đã lưu |
 | | `has_reviewed_course`, `review_rating` | Boolean, Float | Trạng thái đánh giá khóa học & số sao (1-5) |
+| **Telemetry V34 (`learning_activities`)** | `total_learning_events_count`, `active_learning_days_count` | Integer | Tổng sự kiện học tập & số ngày học có hoạt động thực tế |
+| | `lesson_views_count`, `resource_downloads_count`, `quiz_starts_count` | Integer | Số lượt mở bài giảng, tải tài liệu và mở lượt thi quiz |
+| | `video_watch_seconds`, `text_reading_seconds`, `quiz_duration_seconds` | Integer | Thời lượng xem video, đọc bài giảng TEXT và thời gian làm quiz (giây) |
+| | `total_study_time_seconds` | Integer | Tổng thời gian học chủ động đo từ telemetry (`video + text + quiz`) |
+| | `first_learning_activity_at`, `last_learning_activity_at` | Datetime | Mốc sự kiện telemetry đầu tiên & gần nhất |
 | **Văn bằng** | `is_course_completed` | Boolean | Hoàn thành 100% giáo trình hoặc có chứng chỉ |
 | | `has_certificate`, `certificate_number`, `certificate_issued_at` | Boolean, String | Thông tin chứng chỉ điện tử chính thức |
-| **Chuyên cần & Nguy cơ** | `first_activity_at`, `last_activity_at` | Datetime | Mốc hoạt động đầu tiên & gần nhất |
+| **Chuyên cần & Nguy cơ** | `first_activity_at`, `last_activity_at` | Datetime | Mốc hoạt động đầu tiên & gần nhất (kết hợp cả `learning_activities`) |
 | | `days_since_last_activity` | Integer | Số ngày trôi qua kể từ hoạt động gần nhất |
 | | `is_inactive` | Boolean | Cờ không hoạt động (> 14 ngày chưa hoạt động & chưa xong khóa) |
 | | `academic_engagement_score` | Numeric (0-100) | Điểm gắn kết tổng hợp: 40% Tiến độ + 25% Quiz + 20% Bài tập + 15% Tương tác |
@@ -120,6 +129,7 @@ Khóa chính xác định bản ghi: `(student_id, course_id)`.
      - `certificates`: `created_at > watermark OR issued_at > watermark`
      - `course_reviews`: `updated_at > watermark OR created_at > watermark`
      - `learning_notes`: `updated_at > watermark OR created_at > watermark`
+     - `learning_activities` (khi bảng tồn tại): `updated_at > watermark OR occurred_at > watermark`
    - Tập hợp các cặp `(student_id, course_id)` qua phép toán Union.
 3. **Trường hợp Không có dữ liệu mới (`UP_TO_DATE`)**:
    - Nếu tập hợp rỗng: Pipeline dừng ngay lập tức trong vài chục mili-giây, thông báo dữ liệu đã đồng bộ mới nhất.
@@ -130,18 +140,17 @@ Khóa chính xác định bản ghi: `(student_id, course_id)`.
      - Ghi đè (Overwrite) các bản ghi cũ của cùng cặp `(student_id, course_id)`.
      - Bổ sung (Append) các cặp sinh viên - môn học mới ghi danh.
      - Giữ nguyên toàn bộ các cặp sinh viên - môn học không có thay đổi.
-   - Xuất dữ liệu mới ra các tệp đích và lưu watermark mới vào checkpoint.
+   - Xuất dữ liệu mới ra các tệp đích (`student_course_academic_summary.*` và tùy chọn `entities/*.csv`) để `EDU-100` (`clean_and_validate_dataset.py`) tiêu thụ trực tiếp, đồng thời lưu watermark mới vào checkpoint.
 
 ---
 
 ## 5. Kết quả Kiểm thử Tự động (Unit & Integration Tests)
 
-Toàn bộ logic của pipeline được bao phủ bởi 6 ca kiểm thử chuyên sâu:
+Bộ kiểm thử của `scripts/academic_pipeline/tests/` bao gồm:
 - `test_database_config_defaults`: Kiểm thử cấu hình kết nối PostgreSQL.
 - `test_database_config_from_spring_url`: Kiểm thử phân tích cấu hình từ Spring Boot JDBC URL.
 - `test_state_manager_lifecycle`: Kiểm thử lưu trữ an toàn nguyên tử, khôi phục và reset watermark.
 - `test_aggregate_complete_student_telemetry`: Kiểm thử tính toán đầy đủ các chỉ số học thuật, điểm gắn kết tổng hợp và trạng thái hoàn thành khóa học.
+- `test_aggregate_learning_activities_telemetry`: Kiểm thử tổng hợp telemetry từ `learning_activities` (bao gồm phân biệt `LESSON_VIEWED` mở bài vs dwell-time `reading_time_seconds`, `VIDEO_WATCHED`, `QUIZ_STARTED`/`QUIZ_SUBMITTED`, `RESOURCE_DOWNLOADED`).
 - `test_merge_incremental`: Kiểm thử tính năng ghi đè bản ghi cũ và bổ sung bản ghi mới trong trích xuất gia tăng.
-- `test_full_and_incremental_pipeline_e2e`: Kiểm thử toàn vẹn vòng đời tích hợp: Chạy Full -> Kiểm tra định dạng xuất (CSV, JSON, Parquet) -> Chạy Incremental không thay đổi -> Thêm tiến độ mới & cấp chứng chỉ -> Chạy Incremental phát hiện và cập nhật dữ liệu chính xác.
-
-**Trạng thái kiểm thử:** `6 passed in 0.60s (100% Đạt)`.
+- `test_full_and_incremental_pipeline_e2e`: Kiểm thử toàn vẹn vòng đời tích hợp: Chạy Full (kèm `export_entities=True`) -> Kiểm tra định dạng xuất (CSV, JSON, Parquet, `entities/raw_activities.csv`) -> Chạy Incremental không thay đổi -> Thêm tiến độ mới, chứng chỉ & telemetry mới -> Chạy Incremental phát hiện và cập nhật dữ liệu chính xác trong CSV & bảng metrics.

@@ -2,14 +2,14 @@
 
 - **Mã công việc:** EDU-96 (thuộc Epic EDU-101)
 - **Tác vụ:** Phân tích các nguồn dữ liệu học thuật hiện có phục vụ Machine Learning & AI
-- **Đối tượng khảo sát:** Hệ thống cơ sở dữ liệu PostgreSQL của nền tảng EduAlto (từ Flyway V1 đến V33)
-- **Trạng thái:** Hoàn thành khảo sát & đánh giá
+- **Đối tượng khảo sát:** Hệ thống cơ sở dữ liệu PostgreSQL của nền tảng EduAlto (cập nhật từ Flyway V1 đến V35)
+- **Trạng thái:** Hoàn thành khảo sát & đồng bộ trạng thái triển khai (EDU-97 / EDU-98 / EDU-99 / EDU-100)
 
 ---
 
 ## 1. Khảo sát Cơ sở Dữ liệu EduAlto Hiện tại
 
-EduAlto áp dụng kiến trúc **Modular Monolith** với hệ quản trị cơ sở dữ liệu **PostgreSQL 16**. Toàn bộ schema được phiên bản hóa và quản lý chặt chẽ qua Flyway migration (`V1` đến `V33`), sử dụng khóa chính dạng UUID, chuẩn đặt tên `snake_case`, cùng các ràng buộc toàn vẹn khóa ngoại (FK) và chỉ mục (Index) hiệu năng cao.
+EduAlto áp dụng kiến trúc **Modular Monolith** với hệ quản trị cơ sở dữ liệu **PostgreSQL 16**. Toàn bộ schema được phiên bản hóa và quản lý chặt chẽ qua Flyway migration (`V1` đến `V35`), sử dụng khóa chính dạng UUID, chuẩn đặt tên `snake_case`, cùng các ràng buộc toàn vẹn khóa ngoại (FK) và chỉ mục (Index) hiệu năng cao. Từ bản cập nhật `V34` và `V35`, bảng sự kiện chuẩn hóa `learning_activities` đã được bổ sung cùng các hook thu thập thời gian thực.
 
 ### Tổng quan các miền dữ liệu học thuật
 
@@ -190,20 +190,20 @@ erDiagram
 
 #### Bài toán 1: Dự báo Nguy cơ Bỏ học & Học viên Cần can thiệp (Drop-out & At-risk Prediction)
 - **Mục tiêu:** Nhận diện sớm học viên có xác suất cao bỏ dở khóa học trong vòng 7 - 14 ngày tới để hệ thống/giảng viên can thiệp kịp thời.
-- **Mức độ sẵn sàng:** **7.5 / 10 (Sẵn sàng triển khai Baseline & Model truyền thống)**.
+- **Mức độ sẵn sàng:** **9.0 / 10 (Đã chuẩn hóa Event Stream + Video/Reading Dwell Time trong V34/V35)**
 - **Đặc trưng (Features) trích xuất được ngay từ DB hiện tại:**
   - `days_since_enrollment`: Số ngày từ lúc ghi danh (`enrollments.enrolled_at`).
   - `completion_rate`: Tỷ lệ bài học đã hoàn thành (`learning_progress`).
   - `learning_velocity`: Số bài học hoàn thành trong 7 ngày gần nhất.
-  - `days_since_last_activity`: Số ngày kể từ bài học hoàn thành cuối cùng.
+  - `days_since_last_activity`: Số ngày kể từ hoạt động gần nhất (`last_activity_at` hợp nhất với `learning_activities.occurred_at`).
+  - `video_watch_seconds`, `text_reading_seconds`, `quiz_duration_seconds`, `total_study_time_seconds`: Thời lượng học chủ động đo từ telemetry (`VIDEO_WATCHED`, `LESSON_VIEWED`, `QUIZ_SUBMITTED`).
   - `avg_quiz_score`, `quiz_pass_ratio`: Điểm trung bình và tỷ lệ đỗ bài kiểm tra.
   - `quiz_attempt_count`: Số lần phải làm lại quiz để vượt qua.
   - `assignment_submission_delay`: Độ trễ nộp bài tập so với hạn chót `due_at`.
   - `activity_blur_event_count`: Số lần rời màn hình khi thi (`quiz_attempt_activity_events`).
   - `engagement_notes_count`: Số lượng ghi chú cá nhân đã tạo (`learning_notes`).
-- **Khoảng trống dữ liệu (Gaps):**
-  - Chưa có bảng ghi nhận heartbeat thời lượng xem video thực tế (Video Dwell Time) - hiện chỉ lưu trạng thái hoàn thành bài học, chưa biết học viên xem 5% hay 100% video.
-  - Chưa lưu vết clickstream sự kiện điều hướng trang chi tiết.
+- **Khoảng trống dữ liệu còn lại (Future Gaps):**
+  - Chưa lưu vết clickstream điều hướng trang tiếp thị/tìm kiếm ngoài không gian học (`learning`).
 
 #### Bài toán 2: Ước lượng Năng lực & Mô hình hóa Kiến thức (Knowledge Tracing - BKT / DKT)
 - **Mục tiêu:** Ước lượng xác suất học viên đã làm chủ một kỹ năng/khái niệm cụ thể sau một chuỗi câu hỏi ôn luyện.
@@ -239,33 +239,23 @@ erDiagram
 
 ## 5. Bảng Ma trận Sẵn sàng Dữ liệu Học thuật cho ML (ML Readiness Matrix)
 
-| Nguồn dữ liệu | Độ hoàn thiện DB | Dạng dữ liệu | Giá trị đặc trưng ML | Mức độ sẵn sàng ML | Hành động cần bổ sung |
+| Nguồn dữ liệu | Độ hoàn thiện DB | Dạng dữ liệu | Giá trị đặc trưng ML | Mức độ sẵn sàng ML | Hành động tiếp theo / Trạng thái |
 | :--- | :---: | :---: | :--- | :---: | :--- |
-| **Enrollment** | 100% | Bảng quan hệ | Cohort, thời gian bắt đầu, số khóa đăng ký | **Cao (Ready)** | Không cần sửa schema. |
-| **Course Progress** | 90% | Bảng quan hệ | Tỷ lệ hoàn thành %, tốc độ học, điểm rơi | **Cao (Ready)** | Thêm tracking heartbeat video. |
-| **Quiz Attempts** | 95% | Time-series / Tabular | Tỷ lệ đúng/sai, số lần thi lại, điểm số | **Khá (Good)** | Gắn `skill_id` vào `quiz_questions`. |
+| **Enrollment** | 100% | Bảng quan hệ | Cohort, thời gian bắt đầu, số khóa đăng ký | **Cao (Ready)** | Đã tự động phát hành `COURSE_ENROLLED` event (`EDU-98`). |
+| **Course Progress & Telemetry** | 95% | Quan hệ + Telemetry Stream | Tỷ lệ hoàn thành %, `video_watch_seconds`, `text_reading_seconds`, `resource_downloads_count` | **Cao (Ready)** | Đã triển khai `learning_activities` (V34/V35) và telemetry frontend/backend (`EDU-98`). |
+| **Quiz Attempts** | 95% | Time-series / Tabular | Tỷ lệ đúng/sai, số lần thi lại, điểm số, thời gian làm bài | **Khá (Good)** | Gắn `skill_id` vào `quiz_questions` ở bước Knowledge Tracing tiếp theo. |
 | **Exam Behavior** | 90% | Event Log | Chuyển tab, mất focus, copy-paste | **Khá (Good)** | Tích hợp feature phát hiện gian lận. |
-| **Assignments** | 85% | Văn bản + Điểm số | Nội dung tự luận, điểm, nhận xét, hạn nộp | **Khá (Good)** | Mở rộng rubric chấm chi tiết. |
-| **Attendance / Presence**| 70% | Dấu vết số gián tiếp | Tần suất hoạt động, lịch học cá nhân | **Trung bình** | Chuẩn hóa bảng `learning_signals`. |
-| **Skill Taxonomy** | 20% | Đã thiết kế, chưa migrate | Nhãn kiến thức (Knowledge Components) | **Thấp (Gap)** | Tạo migration cho `skills` & mapping. |
-| **Recommendation Logs** | 10% | Đã thiết kế, chưa migrate | Impression, Click-through, Feedback | **Thấp (Gap)** | Tạo migration cho `recommendations`. |
+| **Assignments** | 85% | Văn bản + Điểm số | Nội dung tự luận, điểm, nhận xét, hạn nộp, `ASSIGNMENT_GRADED` | **Khá (Good)** | Mở rộng rubric chấm chi tiết khi cần AES nâng cao. |
+| **Attendance / Presence** | 95% | `learning_activities` (V34/V35) | Chuỗi 14 loại sự kiện chuẩn hóa, `active_learning_days_count` | **Cao (Ready)** | Đã hoàn thiện ETL `EDU-99` và làm sạch `EDU-100`. |
+| **Skill Taxonomy** | 20% | Đã thiết kế, chưa migrate | Nhãn kiến thức (Knowledge Components) | **Thấp (Gap)** | Tạo migration `V36+` cho `skills` & mapping. |
+| **Recommendation Logs** | 10% | Đã thiết kế, chưa migrate | Impression, Click-through, Feedback | **Thấp (Gap)** | Tạo migration `V36+` cho `recommendations`. |
 
 ---
 
-## 6. Lộ trình Đề xuất Nâng cấp Schema Phục vụ ML (Next Steps)
+## 6. Lộ trình Đề xuất Nâng cấp Schema Phục vụ ML (Trạng thái & Bước tiếp theo)
 
-Để nền tảng EduAlto đạt mức độ sẵn sàng tối ưu (Production ML Readiness), đề xuất thực hiện 3 nâng cấp schema tiếp theo:
-
-1. **Giai đoạn 1: Bổ sung Bảng Kỹ năng (Skill & Knowledge Component Mapping)**
-   - Tạo migration `V34__skills_and_knowledge_components.sql` bao gồm `skills`, `skill_categories`, `quiz_question_skills`, `lesson_skills`.
-   - Giúp kích hoạt các mô hình Knowledge Tracing và chẩn đoán lỗ hổng kiến thức chính xác theo từng kỹ năng.
-
-2. **Giai đoạn 2: Chuẩn hóa Bảng Tín hiệu Học tập Thời gian thực (`learning_signals`)**
-   - Tạo bảng `learning_signals` append-only ghi nhận sự kiện học tập chuẩn hóa:
-     - `signal_type`: `LESSON_COMPLETED`, `QUIZ_SUBMITTED`, `ASSIGNMENT_GRADED`, `VIDEO_WATCHED`.
-     - `metadata`: JSONB chứa thời lượng xem, điểm số, thiết bị.
-
-3. **Giai đoạn 3: Bổ sung Logging Gợi ý Học tập (`recommendation_logs`)**
-   - Lưu vết mọi đề xuất được hiển thị trên giao diện người dùng:
-     - `recommendation_items`: `user_id`, `item_type`, `item_id`, `score`, `shown_at`, `clicked_at`, `enrolled_at`.
-   - Cung cấp dữ liệu Ground Truth đầy đủ để huấn luyện mô hình xếp hạng Learning-to-Rank (XGBoost/LightGBM).
+1. **Đã hoàn thành (Epic `EDU-101` - `V34` & `V35`)**: Chuẩn hóa bảng Tín hiệu Học tập Thời gian thực (`learning_activities`) với 14 loại sự kiện (`COURSE_ENROLLED`, `COURSE_COMPLETED`, `CERTIFICATE_ISSUED`, `LESSON_VIEWED`, `LESSON_COMPLETED`, `VIDEO_WATCHED`, `NOTE_CREATED`, `RESOURCE_DOWNLOADED`, `QUIZ_STARTED`, `QUIZ_SUBMITTED`, `ASSIGNMENT_SUBMITTED`, `ASSIGNMENT_GRADED`, `QUESTION_ASKED`, `COMMENT_POSTED`), idempotency theo `(source_id, activity_type)`, RBAC `/sync` dành riêng cho `ADMIN`, cùng pipeline ETL `EDU-99` và làm sạch `EDU-100`.
+2. **Giai đoạn tiếp theo (`V36+`): Bổ sung Bảng Kỹ năng (`skills` & Knowledge Component Mapping)**
+   - Tạo migration cho `skills`, `skill_categories`, `quiz_question_skills`, `lesson_skills` để kích hoạt các mô hình Knowledge Tracing và chẩn đoán lỗ hổng kiến thức chính xác theo từng kỹ năng.
+3. **Giai đoạn mở rộng (`V36+`): Bổ sung Logging Gợi ý Học tập (`recommendation_logs`)**
+   - Lưu vết mọi đề xuất được hiển thị trên giao diện (`user_id`, `item_type`, `item_id`, `score`, `shown_at`, `clicked_at`, `enrolled_at`) để cung cấp Ground Truth đầy đủ cho mô hình Learning-to-Rank (XGBoost/LightGBM).
