@@ -9,6 +9,7 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
+import org.hibernate.annotations.ColumnTransformer;
 
 @Entity
 @Table(name = "learning_activities")
@@ -40,6 +41,7 @@ public class LearningActivity {
     private Instant occurredAt;
 
     @Column(name = "metadata", columnDefinition = "jsonb")
+    @ColumnTransformer(write = "CAST(? AS jsonb)")
     private String metadata;
 
     @Column(name = "created_at", nullable = false, updatable = false)

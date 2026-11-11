@@ -29,9 +29,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 @Service
 public class LearningActivityService {
+
+    private static final ObjectMapper JSON_MAPPER = JsonMapper.builder().build();
 
     private final LearningActivityRepository activityRepository;
     private final CourseRepository courseRepository;
@@ -87,6 +92,8 @@ public class LearningActivityService {
             lessonTitle = lesson.getTitle();
         }
 
+        String normalizedMetadata = normalizeMetadataJson(request.metadata());
+
         LearningActivity activity = new LearningActivity(
                 studentId,
                 course.getId(),
@@ -94,7 +101,7 @@ public class LearningActivityService {
                 lessonId,
                 request.activityType(),
                 occurredAt,
-                request.metadata()
+                normalizedMetadata
         );
 
         LearningActivity saved = activityRepository.save(activity);
@@ -236,7 +243,7 @@ public class LearningActivityService {
                 INSERT INTO learning_activities (id, student_id, course_id, section_id, lesson_id, activity_type, source_id, metadata, occurred_at, created_at, updated_at)
                 SELECT gen_random_uuid(), e.student_id, p.course_id, p.section_id, p.lesson_id, 'LESSON_COMPLETED', p.id,
                        CASE WHEN l.duration_seconds IS NOT NULL AND l.duration_seconds > 0
-                            THEN json_build_object('duration_seconds', l.duration_seconds)
+                            THEN jsonb_build_object('duration_seconds', l.duration_seconds)
                             ELSE NULL END,
                        p.completed_at, current_timestamp, current_timestamp
                 FROM learning_progress p
@@ -248,7 +255,7 @@ public class LearningActivityService {
         int quizzesSynced = jdbcTemplate.update("""
                 INSERT INTO learning_activities (id, student_id, course_id, section_id, lesson_id, activity_type, source_id, metadata, occurred_at, created_at, updated_at)
                 SELECT gen_random_uuid(), a.student_id, s.course_id, l.section_id, l.id, 'QUIZ_SUBMITTED', a.id,
-                       json_build_object('score', a.score, 'passed', a.passed, 'correctCount', a.correct_answers, 'totalCount', a.total_questions),
+                       jsonb_build_object('score', a.score, 'passed', a.passed, 'correctCount', a.correct_answers, 'totalCount', a.total_questions),
                        a.submitted_at, current_timestamp, current_timestamp
                 FROM quiz_attempts a
                 JOIN quizzes q ON q.id = a.quiz_id
@@ -269,7 +276,7 @@ public class LearningActivityService {
         int assignmentsGraded = jdbcTemplate.update("""
                 INSERT INTO learning_activities (id, student_id, course_id, section_id, lesson_id, activity_type, source_id, metadata, occurred_at, created_at, updated_at)
                 SELECT gen_random_uuid(), sub.student_id, a.course_id, NULL, NULL, 'ASSIGNMENT_GRADED', sub.id,
-                       json_build_object('score', sub.score, 'maxScore', a.max_score),
+                       jsonb_build_object('score', sub.score, 'maxScore', a.max_score),
                        sub.graded_at, current_timestamp, current_timestamp
                 FROM assignment_submissions sub
                 JOIN assignments a ON a.id = sub.assignment_id
@@ -301,6 +308,23 @@ public class LearningActivityService {
         return Arrays.stream(LearningActivityType.values())
                 .map(LearningActivityTypeInfoDto::from)
                 .collect(Collectors.toList());
+    }
+
+    private String normalizeMetadataJson(String rawMetadata) {
+        if (rawMetadata == null || rawMetadata.isBlank()) {
+            return null;
+        }
+        String trimmed = rawMetadata.trim();
+        try {
+            JSON_MAPPER.readTree(trimmed);
+            return trimmed;
+        } catch (JacksonException ex) {
+            throw new BusinessException(
+                    HttpStatus.BAD_REQUEST,
+                    "INVALID_ACTIVITY_METADATA",
+                    "Dữ liệu metadata phải là chuỗi JSON hợp lệ"
+            );
+        }
     }
 
     private Page<LearningActivityResponse> mapToResponsePage(Page<LearningActivity> activities) {

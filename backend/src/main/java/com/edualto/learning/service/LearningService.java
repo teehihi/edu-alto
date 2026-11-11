@@ -83,16 +83,18 @@ public class LearningService {
     }
 
     private void requireReadableLesson(LearningLessonResponse lesson) {
-        if (lesson.lessonType() == LessonType.QUIZ) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST, "INVALID_LESSON_TYPE",
-                    "Bài học dạng QUIZ được truy cập qua endpoint trắc nghiệm riêng.");
+        if (lesson.lessonType() != LessonType.TEXT
+                && lesson.lessonType() != LessonType.VIDEO
+                && lesson.lessonType() != LessonType.QUIZ) {
+            throw new BusinessException(HttpStatus.CONFLICT, "LESSON_TYPE_NOT_SUPPORTED",
+                    "Loại bài học này hiện chưa hỗ trợ");
         }
     }
 
     private void requireCompletableLesson(LearningLessonResponse lesson) {
-        if (lesson.lessonType() == LessonType.QUIZ) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST, "INVALID_LESSON_TYPE",
-                    "Bài học dạng QUIZ chỉ được hoàn thành thông qua nộp bài kiểm tra đạt điểm qua.");
+        if (lesson.lessonType() != LessonType.TEXT && lesson.lessonType() != LessonType.VIDEO) {
+            throw new BusinessException(HttpStatus.CONFLICT, "LESSON_TYPE_NOT_SUPPORTED",
+                    "Chỉ bài học văn bản và video có thể được đánh dấu hoàn thành trực tiếp");
         }
     }
 }

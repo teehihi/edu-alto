@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -91,5 +91,58 @@ describe("LearningLessonPage video playback", () => {
         "https://media.example/video-1?signature=fresh",
       );
     });
+  });
+
+  it("accumulates video watch time and flushes telemetry on pause and unmount without spurious flushes", async () => {
+    const { unmount } = render(<LearningLessonPage lessonId="lesson-video-1" />);
+
+    const player = (await screen.findByLabelText(
+      "Video bài học: Giới thiệu bài học video",
+    )) as HTMLVideoElement;
+
+    // Simulate playback deltas (total 8 seconds across 3 ticks)
+    player.currentTime = 0;
+    fireEvent.play(player);
+    player.currentTime = 4;
+    fireEvent.timeUpdate(player);
+    player.currentTime = 8;
+    fireEvent.timeUpdate(player);
+
+    // Pause flushes 8s of watch time
+    fireEvent.pause(player);
+    await waitFor(() => {
+      expect(learningClient.recordLearningActivity).toHaveBeenCalledTimes(1);
+    });
+    expect(learningClient.recordLearningActivity).toHaveBeenCalledWith(
+      "student-token",
+      expect.objectContaining({
+        courseId: "course-1",
+        sectionId: "section-1",
+        lessonId: "lesson-video-1",
+        activityType: "VIDEO_WATCHED",
+        metadata: JSON.stringify({ duration_seconds: 8, position_seconds: 8 }),
+      }),
+      undefined,
+    );
+
+    // Accumulate another 6s and unmount -> flushes with keepalive: true
+    fireEvent.play(player);
+    player.currentTime = 11;
+    fireEvent.timeUpdate(player);
+    player.currentTime = 14;
+    fireEvent.timeUpdate(player);
+    unmount();
+
+    await waitFor(() => {
+      expect(learningClient.recordLearningActivity).toHaveBeenCalledTimes(2);
+    });
+    expect(learningClient.recordLearningActivity).toHaveBeenLastCalledWith(
+      "student-token",
+      expect.objectContaining({
+        activityType: "VIDEO_WATCHED",
+        metadata: JSON.stringify({ duration_seconds: 6, position_seconds: 14 }),
+      }),
+      { keepalive: true },
+    );
   });
 });

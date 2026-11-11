@@ -349,11 +349,13 @@ export type LearningActivitySyncResponse = {
 export async function recordLearningActivity(
   accessToken: string,
   activity: RecordLearningActivityInput,
+  options?: { keepalive?: boolean },
 ) {
   return apiRequest<void>("/learning/activities", {
     method: "POST",
     accessToken,
     body: activity,
+    keepalive: options?.keepalive,
   });
 }
 

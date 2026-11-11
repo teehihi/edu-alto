@@ -14,7 +14,6 @@ import static org.mockito.Mockito.when;
 import com.edualto.common.exception.BusinessException;
 import com.edualto.course.domain.Course;
 import com.edualto.course.domain.CourseLevel;
-import com.edualto.course.domain.CourseStatus;
 import com.edualto.course.domain.Lesson;
 import com.edualto.course.domain.LessonStatus;
 import com.edualto.course.domain.LessonType;
@@ -178,6 +177,25 @@ class LearningActivityServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .hasFieldOrPropertyWithValue("status", HttpStatus.BAD_REQUEST)
                 .hasMessageContaining("không thể vượt quá thời gian hiện tại");
+    }
+
+    @Test
+    void recordActivity_InvalidMetadataJson_ThrowsBadRequest() {
+        RecordLearningActivityRequest request = new RecordLearningActivityRequest(
+                courseId,
+                null,
+                null,
+                LearningActivityType.COURSE_ENROLLED,
+                Instant.now(),
+                "{not-valid-json"
+        );
+
+        when(courseRepository.findById(courseId)).thenReturn(Optional.of(sampleCourse));
+
+        assertThatThrownBy(() -> service.recordActivity(studentId, request))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("status", HttpStatus.BAD_REQUEST)
+                .hasFieldOrPropertyWithValue("code", "INVALID_ACTIVITY_METADATA");
     }
 
     @Test

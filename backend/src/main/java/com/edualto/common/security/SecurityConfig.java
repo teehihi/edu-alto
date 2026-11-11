@@ -55,6 +55,7 @@ public class SecurityConfig {
                         .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/api/v1/payments/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/health", "/api/v1/courses", "/api/v1/courses/**", "/api/v1/instructors", "/api/v1/media/**", "/api/v1/profiles", "/api/v1/profiles/*", "/api/v1/profiles/**", "/api/v1/users/*/profile", "/api/v1/certificates/verify/*", "/api/v1/certificates/*/pdf").permitAll()
                         .requestMatchers("/api/v1/auth/**").permitAll()
+                        .requestMatchers("/api/v1/learning/activities/**").access(permissionAuthorizationManager)
                         .requestMatchers(
                                 "/api/v1/me/**",
                                 "/api/v1/checkout",
