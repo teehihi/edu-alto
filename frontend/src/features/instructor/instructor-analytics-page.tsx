@@ -43,41 +43,63 @@ const statusStyle = {
 export function InstructorAnalyticsPage() {
   const { accessToken, loading: authLoading } = useAuth();
   const [data, setData] = useState<InstructorAnalyticsOverview | null>(null);
+  const [courseOptions, setCourseOptions] = useState<
+    Array<{ courseId: string; courseTitle: string }>
+  >([]);
   const [selectedCourseId, setSelectedCourseId] = useState<string>("");
+  const [refreshTick, setRefreshTick] = useState(0);
   const [currentView, setCurrentView] = useState<ChartView>("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hoveredTrend, setHoveredTrend] = useState<InstructorMonthlyTrend | null>(null);
 
-  const loadData = useCallback(async () => {
-    if (authLoading) return;
-    if (!accessToken) {
-      setError("Vui lòng đăng nhập để xem số liệu phân tích.");
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    try {
-      const overview = await fetchInstructorAnalyticsOverview(
-        accessToken,
-        selectedCourseId || undefined,
-      );
-      setData(overview);
-    } catch {
-      setError("Không thể tải dữ liệu phân tích. Vui lòng thử lại sau.");
-    } finally {
-      setLoading(false);
-    }
-  }, [accessToken, authLoading, selectedCourseId]);
+  const triggerReload = useCallback(() => {
+    setRefreshTick((tick) => tick + 1);
+  }, []);
 
   useEffect(() => {
-    void loadData();
-  }, [loadData]);
+    if (authLoading) return;
+    let active = true;
+    const courseFilter = selectedCourseId || undefined;
 
-  const trends = data?.monthlyTrends ?? [];
-  const courses = data?.coursePerformances ?? [];
+    void Promise.resolve().then(async () => {
+      if (!active) return;
+      if (!accessToken) {
+        setError("Vui lòng đăng nhập để xem số liệu phân tích.");
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+      try {
+        const overview = await fetchInstructorAnalyticsOverview(accessToken, courseFilter);
+        if (!active) return;
+        setData(overview);
+        setCourseOptions((prev) => {
+          if (!courseFilter || prev.length === 0) {
+            return overview.coursePerformances.map((c) => ({
+              courseId: c.courseId,
+              courseTitle: c.courseTitle,
+            }));
+          }
+          return prev;
+        });
+      } catch {
+        if (!active) return;
+        setError("Không thể tải dữ liệu phân tích. Vui lòng thử lại sau.");
+      } finally {
+        if (active) setLoading(false);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [accessToken, authLoading, selectedCourseId, refreshTick]);
+
+  const trends = useMemo(() => data?.monthlyTrends ?? [], [data]);
+  const courses = useMemo(() => data?.coursePerformances ?? [], [data]);
   const summary = data?.summary ?? {
     totalStudents: 0,
     newStudentsThisMonth: 0,
@@ -192,7 +214,7 @@ export function InstructorAnalyticsPage() {
               className="focus-ring h-9 w-full appearance-none rounded-lg border border-slate-200 bg-white pl-3 pr-8 text-xs font-medium text-slate-700 shadow-xs hover:border-slate-300"
             >
               <option value="">Tất cả khóa học</option>
-              {courses.map((c) => (
+              {courseOptions.map((c) => (
                 <option key={c.courseId} value={c.courseId}>
                   {c.courseTitle}
                 </option>
@@ -208,7 +230,7 @@ export function InstructorAnalyticsPage() {
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => void loadData()}
+            onClick={triggerReload}
             disabled={loading}
             className="focus-ring border-slate-200 text-slate-700 hover:bg-slate-50"
             title="Làm mới dữ liệu"
@@ -246,7 +268,7 @@ export function InstructorAnalyticsPage() {
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => void loadData()}
+            onClick={triggerReload}
             className="border-rose-300 bg-white text-rose-800 hover:bg-rose-100"
           >
             Thử lại

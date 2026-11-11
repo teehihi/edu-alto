@@ -72,6 +72,8 @@ class InstructorAnalyticsServiceTest {
                 .thenReturn(mockCourses);
         when(repository.countDistinctStudents(instructorId, null))
                 .thenReturn(20L);
+        when(repository.countCompletedLessons(instructorId, null))
+                .thenReturn(150L);
 
         InstructorAnalyticsOverviewResponse response = service.getOverview(instructorId, null);
 

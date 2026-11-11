@@ -4,6 +4,7 @@ import com.edualto.analytics.dto.InstructorCoursePerformanceDto;
 import com.edualto.analytics.dto.InstructorMonthlyTrendDto;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -16,7 +17,7 @@ public class InstructorAnalyticsRepository {
             WITH instructor_courses AS (
                 SELECT id FROM courses
                 WHERE instructor_id = ?
-                  AND (? IS NULL OR id = ?)
+                __COURSE_FILTER__
             ),
             months AS (
                 SELECT generate_series(
@@ -73,7 +74,7 @@ public class InstructorAnalyticsRepository {
                 SELECT id, title, status, price
                 FROM courses
                 WHERE instructor_id = ?
-                  AND (? IS NULL OR id = ?)
+                __COURSE_FILTER__
             ),
             lesson_counts AS (
                 SELECT s.course_id, COUNT(l.id) AS total_lessons
@@ -144,8 +145,16 @@ public class InstructorAnalyticsRepository {
             FROM enrollments e
             JOIN courses c ON c.id = e.course_id
             WHERE c.instructor_id = ?
-              AND (? IS NULL OR c.id = ?)
+              __COURSE_FILTER__
               AND e.status = 'ACTIVE'
+            """;
+
+    private static final String COUNT_COMPLETED_LESSONS_SQL = """
+            SELECT COUNT(lp.id)
+            FROM learning_progress lp
+            JOIN courses c ON c.id = lp.course_id
+            WHERE c.instructor_id = ?
+              __COURSE_FILTER__
             """;
 
     private final JdbcTemplate jdbcTemplate;
@@ -170,8 +179,24 @@ public class InstructorAnalyticsRepository {
             LocalDateTime firstMonth,
             LocalDateTime nextMonth
     ) {
+        String courseFilter = courseId != null ? " AND id = ?" : "";
+        String sql = MONTHLY_TRENDS_SQL.replace("__COURSE_FILTER__", courseFilter);
+        List<Object> params = new ArrayList<>();
+        params.add(instructorId);
+        if (courseId != null) {
+            params.add(courseId);
+        }
+        params.add(firstMonth);
+        params.add(nextMonth);
+        params.add(firstMonth);
+        params.add(nextMonth);
+        params.add(firstMonth);
+        params.add(nextMonth);
+        params.add(firstMonth);
+        params.add(nextMonth);
+
         return jdbcTemplate.query(
-                MONTHLY_TRENDS_SQL,
+                sql,
                 (rs, rowNum) -> {
                     long newEnrollments = rs.getLong("new_enrollments");
                     long completedCount = rs.getLong("completed_count");
@@ -191,23 +216,21 @@ public class InstructorAnalyticsRepository {
                             completionRate
                     );
                 },
-                instructorId,
-                courseId,
-                courseId,
-                firstMonth,
-                nextMonth,
-                firstMonth,
-                nextMonth,
-                firstMonth,
-                nextMonth,
-                firstMonth,
-                nextMonth
+                params.toArray()
         );
     }
 
     public List<InstructorCoursePerformanceDto> findCoursePerformances(UUID instructorId, UUID courseId) {
+        String courseFilter = courseId != null ? " AND id = ?" : "";
+        String sql = COURSE_PERFORMANCES_SQL.replace("__COURSE_FILTER__", courseFilter);
+        List<Object> params = new ArrayList<>();
+        params.add(instructorId);
+        if (courseId != null) {
+            params.add(courseId);
+        }
+
         return jdbcTemplate.query(
-                COURSE_PERFORMANCES_SQL,
+                sql,
                 (rs, rowNum) -> {
                     UUID id = rs.getObject("course_id", UUID.class);
                     String title = rs.getString("course_title");
@@ -243,19 +266,40 @@ public class InstructorAnalyticsRepository {
                             reviewCount
                     );
                 },
-                instructorId,
-                courseId,
-                courseId
+                params.toArray()
         );
     }
 
     public long countDistinctStudents(UUID instructorId, UUID courseId) {
+        String courseFilter = courseId != null ? " AND c.id = ?" : "";
+        String sql = COUNT_STUDENTS_SQL.replace("__COURSE_FILTER__", courseFilter);
+        List<Object> params = new ArrayList<>();
+        params.add(instructorId);
+        if (courseId != null) {
+            params.add(courseId);
+        }
+
         Long count = jdbcTemplate.queryForObject(
-                COUNT_STUDENTS_SQL,
+                sql,
                 Long.class,
-                instructorId,
-                courseId,
-                courseId
+                params.toArray()
+        );
+        return count != null ? count : 0L;
+    }
+
+    public long countCompletedLessons(UUID instructorId, UUID courseId) {
+        String courseFilter = courseId != null ? " AND c.id = ?" : "";
+        String sql = COUNT_COMPLETED_LESSONS_SQL.replace("__COURSE_FILTER__", courseFilter);
+        List<Object> params = new ArrayList<>();
+        params.add(instructorId);
+        if (courseId != null) {
+            params.add(courseId);
+        }
+
+        Long count = jdbcTemplate.queryForObject(
+                sql,
+                Long.class,
+                params.toArray()
         );
         return count != null ? count : 0L;
     }

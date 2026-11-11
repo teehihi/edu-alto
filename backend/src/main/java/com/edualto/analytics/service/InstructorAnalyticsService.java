@@ -66,7 +66,7 @@ public class InstructorAnalyticsService {
 
         BigDecimal totalRevenue = BigDecimal.ZERO;
         long totalCertificates = 0;
-        long totalCompletedLessons = 0;
+        long totalCompletedLessons = repository.countCompletedLessons(instructorId, courseId);
         long totalExpectedLessons = 0;
 
         for (InstructorCoursePerformanceDto course : coursePerformances) {
@@ -74,7 +74,6 @@ public class InstructorAnalyticsService {
             totalCertificates += course.completedStudentsCount();
             if (course.studentCount() > 0 && course.totalLessons() > 0) {
                 totalExpectedLessons += course.totalLessons() * course.studentCount();
-                totalCompletedLessons += Math.round((course.completionRate() / 100.0) * course.totalLessons() * course.studentCount());
             }
         }
 

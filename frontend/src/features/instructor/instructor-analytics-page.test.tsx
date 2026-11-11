@@ -141,6 +141,38 @@ describe("InstructorAnalyticsPage", () => {
     });
   });
 
+  it("preserves all course options in dropdown after filtering to a single course", async () => {
+    const filteredOverview: InstructorAnalyticsOverview = {
+      ...mockOverview,
+      coursePerformances: [mockOverview.coursePerformances[0]],
+    };
+    vi.mocked(fetchInstructorAnalyticsOverview)
+      .mockResolvedValueOnce(mockOverview)
+      .mockResolvedValueOnce(filteredOverview);
+
+    render(<InstructorAnalyticsPage />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText("Spring Boot & Microservices nâng cao")).toHaveLength(2);
+    });
+
+    const select = screen.getByLabelText("Lọc theo khóa học");
+    fireEvent.change(select, { target: { value: "course-1" } });
+
+    await waitFor(() => {
+      expect(fetchInstructorAnalyticsOverview).toHaveBeenCalledWith("mock-token", "course-1");
+      expect(screen.getByText("1 khóa học đang hiển thị")).toBeInTheDocument();
+    });
+
+    // Both course options must remain selectable in the dropdown even though table shows only 1
+    expect(
+      screen.getByRole("option", { name: "Lập trình React & Next.js chuyên sâu" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("option", { name: "Spring Boot & Microservices nâng cao" }),
+    ).toBeInTheDocument();
+  });
+
   it("displays error message when API fails and retries on button click", async () => {
     vi.mocked(fetchInstructorAnalyticsOverview)
       .mockRejectedValueOnce(new Error("Network error"))
