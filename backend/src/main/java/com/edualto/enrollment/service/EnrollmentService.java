@@ -5,6 +5,7 @@ import com.edualto.course.domain.Course;
 import com.edualto.course.dto.LearningCourseResponse;
 import com.edualto.course.repository.CourseRepository;
 import com.edualto.course.service.CourseLearningAccessService;
+import com.edualto.enrollment.domain.CourseEnrolledEvent;
 import com.edualto.enrollment.domain.Enrollment;
 import com.edualto.enrollment.domain.EnrollmentStatus;
 import com.edualto.enrollment.dto.EnrollmentResponse;
@@ -15,7 +16,9 @@ import com.edualto.notification.service.RealtimeNotificationService;
 import com.edualto.storage.service.StorageService;
 import com.edualto.user.domain.User;
 import com.edualto.user.service.UserService;
+import java.time.Instant;
 import java.util.UUID;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -31,6 +34,7 @@ public class EnrollmentService {
     private final UserService users;
     private final StorageService storage;
     private final RealtimeNotificationService realtimeNotifications;
+    private final ApplicationEventPublisher eventPublisher;
 
     public EnrollmentService(
             EnrollmentRepository enrollments,
@@ -38,7 +42,8 @@ public class EnrollmentService {
             CourseRepository courseRepository,
             UserService users,
             StorageService storage,
-            RealtimeNotificationService realtimeNotifications
+            RealtimeNotificationService realtimeNotifications,
+            ApplicationEventPublisher eventPublisher
     ) {
         this.enrollments = enrollments;
         this.courses = courses;
@@ -46,6 +51,7 @@ public class EnrollmentService {
         this.users = users;
         this.storage = storage;
         this.realtimeNotifications = realtimeNotifications;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -62,17 +68,27 @@ public class EnrollmentService {
         if (course.price().signum() > 0) {
             throw new BusinessException(HttpStatus.CONFLICT, "PAYMENT_REQUIRED", "Khóa học này cần được thanh toán trước khi ghi danh");
         }
-        enrollments.insertIfAbsent(UUID.randomUUID(), studentId, courseId);
-
-        // Notify the instructor in real-time
-        User student = users.requireById(studentId);
-        realtimeNotifications.sendNotification(
-                course.instructorId(),
-                NotificationType.NEW_ENROLLMENT,
-                "Học viên mới đăng ký khóa học",
-                "Học viên " + student.getFullName() + " vừa đăng ký khóa học \"" + course.title() + "\".",
-                "/instructor/courses/" + courseId
-        );
+        UUID enrollmentId = UUID.randomUUID();
+        int inserted = enrollments.insertIfAbsent(enrollmentId, studentId, courseId);
+        if (inserted > 0) {
+            // Notify the instructor in real-time
+            User student = users.requireById(studentId);
+            realtimeNotifications.sendNotification(
+                    course.instructorId(),
+                    NotificationType.NEW_ENROLLMENT,
+                    "Học viên mới đăng ký khóa học",
+                    "Học viên " + student.getFullName() + " vừa đăng ký khóa học \"" + course.title() + "\".",
+                    "/instructor/courses/" + courseId
+            );
+            eventPublisher.publishEvent(new CourseEnrolledEvent(
+                    studentId,
+                    courseId,
+                    enrollmentId,
+                    Instant.now(),
+                    "{\"source\":\"free_enrollment\"}"
+            ));
+            return enrollmentId;
+        }
 
         return enrollments.findByStudentIdAndCourseId(studentId, courseId).orElseThrow().getId();
     }

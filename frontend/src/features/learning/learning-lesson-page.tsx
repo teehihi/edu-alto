@@ -72,6 +72,9 @@ export function LearningLessonPage({ lessonId }: { lessonId: string }) {
   const [activeTab, setActiveTab] = useState<"content" | "qa">("content");
   const lastTimeRef = useRef(0);
   const watchSecondsAccumulatorRef = useRef(0);
+  const viewedLessonIdRef = useRef<string | null>(null);
+  const textReadStartedAtRef = useRef<number | null>(null);
+  const textReadAccumulatedMsRef = useRef(0);
   const latestLessonRef = useRef<LessonContent | null>(null);
   const latestGetAccessTokenRef = useRef(getAccessToken);
   const latestAccessTokenRef = useRef<string | null>(null);
@@ -112,13 +115,80 @@ export function LearningLessonPage({ lessonId }: { lessonId: string }) {
     }
   }, []);
 
+  const flushTextReadingTime = useCallback(async (useKeepalive = false) => {
+    const currentLesson = latestLessonRef.current;
+    if (!currentLesson || currentLesson.lessonType !== "TEXT") {
+      textReadAccumulatedMsRef.current = 0;
+      textReadStartedAtRef.current = null;
+      return;
+    }
+    if (textReadStartedAtRef.current !== null) {
+      textReadAccumulatedMsRef.current += Math.max(0, Date.now() - textReadStartedAtRef.current);
+      textReadStartedAtRef.current =
+        typeof document !== "undefined" && document.visibilityState === "visible"
+          ? Date.now()
+          : null;
+    }
+    const seconds = Math.round(textReadAccumulatedMsRef.current / 1000);
+    if (seconds < 5) return;
+    textReadAccumulatedMsRef.current = 0;
+    try {
+      const token =
+        useKeepalive && latestAccessTokenRef.current
+          ? latestAccessTokenRef.current
+          : await latestGetAccessTokenRef.current();
+      if (!token) return;
+      latestAccessTokenRef.current = token;
+      await recordLearningActivity(
+        token,
+        {
+          courseId: currentLesson.courseId,
+          sectionId: currentLesson.sectionId,
+          lessonId: currentLesson.id,
+          activityType: "LESSON_VIEWED",
+          metadata: JSON.stringify({
+            lesson_type: "TEXT",
+            reading_time_seconds: seconds,
+          }),
+        },
+        useKeepalive ? { keepalive: true } : undefined,
+      );
+    } catch {
+      // Bỏ qua lỗi telemetry nền để không làm gián đoạn trải nghiệm học tập
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!lesson || lesson.lessonType !== "TEXT") {
+      textReadAccumulatedMsRef.current = 0;
+      textReadStartedAtRef.current = null;
+      return;
+    }
+    textReadAccumulatedMsRef.current = 0;
+    textReadStartedAtRef.current =
+      typeof document === "undefined" || document.visibilityState === "visible" ? Date.now() : null;
+    return () => {
+      void flushTextReadingTime(true);
+      textReadAccumulatedMsRef.current = 0;
+      textReadStartedAtRef.current = null;
+    };
+  }, [lesson, flushTextReadingTime]);
+
   useEffect(() => {
     const handlePageHide = () => {
       void flushVideoWatchTime(true);
+      void flushTextReadingTime(true);
     };
     const handleVisibilityChange = () => {
       if (document.visibilityState === "hidden") {
         void flushVideoWatchTime(true);
+        void flushTextReadingTime(true);
+      } else if (
+        document.visibilityState === "visible" &&
+        latestLessonRef.current?.lessonType === "TEXT" &&
+        textReadStartedAtRef.current === null
+      ) {
+        textReadStartedAtRef.current = Date.now();
       }
     };
     window.addEventListener("pagehide", handlePageHide);
@@ -127,10 +197,12 @@ export function LearningLessonPage({ lessonId }: { lessonId: string }) {
       window.removeEventListener("pagehide", handlePageHide);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       void flushVideoWatchTime(true);
+      void flushTextReadingTime(true);
+      watchSecondsAccumulatorRef.current = 0;
       lastTimeRef.current = 0;
       videoPositionRef.current = 0;
     };
-  }, [lessonId, flushVideoWatchTime]);
+  }, [lessonId, flushVideoWatchTime, flushTextReadingTime]);
 
   const handleSeekVideo = useCallback((seconds: number) => {
     if (videoRef.current) {
@@ -185,6 +257,16 @@ export function LearningLessonPage({ lessonId }: { lessonId: string }) {
             if (!active) return;
             setLesson(result);
             setSaved(savedLessons.data.some((item) => item.lessonId === lessonId));
+            if (viewedLessonIdRef.current !== result.id) {
+              viewedLessonIdRef.current = result.id;
+              void recordLearningActivity(token, {
+                courseId: result.courseId,
+                sectionId: result.sectionId,
+                lessonId: result.id,
+                activityType: "LESSON_VIEWED",
+                metadata: JSON.stringify({ lesson_type: result.lessonType }),
+              }).catch(() => undefined);
+            }
             if (result.lessonType === "VIDEO") void refreshVideoAccess();
 
             try {
@@ -275,6 +357,8 @@ export function LearningLessonPage({ lessonId }: { lessonId: string }) {
     try {
       const token = await getAccessToken();
       if (!token) throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+      void flushVideoWatchTime();
+      void flushTextReadingTime();
       const result = await completeLearningLesson(token, lessonId);
       setProgress(result);
     } catch (reason) {
@@ -292,7 +376,18 @@ export function LearningLessonPage({ lessonId }: { lessonId: string }) {
       const token = await getAccessToken();
       if (!token) throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
       const access = await fetchLessonResourceDownload(token, lesson.id, attachmentId);
+      const attachment = lesson.attachments.find((item) => item.id === attachmentId);
       triggerResourceDownload(access.downloadUrl);
+      void recordLearningActivity(token, {
+        courseId: lesson.courseId,
+        sectionId: lesson.sectionId,
+        lessonId: lesson.id,
+        activityType: "RESOURCE_DOWNLOADED",
+        metadata: JSON.stringify({
+          attachment_id: attachmentId,
+          file_name: attachment?.fileName ?? null,
+        }),
+      }).catch(() => undefined);
     } catch {
       setResourceError("Chưa thể tải tài liệu. Vui lòng thử lại.");
     } finally {

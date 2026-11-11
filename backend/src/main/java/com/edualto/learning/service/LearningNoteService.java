@@ -5,11 +5,13 @@ import com.edualto.course.domain.LessonType;
 import com.edualto.course.dto.LearningLessonResponse;
 import com.edualto.course.service.CourseLearningAccessService;
 import com.edualto.enrollment.service.EnrollmentService;
+import com.edualto.learning.domain.LearningActivityType;
 import com.edualto.learning.domain.LearningNote;
 import com.edualto.learning.dto.LearningNoteRequest;
 import com.edualto.learning.dto.LearningNoteResponse;
 import com.edualto.learning.repository.LearningNoteRepository;
 import com.edualto.user.service.UserService;
+import java.time.Instant;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -24,17 +26,20 @@ public class LearningNoteService {
     private final UserService users;
     private final CourseLearningAccessService courses;
     private final EnrollmentService enrollments;
+    private final LearningActivityService learningActivities;
 
     public LearningNoteService(
             LearningNoteRepository notes,
             UserService users,
             CourseLearningAccessService courses,
-            EnrollmentService enrollments
+            EnrollmentService enrollments,
+            LearningActivityService learningActivities
     ) {
         this.notes = notes;
         this.users = users;
         this.courses = courses;
         this.enrollments = enrollments;
+        this.learningActivities = learningActivities;
     }
 
     @Transactional(readOnly = true)
@@ -51,10 +56,26 @@ public class LearningNoteService {
     @Transactional
     public LearningNoteResponse create(UUID userId, LearningNoteRequest request) {
         users.requireActiveStudent(userId);
-        validateLessonAccess(userId, request.lessonId(), request.videoSecond());
+        LearningLessonResponse lesson = validateLessonAccess(userId, request.lessonId(), request.videoSecond());
         LearningNote note = new LearningNote(UUID.randomUUID(), userId, request.lessonId(), request.title(),
                 request.content(), request.videoSecond());
-        return LearningNoteResponse.from(notes.save(note));
+        LearningNote saved = notes.save(note);
+        if (lesson != null) {
+            String metadata = request.videoSecond() != null
+                    ? "{\"videoSecond\":" + request.videoSecond() + "}"
+                    : null;
+            learningActivities.recordActivityDirect(
+                    userId,
+                    lesson.courseId(),
+                    lesson.sectionId(),
+                    lesson.id(),
+                    LearningActivityType.NOTE_CREATED,
+                    saved.getId(),
+                    saved.getCreatedAt() != null ? saved.getCreatedAt() : Instant.now(),
+                    metadata
+            );
+        }
+        return LearningNoteResponse.from(saved);
     }
 
     @Transactional
@@ -77,17 +98,18 @@ public class LearningNoteService {
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "NOTE_NOT_FOUND", "Không tìm thấy ghi chú"));
     }
 
-    private void validateLessonAccess(UUID userId, UUID lessonId, Integer videoSecond) {
+    private LearningLessonResponse validateLessonAccess(UUID userId, UUID lessonId, Integer videoSecond) {
         if (lessonId == null) {
             if (videoSecond != null) {
                 throw new BusinessException(HttpStatus.BAD_REQUEST, "NOTE_VIDEO_POSITION_REQUIRES_LESSON", "Vị trí video cần gắn với bài học video");
             }
-            return;
+            return null;
         }
         LearningLessonResponse lesson = courses.requirePublishedLesson(lessonId);
         enrollments.requireEnrollment(userId, lesson.courseId());
         if (videoSecond != null && lesson.lessonType() != LessonType.VIDEO) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "NOTE_VIDEO_POSITION_REQUIRES_VIDEO", "Chỉ có thể gắn vị trí với bài học video");
         }
+        return lesson;
     }
 }

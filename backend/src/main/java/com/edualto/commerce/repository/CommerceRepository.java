@@ -450,6 +450,22 @@ public class CommerceRepository {
                 """, UUID.randomUUID(), studentId, courseId));
     }
 
+    public List<EnrolledOrderCourse> findOrderEnrollments(UUID orderId, UUID studentId) {
+        return jdbc.query("""
+                select e.id as enrollment_id, e.course_id
+                from order_items oi
+                join enrollments e on e.course_id = oi.course_id and e.student_id = ?
+                where oi.order_id = ? and e.status = 'ACTIVE'
+                order by oi.id
+                """, (rs, rowNum) -> new EnrolledOrderCourse(
+                rs.getObject("enrollment_id", UUID.class),
+                rs.getObject("course_id", UUID.class)
+        ), studentId, orderId);
+    }
+
+    public record EnrolledOrderCourse(UUID enrollmentId, UUID courseId) {
+    }
+
     private CheckoutCourse mapCourse(ResultSet rs, int rowNum) throws SQLException {
         return new CheckoutCourse(rs.getObject("id", UUID.class), rs.getObject("instructor_id", UUID.class),
                 rs.getString("title"), rs.getBigDecimal("price"), rs.getString("status"));

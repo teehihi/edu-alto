@@ -50,7 +50,9 @@ public class LearningService {
         UUID progressId = UUID.randomUUID();
         int inserted = progress.completeIfAbsent(progressId, enrollmentId, lesson.courseId(), lesson.sectionId(), lesson.id());
         certificates.issueIfEligible(studentId, lesson.courseId());
+        CourseProgressResponse summary = summarize(enrollmentId, lesson.courseId());
         if (inserted > 0) {
+            Instant completedAt = Instant.now();
             learningActivities.recordActivityDirect(
                     studentId,
                     lesson.courseId(),
@@ -58,11 +60,23 @@ public class LearningService {
                     lesson.id(),
                     LearningActivityType.LESSON_COMPLETED,
                     progressId,
-                    Instant.now(),
+                    completedAt,
                     null
             );
+            if (summary.completed()) {
+                learningActivities.recordActivityDirect(
+                        studentId,
+                        lesson.courseId(),
+                        null,
+                        null,
+                        LearningActivityType.COURSE_COMPLETED,
+                        enrollmentId,
+                        completedAt,
+                        "{\"source\":\"lesson_completion\"}"
+                );
+            }
         }
-        return summarize(enrollmentId, lesson.courseId());
+        return summary;
     }
 
     @Transactional

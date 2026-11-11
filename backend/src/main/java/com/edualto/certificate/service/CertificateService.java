@@ -4,9 +4,13 @@ import com.edualto.certificate.domain.Certificate;
 import com.edualto.certificate.dto.CertificateResponse;
 import com.edualto.certificate.dto.CertificateVerificationResponse;
 import com.edualto.certificate.repository.CertificateRepository;
+import com.edualto.certificate.repository.CertificateRepository.IssueResult;
 import com.edualto.common.exception.BusinessException;
+import com.edualto.learning.domain.LearningActivityType;
+import com.edualto.learning.service.LearningActivityService;
 import com.edualto.user.service.UserService;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -19,6 +23,7 @@ public class CertificateService {
     private final UserService users;
     private final CertificatePdfGenerator pdfGenerator;
     private final QrCodeGenerator qrCodeGenerator;
+    private final LearningActivityService learningActivities;
     private final String frontendUrl;
 
     public CertificateService(
@@ -26,12 +31,14 @@ public class CertificateService {
             UserService users,
             CertificatePdfGenerator pdfGenerator,
             QrCodeGenerator qrCodeGenerator,
+            LearningActivityService learningActivities,
             @Value("${edualto.frontend-url:http://localhost:3000}") String frontendUrl
     ) {
         this.certificates = certificates;
         this.users = users;
         this.pdfGenerator = pdfGenerator;
         this.qrCodeGenerator = qrCodeGenerator;
+        this.learningActivities = learningActivities;
         this.frontendUrl = frontendUrl;
     }
 
@@ -41,7 +48,7 @@ public class CertificateService {
         if (!certificates.lockActiveEnrollment(studentId, courseId)) {
             return;
         }
-        certificates.issueIfEligible(studentId, courseId);
+        issueAndTrack(studentId, courseId);
     }
 
     @Transactional
@@ -54,12 +61,35 @@ public class CertificateService {
         users.requireActiveStudent(studentId);
         for (UUID courseId : certificates.findActiveCourseIds(studentId)) {
             if (certificates.lockActiveEnrollment(studentId, courseId)) {
-                certificates.issueIfEligible(studentId, courseId);
+                issueAndTrack(studentId, courseId);
             }
         }
         return certificates.findAllByStudentId(studentId).stream()
                 .map(cert -> toResponse(cert, baseUrl))
                 .toList();
+    }
+
+    private void issueAndTrack(UUID studentId, UUID courseId) {
+        certificates.issueIfEligibleWithStatus(studentId, courseId)
+                .filter(IssueResult::newlyIssued)
+                .ifPresent(result -> {
+                    Certificate cert = result.certificate();
+                    String metadata = String.format(
+                            Locale.ROOT,
+                            "{\"certificateNumber\":\"%s\"}",
+                            cert.certificateNumber()
+                    );
+                    learningActivities.recordActivityDirect(
+                            studentId,
+                            courseId,
+                            null,
+                            null,
+                            LearningActivityType.CERTIFICATE_ISSUED,
+                            cert.id(),
+                            cert.issuedAt(),
+                            metadata
+                    );
+                });
     }
 
     @Transactional(readOnly = true)

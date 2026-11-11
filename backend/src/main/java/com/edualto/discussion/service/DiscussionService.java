@@ -3,8 +3,10 @@ package com.edualto.discussion.service;
 import com.edualto.common.exception.BusinessException;
 import com.edualto.course.domain.Course;
 import com.edualto.course.domain.CourseStatus;
+import com.edualto.course.domain.Lesson;
 import com.edualto.course.dto.LearningLessonResponse;
 import com.edualto.course.repository.CourseRepository;
+import com.edualto.course.repository.LessonRepository;
 import com.edualto.course.service.CourseLearningAccessService;
 import com.edualto.discussion.domain.Discussion;
 import com.edualto.discussion.domain.DiscussionComment;
@@ -19,6 +21,8 @@ import com.edualto.discussion.repository.DiscussionCommentRepository;
 import com.edualto.discussion.repository.DiscussionRepository;
 import com.edualto.enrollment.domain.EnrollmentStatus;
 import com.edualto.enrollment.repository.EnrollmentRepository;
+import com.edualto.learning.domain.LearningActivityType;
+import com.edualto.learning.service.LearningActivityService;
 import com.edualto.notification.domain.NotificationType;
 import com.edualto.notification.service.RealtimeNotificationService;
 import com.edualto.profile.domain.Profile;
@@ -28,6 +32,7 @@ import com.edualto.user.domain.RoleName;
 import com.edualto.user.domain.User;
 import com.edualto.user.domain.UserStatus;
 import com.edualto.user.repository.UserRepository;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -51,32 +56,38 @@ public class DiscussionService {
     private final DiscussionCommentRepository comments;
     private final CourseLearningAccessService courseAccess;
     private final CourseRepository courses;
+    private final LessonRepository lessons;
     private final EnrollmentRepository enrollments;
     private final UserRepository users;
     private final ProfileRepository profiles;
     private final StorageService storage;
     private final RealtimeNotificationService realtimeNotifications;
+    private final LearningActivityService learningActivities;
 
     public DiscussionService(
             DiscussionRepository discussions,
             DiscussionCommentRepository comments,
             CourseLearningAccessService courseAccess,
             CourseRepository courses,
+            LessonRepository lessons,
             EnrollmentRepository enrollments,
             UserRepository users,
             ProfileRepository profiles,
             StorageService storage,
-            RealtimeNotificationService realtimeNotifications
+            RealtimeNotificationService realtimeNotifications,
+            LearningActivityService learningActivities
     ) {
         this.discussions = discussions;
         this.comments = comments;
         this.courseAccess = courseAccess;
         this.courses = courses;
+        this.lessons = lessons;
         this.enrollments = enrollments;
         this.users = users;
         this.profiles = profiles;
         this.storage = storage;
         this.realtimeNotifications = realtimeNotifications;
+        this.learningActivities = learningActivities;
     }
 
     @Transactional(readOnly = true)
@@ -246,6 +257,20 @@ public class DiscussionService {
         boolean isInstructor = course.getInstructorId().equals(currentUser.getId());
         String role = resolveRole(currentUser, isInstructor);
 
+        if (!isInstructor && isActivelyEnrolled(currentUser.getId(), course.getId())) {
+            String metadata = timestamp != null ? "{\"videoTimestampSeconds\":" + timestamp + "}" : null;
+            learningActivities.recordActivityDirect(
+                    currentUser.getId(),
+                    course.getId(),
+                    lesson.sectionId(),
+                    lesson.id(),
+                    LearningActivityType.QUESTION_ASKED,
+                    saved.getId(),
+                    saved.getCreatedAt() != null ? saved.getCreatedAt() : Instant.now(),
+                    metadata
+            );
+        }
+
         return new DiscussionResponse(
                 saved.getId(),
                 saved.getCourseId(),
@@ -297,6 +322,26 @@ public class DiscussionService {
         String avatarUrl = getAvatarUrl(currentUser.getId());
         boolean isInstructor = course.getInstructorId().equals(currentUser.getId());
         String role = resolveRole(currentUser, isInstructor);
+
+        if (!isInstructor && isActivelyEnrolled(currentUser.getId(), course.getId())) {
+            UUID sectionId = lessons.findById(discussion.getLessonId())
+                    .map(Lesson::getSectionId)
+                    .orElse(null);
+            String metadata = request.parentCommentId() != null
+                    ? String.format(Locale.ROOT, "{\"discussionId\":\"%s\",\"parentCommentId\":\"%s\"}",
+                            discussionId, request.parentCommentId())
+                    : String.format(Locale.ROOT, "{\"discussionId\":\"%s\"}", discussionId);
+            learningActivities.recordActivityDirect(
+                    currentUser.getId(),
+                    course.getId(),
+                    sectionId,
+                    discussion.getLessonId(),
+                    LearningActivityType.COMMENT_POSTED,
+                    saved.getId(),
+                    saved.getCreatedAt() != null ? saved.getCreatedAt() : Instant.now(),
+                    metadata
+            );
+        }
 
         if (!discussion.getAuthorId().equals(currentUser.getId())) {
             String title = isInstructor ? "Giảng viên đã giải đáp câu hỏi của bạn" : "Có phản hồi mới cho câu hỏi của bạn";
@@ -496,12 +541,15 @@ public class DiscussionService {
         if (isAdmin(user) || course.getInstructorId().equals(user.getId())) {
             return;
         }
-        boolean hasActiveEnrollment = enrollments.findByStudentIdAndCourseId(user.getId(), course.getId())
-                .filter(enrollment -> enrollment.getStatus() == EnrollmentStatus.ACTIVE)
-                .isPresent();
-        if (!hasActiveEnrollment) {
+        if (!isActivelyEnrolled(user.getId(), course.getId())) {
             throw new BusinessException(HttpStatus.FORBIDDEN, "ENROLLMENT_REQUIRED", "Bạn cần ghi danh khóa học để tham gia thảo luận");
         }
+    }
+
+    private boolean isActivelyEnrolled(UUID studentId, UUID courseId) {
+        return enrollments.findByStudentIdAndCourseId(studentId, courseId)
+                .filter(enrollment -> enrollment.getStatus() == EnrollmentStatus.ACTIVE)
+                .isPresent();
     }
 
     private boolean isAdmin(User user) {

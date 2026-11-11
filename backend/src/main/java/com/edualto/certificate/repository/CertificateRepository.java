@@ -40,6 +40,10 @@ public class CertificateRepository {
     }
 
     public Optional<Certificate> issueIfEligible(UUID studentId, UUID courseId) {
+        return issueIfEligibleWithStatus(studentId, courseId).map(IssueResult::certificate);
+    }
+
+    public Optional<IssueResult> issueIfEligibleWithStatus(UUID studentId, UUID courseId) {
         List<Certificate> existing = jdbcTemplate.query(
                 "select id, certificate_number, course_id, course_title, student_name, instructor_name, issued_at "
                         + "from certificates where student_id = ? and course_id = ?",
@@ -48,7 +52,7 @@ public class CertificateRepository {
                 courseId
         );
         if (!existing.isEmpty()) {
-            return Optional.of(existing.getFirst());
+            return Optional.of(new IssueResult(existing.getFirst(), false));
         }
 
         int totalLessons = jdbcTemplate.queryForObject(
@@ -108,9 +112,12 @@ public class CertificateRepository {
                 courseId
         );
         if (!inserted.isEmpty()) {
-            return Optional.of(inserted.getFirst());
+            return Optional.of(new IssueResult(inserted.getFirst(), true));
         }
-        return findByStudentAndCourse(studentId, courseId);
+        return findByStudentAndCourse(studentId, courseId).map(certificate -> new IssueResult(certificate, false));
+    }
+
+    public record IssueResult(Certificate certificate, boolean newlyIssued) {
     }
 
     public List<Certificate> findAllByStudentId(UUID studentId) {

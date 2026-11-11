@@ -36,6 +36,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 class LearningActivityIntegrationTest extends AbstractIntegrationTest {
@@ -74,8 +75,12 @@ class LearningActivityIntegrationTest extends AbstractIntegrationTest {
     void cleanFixtures() {
         for (UUID courseId : fixtureCourseIds) {
             jdbcTemplate.update("delete from learning_activities where course_id = ?", courseId);
+            jdbcTemplate.update("delete from discussions where course_id = ?", courseId);
             jdbcTemplate.update("delete from learning_progress where course_id = ?", courseId);
             jdbcTemplate.update("delete from enrollments where course_id = ?", courseId);
+        }
+        for (UUID userId : fixtureUserIds) {
+            jdbcTemplate.update("delete from learning_notes where user_id = ?", userId);
         }
         courseRepository.deleteAllById(fixtureCourseIds);
         userRepository.deleteAllById(fixtureUserIds);
@@ -89,22 +94,47 @@ class LearningActivityIntegrationTest extends AbstractIntegrationTest {
         User instructor = createUser(RoleName.INSTRUCTOR);
         User otherInstructor = createUser(RoleName.INSTRUCTOR);
         User student = createUser(RoleName.STUDENT);
+        User legacyStudent = createUser(RoleName.STUDENT);
 
         Course course = createPublishedCourse(instructor);
         Section section = sectionRepository.save(new Section(UUID.randomUUID(), course.getId(), "Chương 1", null, 1));
         Lesson videoLesson = lessonRepository.save(new Lesson(
                 UUID.randomUUID(), section.getId(), "Video 1", null, null, "Mô tả",
                 LessonType.VIDEO, 1, 300, false, null, LessonStatus.PUBLISHED));
+        Lesson quizLesson = lessonRepository.save(new Lesson(
+                UUID.randomUUID(), section.getId(), "Quiz 1", null, null, "Mô tả",
+                LessonType.QUIZ, 2, 180, false, null, LessonStatus.PUBLISHED));
 
         String adminToken = jwtTokenService.createAccessToken(admin);
         String instructorToken = jwtTokenService.createAccessToken(instructor);
         String otherInstructorToken = jwtTokenService.createAccessToken(otherInstructor);
         String studentToken = jwtTokenService.createAccessToken(student);
 
-        // Enroll student first
+        // Instructor creates quiz on quizLesson
+        String createQuizBody = """
+                {"passingScore":50,"questionsPerAttempt":0,"durationMinutes":10,"questions":[
+                  {"prompt":"1 + 1 = ?","options":[{"label":"2","correct":true},{"label":"3","correct":false}]}
+                ]}
+                """;
+        String quizResponseJson = mockMvc.perform(post("/api/v1/instructor/lessons/{lessonId}/quiz", quizLesson.getId())
+                        .header("Authorization", "Bearer " + instructorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(createQuizBody))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        JsonNode quizData = objectMapper.readTree(quizResponseJson).get("data");
+        UUID questionId = UUID.fromString(quizData.get("questions").get(0).get("id").asString());
+        UUID rightOptionId = UUID.fromString(quizData.get("questions").get(0).get("options").get(0).get("id").asString());
+
+        // Enroll student -> automatically records COURSE_ENROLLED (idempotent on repeated call)
         mockMvc.perform(post("/api/v1/courses/{courseId}/enrollments", course.getId())
                         .header("Authorization", "Bearer " + studentToken))
                 .andExpect(status().isOk());
+        mockMvc.perform(post("/api/v1/courses/{courseId}/enrollments", course.getId())
+                        .header("Authorization", "Bearer " + studentToken))
+                .andExpect(status().isOk());
+
+        assertThat(countActivities(course.getId(), student.getId(), "COURSE_ENROLLED")).isEqualTo(1);
 
         // 1. Record VIDEO_WATCHED with JSON metadata -> PostgreSQL jsonb persists cleanly
         mockMvc.perform(post("/api/v1/learning/activities")
@@ -149,30 +179,101 @@ class LearningActivityIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.code").value("INVALID_ACTIVITY_METADATA"));
 
-        // 4. Completing a lesson records LESSON_COMPLETED automatically
+        // 4. Creating a lesson note automatically records NOTE_CREATED (LESSON category)
+        mockMvc.perform(post("/api/v1/me/notes")
+                        .header("Authorization", "Bearer " + studentToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "title", "Ghi chú quan trọng",
+                                "content", "Lưu ý phần khởi tạo controller",
+                                "lessonId", videoLesson.getId(),
+                                "videoSecond", 42
+                        ))))
+                .andExpect(status().isOk());
+        assertThat(countActivities(course.getId(), student.getId(), "NOTE_CREATED")).isEqualTo(1);
+
+        // 5. Starting & passing quiz records QUIZ_STARTED, QUIZ_SUBMITTED, LESSON_COMPLETED (not yet COURSE_COMPLETED)
+        String sessionJson = mockMvc.perform(post("/api/v1/lessons/{lessonId}/quiz-sessions", quizLesson.getId())
+                        .header("Authorization", "Bearer " + studentToken))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        UUID sessionId = UUID.fromString(objectMapper.readTree(sessionJson).get("data").get("id").asString());
+        assertThat(countActivities(course.getId(), student.getId(), "QUIZ_STARTED")).isEqualTo(1);
+
+        String submitQuizBody = """
+                {"sessionId":"%s","activityEvents":[],"answers":[{"questionId":"%s","optionId":"%s"}]}
+                """.formatted(sessionId, questionId, rightOptionId);
+        mockMvc.perform(post("/api/v1/lessons/{lessonId}/quiz-attempts", quizLesson.getId())
+                        .header("Authorization", "Bearer " + studentToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(submitQuizBody))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.passed").value(true));
+        assertThat(countActivities(course.getId(), student.getId(), "QUIZ_SUBMITTED")).isEqualTo(1);
+        assertThat(countActivities(course.getId(), student.getId(), "LESSON_COMPLETED")).isEqualTo(1);
+        assertThat(countActivities(course.getId(), student.getId(), "COURSE_COMPLETED")).isEqualTo(0);
+
+        // 6. Asking question & commenting records QUESTION_ASKED & COMMENT_POSTED for student only
+        String discussionJson = mockMvc.perform(post("/api/v1/lessons/{lessonId}/discussions", videoLesson.getId())
+                        .header("Authorization", "Bearer " + studentToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "title", "Hỏi về phần middleware",
+                                "body", "Cho em hỏi thứ tự filter chain?",
+                                "videoTimestampSeconds", 75
+                        ))))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        UUID discussionId = UUID.fromString(objectMapper.readTree(discussionJson).get("data").get("id").asString());
+
+        mockMvc.perform(post("/api/v1/discussions/{discussionId}/comments", discussionId)
+                        .header("Authorization", "Bearer " + studentToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("body", "Em bổ sung thêm ngữ cảnh"))))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/api/v1/discussions/{discussionId}/comments", discussionId)
+                        .header("Authorization", "Bearer " + instructorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("body", "Giảng viên trả lời: xem lại phút 01:15"))))
+                .andExpect(status().isCreated());
+
+        assertThat(countActivities(course.getId(), student.getId(), "QUESTION_ASKED")).isEqualTo(1);
+        assertThat(countActivities(course.getId(), student.getId(), "COMMENT_POSTED")).isEqualTo(1);
+        assertThat(countActivities(course.getId(), instructor.getId(), "COMMENT_POSTED")).isEqualTo(0);
+
+        // 7. Completing final lesson records LESSON_COMPLETED, COURSE_COMPLETED, and CERTIFICATE_ISSUED
         mockMvc.perform(post("/api/v1/lessons/{lessonId}/complete", videoLesson.getId())
                         .header("Authorization", "Bearer " + studentToken))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.completed").value(true));
 
-        // 5. Student activity timeline, summary & types
+        assertThat(countActivities(course.getId(), student.getId(), "LESSON_COMPLETED")).isEqualTo(2);
+        assertThat(countActivities(course.getId(), student.getId(), "COURSE_COMPLETED")).isEqualTo(1);
+        assertThat(countActivities(course.getId(), student.getId(), "CERTIFICATE_ISSUED")).isEqualTo(1);
+
+        // Total events for student = 12 (3 COURSE: enroll+complete+cert; 5 LESSON: video+view+note+2*complete; 2 ASSESSMENT: quiz start+submit; 2 INTERACTION: ask+comment)
         mockMvc.perform(get("/api/v1/learning/activities/me")
                         .param("courseId", course.getId().toString())
                         .header("Authorization", "Bearer " + studentToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.content", hasSize(3)));
+                .andExpect(jsonPath("$.data.content", hasSize(12)));
 
         mockMvc.perform(get("/api/v1/learning/activities/me/summary")
                         .header("Authorization", "Bearer " + studentToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.totalActivities").value(3))
-                .andExpect(jsonPath("$.data.countByCategory.LESSON").value(3));
+                .andExpect(jsonPath("$.data.totalActivities").value(12))
+                .andExpect(jsonPath("$.data.countByCategory.COURSE").value(3))
+                .andExpect(jsonPath("$.data.countByCategory.LESSON").value(5))
+                .andExpect(jsonPath("$.data.countByCategory.ASSESSMENT").value(2))
+                .andExpect(jsonPath("$.data.countByCategory.INTERACTION").value(2));
 
         mockMvc.perform(get("/api/v1/learning/activities/types")
                         .header("Authorization", "Bearer " + studentToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data", hasSize(14)));
 
-        // 6. RBAC checks across Student, Instructor, Other Instructor, and Admin
+        // 8. RBAC checks across Student, Instructor, Other Instructor, and Admin
         mockMvc.perform(get("/api/v1/learning/activities/courses/{courseId}", course.getId())
                         .header("Authorization", "Bearer " + studentToken))
                 .andExpect(status().isForbidden());
@@ -192,9 +293,14 @@ class LearningActivityIntegrationTest extends AbstractIntegrationTest {
         mockMvc.perform(get("/api/v1/learning/activities/courses/{courseId}", course.getId())
                         .header("Authorization", "Bearer " + instructorToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.content", hasSize(3)));
+                .andExpect(jsonPath("$.data.content", hasSize(12)));
 
-        // Admin sync runs INSERT ... jsonb_build_object(...) cleanly and backfills enrollment event
+        // Insert a historical enrollment directly in DB without real-time hook, then verify admin /sync backfills it
+        jdbcTemplate.update("""
+                insert into enrollments (id, student_id, course_id, status, enrolled_at, created_at, updated_at)
+                values (?, ?, ?, 'ACTIVE', current_timestamp, current_timestamp, current_timestamp)
+                """, UUID.randomUUID(), legacyStudent.getId(), course.getId());
+
         mockMvc.perform(post("/api/v1/learning/activities/sync")
                         .header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isOk())
@@ -205,7 +311,18 @@ class LearningActivityIntegrationTest extends AbstractIntegrationTest {
                 Integer.class,
                 course.getId()
         );
-        assertThat(totalForCourse).isEqualTo(4);
+        assertThat(totalForCourse).isEqualTo(13);
+    }
+
+    private int countActivities(UUID courseId, UUID studentId, String activityType) {
+        Integer count = jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM learning_activities WHERE course_id = ? AND student_id = ? AND activity_type = ?",
+                Integer.class,
+                courseId,
+                studentId,
+                activityType
+        );
+        return count == null ? 0 : count;
     }
 
     private User createUser(RoleName roleName) {

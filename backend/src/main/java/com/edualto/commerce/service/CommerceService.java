@@ -24,14 +24,18 @@ import com.edualto.commerce.gateway.provider.VnPayPaymentGateway;
 import com.edualto.commerce.repository.CommerceRepository;
 import com.edualto.commerce.repository.CommerceRepository.ActivePendingOrder;
 import com.edualto.commerce.repository.CommerceRepository.CheckoutCourse;
+import com.edualto.commerce.repository.CommerceRepository.EnrolledOrderCourse;
 import com.edualto.commerce.repository.CommerceRepository.PaymentOrder;
 import com.edualto.commerce.repository.PromotionRepository;
 import com.edualto.commerce.repository.PromotionRepository.PromotionRecord;
 import com.edualto.common.exception.BusinessException;
+import com.edualto.learning.domain.LearningActivityType;
+import com.edualto.learning.service.LearningActivityService;
 import com.edualto.user.service.UserService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -64,6 +68,7 @@ public class CommerceService {
     private final VnPayProperties properties;
     private final PromotionRepository promotions;
     private final PaymentGatewayRegistry gatewayRegistry;
+    private final LearningActivityService learningActivities;
 
     @Autowired
     public CommerceService(
@@ -71,13 +76,15 @@ public class CommerceService {
             UserService users,
             VnPayProperties properties,
             PromotionRepository promotions,
-            PaymentGatewayRegistry gatewayRegistry
+            PaymentGatewayRegistry gatewayRegistry,
+            LearningActivityService learningActivities
     ) {
         this.repository = repository;
         this.users = users;
         this.properties = properties;
         this.promotions = promotions;
         this.gatewayRegistry = gatewayRegistry;
+        this.learningActivities = learningActivities;
     }
 
     public CommerceService(
@@ -86,7 +93,7 @@ public class CommerceService {
             VnPayProperties properties,
             PromotionRepository promotions
     ) {
-        this(repository, users, properties, promotions, createDefaultRegistry(properties));
+        this(repository, users, properties, promotions, createDefaultRegistry(properties), null);
     }
 
     private static PaymentGatewayRegistry createDefaultRegistry(VnPayProperties vnPayProperties) {
@@ -424,6 +431,7 @@ public class CommerceService {
             return repository.findOrder(orderId, payment.studentId()).orElseThrow();
         }
         repository.confirmManualPayment(orderId, payment.studentId(), adminId, request.receiptReference().trim());
+        recordCheckoutEnrollments(orderId, payment.studentId());
         return repository.findOrder(orderId, payment.studentId()).orElseThrow();
     }
 
@@ -436,6 +444,7 @@ public class CommerceService {
             throw new BusinessException(HttpStatus.CONFLICT, "ORDER_NOT_IN_PAYMENT_REVIEW", "Đơn hàng không cần xác minh thanh toán trễ");
         }
         repository.confirmCapturedPayment(orderId, payment.studentId(), adminId, request.receiptReference().trim());
+        recordCheckoutEnrollments(orderId, payment.studentId());
         return repository.findOrder(orderId, payment.studentId()).orElseThrow();
     }
 
@@ -509,11 +518,32 @@ public class CommerceService {
                 return result;
             }
             repository.markPaymentPaid(payment.orderId(), payment.studentId());
+            recordCheckoutEnrollments(payment.orderId(), payment.studentId());
         } else {
             repository.markPaymentFailed(payment.orderId());
             promotions.releaseReservation(payment.orderId());
         }
         return result;
+    }
+
+    private void recordCheckoutEnrollments(UUID orderId, UUID studentId) {
+        if (learningActivities == null) {
+            return;
+        }
+        String metadata = String.format(Locale.ROOT, "{\"source\":\"checkout\",\"orderId\":\"%s\"}", orderId);
+        Instant occurredAt = Instant.now();
+        for (EnrolledOrderCourse item : repository.findOrderEnrollments(orderId, studentId)) {
+            learningActivities.recordActivityDirect(
+                    studentId,
+                    item.courseId(),
+                    null,
+                    null,
+                    LearningActivityType.COURSE_ENROLLED,
+                    item.enrollmentId(),
+                    occurredAt,
+                    metadata
+            );
+        }
     }
 
     private static String manualTransferReference(UUID orderId) {

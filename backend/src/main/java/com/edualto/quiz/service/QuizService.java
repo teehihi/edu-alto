@@ -16,6 +16,7 @@ import com.edualto.learning.domain.LearningActivityType;
 import com.edualto.learning.service.LearningActivityService;
 import com.edualto.enrollment.service.EnrollmentService;
 import com.edualto.learning.repository.LearningProgressRepository;
+import com.edualto.learning.repository.LearningProgressRepository.ProgressCounts;
 import com.edualto.quiz.domain.Quiz;
 import com.edualto.quiz.domain.QuizAttempt;
 import com.edualto.quiz.domain.QuizAttemptActivityEvent;
@@ -195,6 +196,23 @@ public class QuizService {
                         session.getId(), selectedQuestions.get(index).getId(), index + 1));
             }
             sessionQuestions.saveAll(assignments);
+            String startMeta = String.format(
+                    Locale.ROOT,
+                    "{\"quizId\":\"%s\",\"questionCount\":%d,\"durationMinutes\":%d}",
+                    quiz.getId(),
+                    assignments.size(),
+                    quiz.getDurationMinutes()
+            );
+            learningActivities.recordActivityDirect(
+                    studentId,
+                    lesson.courseId(),
+                    lesson.sectionId(),
+                    lesson.id(),
+                    LearningActivityType.QUIZ_STARTED,
+                    session.getId(),
+                    now,
+                    startMeta
+            );
         }
         return toSessionResponse(session, quiz);
     }
@@ -301,6 +319,7 @@ public class QuizService {
             int inserted = progress.completeIfAbsent(progressId, enrollmentId, lesson.courseId(), lesson.sectionId(), lesson.id());
             certificates.issueIfEligible(studentId, lesson.courseId());
             if (inserted > 0) {
+                Instant completedAt = Instant.now();
                 learningActivities.recordActivityDirect(
                         studentId,
                         lesson.courseId(),
@@ -308,9 +327,22 @@ public class QuizService {
                         lesson.id(),
                         LearningActivityType.LESSON_COMPLETED,
                         progressId,
-                        Instant.now(),
+                        completedAt,
                         null
                 );
+                ProgressCounts counts = progress.countProgress(enrollmentId, lesson.courseId());
+                if (counts.getTotalLessons() > 0 && counts.getCompletedLessons() >= counts.getTotalLessons()) {
+                    learningActivities.recordActivityDirect(
+                            studentId,
+                            lesson.courseId(),
+                            null,
+                            null,
+                            LearningActivityType.COURSE_COMPLETED,
+                            enrollmentId,
+                            completedAt,
+                            "{\"source\":\"quiz_pass\"}"
+                    );
+                }
             }
         }
         return toAttemptResponse(attempt, assignedQuestions, questions, request.answers(), persistedEvents.size());

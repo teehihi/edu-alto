@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -15,18 +16,24 @@ import com.edualto.commerce.dto.ConfirmManualPaymentRequest;
 import com.edualto.commerce.dto.CreateOrderRequest;
 import com.edualto.commerce.dto.OrderCreatedResponse;
 import com.edualto.commerce.dto.OrderResponse;
+import com.edualto.commerce.gateway.PaymentGatewayRegistry;
+import com.edualto.commerce.gateway.provider.VnPayPaymentGateway;
 import com.edualto.commerce.repository.CommerceRepository;
+import com.edualto.commerce.repository.CommerceRepository.EnrolledOrderCourse;
 import com.edualto.commerce.repository.CommerceRepository.PaymentOrder;
 import com.edualto.commerce.repository.PromotionRepository;
 import com.edualto.commerce.repository.PromotionRepository.PromotionRecord;
 import com.edualto.commerce.service.CommerceService;
 import com.edualto.common.exception.BusinessException;
+import com.edualto.learning.domain.LearningActivityType;
+import com.edualto.learning.service.LearningActivityService;
 import com.edualto.user.service.UserService;
 import java.math.BigDecimal;
 import java.net.URLEncoder;
 import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.List;
@@ -50,6 +57,8 @@ class CommerceServiceTest {
     private UserService users;
     @Mock
     private PromotionRepository promotions;
+    @Mock
+    private LearningActivityService learningActivities;
 
     @Test
     void ipnAcceptsVnPayFormEncodingWithSpacesAndEmptyOptionalFields() {
@@ -317,6 +326,73 @@ class CommerceServiceTest {
         Map<String, Object> result = service().processGatewayWebhook("SEPAY", webhookJson, Map.of(), Map.of());
         assertThat(result.get("success")).isEqualTo(true);
         verify(repository).markPaymentPaid(orderId, studentId);
+    }
+
+    @Test
+    void manualConfirmationAndGatewayIpnEmitCourseEnrolledActivity() {
+        UUID manualOrderId = UUID.randomUUID();
+        UUID ipnOrderId = UUID.randomUUID();
+        UUID studentId = UUID.randomUUID();
+        UUID adminId = UUID.randomUUID();
+        UUID manualCourseId = UUID.randomUUID();
+        UUID ipnCourseId = UUID.randomUUID();
+        UUID manualEnrollmentId = UUID.randomUUID();
+        UUID ipnEnrollmentId = UUID.randomUUID();
+        VnPayProperties vnPayProps = new VnPayProperties(
+                "TESTTMNCODE", SECRET, "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html", "https://example.test/checkout/result");
+        CommerceService serviceWithTelemetry = new CommerceService(
+                repository,
+                users,
+                vnPayProps,
+                promotions,
+                new PaymentGatewayRegistry(List.of(new VnPayPaymentGateway(vnPayProps))),
+                learningActivities
+        );
+
+        when(repository.lockPaymentOrder(manualOrderId.toString())).thenReturn(Optional.of(
+                new PaymentOrder(manualOrderId, 25000000L, "PENDING", "MOMO", "PAYMENT_REVIEW", studentId)));
+        OrderResponse manualOrder = new OrderResponse(manualOrderId, "PAID", "VND", new BigDecimal("250000"),
+                BigDecimal.ZERO, new BigDecimal("250000"), OffsetDateTime.now(), null, null, List.of());
+        when(repository.findOrder(manualOrderId, studentId)).thenReturn(Optional.of(manualOrder));
+        when(repository.findOrderEnrollments(manualOrderId, studentId))
+                .thenReturn(List.of(new EnrolledOrderCourse(manualEnrollmentId, manualCourseId)));
+
+        serviceWithTelemetry.confirmManualPayment(adminId, manualOrderId, new ConfirmManualPaymentRequest("wallet-receipt-999"));
+
+        verify(learningActivities).recordActivityDirect(
+                eq(studentId),
+                eq(manualCourseId),
+                isNull(),
+                isNull(),
+                eq(LearningActivityType.COURSE_ENROLLED),
+                eq(manualEnrollmentId),
+                any(Instant.class),
+                eq("{\"source\":\"checkout\",\"orderId\":\"" + manualOrderId + "\"}")
+        );
+
+        when(repository.lockPaymentOrder(ipnOrderId.toString())).thenReturn(Optional.of(
+                new PaymentOrder(ipnOrderId, 25000000L, "PENDING", "VNPAY", "PENDING_PAYMENT", studentId)));
+        when(repository.findOrderEnrollments(ipnOrderId, studentId))
+                .thenReturn(List.of(new EnrolledOrderCourse(ipnEnrollmentId, ipnCourseId)));
+
+        CommerceService.IpNResult ipnResult = serviceWithTelemetry.processIpn(signed(Map.of(
+                "vnp_TxnRef", ipnOrderId.toString(),
+                "vnp_Amount", "25000000",
+                "vnp_ResponseCode", "00",
+                "vnp_TransactionStatus", "00"
+        )));
+
+        assertThat(ipnResult.rspCode()).isEqualTo("00");
+        verify(learningActivities).recordActivityDirect(
+                eq(studentId),
+                eq(ipnCourseId),
+                isNull(),
+                isNull(),
+                eq(LearningActivityType.COURSE_ENROLLED),
+                eq(ipnEnrollmentId),
+                any(Instant.class),
+                eq("{\"source\":\"checkout\",\"orderId\":\"" + ipnOrderId + "\"}")
+        );
     }
 
     private CommerceService service() {

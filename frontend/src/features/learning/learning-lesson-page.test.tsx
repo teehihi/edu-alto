@@ -100,6 +100,20 @@ describe("LearningLessonPage video playback", () => {
       "Video bài học: Giới thiệu bài học video",
     )) as HTMLVideoElement;
 
+    // LESSON_VIEWED was already emitted when the lesson loaded
+    await waitFor(() => {
+      expect(learningClient.recordLearningActivity).toHaveBeenCalledWith(
+        "student-token",
+        expect.objectContaining({
+          courseId: "course-1",
+          sectionId: "section-1",
+          lessonId: "lesson-video-1",
+          activityType: "LESSON_VIEWED",
+          metadata: JSON.stringify({ lesson_type: "VIDEO" }),
+        }),
+      );
+    });
+
     // Simulate playback deltas (total 8 seconds across 3 ticks)
     player.currentTime = 0;
     fireEvent.play(player);
@@ -111,7 +125,7 @@ describe("LearningLessonPage video playback", () => {
     // Pause flushes 8s of watch time
     fireEvent.pause(player);
     await waitFor(() => {
-      expect(learningClient.recordLearningActivity).toHaveBeenCalledTimes(1);
+      expect(learningClient.recordLearningActivity).toHaveBeenCalledTimes(2);
     });
     expect(learningClient.recordLearningActivity).toHaveBeenCalledWith(
       "student-token",
@@ -134,7 +148,7 @@ describe("LearningLessonPage video playback", () => {
     unmount();
 
     await waitFor(() => {
-      expect(learningClient.recordLearningActivity).toHaveBeenCalledTimes(2);
+      expect(learningClient.recordLearningActivity).toHaveBeenCalledTimes(3);
     });
     expect(learningClient.recordLearningActivity).toHaveBeenLastCalledWith(
       "student-token",
@@ -144,5 +158,84 @@ describe("LearningLessonPage video playback", () => {
       }),
       { keepalive: true },
     );
+  });
+
+  it("tracks TEXT reading time and attachment download telemetry", async () => {
+    const user = userEvent.setup();
+    let nowMs = 1_000_000;
+    vi.spyOn(Date, "now").mockImplementation(() => nowMs);
+    vi.spyOn(learningClient, "fetchLearningLesson").mockResolvedValue({
+      id: "lesson-text-1",
+      courseId: "course-1",
+      sectionId: "section-1",
+      title: "Bài đọc kiến trúc",
+      lessonType: "TEXT",
+      content: "Nội dung chi tiết bài đọc.",
+      description: null,
+      objectives: [],
+      attachments: [
+        {
+          id: "att-1",
+          fileName: "slide-bai-1.pdf",
+          contentType: "application/pdf",
+          contentLength: 1024,
+          visibleToStudents: true,
+        },
+      ],
+    });
+    vi.spyOn(learningClient, "fetchLessonResourceDownload").mockResolvedValue({
+      attachmentId: "att-1",
+      downloadUrl: "https://media.example/slide-bai-1.pdf",
+      expiresAt: new Date(Date.now() + 600_000).toISOString(),
+    });
+    vi.spyOn(learningClient, "triggerResourceDownload").mockImplementation(() => undefined);
+
+    const { unmount } = render(<LearningLessonPage lessonId="lesson-text-1" />);
+
+    const downloadBtn = await screen.findByRole("button", { name: "Tải xuống" });
+    await waitFor(() => {
+      expect(learningClient.recordLearningActivity).toHaveBeenCalledWith(
+        "student-token",
+        expect.objectContaining({
+          lessonId: "lesson-text-1",
+          activityType: "LESSON_VIEWED",
+          metadata: JSON.stringify({ lesson_type: "TEXT" }),
+        }),
+      );
+    });
+
+    await user.click(downloadBtn);
+    await waitFor(() => {
+      expect(learningClient.recordLearningActivity).toHaveBeenCalledWith(
+        "student-token",
+        expect.objectContaining({
+          lessonId: "lesson-text-1",
+          activityType: "RESOURCE_DOWNLOADED",
+          metadata: JSON.stringify({
+            attachment_id: "att-1",
+            file_name: "slide-bai-1.pdf",
+          }),
+        }),
+      );
+    });
+
+    // Advance 12 seconds of active visible reading and unmount
+    nowMs += 12_000;
+    unmount();
+
+    await waitFor(() => {
+      expect(learningClient.recordLearningActivity).toHaveBeenLastCalledWith(
+        "student-token",
+        expect.objectContaining({
+          lessonId: "lesson-text-1",
+          activityType: "LESSON_VIEWED",
+          metadata: JSON.stringify({
+            lesson_type: "TEXT",
+            reading_time_seconds: 12,
+          }),
+        }),
+        { keepalive: true },
+      );
+    });
   });
 });

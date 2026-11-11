@@ -55,6 +55,7 @@ import {
   fetchMyNotes,
   fetchLessonResourceDownload,
   fetchSavedLessonResources,
+  recordLearningActivity,
   triggerResourceDownload,
   updateLearningNote,
   unsaveLearningResource,
@@ -2778,6 +2779,16 @@ function ResourcesView() {
         resource.attachmentId,
       );
       triggerResourceDownload(download.downloadUrl);
+      void recordLearningActivity(token, {
+        courseId: resource.courseId,
+        lessonId: resource.lessonId,
+        activityType: "RESOURCE_DOWNLOADED",
+        metadata: JSON.stringify({
+          attachment_id: resource.attachmentId,
+          file_name: resource.fileName,
+          source: "saved_resources",
+        }),
+      }).catch(() => undefined);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Chưa thể tải tài liệu.");
     } finally {

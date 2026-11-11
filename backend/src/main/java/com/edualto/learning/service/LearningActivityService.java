@@ -5,6 +5,7 @@ import com.edualto.course.domain.Course;
 import com.edualto.course.domain.Lesson;
 import com.edualto.course.repository.CourseRepository;
 import com.edualto.course.repository.LessonRepository;
+import com.edualto.enrollment.domain.CourseEnrolledEvent;
 import com.edualto.enrollment.service.EnrollmentService;
 import com.edualto.learning.domain.LearningActivity;
 import com.edualto.learning.domain.LearningActivityType;
@@ -23,6 +24,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -153,6 +155,21 @@ public class LearningActivityService {
         );
 
         return activityRepository.save(activity);
+    }
+
+    @EventListener
+    @Transactional
+    public void onCourseEnrolled(CourseEnrolledEvent event) {
+        recordActivityDirect(
+                event.studentId(),
+                event.courseId(),
+                null,
+                null,
+                LearningActivityType.COURSE_ENROLLED,
+                event.enrollmentId(),
+                event.occurredAt(),
+                event.metadata()
+        );
     }
 
     @Transactional(readOnly = true)
