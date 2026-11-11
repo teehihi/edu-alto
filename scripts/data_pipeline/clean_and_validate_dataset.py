@@ -484,7 +484,7 @@ class EduAltoDataCleaner:
                 raise FileNotFoundError(f"Không tìm thấy thư mục entities tại: {resolved_entities_dir}")
 
             summary_candidate: Optional[Path] = None
-            if raw_target.is_file():
+            if raw_target.is_file() and self.raw_path != "data/raw_learning_dataset.csv":
                 summary_candidate = raw_target
             else:
                 summary_candidate = self._find_first_existing(

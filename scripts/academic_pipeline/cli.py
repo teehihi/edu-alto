@@ -10,7 +10,7 @@ import argparse
 import json
 import logging
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
 
@@ -53,6 +53,12 @@ def parse_arguments(argv: Optional[List[str]] = None) -> argparse.Namespace:
         type=str,
         default=None,
         help="Override extraction watermark with an ISO timestamp (e.g., 2026-11-01T00:00:00Z)",
+    )
+    parser.add_argument(
+        "--reference-time",
+        type=str,
+        default=None,
+        help="Override reference UTC timestamp (ISO-8601, e.g. 2026-11-11T07:00:00Z) for reproducible aggregation",
     )
     parser.add_argument(
         "--format",
@@ -174,17 +180,27 @@ def main(argv: Optional[List[str]] = None) -> int:
         finally:
             db_client.close()
 
-    # Parse --since timestamp if supplied
+    # Parse --since and --reference-time timestamps if supplied
     since_dt: Optional[datetime] = None
     if args.since:
         try:
-            since_dt = datetime.fromisoformat(args.since)
+            parsed_since = datetime.fromisoformat(args.since.strip())
+            since_dt = parsed_since.replace(tzinfo=timezone.utc) if parsed_since.tzinfo is None else parsed_since.astimezone(timezone.utc)
         except ValueError as exc:
             print(f"[ERROR] Invalid --since timestamp format: {exc}. Expected ISO format.", file=sys.stderr)
             return 1
 
+    reference_dt: Optional[datetime] = None
+    if args.reference_time:
+        try:
+            parsed_ref = datetime.fromisoformat(args.reference_time.strip())
+            reference_dt = parsed_ref.replace(tzinfo=timezone.utc) if parsed_ref.tzinfo is None else parsed_ref.astimezone(timezone.utc)
+        except ValueError as exc:
+            print(f"[ERROR] Invalid --reference-time timestamp format: {exc}. Expected ISO format.", file=sys.stderr)
+            return 1
+
     # Execute Pipeline
-    pipeline = AcademicPipeline(config=config)
+    pipeline = AcademicPipeline(config=config, reference_time=reference_dt)
     try:
         result = pipeline.run(
             mode=args.mode,

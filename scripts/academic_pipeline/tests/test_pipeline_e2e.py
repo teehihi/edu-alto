@@ -11,6 +11,7 @@ import pandas as pd
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
+from scripts.academic_pipeline.cli import parse_arguments
 from scripts.academic_pipeline.config import DatabaseConfig, PipelineConfig
 from scripts.academic_pipeline.db import DatabaseClient
 from scripts.academic_pipeline.pipeline import AcademicPipeline
@@ -228,3 +229,25 @@ def test_full_and_incremental_pipeline_e2e(sqlite_engine: Engine, temp_dir: Path
         assert "2026-12-01" in row[0]
         assert row[2] == 870
         assert row[3] == 1
+
+
+def test_pipeline_supports_reproducible_reference_time(sqlite_engine: Engine, temp_dir: Path):
+    seed_initial_test_data(sqlite_engine)
+    ref_time = datetime(2026, 10, 26, 12, 0, 0, tzinfo=timezone.utc)
+
+    args = parse_arguments(["--mode", "full", "--reference-time", "2026-10-26T12:00:00Z"])
+    assert args.reference_time == "2026-10-26T12:00:00Z"
+
+    db_client = DatabaseClient(DatabaseConfig(database="test"), engine=sqlite_engine)
+    config = PipelineConfig(
+        output_dir=temp_dir,
+        state_file=temp_dir / ".pipeline_state.json",
+        enable_db_metrics_table=False,
+    )
+    pipeline = AcademicPipeline(config=config, db_client=db_client, reference_time=ref_time)
+    result = pipeline.run(mode="full")
+
+    assert result["watermark"] == ref_time.isoformat()
+    std2 = result["summary_df"][result["summary_df"]["student_id"] == "u-std2"].iloc[0]
+    assert std2["days_since_last_activity"] == 20
+    assert bool(std2["is_inactive"]) is True

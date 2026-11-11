@@ -6,10 +6,13 @@ Supports atomic file replacement and database upsert operations.
 
 from __future__ import annotations
 
+import decimal
 import json
 import logging
+import math
 import os
 import tempfile
+import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -75,44 +78,94 @@ class AcademicDataExporter:
 
         return exported_paths
 
+    @staticmethod
+    def _coerce_serializable_value(value: Any) -> Any:
+        if value is None or value is pd.NA:
+            return None
+        if isinstance(value, float) and math.isnan(value):
+            return None
+        if isinstance(value, uuid.UUID):
+            return str(value)
+        if isinstance(value, (dict, list)):
+            return json.dumps(value, ensure_ascii=False)
+        if isinstance(value, decimal.Decimal):
+            return float(value)
+        return value
+
+    @classmethod
+    def _normalize_for_serialization(cls, df: pd.DataFrame) -> pd.DataFrame:
+        if df.empty:
+            return df
+        clean = df.copy()
+        for col in clean.columns:
+            if clean[col].dtype == object or str(clean[col].dtype) == "object":
+                non_null = clean[col].dropna()
+                if not non_null.empty:
+                    sample = non_null.iloc[0]
+                    if isinstance(sample, (uuid.UUID, dict, list, decimal.Decimal)):
+                        coerced = [cls._coerce_serializable_value(v) for v in clean[col].tolist()]
+                        if isinstance(sample, decimal.Decimal):
+                            clean[col] = pd.Series(coerced, index=clean.index)
+                        else:
+                            clean[col] = pd.Series(coerced, index=clean.index, dtype=object)
+        return clean
+
     def export_csv(self, df: pd.DataFrame, target_path: Path) -> Path:
         """Write DataFrame to CSV atomically."""
         temp_dir = target_path.parent
-        with tempfile.NamedTemporaryFile("w", dir=temp_dir, delete=False, suffix=".csv", encoding="utf-8-sig") as tf:
-            df.to_csv(tf.name, index=False, encoding="utf-8-sig")
-            temp_name = tf.name
-
-        os.replace(temp_name, target_path)
-        logger.info("Exported CSV: %s (%d rows)", target_path, len(df))
+        clean_df = self._normalize_for_serialization(df)
+        temp_name = ""
+        try:
+            with tempfile.NamedTemporaryFile("w", dir=temp_dir, delete=False, suffix=".csv", encoding="utf-8-sig") as tf:
+                temp_name = tf.name
+                clean_df.to_csv(tf.name, index=False, encoding="utf-8-sig")
+            os.replace(temp_name, target_path)
+        except Exception:
+            if temp_name and os.path.exists(temp_name):
+                os.unlink(temp_name)
+            raise
+        logger.info("Exported CSV: %s (%d rows)", target_path, len(clean_df))
         return target_path
 
     def export_json(self, df: pd.DataFrame, target_path: Path) -> Path:
         """Write DataFrame to JSON array atomically."""
         temp_dir = target_path.parent
-        with tempfile.NamedTemporaryFile("w", dir=temp_dir, delete=False, suffix=".json", encoding="utf-8") as tf:
-            df.to_json(tf.name, orient="records", date_format="iso", indent=2, force_ascii=False)
-            temp_name = tf.name
-
-        os.replace(temp_name, target_path)
-        logger.info("Exported JSON: %s (%d rows)", target_path, len(df))
+        clean_df = self._normalize_for_serialization(df)
+        temp_name = ""
+        try:
+            with tempfile.NamedTemporaryFile("w", dir=temp_dir, delete=False, suffix=".json", encoding="utf-8") as tf:
+                temp_name = tf.name
+                clean_df.to_json(tf.name, orient="records", date_format="iso", indent=2, force_ascii=False)
+            os.replace(temp_name, target_path)
+        except Exception:
+            if temp_name and os.path.exists(temp_name):
+                os.unlink(temp_name)
+            raise
+        logger.info("Exported JSON: %s (%d rows)", target_path, len(clean_df))
         return target_path
 
     def export_jsonl(self, df: pd.DataFrame, target_path: Path) -> Path:
         """Write DataFrame to newline-delimited JSON atomically."""
         temp_dir = target_path.parent
-        with tempfile.NamedTemporaryFile("w", dir=temp_dir, delete=False, suffix=".jsonl", encoding="utf-8") as tf:
-            df.to_json(tf.name, orient="records", lines=True, date_format="iso", force_ascii=False)
-            temp_name = tf.name
-
-        os.replace(temp_name, target_path)
-        logger.info("Exported JSONL: %s (%d rows)", target_path, len(df))
+        clean_df = self._normalize_for_serialization(df)
+        temp_name = ""
+        try:
+            with tempfile.NamedTemporaryFile("w", dir=temp_dir, delete=False, suffix=".jsonl", encoding="utf-8") as tf:
+                temp_name = tf.name
+                clean_df.to_json(tf.name, orient="records", lines=True, date_format="iso", force_ascii=False)
+            os.replace(temp_name, target_path)
+        except Exception:
+            if temp_name and os.path.exists(temp_name):
+                os.unlink(temp_name)
+            raise
+        logger.info("Exported JSONL: %s (%d rows)", target_path, len(clean_df))
         return target_path
 
     def export_parquet(self, df: pd.DataFrame, target_path: Path) -> Path:
         """Write DataFrame to Apache Parquet format atomically."""
         temp_dir = target_path.parent
-        # Ensure timestamp columns are properly typed
-        clean_df = df.copy()
+        # Ensure timestamp columns and PostgreSQL UUID/JSON objects are properly typed
+        clean_df = self._normalize_for_serialization(df)
         for col in clean_df.columns:
             if col.endswith("_at") or col.endswith("_date") or "timestamp" in col:
                 if pd.api.types.is_datetime64_any_dtype(clean_df[col]):
@@ -129,11 +182,16 @@ class AcademicDataExporter:
                         except Exception:
                             pass
 
-        with tempfile.NamedTemporaryFile("wb", dir=temp_dir, delete=False, suffix=".parquet") as tf:
-            clean_df.to_parquet(tf.name, index=False, engine="pyarrow")
-            temp_name = tf.name
-
-        os.replace(temp_name, target_path)
+        temp_name = ""
+        try:
+            with tempfile.NamedTemporaryFile("wb", dir=temp_dir, delete=False, suffix=".parquet") as tf:
+                temp_name = tf.name
+                clean_df.to_parquet(tf.name, index=False, engine="pyarrow")
+            os.replace(temp_name, target_path)
+        except Exception:
+            if temp_name and os.path.exists(temp_name):
+                os.unlink(temp_name)
+            raise
         logger.info("Exported Parquet: %s (%d rows)", target_path, len(clean_df))
         return target_path
 

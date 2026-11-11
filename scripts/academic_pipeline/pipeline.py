@@ -27,12 +27,22 @@ logger = logging.getLogger("academic_pipeline.pipeline")
 class AcademicPipeline:
     """End-to-end pipeline for extracting, aggregating, and exporting academic learning telemetry."""
 
-    def __init__(self, config: Optional[PipelineConfig] = None, db_client: Optional[DatabaseClient] = None):
+    def __init__(
+        self,
+        config: Optional[PipelineConfig] = None,
+        db_client: Optional[DatabaseClient] = None,
+        reference_time: Optional[datetime] = None,
+    ):
         self.config = config or PipelineConfig()
         self.db = db_client or DatabaseClient(self.config.db)
+        self.reference_time: Optional[datetime] = (
+            (reference_time.replace(tzinfo=timezone.utc) if reference_time.tzinfo is None else reference_time.astimezone(timezone.utc))
+            if reference_time is not None
+            else None
+        )
         self.state_mgr = StateManager(self.config.state_file)
         self.extractor = AcademicDataExtractor(self.db)
-        self.aggregator = AcademicAggregator()
+        self.aggregator = AcademicAggregator(reference_time=self.reference_time)
         self.exporter = AcademicDataExporter(self.config.output_dir)
 
     def run(
@@ -54,7 +64,7 @@ class AcademicPipeline:
             export_entities: Also export individual entity files
         """
         start_time = time.perf_counter()
-        execution_watermark = datetime.now(timezone.utc)
+        execution_watermark = self.reference_time or datetime.now(timezone.utc)
         normalized_mode = mode.lower().strip()
 
         logger.info(

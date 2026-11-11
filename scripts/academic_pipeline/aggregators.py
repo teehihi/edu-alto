@@ -399,7 +399,11 @@ class AcademicAggregator:
                 quiz_seconds.append(0)
 
         work["_occurred_utc"] = self._parse_utc_series(work["occurred_at"])
-        work["_activity_date"] = work["_occurred_utc"].dt.strftime("%Y-%m-%d")
+        work["_activity_date"] = (
+            work["_occurred_utc"]
+            .dt.tz_convert("Asia/Ho_Chi_Minh")
+            .dt.strftime("%Y-%m-%d")
+        )
         work["_is_lesson_view"] = is_lesson_view
         work["_is_resource_download"] = is_resource_download
         work["_is_quiz_start"] = is_quiz_start

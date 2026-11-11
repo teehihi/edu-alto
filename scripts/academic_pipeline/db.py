@@ -6,8 +6,12 @@ Supports SQLAlchemy engines and raw psycopg2 connections.
 
 from __future__ import annotations
 
+import decimal
+import json
 import logging
+import math
 import time
+import uuid
 from contextlib import contextmanager
 from typing import Any, Dict, Generator, Optional
 
@@ -85,10 +89,43 @@ class DatabaseClient:
                 if self._engine.dialect.name == "postgresql":
                     conn.execute(text("COMMIT"))
 
+    @staticmethod
+    def _coerce_pg_value(value: Any) -> Any:
+        if value is None or value is pd.NA:
+            return None
+        if isinstance(value, float) and math.isnan(value):
+            return None
+        if isinstance(value, uuid.UUID):
+            return str(value)
+        if isinstance(value, (dict, list)):
+            return json.dumps(value, ensure_ascii=False)
+        if isinstance(value, decimal.Decimal):
+            return float(value)
+        return value
+
+    @classmethod
+    def normalize_dataframe(cls, df: pd.DataFrame) -> pd.DataFrame:
+        """Convert PostgreSQL-specific Python objects (UUID, JSONB dict/list, Decimal) to serializable primitives."""
+        if df.empty:
+            return df
+        for col in df.columns:
+            if df[col].dtype == object or str(df[col].dtype) == "object":
+                non_null = df[col].dropna()
+                if not non_null.empty:
+                    sample = non_null.iloc[0]
+                    if isinstance(sample, (uuid.UUID, dict, list, decimal.Decimal)):
+                        coerced = [cls._coerce_pg_value(val) for val in df[col].tolist()]
+                        if isinstance(sample, decimal.Decimal):
+                            df[col] = pd.Series(coerced, index=df.index)
+                        else:
+                            df[col] = pd.Series(coerced, index=df.index, dtype=object)
+        return df
+
     def query_to_dataframe(self, query: str, params: Optional[Dict[str, Any]] = None) -> pd.DataFrame:
         """Execute analytical query with parameters and return pandas DataFrame."""
         with self.read_only_connection() as conn:
-            return pd.read_sql_query(sql=text(query), con=conn, params=params or {})
+            df = pd.read_sql_query(sql=text(query), con=conn, params=params or {})
+            return self.normalize_dataframe(df)
 
     def close(self) -> None:
         """Dispose connection pool resources."""

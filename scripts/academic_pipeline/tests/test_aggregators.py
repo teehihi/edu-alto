@@ -316,3 +316,97 @@ def test_aggregate_learning_activities_telemetry():
     assert row["resource_downloads_count"] == 1
     assert row["quiz_starts_count"] == 1
     assert "2026-10-05" in str(row["last_activity_at"])
+
+
+def test_aggregate_activities_vietnam_timezone_day_grouping():
+    agg = AcademicAggregator(reference_time=datetime(2026, 11, 10, 12, 0, 0, tzinfo=timezone.utc))
+
+    enrollments = pd.DataFrame([
+        {
+            "enrollment_id": "en-1",
+            "student_id": "std-split",
+            "student_name": "Student Split",
+            "student_email": "split@edualto.vn",
+            "course_id": "crs-1",
+            "course_title": "Python TZ",
+            "course_slug": "python-tz",
+            "course_level": "BEGINNER",
+            "enrollment_status": "ACTIVE",
+            "enrolled_at": "2026-10-01T08:00:00Z",
+        },
+        {
+            "enrollment_id": "en-2",
+            "student_id": "std-merge",
+            "student_name": "Student Merge",
+            "student_email": "merge@edualto.vn",
+            "course_id": "crs-1",
+            "course_title": "Python TZ",
+            "course_slug": "python-tz",
+            "course_level": "BEGINNER",
+            "enrollment_status": "ACTIVE",
+            "enrolled_at": "2026-10-01T08:00:00Z",
+        },
+    ])
+    curriculum = pd.DataFrame([{
+        "course_id": "crs-1",
+        "total_lessons": 5,
+        "total_duration_seconds": 3000,
+        "total_quizzes": 0,
+        "total_assignments": 0,
+    }])
+
+    empty_df = pd.DataFrame()
+    activities = pd.DataFrame([
+        # std-split: both in UTC 2026-10-01, but 23:30 VN Oct 1 and 00:30 VN Oct 2 -> 2 VN days
+        {
+            "activity_id": "s1",
+            "student_id": "std-split",
+            "course_id": "crs-1",
+            "activity_type": "LESSON_VIEWED",
+            "occurred_at": "2026-10-01T16:30:00Z",
+            "metadata": '{"lesson_type": "VIDEO"}',
+        },
+        {
+            "activity_id": "s2",
+            "student_id": "std-split",
+            "course_id": "crs-1",
+            "activity_type": "VIDEO_WATCHED",
+            "occurred_at": "2026-10-01T17:30:00Z",
+            "metadata": '{"duration_seconds": 60}',
+        },
+        # std-merge: UTC Oct 2 & Oct 3, but 00:30 VN Oct 3 and 23:30 VN Oct 3 -> 1 VN day
+        {
+            "activity_id": "m1",
+            "student_id": "std-merge",
+            "course_id": "crs-1",
+            "activity_type": "LESSON_VIEWED",
+            "occurred_at": "2026-10-02T17:30:00Z",
+            "metadata": '{"lesson_type": "TEXT"}',
+        },
+        {
+            "activity_id": "m2",
+            "student_id": "std-merge",
+            "course_id": "crs-1",
+            "activity_type": "LESSON_VIEWED",
+            "occurred_at": "2026-10-03T16:30:00Z",
+            "metadata": '{"lesson_type": "TEXT", "reading_time_seconds": 45}',
+        },
+    ])
+
+    result = agg.aggregate(
+        enrollments_df=enrollments,
+        curriculum_df=curriculum,
+        progress_df=empty_df,
+        quiz_df=empty_df,
+        assignment_df=empty_df,
+        discussions_df=empty_df,
+        comments_df=empty_df,
+        certificates_df=empty_df,
+        reviews_df=empty_df,
+        notes_df=empty_df,
+        activities_df=activities,
+    )
+
+    by_student = result.set_index("student_id")
+    assert by_student.loc["std-split", "active_learning_days_count"] == 2
+    assert by_student.loc["std-merge", "active_learning_days_count"] == 1
