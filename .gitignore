@@ -22,3 +22,6 @@ backend/target/
 __pycache__/
 *.pyc
 .venv/
+
+# Generated local ETL exports & checkpoints
+data/academic_exports/
