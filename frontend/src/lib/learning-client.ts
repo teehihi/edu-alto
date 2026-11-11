@@ -343,6 +343,10 @@ export type LearningActivitySyncResponse = {
   quizzesSynced: number;
   assignmentsSynced: number;
   enrollmentsSynced: number;
+  certificatesSynced: number;
+  notesSynced: number;
+  discussionsSynced: number;
+  commentsSynced: number;
   totalActivities: number;
 };
 

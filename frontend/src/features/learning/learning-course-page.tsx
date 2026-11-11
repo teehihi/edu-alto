@@ -23,10 +23,11 @@ import {
   Star,
   Video,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { FeedbackModal } from "@/components/ui/feedback-modal";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { LearningWorkspaceShell } from "@/features/learning/learning-workspace-shell";
+import { useLearningTelemetry } from "@/features/learning/use-learning-telemetry";
 import { ApiClientError } from "@/lib/api";
 import { useAuthSession } from "@/lib/auth-session";
 import {
@@ -38,7 +39,6 @@ import {
   fetchLessonResourceDownload,
   fetchMyEnrollments,
   fetchSavedLessonResources,
-  recordLearningActivity,
   saveLearningResource,
   triggerResourceDownload,
   type CourseProgress,
@@ -258,140 +258,21 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
   } | null>(null);
   const [activeTab, setActiveTab] = useState<(typeof courseTabs)[number]["id"]>("description");
   const instructor = course?.instructor ?? null;
-  const viewedLessonIdRef = useRef<string | null>(null);
-  const videoLastTimeRef = useRef(0);
-  const videoPositionRef = useRef(0);
-  const videoWatchAccumulatorRef = useRef(0);
-  const textReadStartedAtRef = useRef<number | null>(null);
-  const textReadAccumulatedMsRef = useRef(0);
-  const latestLessonContentRef = useRef<LessonContent | null>(null);
-  const latestGetAccessTokenRef = useRef(getAccessToken);
-  const latestAccessTokenRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    latestLessonContentRef.current = activeLessonContent;
-    latestGetAccessTokenRef.current = getAccessToken;
-  }, [activeLessonContent, getAccessToken]);
-
-  const flushVideoWatchTime = useCallback(async (useKeepalive = false) => {
-    const currentLesson = latestLessonContentRef.current;
-    const seconds = videoWatchAccumulatorRef.current;
-    if (!currentLesson || seconds < 5) return;
-    videoWatchAccumulatorRef.current = 0;
-    try {
-      const token =
-        useKeepalive && latestAccessTokenRef.current
-          ? latestAccessTokenRef.current
-          : await latestGetAccessTokenRef.current();
-      if (!token) return;
-      latestAccessTokenRef.current = token;
-      await recordLearningActivity(
-        token,
-        {
-          courseId: currentLesson.courseId,
-          sectionId: currentLesson.sectionId,
-          lessonId: currentLesson.id,
-          activityType: "VIDEO_WATCHED",
-          metadata: JSON.stringify({
-            duration_seconds: Math.round(seconds),
-            position_seconds: Math.round(videoPositionRef.current),
-          }),
-        },
-        useKeepalive ? { keepalive: true } : undefined,
-      );
-    } catch {
-      // Bỏ qua lỗi telemetry nền để không làm gián đoạn trải nghiệm học tập
-    }
-  }, []);
-
-  const flushTextReadingTime = useCallback(async (useKeepalive = false) => {
-    const currentLesson = latestLessonContentRef.current;
-    if (!currentLesson || currentLesson.lessonType !== "TEXT") {
-      textReadAccumulatedMsRef.current = 0;
-      textReadStartedAtRef.current = null;
-      return;
-    }
-    if (textReadStartedAtRef.current !== null) {
-      textReadAccumulatedMsRef.current += Math.max(0, Date.now() - textReadStartedAtRef.current);
-      textReadStartedAtRef.current =
-        typeof document !== "undefined" && document.visibilityState === "visible"
-          ? Date.now()
-          : null;
-    }
-    const seconds = Math.round(textReadAccumulatedMsRef.current / 1000);
-    if (seconds < 5) return;
-    textReadAccumulatedMsRef.current = 0;
-    try {
-      const token =
-        useKeepalive && latestAccessTokenRef.current
-          ? latestAccessTokenRef.current
-          : await latestGetAccessTokenRef.current();
-      if (!token) return;
-      latestAccessTokenRef.current = token;
-      await recordLearningActivity(
-        token,
-        {
-          courseId: currentLesson.courseId,
-          sectionId: currentLesson.sectionId,
-          lessonId: currentLesson.id,
-          activityType: "LESSON_VIEWED",
-          metadata: JSON.stringify({
-            lesson_type: "TEXT",
-            reading_time_seconds: seconds,
-          }),
-        },
-        useKeepalive ? { keepalive: true } : undefined,
-      );
-    } catch {
-      // Bỏ qua lỗi telemetry nền để không làm gián đoạn trải nghiệm học tập
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!activeLessonContent || activeLessonContent.lessonType !== "TEXT") {
-      textReadAccumulatedMsRef.current = 0;
-      textReadStartedAtRef.current = null;
-      return;
-    }
-    textReadAccumulatedMsRef.current = 0;
-    textReadStartedAtRef.current =
-      typeof document === "undefined" || document.visibilityState === "visible" ? Date.now() : null;
-    return () => {
-      void flushTextReadingTime(true);
-      textReadAccumulatedMsRef.current = 0;
-      textReadStartedAtRef.current = null;
-    };
-  }, [activeLessonContent, flushTextReadingTime]);
-
-  useEffect(() => {
-    const handlePageHide = () => {
-      void flushVideoWatchTime(true);
-      void flushTextReadingTime(true);
-    };
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "hidden") {
-        void flushVideoWatchTime(true);
-        void flushTextReadingTime(true);
-      } else if (
-        document.visibilityState === "visible" &&
-        latestLessonContentRef.current?.lessonType === "TEXT" &&
-        textReadStartedAtRef.current === null
-      ) {
-        textReadStartedAtRef.current = Date.now();
-      }
-    };
-    window.addEventListener("pagehide", handlePageHide);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => {
-      window.removeEventListener("pagehide", handlePageHide);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      void flushVideoWatchTime(true);
-      void flushTextReadingTime(true);
-      videoWatchAccumulatorRef.current = 0;
-      videoLastTimeRef.current = 0;
-      videoPositionRef.current = 0;
-    };
-  }, [activeLessonId, flushVideoWatchTime, flushTextReadingTime]);
+  const currentLessonContent =
+    activeLessonContent?.id === activeLessonId ? activeLessonContent : null;
+  const {
+    primeAccessToken,
+    trackVideoPlay,
+    trackVideoTimeUpdate,
+    trackVideoPause,
+    trackVideoEnded,
+    trackResourceDownload,
+    flushBeforeComplete,
+  } = useLearningTelemetry({
+    lesson: currentLessonContent,
+    activeLessonKey: activeLessonId,
+    getAccessToken,
+  });
 
   useEffect(() => {
     if (sessionLoading) return;
@@ -619,21 +500,11 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
     void getAccessToken()
       .then(async (token) => {
         if (!token) throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
-        latestAccessTokenRef.current = token;
+        primeAccessToken(token);
         const lesson = await fetchLearningLesson(token, activeLessonId);
         if (!active) return;
 
         setActiveLessonContent(lesson);
-        if (viewedLessonIdRef.current !== lesson.id) {
-          viewedLessonIdRef.current = lesson.id;
-          void recordLearningActivity(token, {
-            courseId: lesson.courseId,
-            sectionId: lesson.sectionId,
-            lessonId: lesson.id,
-            activityType: "LESSON_VIEWED",
-            metadata: JSON.stringify({ lesson_type: lesson.lessonType }),
-          }).catch(() => undefined);
-        }
         if (lesson.lessonType !== "VIDEO") return;
 
         try {
@@ -675,15 +546,13 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
     return () => {
       active = false;
     };
-  }, [activeLessonId, getAccessToken]);
+  }, [activeLessonId, getAccessToken, primeAccessToken]);
 
   const allLessons = curriculum?.sections.flatMap((section) => section.lessons) ?? [];
   const activeLesson = allLessons.find(
     (lesson) =>
       lesson.id === activeLessonId && ["TEXT", "VIDEO", "QUIZ"].includes(lesson.lessonType),
   );
-  const currentLessonContent =
-    activeLessonContent?.id === activeLessonId ? activeLessonContent : null;
   const waitingForLessonContent =
     Boolean(activeLessonId) &&
     (activeLessonLoading || (!currentLessonContent && !activeLessonError));
@@ -712,16 +581,7 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
       );
       const attachment = currentLessonContent.attachments.find((item) => item.id === attachmentId);
       triggerResourceDownload(access.downloadUrl);
-      void recordLearningActivity(token, {
-        courseId: currentLessonContent.courseId,
-        sectionId: currentLessonContent.sectionId,
-        lessonId: currentLessonContent.id,
-        activityType: "RESOURCE_DOWNLOADED",
-        metadata: JSON.stringify({
-          attachment_id: attachmentId,
-          file_name: attachment?.fileName ?? null,
-        }),
-      }).catch(() => undefined);
+      trackResourceDownload(attachmentId, attachment?.fileName ?? null, token);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Chưa thể tải tài liệu bài học.");
     } finally {
@@ -765,10 +625,8 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
     try {
       const token = await getAccessToken();
       if (!token) throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
-      if (latestLessonContentRef.current?.id === lessonId) {
-        void flushVideoWatchTime();
-        void flushTextReadingTime();
-      }
+      primeAccessToken(token);
+      flushBeforeComplete(lessonId);
       const updatedProgress = await completeLearningLesson(token, lessonId);
       setProgress((current) => ({
         ...updatedProgress,
@@ -934,26 +792,13 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
                           src={activeLessonVideoUrl}
                           aria-label={`Video bài học: ${currentLessonContent.title}`}
                           onTimeUpdate={(event) => {
-                            const time = event.currentTarget.currentTime;
-                            const delta = time - videoLastTimeRef.current;
-                            if (delta > 0 && delta < 5) {
-                              videoWatchAccumulatorRef.current += delta;
-                              if (videoWatchAccumulatorRef.current >= 60) {
-                                void flushVideoWatchTime();
-                              }
-                            }
-                            videoLastTimeRef.current = time;
-                            videoPositionRef.current = time;
+                            trackVideoTimeUpdate(event.currentTarget.currentTime);
                           }}
                           onPlay={(event) => {
-                            videoLastTimeRef.current = event.currentTarget.currentTime;
+                            trackVideoPlay(event.currentTarget.currentTime);
                           }}
-                          onPause={() => {
-                            void flushVideoWatchTime();
-                          }}
-                          onEnded={() => {
-                            void flushVideoWatchTime();
-                          }}
+                          onPause={trackVideoPause}
+                          onEnded={trackVideoEnded}
                           className="aspect-video w-full bg-black"
                         />
                       ) : (
