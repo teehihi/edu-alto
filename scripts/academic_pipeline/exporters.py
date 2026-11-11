@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
 
 logger = logging.getLogger("academic_pipeline.exporters")
@@ -114,11 +114,20 @@ class AcademicDataExporter:
         # Ensure timestamp columns are properly typed
         clean_df = df.copy()
         for col in clean_df.columns:
-            if "at" in col or "date" in col or "timestamp" in col:
-                try:
-                    clean_df[col] = pd.to_datetime(clean_df[col], errors="coerce", utc=True)
-                except Exception:
-                    pass
+            if col.endswith("_at") or col.endswith("_date") or "timestamp" in col:
+                if pd.api.types.is_datetime64_any_dtype(clean_df[col]):
+                    clean_df[col] = clean_df[col].dt.tz_localize("UTC") if clean_df[col].dt.tz is None else clean_df[col].dt.tz_convert("UTC")
+                elif clean_df[col].dropna().empty:
+                    clean_df[col] = pd.Series(pd.NaT, index=clean_df.index, dtype="datetime64[us, UTC]")
+                else:
+                    as_str = clean_df[col].astype("string")
+                    try:
+                        clean_df[col] = pd.to_datetime(as_str, errors="coerce", utc=True, format="ISO8601")
+                    except Exception:
+                        try:
+                            clean_df[col] = pd.to_datetime(as_str, errors="coerce", utc=True)
+                        except Exception:
+                            pass
 
         with tempfile.NamedTemporaryFile("wb", dir=temp_dir, delete=False, suffix=".parquet") as tf:
             clean_df.to_parquet(tf.name, index=False, engine="pyarrow")
@@ -160,6 +169,15 @@ class AcademicDataExporter:
                     avg_assignment_score_pct NUMERIC(6, 2) DEFAULT 0.00,
                     total_interactions_count INT DEFAULT 0,
                     learning_notes_count INT DEFAULT 0,
+                    total_learning_events_count INT DEFAULT 0,
+                    active_learning_days_count INT DEFAULT 0,
+                    lesson_views_count INT DEFAULT 0,
+                    video_watch_seconds INT DEFAULT 0,
+                    text_reading_seconds INT DEFAULT 0,
+                    quiz_duration_seconds INT DEFAULT 0,
+                    total_study_time_seconds INT DEFAULT 0,
+                    resource_downloads_count INT DEFAULT 0,
+                    quiz_starts_count INT DEFAULT 0,
                     has_certificate BOOLEAN DEFAULT FALSE,
                     certificate_number VARCHAR(48),
                     academic_engagement_score NUMERIC(6, 2) DEFAULT 0.00,
@@ -167,6 +185,7 @@ class AcademicDataExporter:
                     days_since_last_activity INT DEFAULT 0,
                     is_inactive BOOLEAN DEFAULT FALSE,
                     last_activity_at TIMESTAMPTZ,
+                    last_learning_activity_at TIMESTAMPTZ,
                     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     PRIMARY KEY (student_id, course_id)
                 );
@@ -193,6 +212,15 @@ class AcademicDataExporter:
                     avg_assignment_score_pct REAL DEFAULT 0.0,
                     total_interactions_count INTEGER DEFAULT 0,
                     learning_notes_count INTEGER DEFAULT 0,
+                    total_learning_events_count INTEGER DEFAULT 0,
+                    active_learning_days_count INTEGER DEFAULT 0,
+                    lesson_views_count INTEGER DEFAULT 0,
+                    video_watch_seconds INTEGER DEFAULT 0,
+                    text_reading_seconds INTEGER DEFAULT 0,
+                    quiz_duration_seconds INTEGER DEFAULT 0,
+                    total_study_time_seconds INTEGER DEFAULT 0,
+                    resource_downloads_count INTEGER DEFAULT 0,
+                    quiz_starts_count INTEGER DEFAULT 0,
                     has_certificate INTEGER DEFAULT 0,
                     certificate_number TEXT,
                     academic_engagement_score REAL DEFAULT 0.0,
@@ -200,13 +228,31 @@ class AcademicDataExporter:
                     days_since_last_activity INTEGER DEFAULT 0,
                     is_inactive INTEGER DEFAULT 0,
                     last_activity_at TEXT,
+                    last_learning_activity_at TEXT,
                     updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
                     PRIMARY KEY (student_id, course_id)
                 );
             """
 
+        extra_column_ddl = {
+            "total_learning_events_count": "INT DEFAULT 0" if is_postgres else "INTEGER DEFAULT 0",
+            "active_learning_days_count": "INT DEFAULT 0" if is_postgres else "INTEGER DEFAULT 0",
+            "lesson_views_count": "INT DEFAULT 0" if is_postgres else "INTEGER DEFAULT 0",
+            "video_watch_seconds": "INT DEFAULT 0" if is_postgres else "INTEGER DEFAULT 0",
+            "text_reading_seconds": "INT DEFAULT 0" if is_postgres else "INTEGER DEFAULT 0",
+            "quiz_duration_seconds": "INT DEFAULT 0" if is_postgres else "INTEGER DEFAULT 0",
+            "total_study_time_seconds": "INT DEFAULT 0" if is_postgres else "INTEGER DEFAULT 0",
+            "resource_downloads_count": "INT DEFAULT 0" if is_postgres else "INTEGER DEFAULT 0",
+            "quiz_starts_count": "INT DEFAULT 0" if is_postgres else "INTEGER DEFAULT 0",
+            "last_learning_activity_at": "TIMESTAMPTZ" if is_postgres else "TEXT",
+        }
+
         with engine.begin() as conn:
             conn.execute(text(create_table_ddl))
+            existing_cols = {col_info["name"] for col_info in inspect(conn).get_columns(table_name)}
+            for col_name, col_type in extra_column_ddl.items():
+                if col_name not in existing_cols:
+                    conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {col_name} {col_type}"))
 
             # Selected columns to persist
             cols = [
@@ -215,8 +261,12 @@ class AcademicDataExporter:
                 "completed_lessons_count", "lesson_completion_rate_pct", "quizzes_attempted_count",
                 "quizzes_passed_count", "avg_quiz_score", "assignments_submitted_count",
                 "avg_assignment_score_pct", "total_interactions_count", "learning_notes_count",
+                "total_learning_events_count", "active_learning_days_count", "lesson_views_count",
+                "video_watch_seconds", "text_reading_seconds", "quiz_duration_seconds",
+                "total_study_time_seconds", "resource_downloads_count", "quiz_starts_count",
                 "has_certificate", "certificate_number", "academic_engagement_score",
-                "academic_status", "days_since_last_activity", "is_inactive", "last_activity_at"
+                "academic_status", "days_since_last_activity", "is_inactive",
+                "last_activity_at", "last_learning_activity_at",
             ]
             
             # Prepare rows

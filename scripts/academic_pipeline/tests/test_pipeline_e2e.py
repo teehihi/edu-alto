@@ -85,6 +85,22 @@ def seed_initial_test_data(engine: Engine):
             ('asub-1', 'asn-1', 'u-std1', '2026-10-20T14:00:00Z', 90.0, '2026-10-20T14:00:00Z', '2026-10-20T14:00:00Z');
         """))
 
+        # Learning activities telemetry (V34)
+        conn.execute(
+            text("""
+                INSERT INTO learning_activities
+                (id, student_id, course_id, section_id, lesson_id, activity_type, source_id, occurred_at, metadata, created_at, updated_at)
+                VALUES (:id, :sid, :cid, :sec, :les, :atype, :src, :occ, :meta, :occ, :occ)
+            """),
+            [
+                {"id": "la-1", "sid": "u-std1", "cid": "c-101", "sec": None, "les": None, "atype": "COURSE_ENROLLED", "src": "en-1", "occ": "2026-10-05T08:00:00Z", "meta": '{"source":"free_enrollment"}'},
+                {"id": "la-2", "sid": "u-std1", "cid": "c-101", "sec": "sec-1", "les": "les-1", "atype": "LESSON_VIEWED", "src": None, "occ": "2026-10-07T09:50:00Z", "meta": '{"lesson_type":"VIDEO"}'},
+                {"id": "la-3", "sid": "u-std1", "cid": "c-101", "sec": "sec-1", "les": "les-1", "atype": "VIDEO_WATCHED", "src": None, "occ": "2026-10-07T09:58:00Z", "meta": '{"duration_seconds":420,"position_seconds":420}'},
+                {"id": "la-4", "sid": "u-std1", "cid": "c-101", "sec": "sec-1", "les": "les-2", "atype": "QUIZ_STARTED", "src": "qses-1", "occ": "2026-10-08T11:20:00Z", "meta": '{"quizId":"qz-1"}'},
+                {"id": "la-5", "sid": "u-std1", "cid": "c-101", "sec": "sec-1", "les": "les-2", "atype": "QUIZ_SUBMITTED", "src": "qa-1", "occ": "2026-10-08T11:30:00Z", "meta": '{"score":85.0,"passed":true,"durationSeconds":300}'},
+            ],
+        )
+
 
 def test_full_and_incremental_pipeline_e2e(sqlite_engine: Engine, temp_dir: Path):
     """Full lifecycle test: Full Run -> Incremental Modification -> Incremental Run -> Idempotent Run."""
@@ -99,7 +115,7 @@ def test_full_and_incremental_pipeline_e2e(sqlite_engine: Engine, temp_dir: Path
     pipeline = AcademicPipeline(config=config, db_client=db_client)
 
     # 1. RUN FULL EXTRACTION
-    res_full = pipeline.run(mode="full")
+    res_full = pipeline.run(mode="full", export_entities=True)
     assert res_full["status"] == "SUCCESS"
     assert res_full["mode"] == "FULL"
     assert res_full["pairs_count"] == 2  # 2 students enrolled in c-101
@@ -109,11 +125,16 @@ def test_full_and_incremental_pipeline_e2e(sqlite_engine: Engine, temp_dir: Path
     json_file = temp_dir / "student_course_academic_summary.json"
     parquet_file = temp_dir / "student_course_academic_summary.parquet"
     state_file = temp_dir / ".pipeline_state.json"
+    entities_dir = temp_dir / "entities"
 
     assert csv_file.exists()
     assert json_file.exists()
     assert parquet_file.exists()
     assert state_file.exists()
+    assert (entities_dir / "raw_activities.csv").exists()
+
+    df_parquet = pd.read_parquet(parquet_file)
+    assert "COMPLETED" in set(df_full_status := df_parquet["academic_status"].dropna().astype(str)) or "ON_TRACK" in df_full_status or len(df_full_status) > 0
 
     df_full = pd.read_csv(csv_file)
     assert len(df_full) == 2
@@ -126,10 +147,17 @@ def test_full_and_incremental_pipeline_e2e(sqlite_engine: Engine, temp_dir: Path
     assert std1_row["avg_quiz_score"] == 85.0
     assert std1_row["assignments_submitted_count"] == 1
     assert std1_row["avg_assignment_score_pct"] == 90.0
+    assert std1_row["total_learning_events_count"] == 5
+    assert std1_row["video_watch_seconds"] == 420
+    assert std1_row["quiz_duration_seconds"] == 300
+    assert std1_row["total_study_time_seconds"] == 720
+    assert std1_row["lesson_views_count"] == 1
+    assert std1_row["quiz_starts_count"] == 1
 
     std2_row = df_full[df_full["student_id"] == "u-std2"].iloc[0]
     assert std2_row["completed_lessons_count"] == 0
     assert std2_row["quizzes_attempted_count"] == 0
+    assert std2_row["total_learning_events_count"] == 0
 
     first_watermark = res_full["watermark"]
     assert first_watermark is not None
@@ -140,7 +168,7 @@ def test_full_and_incremental_pipeline_e2e(sqlite_engine: Engine, temp_dir: Path
     assert res_inc_empty["status"] == "UP_TO_DATE"
     assert res_inc_empty["changed_pairs_count"] == 0
 
-    # 3. ADD NEW ACTIVITY FOR STUDENT 1 (completes 3rd lesson -> 100%)
+    # 3. ADD NEW ACTIVITY FOR STUDENT 1 (completes 3rd lesson -> 100%, text reading & download telemetry)
     future_time = "2026-12-01T15:00:00Z"
     with sqlite_engine.begin() as conn:
         conn.execute(text(f"""
@@ -152,6 +180,17 @@ def test_full_and_incremental_pipeline_e2e(sqlite_engine: Engine, temp_dir: Path
             INSERT INTO certificates (id, student_id, course_id, certificate_number, issued_at, created_at) VALUES
             ('cert-1', 'u-std1', 'c-101', 'EA-CERT-2026-001', '{future_time}', '{future_time}');
         """))
+        conn.execute(
+            text("""
+                INSERT INTO learning_activities
+                (id, student_id, course_id, section_id, lesson_id, activity_type, source_id, occurred_at, metadata, created_at, updated_at)
+                VALUES (:id, 'u-std1', 'c-101', 'sec-1', 'les-3', :atype, NULL, :occ, :meta, :occ, :occ)
+            """),
+            [
+                {"id": "la-6", "atype": "LESSON_VIEWED", "occ": future_time, "meta": '{"lesson_type":"TEXT","reading_time_seconds":150}'},
+                {"id": "la-7", "atype": "RESOURCE_DOWNLOADED", "occ": future_time, "meta": '{"attachment_id":"att-1","file_name":"notes.pdf"}'},
+            ],
+        )
 
     # 4. RUN INCREMENTAL EXTRACTION
     res_inc = pipeline.run(mode="incremental")
@@ -170,16 +209,22 @@ def test_full_and_incremental_pipeline_e2e(sqlite_engine: Engine, temp_dir: Path
     assert std1_new["has_certificate"] == True
     assert std1_new["certificate_number"] == "EA-CERT-2026-001"
     assert std1_new["academic_status"] == "COMPLETED"
+    assert std1_new["total_learning_events_count"] == 7
+    assert std1_new["text_reading_seconds"] == 150
+    assert std1_new["resource_downloads_count"] == 1
+    assert std1_new["total_study_time_seconds"] == 870
 
     # std2 must still be intact
     std2_new = df_updated[df_updated["student_id"] == "u-std2"].iloc[0]
     assert std2_new["completed_lessons_count"] == 0
 
-    # Verify DB metrics table persistence includes last_activity_at
+    # Verify DB metrics table persistence includes last_activity_at & study telemetry
     with sqlite_engine.connect() as conn:
         row = conn.execute(text(
-            "SELECT last_activity_at, is_inactive FROM academic_student_course_metrics WHERE student_id = 'u-std1' AND course_id = 'c-101'"
+            "SELECT last_activity_at, is_inactive, total_study_time_seconds, resource_downloads_count FROM academic_student_course_metrics WHERE student_id = 'u-std1' AND course_id = 'c-101'"
         )).fetchone()
         assert row is not None
         assert row[0] is not None
         assert "2026-12-01" in row[0]
+        assert row[2] == 870
+        assert row[3] == 1

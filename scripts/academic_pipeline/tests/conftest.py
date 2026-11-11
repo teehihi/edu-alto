@@ -214,6 +214,22 @@ def sqlite_engine() -> Generator[Engine, None, None]:
             );
         """))
 
+        conn.execute(text("""
+            CREATE TABLE learning_activities (
+                id TEXT PRIMARY KEY,
+                student_id TEXT NOT NULL,
+                course_id TEXT NOT NULL,
+                section_id TEXT,
+                lesson_id TEXT,
+                activity_type TEXT NOT NULL,
+                source_id TEXT,
+                occurred_at TEXT NOT NULL,
+                metadata TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+        """))
+
     yield engine
     engine.dispose()
 

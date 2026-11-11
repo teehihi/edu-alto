@@ -7,6 +7,7 @@ Supports merging incremental updates into historical datasets.
 
 from __future__ import annotations
 
+import json
 import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
@@ -35,6 +36,7 @@ class AcademicAggregator:
         certificates_df: pd.DataFrame,
         reviews_df: pd.DataFrame,
         notes_df: pd.DataFrame,
+        activities_df: Optional[pd.DataFrame] = None,
     ) -> pd.DataFrame:
         """
         Aggregate all academic telemetry grouped by (student_id, course_id).
@@ -44,11 +46,13 @@ class AcademicAggregator:
             logger.info("No enrollments to aggregate.")
             return pd.DataFrame()
 
+        activities_input = activities_df if activities_df is not None else pd.DataFrame()
+
         # Ensure student_id and course_id are strings for consistent joining
         for df in [
             enrollments_df, curriculum_df, progress_df, quiz_df,
             assignment_df, discussions_df, comments_df,
-            certificates_df, reviews_df, notes_df
+            certificates_df, reviews_df, notes_df, activities_input
         ]:
             if not df.empty:
                 if "student_id" in df.columns:
@@ -154,7 +158,23 @@ class AcademicAggregator:
         base = base.merge(cert_metrics, on=["student_id", "course_id"], how="left")
         base["has_certificate"] = base["has_certificate"].map(lambda x: True if x is True else False)
 
-        # 9. Activity Recency & Status
+        # 9. Learning Activities Telemetry Aggregation (V34)
+        activity_metrics = self._aggregate_activities(activities_input)
+        base = base.merge(activity_metrics, on=["student_id", "course_id"], how="left")
+        for col in [
+            "total_learning_events_count",
+            "active_learning_days_count",
+            "lesson_views_count",
+            "video_watch_seconds",
+            "text_reading_seconds",
+            "quiz_duration_seconds",
+            "total_study_time_seconds",
+            "resource_downloads_count",
+            "quiz_starts_count",
+        ]:
+            base[col] = pd.to_numeric(base[col], errors="coerce").fillna(0).astype(int)
+
+        # 10. Activity Recency & Status
         base = self._calculate_recency_and_engagement(base)
 
         # Sort cleanly by course_title, student_name
@@ -280,26 +300,154 @@ class AcademicAggregator:
         grouped["has_certificate"] = True
         return grouped
 
+    @staticmethod
+    def _parse_utc_series(series: pd.Series) -> pd.Series:
+        try:
+            return pd.to_datetime(series, errors="coerce", utc=True, format="ISO8601")
+        except Exception:
+            return pd.to_datetime(series, errors="coerce", utc=True)
+
+    @staticmethod
+    def _parse_metadata(raw_value: Any) -> Dict[str, Any]:
+        if isinstance(raw_value, dict):
+            return raw_value
+        if isinstance(raw_value, str):
+            trimmed = raw_value.strip()
+            if trimmed:
+                try:
+                    parsed = json.loads(trimmed)
+                    if isinstance(parsed, dict):
+                        return parsed
+                except Exception:
+                    return {}
+        return {}
+
+    @staticmethod
+    def _non_negative_int(value: Any) -> int:
+        if value is None or isinstance(value, bool):
+            return 0
+        try:
+            numeric = float(value)
+            if np.isnan(numeric) or numeric < 0:
+                return 0
+            return int(round(numeric))
+        except (TypeError, ValueError):
+            return 0
+
+    def _aggregate_activities(self, df: pd.DataFrame) -> pd.DataFrame:
+        cols = [
+            "student_id",
+            "course_id",
+            "total_learning_events_count",
+            "active_learning_days_count",
+            "lesson_views_count",
+            "video_watch_seconds",
+            "text_reading_seconds",
+            "quiz_duration_seconds",
+            "total_study_time_seconds",
+            "resource_downloads_count",
+            "quiz_starts_count",
+            "first_learning_activity_at",
+            "last_learning_activity_at",
+        ]
+        if df.empty:
+            return pd.DataFrame(columns=cols)
+
+        work = df.copy()
+        parsed_meta = [self._parse_metadata(v) for v in work.get("metadata", [None] * len(work))]
+        activity_types = work["activity_type"].astype(str).str.upper().tolist()
+
+        is_lesson_view: List[int] = []
+        is_resource_download: List[int] = []
+        is_quiz_start: List[int] = []
+        video_seconds: List[int] = []
+        text_seconds: List[int] = []
+        quiz_seconds: List[int] = []
+
+        for act_type, meta in zip(activity_types, parsed_meta):
+            # Text lesson reading dwell-time flushes emit LESSON_VIEWED with reading_time_seconds;
+            # exclude them from lesson_views_count so opening a lesson is not double-counted.
+            if act_type == "LESSON_VIEWED" and "reading_time_seconds" not in meta:
+                is_lesson_view.append(1)
+            else:
+                is_lesson_view.append(0)
+
+            is_resource_download.append(1 if act_type == "RESOURCE_DOWNLOADED" else 0)
+            is_quiz_start.append(1 if act_type == "QUIZ_STARTED" else 0)
+
+            if act_type == "VIDEO_WATCHED":
+                raw_vid = meta.get("duration_seconds")
+                if raw_vid is None:
+                    raw_vid = meta.get("watch_duration_seconds")
+                video_seconds.append(self._non_negative_int(raw_vid))
+            else:
+                video_seconds.append(0)
+
+            if act_type in ("LESSON_VIEWED", "LESSON_COMPLETED"):
+                text_seconds.append(self._non_negative_int(meta.get("reading_time_seconds")))
+            else:
+                text_seconds.append(0)
+
+            if act_type == "QUIZ_SUBMITTED":
+                raw_quiz = meta.get("durationSeconds")
+                if raw_quiz is None:
+                    raw_quiz = meta.get("duration_seconds")
+                if raw_quiz is None:
+                    raw_quiz = meta.get("time_spent_seconds")
+                quiz_seconds.append(self._non_negative_int(raw_quiz))
+            else:
+                quiz_seconds.append(0)
+
+        work["_occurred_utc"] = self._parse_utc_series(work["occurred_at"])
+        work["_activity_date"] = work["_occurred_utc"].dt.strftime("%Y-%m-%d")
+        work["_is_lesson_view"] = is_lesson_view
+        work["_is_resource_download"] = is_resource_download
+        work["_is_quiz_start"] = is_quiz_start
+        work["_video_watch_seconds"] = video_seconds
+        work["_text_reading_seconds"] = text_seconds
+        work["_quiz_duration_seconds"] = quiz_seconds
+
+        grouped = work.groupby(["student_id", "course_id"]).agg(
+            total_learning_events_count=("activity_type", "count"),
+            active_learning_days_count=("_activity_date", "nunique"),
+            lesson_views_count=("_is_lesson_view", "sum"),
+            video_watch_seconds=("_video_watch_seconds", "sum"),
+            text_reading_seconds=("_text_reading_seconds", "sum"),
+            quiz_duration_seconds=("_quiz_duration_seconds", "sum"),
+            resource_downloads_count=("_is_resource_download", "sum"),
+            quiz_starts_count=("_is_quiz_start", "sum"),
+            first_learning_activity_at=("_occurred_utc", "min"),
+            last_learning_activity_at=("_occurred_utc", "max"),
+        ).reset_index()
+
+        grouped["total_study_time_seconds"] = (
+            grouped["video_watch_seconds"]
+            + grouped["text_reading_seconds"]
+            + grouped["quiz_duration_seconds"]
+        )
+        return grouped
+
     def _calculate_recency_and_engagement(self, df: pd.DataFrame) -> pd.DataFrame:
         """Calculate composite engagement score, days inactive, and academic status."""
-        # Find earliest activity
+        # Find earliest and latest activity across domain tables and standardized event telemetry
         timestamp_cols = [
             "enrolled_at", "first_lesson_completed_at", "last_lesson_completed_at",
-            "last_quiz_submitted_at", "last_assignment_submitted_at", "certificate_issued_at"
+            "last_quiz_submitted_at", "last_assignment_submitted_at", "certificate_issued_at",
+            "first_learning_activity_at", "last_learning_activity_at",
         ]
-        
-        # Ensure timestamps are parsed
+
+        # Ensure timestamps are parsed consistently
         parsed_dates = []
         for col in timestamp_cols:
             if col in df.columns:
-                parsed_dates.append(pd.to_datetime(df[col], utc=True))
+                parsed_dates.append(self._parse_utc_series(df[col]))
 
         if parsed_dates:
             dt_combined = pd.concat(parsed_dates, axis=1)
             df["first_activity_at"] = dt_combined.min(axis=1)
             df["last_activity_at"] = dt_combined.max(axis=1)
         else:
-            df["first_activity_at"] = pd.to_datetime(df["enrolled_at"], utc=True)
+            df["first_activity_at"] = self._parse_utc_series(df["enrolled_at"])
             df["last_activity_at"] = df["first_activity_at"]
 
         now_utc = pd.to_datetime(self.now, utc=True)

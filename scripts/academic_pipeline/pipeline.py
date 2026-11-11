@@ -110,6 +110,7 @@ class AcademicPipeline:
         certificates_df = self.extractor.extract_certificates()
         reviews_df = self.extractor.extract_reviews()
         notes_df = self.extractor.extract_learning_notes()
+        activities_df = self.extractor.extract_learning_activities()
 
         tables_extracted = {
             "courses": len(curriculum_df),
@@ -122,6 +123,7 @@ class AcademicPipeline:
             "certificates": len(certificates_df),
             "reviews": len(reviews_df),
             "learning_notes": len(notes_df),
+            "learning_activities": len(activities_df),
         }
 
         # Aggregate metrics
@@ -136,6 +138,7 @@ class AcademicPipeline:
             certificates_df=certificates_df,
             reviews_df=reviews_df,
             notes_df=notes_df,
+            activities_df=activities_df,
         )
 
         exported_files: Dict[str, Path] = {}
@@ -149,6 +152,11 @@ class AcademicPipeline:
                     "raw_quizzes": quiz_df,
                     "raw_assignments": assignment_df,
                     "raw_discussions": discussions_df,
+                    "raw_comments": comments_df,
+                    "raw_certificates": certificates_df,
+                    "raw_reviews": reviews_df,
+                    "raw_notes": notes_df,
+                    "raw_activities": activities_df,
                 })
 
             if self.config.enable_db_metrics_table:
@@ -214,6 +222,7 @@ class AcademicPipeline:
         certificates_df = self.extractor.extract_certificates(target_pairs=changed_pairs)
         reviews_df = self.extractor.extract_reviews(target_pairs=changed_pairs)
         notes_df = self.extractor.extract_learning_notes(target_pairs=changed_pairs)
+        activities_df = self.extractor.extract_learning_activities(target_pairs=changed_pairs)
 
         tables_extracted = {
             "changed_pairs": len(changed_pairs),
@@ -222,6 +231,11 @@ class AcademicPipeline:
             "quiz_attempts": len(quiz_df),
             "assignments": len(assignment_df),
             "discussions": len(discussions_df),
+            "discussion_comments": len(comments_df),
+            "certificates": len(certificates_df),
+            "reviews": len(reviews_df),
+            "learning_notes": len(notes_df),
+            "learning_activities": len(activities_df),
         }
 
         # Aggregate incremental updates
@@ -236,6 +250,7 @@ class AcademicPipeline:
             certificates_df=certificates_df,
             reviews_df=reviews_df,
             notes_df=notes_df,
+            activities_df=activities_df,
         )
 
         # Merge with existing master dataset on disk
@@ -260,6 +275,13 @@ class AcademicPipeline:
                     "raw_incremental_enrollments": enrollments_df,
                     "raw_incremental_progress": progress_df,
                     "raw_incremental_quizzes": quiz_df,
+                    "raw_incremental_assignments": assignment_df,
+                    "raw_incremental_discussions": discussions_df,
+                    "raw_incremental_comments": comments_df,
+                    "raw_incremental_certificates": certificates_df,
+                    "raw_incremental_reviews": reviews_df,
+                    "raw_incremental_notes": notes_df,
+                    "raw_incremental_activities": activities_df,
                 })
 
             if self.config.enable_db_metrics_table:

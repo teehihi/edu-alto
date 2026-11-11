@@ -379,3 +379,37 @@ class AcademicDataExtractor:
             df["_pair"] = list(zip(df["student_id"].astype(str), df["course_id"].astype(str)))
             df = df[df["_pair"].isin(target_pairs)].drop(columns=["_pair"])
         return df
+
+    def extract_learning_activities(self, target_pairs: Optional[Set[Tuple[str, str]]] = None) -> pd.DataFrame:
+        """Extract standardized learning activity telemetry rows (V34) when available."""
+        if not inspect(self.db.engine).has_table("learning_activities"):
+            return pd.DataFrame(columns=[
+                "activity_id",
+                "student_id",
+                "course_id",
+                "section_id",
+                "lesson_id",
+                "activity_type",
+                "source_id",
+                "occurred_at",
+                "metadata",
+            ])
+
+        query = """
+            SELECT
+                la.id AS activity_id,
+                la.student_id,
+                la.course_id,
+                la.section_id,
+                la.lesson_id,
+                la.activity_type,
+                la.source_id,
+                la.occurred_at,
+                la.metadata
+            FROM learning_activities la
+        """
+        df = self.db.query_to_dataframe(query)
+        if target_pairs is not None and not df.empty:
+            df["_pair"] = list(zip(df["student_id"].astype(str), df["course_id"].astype(str)))
+            df = df[df["_pair"].isin(target_pairs)].drop(columns=["_pair"])
+        return df
