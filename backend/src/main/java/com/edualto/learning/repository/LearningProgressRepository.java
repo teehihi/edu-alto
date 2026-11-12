@@ -39,4 +39,29 @@ public interface LearningProgressRepository extends JpaRepository<LearningProgre
               and l.lesson_type in ('TEXT', 'VIDEO', 'QUIZ')
             """, nativeQuery = true)
     ProgressCounts countProgress(@Param("enrollmentId") UUID enrollmentId, @Param("courseId") UUID courseId);
+
+    interface CourseProgressSummaryProjection {
+        UUID getCourseId();
+        long getTotalLessons();
+        long getCompletedLessons();
+    }
+
+    @Query(value = """
+            select c.id as "courseId",
+                   count(l.id) as "totalLessons",
+                   count(p.id) as "completedLessons"
+            from enrollments e
+            join courses c on c.id = e.course_id
+            left join sections s on s.course_id = c.id
+            left join lessons l on l.section_id = s.id
+                and l.status = 'PUBLISHED'
+                and l.lesson_type in ('TEXT', 'VIDEO', 'QUIZ')
+            left join learning_progress p on p.lesson_id = l.id and p.enrollment_id = e.id
+            where e.student_id = :studentId
+              and e.status = 'ACTIVE'
+              and c.status = 'PUBLISHED'
+            group by c.id, e.enrolled_at
+            order by e.enrolled_at desc, c.id asc
+            """, nativeQuery = true)
+    List<CourseProgressSummaryProjection> findBatchProgressSummary(@Param("studentId") UUID studentId);
 }

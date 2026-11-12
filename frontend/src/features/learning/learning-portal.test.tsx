@@ -1,7 +1,8 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { LearningPortal, resetLearningPortalCache } from "./learning-portal";
+import { LearningPortal } from "./learning-portal";
+import { clearQueryClient } from "@/lib/query-provider";
 import * as learningClient from "@/lib/learning-client";
 import * as instructorCourseClient from "@/lib/instructor-course-client";
 import * as studentAnalyticsClient from "@/lib/student-analytics-client";
@@ -9,15 +10,85 @@ import * as recommendationClient from "@/lib/recommendation-client";
 import { ApiClientError } from "@/lib/api";
 
 const getAccessToken = vi.fn().mockResolvedValue("test-token");
+const routerPushMock = vi.fn();
+const routerReplaceMock = vi.fn();
 let mockUser: { id: string; fullName: string; roles: string[] } | null = {
   id: "instructor-1",
   fullName: "Nguyễn Minh Anh",
   roles: ["INSTRUCTOR"],
 };
 
+const {
+  fetchMyCertificatesMock,
+  fetchStudentConversationsMock,
+  fetchStudentMessagesMock,
+  sendStudentMessageMock,
+  startStudentConversationMock,
+  connectRealtimeMessagingMock,
+  fetchUserPresenceMock,
+  fetchMyCourseReviewMock,
+  saveCourseReviewMock,
+  fetchPublicInstructorPageMock,
+  fetchPublicCourseBySlugMock,
+  fetchCourseDiscussionsMock,
+  fetchDiscussionDetailMock,
+  addDiscussionCommentMock,
+} = vi.hoisted(() => ({
+  fetchMyCertificatesMock: vi.fn(),
+  fetchStudentConversationsMock: vi.fn(),
+  fetchStudentMessagesMock: vi.fn(),
+  sendStudentMessageMock: vi.fn(),
+  startStudentConversationMock: vi.fn(),
+  connectRealtimeMessagingMock: vi.fn(() => vi.fn()),
+  fetchUserPresenceMock: vi.fn().mockResolvedValue([]),
+  fetchMyCourseReviewMock: vi.fn(),
+  saveCourseReviewMock: vi.fn(),
+  fetchPublicInstructorPageMock: vi.fn(),
+  fetchPublicCourseBySlugMock: vi.fn(),
+  fetchCourseDiscussionsMock: vi.fn(),
+  fetchDiscussionDetailMock: vi.fn(),
+  addDiscussionCommentMock: vi.fn(),
+}));
+
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
+  useRouter: () => ({ replace: routerReplaceMock, push: routerPushMock }),
   usePathname: () => "/learning/courses",
+}));
+
+vi.mock("@/lib/certificate-client", () => ({
+  fetchMyCertificates: fetchMyCertificatesMock,
+}));
+
+vi.mock("@/lib/student-messaging-client", () => ({
+  fetchStudentConversations: fetchStudentConversationsMock,
+  fetchStudentMessages: fetchStudentMessagesMock,
+  sendStudentMessage: sendStudentMessageMock,
+  startStudentConversation: startStudentConversationMock,
+}));
+
+vi.mock("@/lib/realtime-messaging-client", () => ({
+  connectRealtimeMessaging: connectRealtimeMessagingMock,
+  fetchUserPresence: fetchUserPresenceMock,
+}));
+
+vi.mock("@/lib/review-client", () => ({
+  fetchMyCourseReview: fetchMyCourseReviewMock,
+  saveCourseReview: saveCourseReviewMock,
+}));
+
+vi.mock("@/lib/instructor-client", () => ({
+  fetchPublicInstructorPage: fetchPublicInstructorPageMock,
+}));
+
+vi.mock("@/lib/course-client", () => ({
+  fetchPublicCourseBySlug: fetchPublicCourseBySlugMock,
+}));
+
+vi.mock("@/lib/discussion-client", () => ({
+  fetchCourseDiscussions: fetchCourseDiscussionsMock,
+  fetchDiscussionDetail: fetchDiscussionDetailMock,
+  addDiscussionComment: addDiscussionCommentMock,
+  updateDiscussionStatus: vi.fn(),
 }));
 
 vi.mock("@/components/layout/user-menu", () => ({
@@ -35,7 +106,7 @@ vi.mock("@/lib/auth-session", () => ({
 describe("LearningPortal for instructors", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    resetLearningPortalCache();
+    clearQueryClient();
     mockUser = {
       id: "instructor-1",
       fullName: "Nguyễn Minh Anh",
@@ -67,8 +138,15 @@ describe("LearningPortal for instructors", () => {
       meta: { page: 0, size: 100, totalElements: 1, totalPages: 1 },
     });
 
-    // Mock student enrollments failing with STUDENT_REQUIRED (403)
+    // Mock student enrollments & batch progress failing with STUDENT_REQUIRED (403)
     vi.spyOn(learningClient, "fetchMyEnrollments").mockRejectedValue(
+      new ApiClientError(403, {
+        code: "STUDENT_REQUIRED",
+        message: "Chức năng này dành cho tài khoản học viên đang hoạt động",
+        details: [],
+      }),
+    );
+    vi.spyOn(learningClient, "fetchBatchCourseProgress").mockRejectedValue(
       new ApiClientError(403, {
         code: "STUDENT_REQUIRED",
         message: "Chức năng này dành cho tài khoản học viên đang hoạt động",
@@ -185,13 +263,18 @@ describe("LearningPortal for instructors", () => {
       meta: { page: 0, size: 10, totalElements: 1, totalPages: 1 },
     });
 
-    vi.spyOn(learningClient, "fetchCourseProgress").mockResolvedValue({
-      courseId: "c-1",
-      totalLessons: 12,
-      completedLessons: 6,
-      progressPercent: 50,
-      completed: false,
-    });
+    const batchProgressSpy = vi
+      .spyOn(learningClient, "fetchBatchCourseProgress")
+      .mockResolvedValue([
+        {
+          courseId: "c-1",
+          totalLessons: 12,
+          completedLessons: 6,
+          progressPercent: 50,
+          completed: false,
+        },
+      ]);
+    const singleProgressSpy = vi.spyOn(learningClient, "fetchCourseProgress");
 
     vi.spyOn(studentAnalyticsClient, "fetchStudentLearningAnalytics").mockResolvedValue({
       windowDays: 7,
@@ -315,5 +398,336 @@ describe("LearningPortal for instructors", () => {
       },
       { timeout: 4000 },
     );
+
+    expect(batchProgressSpy).toHaveBeenCalledTimes(1);
+    expect(singleProgressSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("LearningPortal student portal views", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.clearAllMocks();
+    clearQueryClient();
+    mockUser = {
+      id: "student-1",
+      fullName: "Trần Bảo Ngọc",
+      roles: ["STUDENT"],
+    };
+    getAccessToken.mockResolvedValue("student-token");
+    connectRealtimeMessagingMock.mockReturnValue(vi.fn());
+    fetchUserPresenceMock.mockResolvedValue([]);
+  });
+
+  it("renders CertificateListView on view=certificates using fetchMyCertificates", async () => {
+    fetchMyCertificatesMock.mockResolvedValue([
+      {
+        id: "cert-1",
+        courseId: "course-1",
+        courseTitle: "Kiến trúc Spring Boot Thực Chiến",
+        certificateNumber: "EA-2026-0001",
+        issuedAt: "2026-10-01T00:00:00Z",
+      },
+    ]);
+
+    render(<LearningPortal view="certificates" />);
+
+    expect(await screen.findByText("Kiến trúc Spring Boot Thực Chiến")).toBeInTheDocument();
+    expect(screen.getByText("EA-2026-0001")).toBeInTheDocument();
+    expect(fetchMyCertificatesMock).toHaveBeenCalledWith("student-token");
+  });
+
+  it("wires view=messages to student conversations without hardcoded dummy names", async () => {
+    const user = userEvent.setup();
+    fetchStudentConversationsMock.mockResolvedValue({
+      data: [
+        {
+          id: "conv-1",
+          instructorId: "inst-1",
+          instructorName: "Giảng viên Phạm Quang Huy",
+          studentId: "student-1",
+          studentName: "Trần Bảo Ngọc",
+          lastMessage: "Chào bạn, bài tập tuần này đã mở rồi nhé.",
+          lastMessageAt: "2026-11-12T08:00:00Z",
+          unreadCount: 1,
+          blocked: false,
+        },
+      ],
+      meta: { page: 0, size: 50, totalElements: 1, totalPages: 1 },
+    });
+    fetchStudentMessagesMock.mockResolvedValue({
+      data: [
+        {
+          id: "msg-1",
+          senderId: "inst-1",
+          body: "Chào bạn, bài tập tuần này đã mở rồi nhé.",
+          createdAt: "2026-11-12T08:00:00Z",
+          readAt: null,
+        },
+      ],
+      meta: { page: 0, size: 100, totalElements: 1, totalPages: 1 },
+    });
+    sendStudentMessageMock.mockResolvedValue({
+      id: "msg-2",
+      senderId: "student-1",
+      body: "Dạ em cảm ơn thầy ạ!",
+      createdAt: "2026-11-12T08:05:00Z",
+      readAt: null,
+    });
+
+    render(<LearningPortal view="messages" />);
+
+    expect(await screen.findAllByText("Giảng viên Phạm Quang Huy")).not.toHaveLength(0);
+    expect(screen.queryByText("Lê Quốc Khánh")).not.toBeInTheDocument();
+    expect(screen.queryByText("Thầy Hoàng Văn Dũng")).not.toBeInTheDocument();
+
+    const input = await screen.findByLabelText("Nhập tin nhắn");
+    await user.type(input, "Dạ em cảm ơn thầy ạ!");
+    await user.click(screen.getByRole("button", { name: "Gửi tin nhắn" }));
+
+    await waitFor(() => {
+      expect(sendStudentMessageMock).toHaveBeenCalledWith(
+        "conv-1",
+        "Dạ em cảm ơn thầy ạ!",
+        "student-token",
+      );
+    });
+  });
+
+  it("handles 404 unreviewed courses gracefully and saves reviews on view=reviews", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(learningClient, "fetchMyEnrollments").mockResolvedValue({
+      data: [
+        {
+          id: "en-1",
+          courseId: "c-1",
+          courseTitle: "React & TypeScript Chuyên Sâu",
+          courseSlug: "react-ts",
+          courseStatus: "PUBLISHED",
+          status: "ACTIVE",
+          enrolledAt: "2026-10-01T00:00:00Z",
+        },
+      ],
+      meta: { page: 0, size: 50, totalElements: 1, totalPages: 1 },
+    });
+    fetchMyCourseReviewMock.mockRejectedValue(
+      new ApiClientError(404, {
+        code: "REVIEW_NOT_FOUND",
+        message: "Bạn chưa gửi đánh giá cho khóa học này",
+        details: [],
+      }),
+    );
+    saveCourseReviewMock.mockResolvedValue({
+      id: "rev-1",
+      courseId: "c-1",
+      studentId: "student-1",
+      studentName: "Trần Bảo Ngọc",
+      rating: 4,
+      comment: "Khóa học dễ hiểu và thực tế.",
+      status: "PUBLISHED",
+      createdAt: "2026-11-12T09:00:00Z",
+      updatedAt: "2026-11-12T09:00:00Z",
+    });
+
+    render(<LearningPortal view="reviews" />);
+
+    expect(await screen.findByText("React & TypeScript Chuyên Sâu")).toBeInTheDocument();
+    expect(screen.getByText("Chưa có đánh giá")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Chọn 4 sao/i }));
+    await user.type(screen.getByLabelText("Nhận xét của bạn"), "Khóa học dễ hiểu và thực tế.");
+    await user.click(screen.getByRole("button", { name: "Gửi đánh giá" }));
+
+    await waitFor(() => {
+      expect(saveCourseReviewMock).toHaveBeenCalledWith(
+        "student-token",
+        "c-1",
+        4,
+        "Khóa học dễ hiểu và thực tế.",
+      );
+    });
+    expect(await screen.findByText("Đã gửi đánh giá thành công.")).toBeInTheDocument();
+  });
+
+  it("supports sort and scope filter on view=notes", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(learningClient, "fetchMyNotes").mockResolvedValue({
+      data: [
+        {
+          id: "n-1",
+          title: "Zustand State",
+          content: "Ghi chú gắn bài học",
+          lessonId: "les-1",
+          videoSecond: 45,
+          createdAt: "2026-11-10T00:00:00Z",
+          updatedAt: "2026-11-10T00:00:00Z",
+        },
+        {
+          id: "n-2",
+          title: "Alpha Checklist",
+          content: "Ghi chú tổng quan",
+          lessonId: null,
+          videoSecond: null,
+          createdAt: "2026-11-12T00:00:00Z",
+          updatedAt: "2026-11-12T00:00:00Z",
+        },
+      ],
+      meta: { page: 0, size: 100, totalElements: 2, totalPages: 1 },
+    });
+
+    render(<LearningPortal view="notes" />);
+
+    expect(await screen.findByText("Zustand State")).toBeInTheDocument();
+    expect(screen.getByText("Alpha Checklist")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Lọc:/i }));
+    await user.click(screen.getByRole("button", { name: "Gắn bài học" }));
+
+    expect(screen.getByText("Zustand State")).toBeInTheDocument();
+    expect(screen.queryByText("Alpha Checklist")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Đặt lại" }));
+    expect(screen.getByText("Alpha Checklist")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Xếp theo:/i }));
+    await user.click(screen.getByRole("menuitemradio", { name: "Tiêu đề A–Z" }));
+
+    const headings = screen.getAllByRole("heading", { level: 3 });
+    expect(headings[0]).toHaveTextContent("Alpha Checklist");
+    expect(headings[1]).toHaveTextContent("Zustand State");
+  });
+
+  it("renders teachers on view=teachers and starts conversation on submit", async () => {
+    const user = userEvent.setup();
+    fetchPublicInstructorPageMock.mockResolvedValue({
+      data: [
+        {
+          id: "inst-1",
+          fullName: "ThS. Nguyễn Văn An",
+          headline: "Kiến trúc sư hệ thống Java",
+          bio: null,
+          avatarUrl: null,
+          xUrl: null,
+          linkedinUrl: null,
+          websiteUrl: null,
+          expertise: "Spring Boot",
+          experienceYears: 8,
+          teachingExperience: null,
+          specialties: "Microservices, PostgreSQL",
+        },
+      ],
+      meta: { page: 0, size: 50, totalElements: 1, totalPages: 1 },
+    });
+    vi.spyOn(learningClient, "fetchMyEnrollments").mockResolvedValue({
+      data: [],
+      meta: { page: 0, size: 50, totalElements: 0, totalPages: 0 },
+    });
+    startStudentConversationMock.mockResolvedValue({
+      conversationId: "conv-new",
+      message: {
+        id: "m-1",
+        senderId: "student-1",
+        body: "Em chào thầy ạ",
+        createdAt: "2026-11-12T10:00:00Z",
+        readAt: null,
+      },
+    });
+
+    render(<LearningPortal view="teachers" />);
+
+    expect(await screen.findByText("ThS. Nguyễn Văn An")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Nhắn tin" }));
+
+    await user.type(screen.getByLabelText("Nội dung tin nhắn"), "Em chào thầy ạ");
+    await user.click(screen.getByRole("button", { name: "Gửi tin nhắn" }));
+
+    await waitFor(() => {
+      expect(startStudentConversationMock).toHaveBeenCalledWith(
+        "inst-1",
+        "Em chào thầy ạ",
+        "student-token",
+      );
+      expect(routerPushMock).toHaveBeenCalledWith("/learning/messages?conversationId=conv-new");
+    });
+  });
+
+  it("renders course discussions on view=discussion", async () => {
+    vi.spyOn(learningClient, "fetchMyEnrollments").mockResolvedValue({
+      data: [
+        {
+          id: "en-1",
+          courseId: "c-1",
+          courseTitle: "Java Backend Cơ Bản",
+          courseSlug: "java-backend",
+          courseStatus: "PUBLISHED",
+          status: "ACTIVE",
+          enrolledAt: "2026-10-01T00:00:00Z",
+        },
+      ],
+      meta: { page: 0, size: 100, totalElements: 1, totalPages: 1 },
+    });
+    fetchCourseDiscussionsMock.mockResolvedValue({
+      data: [
+        {
+          id: "disc-1",
+          courseId: "c-1",
+          lessonId: "les-1",
+          authorId: "student-1",
+          authorName: "Trần Bảo Ngọc",
+          authorAvatarUrl: null,
+          authorRole: "STUDENT",
+          isCourseInstructor: false,
+          title: "Cách cấu hình Flyway trong Spring Boot?",
+          body: "Mình gặp lỗi migration khi khởi động ứng dụng.",
+          videoTimestampSeconds: 125,
+          status: "OPEN",
+          commentCount: 1,
+          createdAt: "2026-11-12T07:00:00Z",
+          updatedAt: "2026-11-12T07:00:00Z",
+          canDelete: true,
+        },
+      ],
+      meta: { page: 0, size: 50, totalElements: 1, totalPages: 1 },
+    });
+    fetchDiscussionDetailMock.mockResolvedValue({
+      id: "disc-1",
+      courseId: "c-1",
+      lessonId: "les-1",
+      authorId: "student-1",
+      authorName: "Trần Bảo Ngọc",
+      authorAvatarUrl: null,
+      authorRole: "STUDENT",
+      isCourseInstructor: false,
+      title: "Cách cấu hình Flyway trong Spring Boot?",
+      body: "Mình gặp lỗi migration khi khởi động ứng dụng.",
+      videoTimestampSeconds: 125,
+      status: "OPEN",
+      commentCount: 1,
+      createdAt: "2026-11-12T07:00:00Z",
+      updatedAt: "2026-11-12T07:00:00Z",
+      canDelete: true,
+      comments: [
+        {
+          id: "cmt-1",
+          discussionId: "disc-1",
+          authorId: "inst-1",
+          authorName: "ThS. Nguyễn Văn An",
+          authorAvatarUrl: null,
+          authorRole: "INSTRUCTOR",
+          isCourseInstructor: true,
+          body: "Bạn kiểm tra lại tên file V37__... nhé.",
+          parentCommentId: null,
+          createdAt: "2026-11-12T07:10:00Z",
+          canDelete: false,
+        },
+      ],
+    });
+
+    render(<LearningPortal view="discussion" />);
+
+    expect(await screen.findAllByText("Cách cấu hình Flyway trong Spring Boot?")).not.toHaveLength(
+      0,
+    );
+    expect(await screen.findByText("Bạn kiểm tra lại tên file V37__... nhé.")).toBeInTheDocument();
   });
 });

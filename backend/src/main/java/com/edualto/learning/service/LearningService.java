@@ -8,9 +8,12 @@ import com.edualto.course.service.CourseLearningAccessService;
 import com.edualto.enrollment.service.EnrollmentService;
 import com.edualto.learning.domain.LearningActivityType;
 import com.edualto.learning.dto.CourseProgressResponse;
+import com.edualto.learning.dto.CourseProgressSummaryResponse;
 import com.edualto.learning.repository.LearningProgressRepository;
 import com.edualto.learning.repository.LearningProgressRepository.ProgressCounts;
+import com.edualto.user.service.UserService;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -23,15 +26,17 @@ public class LearningService {
     private final LearningProgressRepository progress;
     private final CertificateService certificates;
     private final LearningActivityService learningActivities;
+    private final UserService users;
 
     public LearningService(CourseLearningAccessService courses, EnrollmentService enrollments,
             LearningProgressRepository progress, CertificateService certificates,
-            LearningActivityService learningActivities) {
+            LearningActivityService learningActivities, UserService users) {
         this.courses = courses;
         this.enrollments = enrollments;
         this.progress = progress;
         this.certificates = certificates;
         this.learningActivities = learningActivities;
+        this.users = users;
     }
 
     @Transactional(readOnly = true)
@@ -85,6 +90,25 @@ public class LearningService {
         courses.requirePublishedCourse(courseId);
         certificates.issueIfEligible(studentId, courseId);
         return summarize(enrollmentId, courseId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<CourseProgressSummaryResponse> getBatchProgressSummary(UUID studentId) {
+        users.requireActiveStudent(studentId);
+        return progress.findBatchProgressSummary(studentId).stream()
+                .map(row -> {
+                    long total = row.getTotalLessons();
+                    long completed = row.getCompletedLessons();
+                    int percent = total == 0 ? 0 : (int) Math.round(((double) completed / (double) total) * 100.0);
+                    return new CourseProgressSummaryResponse(
+                            row.getCourseId(),
+                            total,
+                            completed,
+                            percent,
+                            total > 0 && completed >= total
+                    );
+                })
+                .toList();
     }
 
     private CourseProgressResponse summarize(UUID enrollmentId, UUID courseId) {

@@ -4,8 +4,10 @@ import com.edualto.common.api.ApiResponse;
 import com.edualto.common.security.AuthenticatedUser;
 import com.edualto.course.dto.LearningLessonResponse;
 import com.edualto.learning.dto.CourseProgressResponse;
+import com.edualto.learning.dto.CourseProgressSummaryResponse;
 import com.edualto.learning.service.LearningService;
 import io.swagger.v3.oas.annotations.Operation;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -37,5 +39,11 @@ public class LearningController {
     @Operation(summary = "Xem tiến độ của bạn theo giáo trình đang xuất bản")
     public ApiResponse<CourseProgressResponse> progress(@AuthenticationPrincipal AuthenticatedUser principal, @PathVariable UUID courseId) {
         return ApiResponse.ok(service.getProgress(principal.id(), courseId));
+    }
+
+    @GetMapping("/api/v1/me/courses/progress-summary")
+    @Operation(summary = "Xem tóm tắt tiến độ của tất cả khóa học đang xuất bản đã ghi danh")
+    public ApiResponse<List<CourseProgressSummaryResponse>> progressSummary(@AuthenticationPrincipal AuthenticatedUser principal) {
+        return ApiResponse.ok(service.getBatchProgressSummary(principal.id()));
     }
 }

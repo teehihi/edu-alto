@@ -172,6 +172,12 @@ export async function fetchCourseProgress(accessToken: string, courseId: string)
   });
 }
 
+export async function fetchBatchCourseProgress(accessToken: string) {
+  return apiRequest<CourseProgress[]>("/me/courses/progress-summary", {
+    accessToken,
+  });
+}
+
 export async function enrollInCourse(accessToken: string, courseId: string) {
   return apiRequest<string>(`/courses/${encodeURIComponent(courseId)}/enrollments`, {
     method: "POST",
