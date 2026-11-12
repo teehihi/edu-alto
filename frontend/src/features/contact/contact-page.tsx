@@ -7,10 +7,17 @@ import { AppHeader } from "@/components/layout/app-header";
 import { Footer } from "@/components/layout/footer";
 import { Button } from "@/components/ui/button";
 import { FeedbackModal } from "@/components/ui/feedback-modal";
+import { ApiClientError, apiRequest } from "@/lib/api";
 
 interface ContactFormState {
   success: boolean;
   errors: Record<string, string>;
+}
+
+interface ContactResponse {
+  id: string;
+  status: string;
+  createdAt: string;
 }
 
 const initialContactState: ContactFormState = {
@@ -29,6 +36,8 @@ async function submitContactAction(
 
   if (!fullName) {
     errors.fullName = "Vui lòng nhập họ và tên của bạn";
+  } else if (fullName.length > 120) {
+    errors.fullName = "Họ và tên không được vượt quá 120 ký tự";
   }
   if (!email) {
     errors.email = "Vui lòng nhập email";
@@ -37,15 +46,44 @@ async function submitContactAction(
   }
   if (!message) {
     errors.message = "Vui lòng nhập nội dung lời nhắn";
+  } else if (message.length < 10) {
+    errors.message = "Nội dung lời nhắn cần có ít nhất 10 ký tự";
+  } else if (message.length > 2000) {
+    errors.message = "Nội dung lời nhắn không được vượt quá 2000 ký tự";
   }
 
   if (Object.keys(errors).length > 0) {
     return { success: false, errors };
   }
 
-  // Simulate sending contact message
-  await new Promise((resolve) => setTimeout(resolve, 600));
-  return { success: true, errors: {} };
+  try {
+    await apiRequest<ContactResponse>("/contact", {
+      method: "POST",
+      body: { fullName, email, message },
+    });
+    return { success: true, errors: {} };
+  } catch (error) {
+    if (error instanceof ApiClientError) {
+      const nextErrors: Record<string, string> = {};
+      for (const detail of error.details ?? []) {
+        if (detail.field && detail.message && !nextErrors[detail.field]) {
+          nextErrors[detail.field] = detail.message;
+        }
+      }
+      if (Object.keys(nextErrors).length > 0) {
+        return { success: false, errors: nextErrors };
+      }
+      const submitMessage =
+        error.status >= 500
+          ? "Hệ thống đang bận, vui lòng thử lại sau ít phút."
+          : error.message || "Không thể gửi lời nhắn lúc này. Vui lòng thử lại.";
+      return { success: false, errors: { submit: submitMessage } };
+    }
+    return {
+      success: false,
+      errors: { submit: "Không thể gửi lời nhắn lúc này. Vui lòng kiểm tra kết nối và thử lại." },
+    };
+  }
 }
 
 export function ContactPage() {
@@ -125,19 +163,23 @@ export function ContactPage() {
               <div className="lg:col-span-7">
                 <h2 className="text-base font-bold text-heading">Để lại lời nhắn cho chúng tôi</h2>
 
-                <form action={formAction} className="mt-5 space-y-4">
+                <form action={formAction} noValidate className="mt-5 space-y-4">
                   {/* Name */}
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
+                    <label
+                      htmlFor="contact-full-name"
+                      className="block text-xs font-bold uppercase tracking-wider text-slate-600"
+                    >
                       Họ và Tên <span className="text-rose-500">*</span>
                     </label>
                     <input
+                      id="contact-full-name"
                       type="text"
                       name="fullName"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       placeholder="Ví dụ: Nguyễn Nhật Thiên"
-                      className="mt-1.5 w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-heading shadow-2xs placeholder:text-slate-400 focus:border-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+                      className="focus-ring mt-1.5 w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-heading shadow-2xs placeholder:text-slate-400 focus:border-primary focus:outline-hidden"
                     />
                     {state.errors.fullName && (
                       <p className="mt-1 text-xs text-rose-500">{state.errors.fullName}</p>
@@ -146,16 +188,20 @@ export function ContactPage() {
 
                   {/* Email */}
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
+                    <label
+                      htmlFor="contact-email"
+                      className="block text-xs font-bold uppercase tracking-wider text-slate-600"
+                    >
                       Email <span className="text-rose-500">*</span>
                     </label>
                     <input
+                      id="contact-email"
                       type="email"
                       name="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="toahith@vng.com.vn"
-                      className="mt-1.5 w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-heading shadow-2xs placeholder:text-slate-400 focus:border-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+                      className="focus-ring mt-1.5 w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-heading shadow-2xs placeholder:text-slate-400 focus:border-primary focus:outline-hidden"
                     />
                     {state.errors.email && (
                       <p className="mt-1 text-xs text-rose-500">{state.errors.email}</p>
@@ -164,30 +210,43 @@ export function ContactPage() {
 
                   {/* Message */}
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
+                    <label
+                      htmlFor="contact-message"
+                      className="block text-xs font-bold uppercase tracking-wider text-slate-600"
+                    >
                       Lời nhắn của bạn... <span className="text-rose-500">*</span>
                     </label>
                     <textarea
+                      id="contact-message"
                       rows={4}
                       name="message"
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
                       placeholder="Nhập nội dung thắc mắc hoặc câu hỏi cần giải đáp..."
-                      className="mt-1.5 w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-heading shadow-2xs placeholder:text-slate-400 focus:border-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+                      className="focus-ring mt-1.5 w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-heading shadow-2xs placeholder:text-slate-400 focus:border-primary focus:outline-hidden"
                     />
                     {state.errors.message && (
                       <p className="mt-1 text-xs text-rose-500">{state.errors.message}</p>
                     )}
                   </div>
 
+                  {state.errors.submit && (
+                    <div
+                      role="alert"
+                      className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-medium text-rose-700"
+                    >
+                      {state.errors.submit}
+                    </div>
+                  )}
+
                   {/* Submit Button */}
                   <div className="pt-2">
                     <Button
                       type="submit"
                       loading={isPending}
-                      className="w-full rounded-xl bg-primary py-3 font-bold text-white shadow-xs transition hover:bg-primary-dark active:scale-[0.98]"
+                      className="focus-ring w-full rounded-xl bg-primary py-3 font-bold text-white shadow-xs transition hover:bg-primary-dark active:scale-[0.98]"
                     >
-                      <span>Send</span>
+                      <span>{isPending ? "Đang gửi…" : "Gửi lời nhắn"}</span>
                     </Button>
                   </div>
                 </form>
