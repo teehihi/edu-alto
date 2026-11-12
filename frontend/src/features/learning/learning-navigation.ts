@@ -1,4 +1,5 @@
 import {
+  BarChart3,
   BookOpen,
   BookmarkCheck,
   Bell,
@@ -15,6 +16,7 @@ import {
 export type LearningPortalView =
   | "overview"
   | "courses"
+  | "analytics"
   | "certificates"
   | "savedLessons"
   | "assignments"
@@ -38,6 +40,12 @@ export const learningNavigationGroups = [
         href: "/learning/courses",
         view: "courses",
         icon: BookOpen,
+      },
+      {
+        label: "Phân tích học tập",
+        href: "/learning/analytics",
+        view: "analytics",
+        icon: BarChart3,
       },
       {
         label: "Thời khóa biểu",

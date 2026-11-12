@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LearningPortal, resetLearningPortalCache } from "./learning-portal";
 import * as learningClient from "@/lib/learning-client";
 import * as instructorCourseClient from "@/lib/instructor-course-client";
+import * as studentAnalyticsClient from "@/lib/student-analytics-client";
 import { ApiClientError } from "@/lib/api";
 
 const getAccessToken = vi.fn().mockResolvedValue("test-token");
@@ -165,12 +166,127 @@ describe("LearningPortal for instructors", () => {
       completed: false,
     });
 
+    vi.spyOn(studentAnalyticsClient, "fetchStudentLearningAnalytics").mockResolvedValue({
+      windowDays: 7,
+      summary: {
+        activeCourseCount: 1,
+        totalLessons: 12,
+        completedLessons: 6,
+        completionRate: 50,
+        overallAverageScoreOutOf10: 8.5,
+        averageQuizScoreOutOf10: 8.5,
+        quizPassRate: 100,
+        attemptedQuizzesCount: 1,
+        passedQuizzesCount: 1,
+        averageAssignmentScoreOutOf10: null,
+        publishedAssignmentsCount: 0,
+        submittedAssignmentsCount: 0,
+        onTimeAssignmentsCount: 0,
+        currentStreakDays: 4,
+        longestStreakDays: 6,
+        activeDaysInWindow: 4,
+        estimatedStudyHoursInWindow: 3.5,
+        completedLessonsInWindow: 3,
+        currentWeekHours: 3.5,
+        currentWeekActiveDays: 4,
+      },
+      currentWeekActivity: [
+        {
+          date: "2026-11-09",
+          label: "T2",
+          fullLabel: "Thứ 2, 09/11",
+          studyHours: 1.5,
+          studyMinutes: 90,
+          completedLessons: 2,
+          today: false,
+        },
+        {
+          date: "2026-11-10",
+          label: "T3",
+          fullLabel: "Thứ 3, 10/11",
+          studyHours: 1.0,
+          studyMinutes: 60,
+          completedLessons: 1,
+          today: false,
+        },
+        {
+          date: "2026-11-11",
+          label: "T4",
+          fullLabel: "Thứ 4, 11/11",
+          studyHours: 0.5,
+          studyMinutes: 30,
+          completedLessons: 0,
+          today: false,
+        },
+        {
+          date: "2026-11-12",
+          label: "T5",
+          fullLabel: "Thứ 5, 12/11",
+          studyHours: 0.5,
+          studyMinutes: 30,
+          completedLessons: 0,
+          today: true,
+        },
+        {
+          date: "2026-11-13",
+          label: "T6",
+          fullLabel: "Thứ 6, 13/11",
+          studyHours: 0,
+          studyMinutes: 0,
+          completedLessons: 0,
+          today: false,
+        },
+        {
+          date: "2026-11-14",
+          label: "T7",
+          fullLabel: "Thứ 7, 14/11",
+          studyHours: 0,
+          studyMinutes: 0,
+          completedLessons: 0,
+          today: false,
+        },
+        {
+          date: "2026-11-15",
+          label: "CN",
+          fullLabel: "Chủ nhật, 15/11",
+          studyHours: 0,
+          studyMinutes: 0,
+          completedLessons: 0,
+          today: false,
+        },
+      ],
+      windowDailyActivity: [],
+      scoreTrend: [],
+      coursePerformances: [],
+      focusItems: [
+        {
+          id: "quiz-q-1",
+          type: "FAILED_QUIZ",
+          priority: "HIGH",
+          title: "Quiz 2: App Router",
+          description: "Điểm cao nhất 5.0/10 · Cần đạt 7.0/10 (1 lần làm)",
+          courseId: "c-1",
+          courseTitle: "Next.js Thực Chiến Toàn Diện",
+          actionHref: "/learning/lessons/les-2",
+          actionLabel: "Làm lại quiz",
+        },
+      ],
+    });
+
     render(<LearningPortal view="overview" />);
 
-    await waitFor(() => {
-      expect(screen.getByText("Next.js Thực Chiến Toàn Diện")).toBeInTheDocument();
-      expect(screen.getByText(/6\/12 bài học hoàn thành/i)).toBeInTheDocument();
-      expect(screen.getByRole("link", { name: /Tiếp tục học ngay/i })).toBeInTheDocument();
-    });
+    await waitFor(
+      () => {
+        expect(screen.getByText("Next.js Thực Chiến Toàn Diện")).toBeInTheDocument();
+        expect(screen.getByText(/6\/12 bài học hoàn thành/i)).toBeInTheDocument();
+        expect(screen.getByRole("link", { name: /Tiếp tục học ngay/i })).toBeInTheDocument();
+        expect(screen.getByText("Kỷ lục dài nhất: 6 ngày")).toBeInTheDocument();
+        expect(screen.getByText("4/7 ngày")).toBeInTheDocument();
+        expect(screen.getByText("Quiz 2: App Router")).toBeInTheDocument();
+        expect(screen.queryByText("Ôn tập kiến thức tuần này")).not.toBeInTheDocument();
+        expect(screen.queryByText("75%")).not.toBeInTheDocument();
+      },
+      { timeout: 4000 },
+    );
   });
 });

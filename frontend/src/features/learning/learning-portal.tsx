@@ -79,12 +79,18 @@ import {
   learningNavigationGroups as navGroups,
   type LearningPortalView,
 } from "@/features/learning/learning-navigation";
+import { StudentAnalyticsView } from "@/features/learning/student-analytics-view";
+import {
+  fetchStudentLearningAnalytics,
+  type StudentLearningAnalyticsOverview,
+} from "@/lib/student-analytics-client";
 
 type PortalView = LearningPortalView;
 
 const viewTitles: Record<PortalView, string> = {
   overview: "Tổng quan học tập",
   courses: "Khóa học của tôi",
+  analytics: "Phân tích học tập",
   certificates: "Chứng chỉ của tôi",
   savedLessons: "Bài học đã lưu",
   assignments: "Bài tập",
@@ -98,23 +104,6 @@ const viewTitles: Record<PortalView, string> = {
   notifications: "Thông báo",
   favorites: "Khóa học yêu thích",
 };
-
-const upcomingTasks = [
-  {
-    id: "quiz",
-    title: "Ôn tập kiến thức tuần này",
-    detail: "Bài tập tự ôn tập",
-    date: "Hôm nay",
-    done: false,
-  },
-  {
-    id: "lesson",
-    title: "Tiếp tục bài học đang học",
-    detail: "Khóa học của bạn",
-    date: "Hôm nay",
-    done: false,
-  },
-];
 
 interface LearningDataCache {
   userId: string;
@@ -634,6 +623,8 @@ export function LearningPortal({ view }: { view: PortalView }) {
               instructorTab={instructorTab}
               onInstructorTabChange={setInstructorTab}
             />
+          ) : view === "analytics" ? (
+            <StudentAnalyticsView isInstructor={isInstructor} />
           ) : view === "savedLessons" ? (
             <SavedLessonsView />
           ) : view === "certificates" ? (
@@ -689,12 +680,12 @@ function Overview({
   isInstructor?: boolean;
 }) {
   const { getAccessToken } = useAuthSession();
-  const [tasks, setTasks] = useState(upcomingTasks);
   const [instructorBannerDismissed, setInstructorBannerDismissed] = useState(false);
   const [activityMetric, setActivityMetric] = useState<"hours" | "lessons">("hours");
   const [selectedDate, setSelectedDate] = useState<number>(new Date().getDate());
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [analytics, setAnalytics] = useState<StudentLearningAnalyticsOverview | null>(null);
 
   const recent = enrollments.slice(0, 3);
   const primaryCourse = recent[0];
@@ -719,7 +710,7 @@ function Overview({
     year: "numeric",
   }).format(new Date(currentYear, currentMonth, 1));
 
-  // Fetch calendar events and assignments asynchronously for real data
+  // Fetch calendar events, assignments, and student analytics asynchronously for real data
   useEffect(() => {
     let active = true;
     void getAccessToken().then(async (token) => {
@@ -739,6 +730,13 @@ function Overview({
       } catch {
         // Safe fallback for assignments
       }
+
+      try {
+        const overviewData = await fetchStudentLearningAnalytics(token, 7);
+        if (active) setAnalytics(overviewData);
+      } catch {
+        // Safe fallback when user has no student analytics profile (e.g. instructor-only)
+      }
     });
     return () => {
       active = false;
@@ -756,17 +754,21 @@ function Overview({
     }
   }
 
-  // Pending count calculation
-  const pendingAssignmentsCount = assignments.filter(
-    (a) => a.status === "PUBLISHED" && !a.submittedAt,
-  ).length;
-  const pendingTasksCount = tasks.filter((t) => !t.done).length + pendingAssignmentsCount;
+  // Real pending assignments & focus items
+  const focusItems = analytics?.focusItems ?? [];
+  const focusAssignmentIds = new Set(
+    focusItems
+      .filter((item) => item.id.startsWith("assignment-"))
+      .map((item) => item.id.slice("assignment-".length)),
+  );
+  const remainingPendingAssignments = assignments.filter(
+    (a) => a.status === "PUBLISHED" && !a.submittedAt && !focusAssignmentIds.has(a.id),
+  );
+  const pendingTasksCount = focusItems.length + remainingPendingAssignments.length;
 
-  // 7-day weekly activity dataset
+  // Real 7-day weekly activity dataset (fallback zeros before load or for non-student roles)
   const dayOfWeek = new Date().getDay();
   const todayIndex = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // 0..6 (Mon..Sun)
-  const baseHours = [0.8, 1.4, 1.2, 0.6, 1.8, 0.4, 0.0];
-  const baseLessons = [1, 2, 2, 1, 3, 1, 0];
   const dayLabels = [
     { key: "T2", full: "Thứ 2" },
     { key: "T3", full: "Thứ 3" },
@@ -776,15 +778,34 @@ function Overview({
     { key: "T7", full: "Thứ 7" },
     { key: "CN", full: "Chủ nhật" },
   ];
-  const weeklyActivity = dayLabels.map((item, idx) => ({
-    day: item.key,
-    full: item.full,
-    hours: idx <= todayIndex ? baseHours[idx] : 0,
-    lessons: idx <= todayIndex ? baseLessons[idx] : 0,
-    isToday: idx === todayIndex,
-  }));
+  const weeklyActivity =
+    analytics && analytics.currentWeekActivity.length === 7
+      ? analytics.currentWeekActivity.map((item) => ({
+          day: item.label,
+          full: item.fullLabel,
+          hours: item.studyHours,
+          lessons: item.completedLessons,
+          isToday: item.today,
+        }))
+      : dayLabels.map((item, idx) => ({
+          day: item.key,
+          full: item.full,
+          hours: 0,
+          lessons: 0,
+          isToday: idx === todayIndex,
+        }));
 
-  const totalWeeklyHours = weeklyActivity.reduce((acc, curr) => acc + curr.hours, 0).toFixed(1);
+  const maxWeeklyVal =
+    activityMetric === "hours"
+      ? Math.max(1, ...weeklyActivity.map((item) => item.hours))
+      : Math.max(1, ...weeklyActivity.map((item) => item.lessons));
+  const totalWeeklyHours = (
+    analytics?.summary.currentWeekHours ?? weeklyActivity.reduce((acc, curr) => acc + curr.hours, 0)
+  ).toFixed(1);
+  const currentStreakDays = analytics?.summary.currentStreakDays ?? 0;
+  const longestStreakDays = analytics?.summary.longestStreakDays ?? 0;
+  const currentWeekActiveDays = analytics?.summary.currentWeekActiveDays ?? 0;
+  const overallAvgScore = analytics?.summary.overallAverageScoreOutOf10 ?? null;
 
   // SVG Gauge calculations
   const gaugeRadius = 42;
@@ -815,6 +836,13 @@ function Overview({
           </div>
 
           <div className="flex items-center gap-2">
+            <Link
+              href="/learning/analytics"
+              className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50/60 px-3.5 text-xs font-semibold text-primary shadow-xs transition hover:bg-emerald-100/70 active:scale-[0.98]"
+            >
+              <span>Phân tích học tập</span>
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
             <Link
               href="/courses"
               className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white px-3.5 text-xs font-semibold text-heading shadow-xs transition hover:border-emerald-200 hover:bg-emerald-50/30 active:scale-[0.98]"
@@ -864,9 +892,13 @@ function Overview({
               </div>
             </div>
             <p className="mt-2 text-2xl font-bold tracking-tight text-heading tabular-nums">
-              3 <span className="text-sm font-normal text-amber-600">ngày</span>
+              {currentStreakDays} <span className="text-sm font-normal text-amber-600">ngày</span>
             </p>
-            <p className="mt-0.5 text-[11px] text-muted">Duy trì rất tốt hôm nay 🔥</p>
+            <p className="mt-0.5 text-[11px] text-muted">
+              {longestStreakDays > 0
+                ? `Kỷ lục dài nhất: ${longestStreakDays} ngày`
+                : "Bắt đầu bài học để tạo chuỗi"}
+            </p>
           </div>
 
           <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs transition hover:border-blue-200 hover:shadow-soft">
@@ -880,7 +912,7 @@ function Overview({
               {pendingTasksCount}
             </p>
             <p className="mt-0.5 text-[11px] text-muted">
-              {pendingTasksCount > 0 ? "Cần hoàn thành sớm" : "Đã xong toàn bộ"}
+              {pendingTasksCount > 0 ? "Cần ưu tiên hoàn thành" : "Đã xong toàn bộ"}
             </p>
           </div>
         </div>
@@ -1109,10 +1141,9 @@ function Overview({
               <div className="grid grid-cols-7 gap-2 sm:gap-4 items-end h-[140px] px-2 pb-2 border-b border-dashed border-slate-200">
                 {weeklyActivity.map((item) => {
                   const val = activityMetric === "hours" ? item.hours : item.lessons;
-                  const maxVal = activityMetric === "hours" ? 2.5 : 4;
                   const heightPercent = Math.min(
                     100,
-                    Math.max(8, Math.round((val / maxVal) * 100)),
+                    Math.max(8, Math.round((val / maxWeeklyVal) * 100)),
                   );
 
                   return (
@@ -1122,7 +1153,7 @@ function Overview({
                     >
                       {/* Tooltip on Hover */}
                       <div className="pointer-events-none absolute -top-8 z-10 hidden whitespace-nowrap rounded-md bg-heading px-2 py-1 text-[10px] font-medium text-white shadow-xs group-hover:block transition">
-                        {item.full}: {item.hours}h ({item.lessons} bài)
+                        {item.full}: {item.hours.toFixed(1)}h ({item.lessons} bài)
                       </div>
 
                       {/* Bar */}
@@ -1167,19 +1198,25 @@ function Overview({
             <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-muted pt-2 border-t border-slate-100">
               <div className="flex items-center gap-4">
                 <span>
-                  ⏱️ Tổng tuần:{" "}
+                  Tổng tuần này:{" "}
                   <strong className="text-heading font-semibold tabular-nums">
                     {totalWeeklyHours} giờ
                   </strong>
                 </span>
                 <span>
-                  🎯 Mục tiêu tuần:{" "}
-                  <strong className="text-primary font-semibold tabular-nums">75%</strong>
+                  Ngày tích cực:{" "}
+                  <strong className="text-primary font-semibold tabular-nums">
+                    {currentWeekActiveDays}/7 ngày
+                  </strong>
                 </span>
               </div>
-              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
-                Duy trì phong độ đều đặn ⭐
-              </span>
+              <Link
+                href="/learning/analytics"
+                className="focus-ring inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
+              >
+                <span>Xem phân tích chi tiết</span>
+                <ChevronRight className="h-3 w-3" />
+              </Link>
             </div>
           </section>
 
@@ -1358,7 +1395,7 @@ function Overview({
             </div>
           </section>
 
-          {/* B. To-Do Tasks & Assignments */}
+          {/* B. Real Actionable To-Do Tasks & Assignments */}
           <section className="portal-card">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -1376,51 +1413,50 @@ function Overview({
               </Link>
             </div>
 
-            <div className="mt-3 divide-y divide-slate-100">
-              {tasks.map((task) => (
-                <label
-                  key={task.id}
-                  className="flex cursor-pointer items-start gap-3 py-2.5 transition hover:bg-slate-50/50 rounded-lg px-1"
-                >
-                  <input
-                    type="checkbox"
-                    checked={task.done}
-                    onChange={() =>
-                      setTasks((items) =>
-                        items.map((item) =>
-                          item.id === task.id ? { ...item, done: !item.done } : item,
-                        ),
-                      )
-                    }
-                    className="mt-0.5 h-4 w-4 rounded border-slate-300 accent-primary cursor-pointer transition active:scale-[0.95]"
-                  />
-                  <span className="min-w-0 flex-1">
-                    <span
-                      className={cn(
-                        "block text-xs font-medium transition",
-                        task.done ? "text-slate-400 line-through" : "text-heading font-semibold",
-                      )}
+            {pendingTasksCount === 0 ? (
+              <div className="mt-3 rounded-xl border border-slate-100 bg-slate-50/60 p-4 text-center">
+                <p className="text-xs font-medium text-heading">
+                  Không có việc tồn đọng nào cần xử lý gấp.
+                </p>
+                <p className="mt-1 text-[11px] text-muted">
+                  Mọi quiz chưa đạt hoặc bài tập sắp đến hạn sẽ tự động xuất hiện tại đây.
+                </p>
+              </div>
+            ) : (
+              <div className="mt-3 divide-y divide-slate-100">
+                {focusItems.slice(0, 3).map((item) => (
+                  <div key={item.id} className="py-2.5 px-1 flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-heading line-clamp-1">
+                        {item.title}
+                      </p>
+                      <p className="text-[10px] text-muted mt-0.5 line-clamp-1">
+                        {item.courseTitle} ·{" "}
+                        <span
+                          className={cn(
+                            "font-medium",
+                            item.priority === "HIGH" ? "text-rose-600" : "text-amber-600",
+                          )}
+                        >
+                          {item.description}
+                        </span>
+                      </p>
+                    </div>
+                    <Link
+                      href={item.actionHref}
+                      className="focus-ring rounded-lg bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-primary hover:bg-emerald-100 shrink-0 transition"
                     >
-                      {task.title}
-                    </span>
-                    <span className="mt-0.5 block text-[10px] text-muted">
-                      {task.detail} ·{" "}
-                      <span className="text-emerald-700 font-medium">{task.date}</span>
-                    </span>
-                  </span>
-                </label>
-              ))}
+                      {item.actionLabel}
+                    </Link>
+                  </div>
+                ))}
 
-              {/* Show pending real assignments if any */}
-              {assignments
-                .filter((a) => a.status === "PUBLISHED" && !a.submittedAt)
-                .slice(0, 2)
-                .map((assign) => (
+                {remainingPendingAssignments.slice(0, 2).map((assign) => (
                   <div
                     key={assign.id}
                     className="py-2.5 px-1 flex items-start justify-between gap-2"
                   >
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-xs font-semibold text-heading line-clamp-1">
                         {assign.title}
                       </p>
@@ -1432,18 +1468,23 @@ function Overview({
                     </div>
                     <Link
                       href="/learning/assignments"
-                      className="rounded-lg bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-primary hover:bg-emerald-100 shrink-0 transition"
+                      className="focus-ring rounded-lg bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-primary hover:bg-emerald-100 shrink-0 transition"
                     >
                       Làm bài
                     </Link>
                   </div>
                 ))}
-            </div>
+              </div>
+            )}
           </section>
 
           {/* C. Performance & Radial Gauge */}
           <section className="portal-card">
-            <SectionHeading title="Hiệu suất học tập" />
+            <SectionHeading
+              title="Hiệu suất học tập"
+              action="Chi tiết"
+              href="/learning/analytics"
+            />
 
             <div className="mt-4 flex flex-col items-center justify-center rounded-2xl border border-slate-100 bg-slate-50/40 p-5 text-center">
               {/* Radial SVG Gauge */}
@@ -1487,10 +1528,10 @@ function Overview({
                 {totalCompleted} / {totalLessons || 0} bài học đã hoàn tất
               </p>
               <p className="mt-1 text-[11px] text-muted">
-                {completion >= 80
-                  ? "Tiến độ xuất sắc! Tiếp tục bứt phá mục tiêu nhé."
+                {overallAvgScore !== null
+                  ? `Điểm trung bình các bài đánh giá: ${overallAvgScore.toFixed(1)}/10`
                   : completion > 0
-                    ? "Đang duy trì thói quen học tập rất tốt."
+                    ? "Đang duy trì nhịp độ học tập đều đặn."
                     : "Hãy bắt đầu bài học đầu tiên ngay hôm nay!"}
               </p>
             </div>
@@ -2463,7 +2504,7 @@ function CourseGridCard({
 function UtilityView({
   view,
 }: {
-  view: Exclude<PortalView, "overview" | "courses" | "savedLessons">;
+  view: Exclude<PortalView, "overview" | "courses" | "savedLessons" | "analytics">;
 }) {
   if (view === "calendar") return <CalendarView />;
   if (view === "notes") return <NotesView />;
