@@ -12,7 +12,7 @@ services:
       - data
 
   backend:
-    image: edualto-backend:production
+    image: ${BACKEND_IMAGE:-edualto-backend:production}
     container_name: edualto-backend
     restart: unless-stopped
     depends_on:

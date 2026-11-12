@@ -2,7 +2,7 @@
 
 The `CI` workflow deploys the backend to a self-hosted GitHub Actions runner installed on the Lightsail instance. The deploy job runs after the frontend and backend CI jobs pass on `main`. Pull requests run only on GitHub-hosted runners and never access the Lightsail instance. A manual workflow run on `main` also deploys the current commit.
 
-The workflow builds the image with `backend/Dockerfile` and starts it with Docker Compose directly on Lightsail. The existing host-level Caddy systemd service terminates public HTTPS and forwards requests to `127.0.0.1:8080`; Docker publishes the backend on that loopback address only. Redis has no published host port and is isolated on an internal Docker network. PostgreSQL stays in Amazon RDS. Flyway applies checked-in database migrations when the backend starts. Do not add a second Caddy container because the host service already owns ports `80` and `443`.
+The `CI` workflow builds the backend Docker image from `backend/Dockerfile` on GitHub-hosted runners, pushes it to GitHub Container Registry (`ghcr.io`), and deploys to Lightsail via the self-hosted runner installed on the instance using `docker compose pull` and `up -d`. The existing host-level Caddy systemd service terminates public HTTPS and forwards requests to `127.0.0.1:8080`; Docker publishes the backend on that loopback address only. Redis has no published host port and is isolated on an internal Docker network. PostgreSQL stays in Amazon RDS. Flyway applies checked-in database migrations when the backend starts. Do not add a second Caddy container because the host service already owns ports `80` and `443`.
 
 ## One-time Lightsail setup
 
