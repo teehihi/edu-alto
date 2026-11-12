@@ -97,6 +97,7 @@ class InstructorAnalyticsIntegrationTest extends AbstractIntegrationTest {
         Course courseB = createPublishedCourse(instructor, "Khóa học Python", new BigDecimal("300000"));
         Section sectionB = createSection(courseB);
         Lesson lessonB1 = createPublishedTextLesson(sectionB, 1);
+        createDraftTextLesson(sectionB, 2);
 
         UUID enrollmentA = insertEnrollment(student.getId(), courseA.getId());
         insertEnrollment(student.getId(), courseB.getId());
@@ -122,8 +123,13 @@ class InstructorAnalyticsIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.data.coursePerformances", hasSize(2)))
                 .andExpect(jsonPath("$.data.coursePerformances[0].courseId").value(courseA.getId().toString()))
                 .andExpect(jsonPath("$.data.coursePerformances[0].completionRate").value(50.0))
+                .andExpect(jsonPath("$.data.coursePerformances[0].averageRating").value(5.0))
+                .andExpect(jsonPath("$.data.coursePerformances[0].reviewCount").value(1))
                 .andExpect(jsonPath("$.data.coursePerformances[1].courseId").value(courseB.getId().toString()))
-                .andExpect(jsonPath("$.data.coursePerformances[1].completionRate").value(0.0));
+                .andExpect(jsonPath("$.data.coursePerformances[1].completionRate").value(0.0))
+                .andExpect(jsonPath("$.data.coursePerformances[1].totalLessons").value(1))
+                .andExpect(jsonPath("$.data.coursePerformances[1].averageRating").value(0.0))
+                .andExpect(jsonPath("$.data.coursePerformances[1].reviewCount").value(0));
 
         // 2. Single course filter via query param and path variable
         mockMvc.perform(get("/api/v1/instructor/analytics/overview")
@@ -206,6 +212,14 @@ class InstructorAnalyticsIntegrationTest extends AbstractIntegrationTest {
     }
 
     private Lesson createPublishedTextLesson(Section section, int position) {
+        return createTextLesson(section, position, LessonStatus.PUBLISHED);
+    }
+
+    private Lesson createDraftTextLesson(Section section, int position) {
+        return createTextLesson(section, position, LessonStatus.DRAFT);
+    }
+
+    private Lesson createTextLesson(Section section, int position, LessonStatus status) {
         return lessonRepository.save(new Lesson(
                 UUID.randomUUID(),
                 section.getId(),
@@ -218,7 +232,7 @@ class InstructorAnalyticsIntegrationTest extends AbstractIntegrationTest {
                 120,
                 false,
                 null,
-                LessonStatus.PUBLISHED
+                status
         ));
     }
 

@@ -1,5 +1,6 @@
 package com.edualto.course.service;
 
+import com.edualto.common.config.RedisCacheConfig;
 import com.edualto.common.exception.BusinessException;
 import com.edualto.common.util.SlugUtils;
 import com.edualto.course.domain.Course;
@@ -41,6 +42,8 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -156,6 +159,10 @@ public class CourseStructureService {
     // Section Management
     // ==========================================
 
+    @Caching(evict = {
+            @CacheEvict(value = RedisCacheConfig.CACHE_COURSES_DETAIL, allEntries = true),
+            @CacheEvict(value = RedisCacheConfig.CACHE_COURSES_CURRICULUM, allEntries = true)
+    })
     @Transactional
     public SectionResponse createSection(UUID instructorId, UUID courseId, CreateSectionRequest request) {
         getCourseAndCheckOwnership(instructorId, courseId);
@@ -212,6 +219,10 @@ public class CourseStructureService {
         return toSectionResponse(section, lessons.size(), duration);
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = RedisCacheConfig.CACHE_COURSES_DETAIL, allEntries = true),
+            @CacheEvict(value = RedisCacheConfig.CACHE_COURSES_CURRICULUM, allEntries = true)
+    })
     @Transactional
     public SectionResponse updateSection(UUID instructorId, UUID courseId, UUID sectionId, UpdateSectionRequest request) {
         getCourseAndCheckOwnership(instructorId, courseId);
@@ -234,6 +245,10 @@ public class CourseStructureService {
         return toSectionResponse(section, lessons.size(), duration);
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = RedisCacheConfig.CACHE_COURSES_DETAIL, allEntries = true),
+            @CacheEvict(value = RedisCacheConfig.CACHE_COURSES_CURRICULUM, allEntries = true)
+    })
     @Transactional
     public void deleteSection(UUID instructorId, UUID courseId, UUID sectionId) {
         getCourseAndCheckOwnership(instructorId, courseId);
@@ -258,6 +273,10 @@ public class CourseStructureService {
         sectionRepository.saveAll(remaining);
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = RedisCacheConfig.CACHE_COURSES_DETAIL, allEntries = true),
+            @CacheEvict(value = RedisCacheConfig.CACHE_COURSES_CURRICULUM, allEntries = true)
+    })
     @Transactional
     public List<SectionResponse> reorderSections(UUID instructorId, UUID courseId, ReorderSectionsRequest request) {
         getCourseAndCheckOwnership(instructorId, courseId);
@@ -294,6 +313,10 @@ public class CourseStructureService {
     // Lesson Management
     // ==========================================
 
+    @Caching(evict = {
+            @CacheEvict(value = RedisCacheConfig.CACHE_COURSES_DETAIL, allEntries = true),
+            @CacheEvict(value = RedisCacheConfig.CACHE_COURSES_CURRICULUM, allEntries = true)
+    })
     @Transactional
     public LessonResponse createLesson(UUID instructorId, UUID courseId, UUID sectionId, CreateLessonRequest request) {
         getCourseAndCheckOwnership(instructorId, courseId);
@@ -349,6 +372,10 @@ public class CourseStructureService {
         return toLessonResponse(lesson);
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = RedisCacheConfig.CACHE_COURSES_DETAIL, allEntries = true),
+            @CacheEvict(value = RedisCacheConfig.CACHE_COURSES_CURRICULUM, allEntries = true)
+    })
     @Transactional
     public LessonResponse updateLesson(UUID instructorId, UUID courseId, UUID sectionId, UUID lessonId, UpdateLessonRequest request) {
         getCourseAndCheckOwnership(instructorId, courseId);
@@ -380,6 +407,10 @@ public class CourseStructureService {
         return toLessonResponse(lesson);
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = RedisCacheConfig.CACHE_COURSES_DETAIL, allEntries = true),
+            @CacheEvict(value = RedisCacheConfig.CACHE_COURSES_CURRICULUM, allEntries = true)
+    })
     @Transactional
     public void deleteLesson(UUID instructorId, UUID courseId, UUID sectionId, UUID lessonId) {
         getCourseAndCheckOwnership(instructorId, courseId);
@@ -405,6 +436,10 @@ public class CourseStructureService {
         lessonRepository.saveAll(remaining);
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = RedisCacheConfig.CACHE_COURSES_DETAIL, allEntries = true),
+            @CacheEvict(value = RedisCacheConfig.CACHE_COURSES_CURRICULUM, allEntries = true)
+    })
     @Transactional
     public List<LessonResponse> reorderLessons(UUID instructorId, UUID courseId, UUID sectionId, ReorderLessonsRequest request) {
         getCourseAndCheckOwnership(instructorId, courseId);

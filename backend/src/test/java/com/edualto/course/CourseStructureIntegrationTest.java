@@ -4,15 +4,20 @@ import com.edualto.auth.domain.EmailOtp;
 import com.edualto.auth.domain.OtpPurpose;
 import com.edualto.auth.repository.EmailOtpRepository;
 import com.edualto.auth.repository.RefreshTokenRepository;
+import com.edualto.common.config.RedisCacheConfig;
 import com.edualto.course.domain.Course;
 import com.edualto.course.domain.CourseLevel;
 import com.edualto.course.domain.Lesson;
 import com.edualto.course.domain.LessonStatus;
 import com.edualto.course.domain.LessonType;
 import com.edualto.course.domain.Section;
+import com.edualto.course.dto.CourseCurriculumResponse;
+import com.edualto.course.dto.CourseDetailResponse;
 import com.edualto.course.repository.CourseRepository;
 import com.edualto.course.repository.LessonRepository;
 import com.edualto.course.repository.SectionRepository;
+import com.edualto.course.service.CourseService;
+import com.edualto.course.service.PublicCourseCurriculumService;
 import com.edualto.profile.repository.InstructorProfileRepository;
 import com.edualto.profile.repository.ProfileRepository;
 import com.edualto.profile.repository.StudentProfileRepository;
@@ -35,6 +40,12 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -90,11 +101,43 @@ class CourseStructureIntegrationTest extends AbstractIntegrationTest {
     @Autowired
     private LessonRepository lessonRepository;
 
+    @Autowired
+    private PublicCourseCurriculumService publicCourseCurriculumService;
+
+    @Autowired
+    private CourseService courseService;
+
+    @Autowired
+    private CacheManager cacheManager;
+
     @MockitoBean
     private StorageService storageService;
 
+    @TestConfiguration
+    static class InMemoryCacheTestConfig {
+
+        @Bean
+        @Primary
+        CacheManager testCacheManager() {
+            return new ConcurrentMapCacheManager(
+                    RedisCacheConfig.CACHE_COURSES_CATALOG,
+                    RedisCacheConfig.CACHE_COURSES_DETAIL,
+                    RedisCacheConfig.CACHE_COURSES_CURRICULUM,
+                    RedisCacheConfig.CACHE_AUTH_SESSIONS,
+                    RedisCacheConfig.CACHE_AUTH_REFRESH_TOKENS,
+                    RedisCacheConfig.CACHE_ROLE_PERMISSIONS
+            );
+        }
+    }
+
     @BeforeEach
     void setUp() {
+        for (String cacheName : cacheManager.getCacheNames()) {
+            Cache cache = cacheManager.getCache(cacheName);
+            if (cache != null) {
+                cache.clear();
+            }
+        }
         lessonRepository.deleteAll();
         sectionRepository.deleteAll();
         courseRepository.deleteAll();
@@ -370,5 +413,96 @@ class CourseStructureIntegrationTest extends AbstractIntegrationTest {
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk());
         verify(storageService).deleteObject(objectKey);
+    }
+
+    @Test
+    @DisplayName("Cache giáo trình và chi tiết khóa học được xóa ngay khi thêm hoặc sắp xếp lại bài học")
+    void publicCurriculumCacheEvictedImmediatelyOnLessonCreateAndReorder() throws Exception {
+        String token = registerAndLogin("cache-teacher@edualto.com", "INSTRUCTOR", "Giảng viên Cache");
+        User teacher = userRepository.findByEmail("cache-teacher@edualto.com").orElseThrow();
+        Course course = createTestCourse(teacher.getId(), "Khóa học Cache", "khoa-hoc-cache");
+        course.publish();
+        course = courseRepository.save(course);
+
+        Section section = sectionRepository.save(Section.create(course.getId(), "Chương 1", null, 1));
+        Lesson lesson1 = lessonRepository.save(Lesson.create(
+                section.getId(),
+                "Bài 1: Mở đầu",
+                "bai-1-mo-dau",
+                null,
+                "Nội dung bài 1",
+                LessonType.TEXT,
+                1,
+                300,
+                true,
+                null,
+                LessonStatus.PUBLISHED
+        ));
+
+        // Populate curriculum and detail caches
+        CourseCurriculumResponse initialCurriculum = publicCourseCurriculumService.getCurriculum(course.getSlug());
+        CourseDetailResponse initialDetail = courseService.getPublicCourseBySlug(course.getSlug());
+        assertThat(initialCurriculum.sections()).hasSize(1);
+        assertThat(initialCurriculum.sections().getFirst().lessons()).hasSize(1);
+        assertThat(initialDetail.slug()).isEqualTo(course.getSlug());
+
+        Cache curriculumCache = cacheManager.getCache(RedisCacheConfig.CACHE_COURSES_CURRICULUM);
+        Cache detailCache = cacheManager.getCache(RedisCacheConfig.CACHE_COURSES_DETAIL);
+        assertThat(curriculumCache).isNotNull();
+        assertThat(detailCache).isNotNull();
+        assertThat(curriculumCache.get(course.getSlug())).isNotNull();
+        assertThat(detailCache.get(course.getSlug())).isNotNull();
+
+        // Create a second published lesson via endpoint -> must evict both caches
+        Map<String, Object> createLessonReq = new HashMap<>();
+        createLessonReq.put("title", "Bài 2: Thực hành");
+        createLessonReq.put("content", "Nội dung bài 2");
+        createLessonReq.put("lessonType", "TEXT");
+        createLessonReq.put("durationSeconds", 600);
+        createLessonReq.put("isPreview", false);
+        createLessonReq.put("status", "PUBLISHED");
+
+        ResultActions createRes = mockMvc.perform(post("/api/v1/instructor/courses/" + course.getId()
+                        + "/sections/" + section.getId() + "/lessons")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(createLessonReq)))
+                .andExpect(status().isOk());
+
+        String lesson2Id = objectMapper.readTree(createRes.andReturn().getResponse().getContentAsString())
+                .get("data").get("id").asText();
+
+        assertThat(curriculumCache.get(course.getSlug())).isNull();
+        assertThat(detailCache.get(course.getSlug())).isNull();
+
+        CourseCurriculumResponse afterCreate = publicCourseCurriculumService.getCurriculum(course.getSlug());
+        assertThat(afterCreate.sections().getFirst().lessons()).hasSize(2);
+        assertThat(afterCreate.sections().getFirst().lessons().get(0).id()).isEqualTo(lesson1.getId());
+        assertThat(afterCreate.sections().getFirst().lessons().get(1).id()).isEqualTo(UUID.fromString(lesson2Id));
+
+        // Populate detail cache again and reorder lessons -> must evict both caches and reflect new order
+        courseService.getPublicCourseBySlug(course.getSlug());
+        assertThat(curriculumCache.get(course.getSlug())).isNotNull();
+        assertThat(detailCache.get(course.getSlug())).isNotNull();
+
+        Map<String, Object> reorderReq = Map.of("items", List.of(
+                Map.of("id", lesson2Id, "position", 1),
+                Map.of("id", lesson1.getId().toString(), "position", 2)
+        ));
+
+        mockMvc.perform(put("/api/v1/instructor/courses/" + course.getId()
+                        + "/sections/" + section.getId() + "/lessons/reorder")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(reorderReq)))
+                .andExpect(status().isOk());
+
+        assertThat(curriculumCache.get(course.getSlug())).isNull();
+        assertThat(detailCache.get(course.getSlug())).isNull();
+
+        CourseCurriculumResponse afterReorder = publicCourseCurriculumService.getCurriculum(course.getSlug());
+        assertThat(afterReorder.sections().getFirst().lessons()).hasSize(2);
+        assertThat(afterReorder.sections().getFirst().lessons().get(0).id()).isEqualTo(UUID.fromString(lesson2Id));
+        assertThat(afterReorder.sections().getFirst().lessons().get(1).id()).isEqualTo(lesson1.getId());
     }
 }

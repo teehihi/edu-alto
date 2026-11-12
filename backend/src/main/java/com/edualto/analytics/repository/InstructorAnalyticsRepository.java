@@ -81,6 +81,7 @@ public class InstructorAnalyticsRepository {
                 FROM sections s
                 JOIN lessons l ON l.section_id = s.id
                 JOIN instructor_courses c ON c.id = s.course_id
+                WHERE l.status = 'PUBLISHED'
                 GROUP BY s.course_id
             ),
             student_counts AS (
@@ -113,7 +114,7 @@ public class InstructorAnalyticsRepository {
             review_stats AS (
                 SELECT r.course_id,
                        COUNT(r.id) AS review_count,
-                       COALESCE(AVG(r.rating), 5.0) AS avg_rating
+                       COALESCE(AVG(r.rating), 0.0) AS avg_rating
                 FROM course_reviews r
                 JOIN instructor_courses c ON c.id = r.course_id
                 WHERE r.status = 'PUBLISHED'
@@ -128,7 +129,7 @@ public class InstructorAnalyticsRepository {
                    COALESCE(lc.total_lessons, 0) AS total_lessons,
                    COALESCE(cl.completed_lessons_count, 0) AS completed_lessons_count,
                    COALESCE(rc.total_revenue, 0) AS total_revenue,
-                   COALESCE(rs.avg_rating, 5.0) AS average_rating,
+                   COALESCE(rs.avg_rating, 0.0) AS average_rating,
                    COALESCE(rs.review_count, 0) AS review_count
             FROM instructor_courses c
             LEFT JOIN lesson_counts lc ON lc.course_id = c.id
