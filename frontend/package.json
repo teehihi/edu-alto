@@ -14,7 +14,8 @@
     "typecheck": "tsc --noEmit",
     "typecheck:native": "node ./node_modules/typescript-native/bin/tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e:fullstack": "playwright test --grep @fullstack --workers=1"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.104.1",
@@ -38,6 +39,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.0",
     "@tailwindcss/postcss": "^4.3.3",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/jest-dom": "^7.0.1",

@@ -1,0 +1,158 @@
+name: Full-stack E2E
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # 19:00 UTC = 02:00 Asia/Ho_Chi_Minh next day
+    - cron: "0 19 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fullstack-e2e-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fullstack-e2e:
+    name: "Playwright full-stack"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: edualto_e2e
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d edualto_e2e"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+      redis:
+        image: redis:8.8.0
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    env:
+      CI: "true"
+      PLAYWRIGHT_RETRIES: "0"
+      NEXT_TELEMETRY_DISABLED: "1"
+
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8080/api/v1
+      PLAYWRIGHT_BASE_URL: http://localhost:3000
+      PLAYWRIGHT_API_URL: http://localhost:8080/api/v1
+
+      SPRING_PROFILES_ACTIVE: e2e
+      BACKEND_PORT: "8080"
+      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/edualto_e2e
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      REDIS_HOST: localhost
+      REDIS_PORT: "6379"
+
+      EDUALTO_FRONTEND_URL: http://localhost:3000
+      CORS_ALLOWED_ORIGINS: http://localhost:3000
+      EDUALTO_ADMIN_EMAIL: admin@edualto.vn
+      EDUALTO_ADMIN_PASSWORD: AdminE2EPassword123!
+      E2E_ADMIN_EMAIL: admin@edualto.vn
+      E2E_ADMIN_PASSWORD: AdminE2EPassword123!
+
+      JWT_SECRET: fullstack-e2e-jwt-secret-key-for-ci-must-be-at-least-64-characters-long
+      JWT_ACCESS_TOKEN_TTL_MINUTES: "15"
+      REFRESH_TOKEN_TTL_DAYS: "14"
+      AUTH_COOKIE_SECURE: "false"
+      AUTH_COOKIE_SAME_SITE: Lax
+      OTP_FIXED_CODE: "123456"
+      E2E_OTP_CODE: "123456"
+      AUTH_RATE_LIMIT_MAX_REQUESTS: "1000"
+
+      MAIL_ENABLED: "false"
+      AI_ENABLED: "false"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+
+      - name: Start backend
+        shell: bash
+        run: |
+          chmod +x backend/mvnw
+          nohup ./backend/mvnw --batch-mode --no-transfer-progress -f backend/pom.xml spring-boot:run \
+            > "$GITHUB_WORKSPACE/backend.log" 2>&1 &
+          echo $! > "$GITHUB_WORKSPACE/backend.pid"
+
+      - name: Wait for backend health
+        shell: bash
+        run: |
+          for _ in {1..60}; do
+            if curl --silent --fail http://localhost:8080/api/v1/health \
+              | grep --quiet '"status":"UP"'; then
+              exit 0
+            fi
+            sleep 2
+          done
+          tail -n 200 "$GITHUB_WORKSPACE/backend.log"
+          exit 1
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.9.0
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium
+        run: pnpm --dir frontend exec playwright install --with-deps chromium
+
+      - name: Run full-stack Playwright tests
+        run: pnpm frontend:test:e2e:fullstack
+
+      - name: Upload full-stack artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fullstack-e2e-${{ github.run_id }}
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+            backend.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Stop backend
+        if: always()
+        shell: bash
+        run: |
+          if [ -f "$GITHUB_WORKSPACE/backend.pid" ]; then
+            kill "$(cat "$GITHUB_WORKSPACE/backend.pid")" 2>/dev/null || true
+          fi

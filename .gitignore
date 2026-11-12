@@ -17,6 +17,9 @@ target/
 *.iml
 frontend/.next/
 frontend/node_modules/
+frontend/playwright-report/
+frontend/test-results/
+frontend/blob-report/
 backend/target/
 .pytest_cache/
 __pycache__/

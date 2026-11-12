@@ -13,6 +13,7 @@
     "frontend:typecheck": "CI=true pnpm --dir frontend typecheck",
     "build": "pnpm --dir frontend build",
     "frontend:build": "CI=true pnpm --dir frontend build",
+    "frontend:test:e2e:fullstack": "pnpm --dir frontend test:e2e:fullstack",
     "backend:test": "./backend/mvnw -f backend/pom.xml test",
     "backend:build": "./backend/mvnw -f backend/pom.xml package",
     "docs:render-diagrams": "node scripts/render-mermaid.mjs",
