@@ -132,47 +132,50 @@ export function LearningLessonPage({ lessonId }: { lessonId: string }) {
       .then((token) => {
         if (!token) throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
         primeAccessToken(token);
-        return Promise.all([fetchLearningLesson(token, lessonId), fetchSavedLessons(token)]).then(
-          async ([result, savedLessons]) => {
-            if (!active) return;
-            setLesson(result);
-            setSaved(savedLessons.data.some((item) => item.lessonId === lessonId));
-            if (result.lessonType === "VIDEO") void refreshVideoAccess();
+        return Promise.all([
+          fetchLearningLesson(token, lessonId),
+          fetchSavedLessons(token).catch(() => null),
+        ]).then(async ([result, savedLessons]) => {
+          if (!active) return;
+          setLesson(result);
+          setSaved(
+            savedLessons ? savedLessons.data.some((item) => item.lessonId === lessonId) : false,
+          );
+          if (result.lessonType === "VIDEO") void refreshVideoAccess();
 
-            try {
-              const [enrollmentsResult, progressResult] = await Promise.allSettled([
-                fetchMyEnrollments(token),
-                fetchCourseProgress(token, result.courseId),
-              ]);
-              if (active && progressResult.status === "fulfilled") {
-                setProgress(progressResult.value);
-              }
-              if (enrollmentsResult.status === "rejected") return;
-              const courseEnrollment = enrollmentsResult.value.data.find(
-                (item) => item.courseId === result.courseId,
-              );
-              if (!courseEnrollment) return;
-
-              const resultCurriculum = await fetchLearningCurriculum(
-                token,
-                courseEnrollment.courseSlug,
-              );
-              if (active) {
-                setCurriculum(resultCurriculum);
-                setExpandedSections(
-                  Object.fromEntries(
-                    resultCurriculum.sections.map((section, index) => [
-                      section.id,
-                      index === 0 || section.lessons.some((item) => item.id === lessonId),
-                    ]),
-                  ),
-                );
-              }
-            } catch {
-              // Keep the lesson usable if the optional course outline cannot be loaded.
+          try {
+            const [enrollmentsResult, progressResult] = await Promise.allSettled([
+              fetchMyEnrollments(token),
+              fetchCourseProgress(token, result.courseId),
+            ]);
+            if (active && progressResult.status === "fulfilled") {
+              setProgress(progressResult.value);
             }
-          },
-        );
+            if (enrollmentsResult.status === "rejected") return;
+            const courseEnrollment = enrollmentsResult.value.data.find(
+              (item) => item.courseId === result.courseId,
+            );
+            if (!courseEnrollment) return;
+
+            const resultCurriculum = await fetchLearningCurriculum(
+              token,
+              courseEnrollment.courseSlug,
+            );
+            if (active) {
+              setCurriculum(resultCurriculum);
+              setExpandedSections(
+                Object.fromEntries(
+                  resultCurriculum.sections.map((section, index) => [
+                    section.id,
+                    index === 0 || section.lessons.some((item) => item.id === lessonId),
+                  ]),
+                ),
+              );
+            }
+          } catch {
+            // Keep the lesson usable if the optional course outline cannot be loaded.
+          }
+        });
       })
       .catch((reason: unknown) => {
         if (active)

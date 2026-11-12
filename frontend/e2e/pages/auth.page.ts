@@ -38,16 +38,24 @@ export class AuthPageObject {
   }
 
   async login(email: string, password: string) {
-    await this.page.goto("/login");
-    await this.page.locator("#email").fill(email);
-    await this.page.locator("#password").fill(password);
+    const currentPathname = new URL(this.page.url(), "http://localhost:3000").pathname;
+    if (currentPathname !== "/login") {
+      await this.page.goto("/login");
+    }
+    const loginContainer = this.page.locator("main").filter({
+      has: this.page.getByRole("heading", { level: 1, name: "Đăng nhập tài khoản" }),
+    });
+    const emailInput = loginContainer.locator("#email");
+    await expect(emailInput).toBeVisible();
+    await emailInput.fill(email);
+    await loginContainer.locator("#password").fill(password);
 
     const loginResponse = this.page.waitForResponse(
       (response) =>
         response.request().method() === "POST" &&
         new URL(response.url()).pathname === "/api/v1/auth/login",
     );
-    await this.page.getByRole("button", { name: "Đăng nhập" }).click();
+    await loginContainer.getByRole("button", { name: "Đăng nhập" }).click();
     const response = await loginResponse;
     expect(response.status()).toBe(200);
   }

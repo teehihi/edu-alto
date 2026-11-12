@@ -51,8 +51,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.hamcrest.Matchers.hasSize;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -102,6 +104,9 @@ class EnrollmentLearningIntegrationTest extends AbstractIntegrationTest {
 
     @AfterEach
     void cleanFixtures() {
+        for (UUID userId : fixtureUserIds) {
+            jdbcTemplate.update("delete from saved_lessons where user_id = ?", userId);
+        }
         for (UUID courseId : fixtureCourseIds) {
             jdbcTemplate.update("delete from learning_progress where course_id = ?", courseId);
             jdbcTemplate.update("delete from enrollments where course_id = ?", courseId);
@@ -394,6 +399,123 @@ class EnrollmentLearningIntegrationTest extends AbstractIntegrationTest {
                 values (?, ?, ?, 'ACTIVE', current_timestamp, current_timestamp, current_timestamp)
                 """, UUID.randomUUID(), student.getId(), courseA.getId()))
                 .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void batchProgressSummaryReturnsAccurateCountsAcrossMultipleEnrolledCoursesAndRejectsNonStudents() throws Exception {
+        User instructor = createUser(RoleName.INSTRUCTOR, true);
+        User student = createUser(RoleName.STUDENT, true);
+        User freshStudent = createUser(RoleName.STUDENT, true);
+        Course courseOne = createCourse(instructor, CourseStatus.PUBLISHED, BigDecimal.ZERO);
+        Section sectionOne = createSection(courseOne);
+        Lesson courseOneFirst = createLesson(sectionOne, LessonType.TEXT, LessonStatus.PUBLISHED, 1);
+        createLesson(sectionOne, LessonType.VIDEO, LessonStatus.PUBLISHED, 2);
+        createLesson(sectionOne, LessonType.TEXT, LessonStatus.DRAFT, 3);
+
+        Course courseTwo = createCourse(instructor, CourseStatus.PUBLISHED, BigDecimal.ZERO);
+        Section sectionTwo = createSection(courseTwo);
+        Lesson courseTwoFirst = createLesson(sectionTwo, LessonType.TEXT, LessonStatus.PUBLISHED, 1);
+
+        Course archivedCourse = createCourse(instructor, CourseStatus.PUBLISHED, BigDecimal.ZERO);
+        Section archivedSection = createSection(archivedCourse);
+        createLesson(archivedSection, LessonType.TEXT, LessonStatus.PUBLISHED, 1);
+
+        String studentToken = tokenFor(student);
+        String freshStudentToken = tokenFor(freshStudent);
+        String instructorToken = tokenFor(instructor);
+
+        mockMvc.perform(get("/api/v1/me/courses/progress-summary"))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(get("/api/v1/me/courses/progress-summary")
+                        .header("Authorization", "Bearer " + instructorToken))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error.code").value("STUDENT_REQUIRED"));
+
+        mockMvc.perform(get("/api/v1/me/courses/progress-summary")
+                        .header("Authorization", "Bearer " + freshStudentToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(0)));
+
+        enroll(studentToken, courseOne.getId()).andExpect(status().isOk());
+        enroll(studentToken, courseTwo.getId()).andExpect(status().isOk());
+        enroll(studentToken, archivedCourse.getId()).andExpect(status().isOk());
+
+        archivedCourse.setStatus(CourseStatus.ARCHIVED);
+        courseRepository.save(archivedCourse);
+
+        mockMvc.perform(get("/api/v1/me/courses/progress-summary")
+                        .header("Authorization", "Bearer " + studentToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(2)))
+                .andExpect(jsonPath("$.data[?(@.courseId == '" + courseOne.getId() + "')].totalLessons").value(2))
+                .andExpect(jsonPath("$.data[?(@.courseId == '" + courseOne.getId() + "')].completedLessons").value(0))
+                .andExpect(jsonPath("$.data[?(@.courseId == '" + courseOne.getId() + "')].progressPercent").value(0))
+                .andExpect(jsonPath("$.data[?(@.courseId == '" + courseOne.getId() + "')].completed").value(false))
+                .andExpect(jsonPath("$.data[?(@.courseId == '" + courseTwo.getId() + "')].totalLessons").value(1))
+                .andExpect(jsonPath("$.data[?(@.courseId == '" + courseTwo.getId() + "')].completedLessons").value(0));
+
+        mockMvc.perform(post("/api/v1/lessons/{lessonId}/complete", courseOneFirst.getId())
+                        .header("Authorization", "Bearer " + studentToken))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/api/v1/lessons/{lessonId}/complete", courseTwoFirst.getId())
+                        .header("Authorization", "Bearer " + studentToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/me/courses/progress-summary")
+                        .header("Authorization", "Bearer " + studentToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(2)))
+                .andExpect(jsonPath("$.data[?(@.courseId == '" + courseOne.getId() + "')].totalLessons").value(2))
+                .andExpect(jsonPath("$.data[?(@.courseId == '" + courseOne.getId() + "')].completedLessons").value(1))
+                .andExpect(jsonPath("$.data[?(@.courseId == '" + courseOne.getId() + "')].progressPercent").value(50))
+                .andExpect(jsonPath("$.data[?(@.courseId == '" + courseOne.getId() + "')].completed").value(false))
+                .andExpect(jsonPath("$.data[?(@.courseId == '" + courseTwo.getId() + "')].totalLessons").value(1))
+                .andExpect(jsonPath("$.data[?(@.courseId == '" + courseTwo.getId() + "')].completedLessons").value(1))
+                .andExpect(jsonPath("$.data[?(@.courseId == '" + courseTwo.getId() + "')].progressPercent").value(100))
+                .andExpect(jsonPath("$.data[?(@.courseId == '" + courseTwo.getId() + "')].completed").value(true));
+    }
+
+    @Test
+    void savedLessonsSupportsListingSavingIdempotentlyAndUnsaving() throws Exception {
+        User instructor = createUser(RoleName.INSTRUCTOR, true);
+        User student = createUser(RoleName.STUDENT, true);
+        Course course = createCourse(instructor, CourseStatus.PUBLISHED, BigDecimal.ZERO);
+        Section section = createSection(course);
+        Lesson lesson = createLesson(section, LessonType.TEXT, LessonStatus.PUBLISHED, 1);
+        String studentToken = tokenFor(student);
+        enroll(studentToken, course.getId()).andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/me/saved-lessons")
+                        .header("Authorization", "Bearer " + studentToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(0)));
+
+        mockMvc.perform(put("/api/v1/me/saved-lessons/{lessonId}", lesson.getId())
+                        .header("Authorization", "Bearer " + studentToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.lessonId").value(lesson.getId().toString()))
+                .andExpect(jsonPath("$.data.courseId").value(course.getId().toString()));
+
+        mockMvc.perform(put("/api/v1/me/saved-lessons/{lessonId}", lesson.getId())
+                        .header("Authorization", "Bearer " + studentToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/me/saved-lessons")
+                        .header("Authorization", "Bearer " + studentToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(1)))
+                .andExpect(jsonPath("$.data[0].lessonId").value(lesson.getId().toString()))
+                .andExpect(jsonPath("$.data[0].savedAt").isNotEmpty());
+
+        mockMvc.perform(delete("/api/v1/me/saved-lessons/{lessonId}", lesson.getId())
+                        .header("Authorization", "Bearer " + studentToken))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/v1/me/saved-lessons")
+                        .header("Authorization", "Bearer " + studentToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(0)));
     }
 
     private ResultActions enroll(String token, UUID courseId) throws Exception {

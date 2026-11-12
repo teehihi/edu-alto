@@ -14,7 +14,6 @@ import com.edualto.user.service.UserService;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,8 +40,7 @@ public class SavedLessonService {
     public Page<SavedLessonResponse> list(UUID userId, int page, int size) {
         users.requireActiveStudent(userId);
         validatePage(page, size);
-        return savedLessons.findAllResponsesByUserId(userId, PageRequest.of(page, size,
-                        Sort.by(Sort.Direction.DESC, "savedAt").and(Sort.by(Sort.Direction.ASC, "id"))))
+        return savedLessons.findAllResponsesByUserId(userId, PageRequest.of(page, size))
                 .map(this::toResponse);
     }
 

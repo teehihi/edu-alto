@@ -238,4 +238,14 @@ describe("LearningLessonPage video playback", () => {
       );
     });
   });
+
+  it("still renders the lesson if fetching saved lessons fails", async () => {
+    vi.spyOn(learningClient, "fetchSavedLessons").mockRejectedValue(new Error("500"));
+
+    render(<LearningLessonPage lessonId="lesson-video-1" />);
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Giới thiệu bài học video" }),
+    ).toBeInTheDocument();
+  });
 });

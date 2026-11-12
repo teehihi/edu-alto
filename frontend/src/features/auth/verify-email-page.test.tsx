@@ -44,7 +44,7 @@ describe("VerifyEmailPage", () => {
     vi.useFakeTimers();
     vi.mocked(verifyEmail).mockResolvedValue({ message: "Đã xác thực" });
     window.history.replaceState({}, "", "/verify-email?email=hocvien%40example.com&sent=1");
-    render(<VerifyEmailPage />);
+    const { unmount } = render(<VerifyEmailPage />);
     expect(screen.queryByLabelText("Email")).not.toBeInTheDocument();
     fireEvent.change(screen.getByRole("textbox", { name: "Mã OTP" }), {
       target: { value: "012345" },
@@ -53,11 +53,17 @@ describe("VerifyEmailPage", () => {
       fireEvent.click(screen.getByRole("button", { name: "Xác nhận" }));
     });
     expect(verifyEmail).toHaveBeenCalledWith({ email: "hocvien@example.com", otp: "012345" });
-    expect(screen.getByRole("dialog")).toBeVisible();
+    const dialog = screen.getByRole("dialog") as HTMLDialogElement;
+    expect(dialog).toBeVisible();
     act(() => vi.advanceTimersByTime(1000));
     expect(screen.getByText(/sau 2 giây/)).toBeInTheDocument();
     act(() => vi.advanceTimersByTime(2000));
+    expect(pushMock).toHaveBeenCalledTimes(1);
     expect(pushMock).toHaveBeenCalledWith("/login");
+    act(() => vi.advanceTimersByTime(3000));
+    expect(pushMock).toHaveBeenCalledTimes(1);
+    unmount();
+    expect(dialog.open).toBe(false);
   });
 
   it("keeps the user on the form when the code is expired", async () => {

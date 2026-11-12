@@ -232,8 +232,20 @@ export function OtpInput({ value, onChange, disabled, error, autoFocus = true }:
 export function OtpSuccessModal({ open, seconds = 3 }: { open: boolean; seconds?: number }) {
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
-    if (open && !dialog.current?.open) dialog.current?.showModal();
-    if (!open && dialog.current?.open) dialog.current?.close();
+    const element = dialog.current;
+    if (!element) {
+      return undefined;
+    }
+    if (open && !element.open) {
+      element.showModal();
+    } else if (!open && element.open) {
+      element.close();
+    }
+    return () => {
+      if (element.open) {
+        element.close();
+      }
+    };
   }, [open]);
   return (
     <dialog

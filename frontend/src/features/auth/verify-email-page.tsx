@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { AlertMessage, FormField } from "@/features/auth/form-field";
 import {
@@ -37,6 +37,7 @@ export function VerifyEmailPage() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [editingEmail, setEditingEmail] = useState(!validInitialEmail);
   const [seconds, setSeconds] = useState(3);
+  const hasRedirectedRef = useRef(false);
 
   useEffect(() => {
     if (cooldown <= 0) {
@@ -52,20 +53,29 @@ export function VerifyEmailPage() {
 
   useEffect(() => {
     if (!showSuccessModal) {
+      hasRedirectedRef.current = false;
       return undefined;
     }
 
+    let remaining = 3;
+    setSeconds(remaining);
+
     const timer = window.setInterval(() => {
-      setSeconds((current) => {
-        if (current <= 1) {
-          router.push("/login");
-          return 0;
-        }
-        return current - 1;
-      });
+      remaining -= 1;
+      setSeconds(Math.max(remaining, 0));
+      if (remaining <= 0) {
+        window.clearInterval(timer);
+      }
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [router, showSuccessModal]);
+  }, [showSuccessModal]);
+
+  useEffect(() => {
+    if (showSuccessModal && seconds === 0 && !hasRedirectedRef.current) {
+      hasRedirectedRef.current = true;
+      router.push("/login");
+    }
+  }, [router, seconds, showSuccessModal]);
 
   function validate() {
     const nextErrors: FieldErrors<VerifyEmailFields> = {};

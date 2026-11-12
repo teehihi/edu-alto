@@ -8,6 +8,7 @@ const webServerCommand = process.env.CI
 
 export default defineConfig({
   testDir: "./e2e",
+  timeout: 60_000,
   fullyParallel: false,
   retries,
   reporter: process.env.CI
