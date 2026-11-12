@@ -1,6 +1,8 @@
 package com.edualto.common.config;
 
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import java.time.Duration;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -15,16 +17,19 @@ import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
+import org.springframework.data.redis.serializer.GenericJacksonJsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
-import org.springframework.data.redis.serializer.StringRedisSerializer;
-
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.data.redis.serializer.RedisSerializer;
+import org.springframework.data.redis.serializer.StringRedisSerializer;
+import tools.jackson.databind.DefaultTyping;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JavaType;
+import tools.jackson.databind.cfg.DateTimeFeature;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
+import tools.jackson.databind.jsontype.PolymorphicTypeValidator;
+import tools.jackson.databind.jsontype.TypeResolverBuilder;
+import tools.jackson.databind.jsontype.impl.DefaultTypeResolverBuilder;
 
 @Configuration
 @EnableCaching
@@ -39,16 +44,45 @@ public class RedisCacheConfig implements CachingConfigurer {
     public static final String CACHE_AUTH_REFRESH_TOKENS = "auth:refresh-tokens";
     public static final String CACHE_ROLE_PERMISSIONS = "rbac:role_permissions";
 
-    private RedisSerializer<Object> createRedisSerializer() {
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule());
-        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-        mapper.activateDefaultTyping(
-                LaissezFaireSubTypeValidator.instance,
-                ObjectMapper.DefaultTyping.EVERYTHING,
+    RedisSerializer<Object> createRedisSerializer() {
+        PolymorphicTypeValidator typeValidator = BasicPolymorphicTypeValidator.builder()
+                .allowIfSubType("com.edualto.")
+                .allowIfSubType("java.util.")
+                .allowIfSubType("java.time.")
+                .allowIfSubType("java.math.")
+                .allowIfSubType("org.springframework.cache.support.NullValue")
+                .allowIfSubTypeIsArray()
+                .build();
+        TypeResolverBuilder<?> typeResolverBuilder = new DefaultTypeResolverBuilder(
+                typeValidator,
+                DefaultTyping.NON_FINAL_AND_RECORDS,
                 JsonTypeInfo.As.PROPERTY
-        );
-        return new GenericJackson2JsonRedisSerializer(mapper);
+        ) {
+            @Override
+            public DefaultTypeResolverBuilder withDefaultImpl(Class<?> defaultImpl) {
+                return this;
+            }
+
+            @Override
+            public boolean useForType(JavaType type) {
+                return super.useForType(type)
+                        || Collection.class.isAssignableFrom(type.getRawClass())
+                        || Map.class.isAssignableFrom(type.getRawClass());
+            }
+        };
+        JsonMapper mapper = JsonMapper.builder()
+                .disable(DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS)
+                .disable(DeserializationFeature.FAIL_ON_MISSING_EXTERNAL_TYPE_ID_PROPERTY)
+                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+                .setDefaultTyping(typeResolverBuilder)
+                .build();
+        return new GenericJacksonJsonRedisSerializer(mapper) {
+            @Override
+            protected JavaType resolveType(byte[] source, Class<?> type) {
+                // Keep Object.class at the root so Jackson's PolymorphicTypeValidator always validates @class.
+                return mapper.constructType(type);
+            }
+        };
     }
 
     @Bean
