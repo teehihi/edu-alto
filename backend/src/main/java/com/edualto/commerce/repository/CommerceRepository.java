@@ -25,6 +25,14 @@ public class CommerceRepository {
         this.jdbc = jdbc;
     }
 
+    public void lockStudent(UUID studentId) {
+        jdbc.query(
+                "select id from users where id = ? for update",
+                (rs, rowNum) -> rs.getObject("id", UUID.class),
+                studentId
+        );
+    }
+
     public Optional<CheckoutCourse> lockCourse(UUID courseId) {
         return jdbc.query("""
                 select id, instructor_id, title, price, status

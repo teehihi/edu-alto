@@ -38,6 +38,7 @@ import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -122,8 +123,14 @@ public class CommerceService {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "DUPLICATE_COURSE", "Giỏ hàng có khóa học bị trùng");
         }
 
+        // Lock the learner row first, then lock courses in ascending UUID order to prevent concurrent duplicate pending orders and deadlocks.
+        repository.lockStudent(studentId);
+
+        List<UUID> sortedCourseIds = request.courseIds().stream()
+                .sorted(Comparator.comparing(UUID::toString))
+                .toList();
         var courses = new ArrayList<CheckoutCourse>();
-        for (UUID courseId : request.courseIds()) {
+        for (UUID courseId : sortedCourseIds) {
             CheckoutCourse course = repository.lockCourse(courseId)
                     .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "COURSE_NOT_FOUND", "Không tìm thấy khóa học"));
             if (!"PUBLISHED".equals(course.status())) {

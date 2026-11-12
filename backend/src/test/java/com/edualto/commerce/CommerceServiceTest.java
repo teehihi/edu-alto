@@ -10,6 +10,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
+import org.mockito.InOrder;
 import com.edualto.commerce.domain.PaymentMethod;
 import com.edualto.commerce.config.VnPayProperties;
 import com.edualto.commerce.dto.ConfirmManualPaymentRequest;
@@ -393,6 +395,26 @@ class CommerceServiceTest {
                 any(Instant.class),
                 eq("{\"source\":\"checkout\",\"orderId\":\"" + ipnOrderId + "\"}")
         );
+    }
+
+    @Test
+    void createOrderLocksStudentThenCoursesInAscendingUuidOrder() {
+        UUID studentId = UUID.randomUUID();
+        UUID smallerCourseId = UUID.fromString("00000000-0000-0000-0000-000000000001");
+        UUID largerCourseId = UUID.fromString("ffffffff-ffff-ffff-ffff-ffffffffffff");
+        when(repository.lockCourse(smallerCourseId)).thenReturn(Optional.of(new CommerceRepository.CheckoutCourse(
+                smallerCourseId, UUID.randomUUID(), "Khóa học 1", new BigDecimal("100000"), "PUBLISHED")));
+        when(repository.lockCourse(largerCourseId)).thenReturn(Optional.of(new CommerceRepository.CheckoutCourse(
+                largerCourseId, UUID.randomUUID(), "Khóa học 2", new BigDecimal("200000"), "PUBLISHED")));
+
+        service().createOrder(studentId,
+                new CreateOrderRequest(List.of(largerCourseId, smallerCourseId), PaymentMethod.VIETQR, "0931652105", null),
+                "127.0.0.1");
+
+        InOrder order = inOrder(repository);
+        order.verify(repository).lockStudent(studentId);
+        order.verify(repository).lockCourse(smallerCourseId);
+        order.verify(repository).lockCourse(largerCourseId);
     }
 
     private CommerceService service() {
