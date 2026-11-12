@@ -146,6 +146,15 @@ public class R2StorageService implements StorageService {
     }
 
     @Override
+    public InputStream openObjectStream(String objectKey) {
+        GetObjectRequest getRequest = GetObjectRequest.builder()
+                .bucket(properties.bucketName())
+                .key(objectKey)
+                .build();
+        return s3Client.getObject(getRequest);
+    }
+
+    @Override
     public boolean objectExists(String objectKey) {
         try {
             HeadObjectRequest headRequest = HeadObjectRequest.builder()

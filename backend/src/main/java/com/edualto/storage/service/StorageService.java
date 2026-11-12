@@ -3,6 +3,7 @@ package com.edualto.storage.service;
 import com.edualto.storage.dto.ObjectMetadata;
 import com.edualto.storage.dto.PresignedDownloadUrl;
 import com.edualto.storage.dto.PresignedUploadUrl;
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.time.Duration;
 
@@ -25,6 +26,10 @@ public interface StorageService {
     void putObject(String objectKey, String contentType, InputStream data, long contentLength);
 
     byte[] getObjectBytes(String objectKey);
+
+    default InputStream openObjectStream(String objectKey) {
+        return new ByteArrayInputStream(getObjectBytes(objectKey));
+    }
 
     boolean objectExists(String objectKey);
 
