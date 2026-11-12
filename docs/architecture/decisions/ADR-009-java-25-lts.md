@@ -4,6 +4,10 @@
 
 Accepted
 
+## Amendment / Status Update
+
+- **Cập nhật (Spring Boot 4.0.7 & Java 25 LTS):** Sau khi quyết định ban đầu dùng Spring Boot `3.5.16` được chấp nhận, backend đã được nâng cấp lên **Spring Boot `4.0.7`** (sử dụng Jackson 3 `tools.jackson` mặc định) và đồng bộ lại property `<java.version>25</java.version>` trong `backend/pom.xml` để khớp với Java 25 LTS trên CI và Docker runtime. Nội dung gốc bên dưới được giữ nguyên làm bối cảnh lịch sử.
+
 ## Context
 
 EduAlto backend ban đầu dùng Java 17. Dự án cần chuyển backend sang Java 25 LTS trong khi vẫn giữ modular monolith, Spring Boot stack hiện tại và không thay đổi hành vi ứng dụng.

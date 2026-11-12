@@ -28,7 +28,7 @@ Module chính:
 - learning
 - quiz
 - assignment
-- document
+- document (handled via `course` lesson attachments & `learning` saved resources/notes; no separate `com.edualto.document` package)
 - discussion
 - messaging
 - notification
@@ -38,6 +38,7 @@ Module chính:
 - analytics
 - admin
 - ai
+- support
 
 Nếu cần module mới, cập nhật tài liệu kiến trúc trước.
 

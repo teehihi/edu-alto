@@ -10,8 +10,8 @@
     <a href="https://github.com/teehihi/edu-alto"><img alt="GitHub repo" src="https://img.shields.io/badge/Repository-edu--alto-20B486?style=for-the-badge&logo=github&logoColor=white" /></a>
     <img alt="Java 25" src="https://img.shields.io/badge/Java-25%20LTS-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white" />
     <img alt="Spring Boot 4" src="https://img.shields.io/badge/Spring%20Boot-4.0.7-6DB33F?style=for-the-badge&logo=springboot&logoColor=white" />
-    <img alt="Next.js 16" src="https://img.shields.io/badge/Next.js-16.3-000000?style=for-the-badge&logo=next.js&logoColor=white" />
-    <img alt="React 19" src="https://img.shields.io/badge/React-19.2-61DAFB?style=for-the-badge&logo=react&logoColor=black" />
+    <img alt="Next.js 16" src="https://img.shields.io/badge/Next.js-16.4-000000?style=for-the-badge&logo=next.js&logoColor=white" />
+    <img alt="React 19" src="https://img.shields.io/badge/React-19.3-61DAFB?style=for-the-badge&logo=react&logoColor=black" />
     <img alt="PostgreSQL 16" src="https://img.shields.io/badge/PostgreSQL-16-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" />
     <img alt="Redis 8" src="https://img.shields.io/badge/Redis-8.8-DC382D?style=for-the-badge&logo=redis&logoColor=white" />
     <img alt="AWS Lightsail" src="https://img.shields.io/badge/AWS-Lightsail-FF9900?style=for-the-badge&logo=amazonwebservices&logoColor=white" />
@@ -133,17 +133,17 @@ Hệ thống được chia thành các vertical slice độc lập về nghiệp
 
 | Tầng kiến trúc | Công nghệ chính | Phiên bản | Mô tả vai trò |
 |:---|:---|:---|:---|
-| **Frontend Framework** | [Next.js](https://nextjs.org/) | `16.3.1` | App Router, Turbopack, SSR/CSR tối ưu hóa SEO |
-| **Frontend Core** | [React](https://react.dev/) | `19.2.8` | UI Library thế hệ mới nhất |
-| **Language** | [TypeScript](https://www.typescriptlang.org/) | `5.9.3` | An toàn kiểu dữ liệu end-to-end |
-| **Styling** | [Tailwind CSS](https://tailwindcss.com/) | `3.4.16` | Thiết kế giao diện hiện đại theo Figma Design Tokens |
-| **Frontend Tooling** | [Oxlint](https://oxc.rs/) & [Oxfmt](https://oxc.rs/) | `1.78` / `0.63` | Bộ kiểm tra lint & định dạng code siêu tốc (~20ms) |
-| **Frontend Testing** | [Vitest](https://vitest.dev/) & Testing Library | `4.1.10` | Unit & Component testing với cấu hình jsdom |
+| **Frontend Framework** | [Next.js](https://nextjs.org/) | `16.4.6` | App Router, Turbopack, SSR/CSR tối ưu hóa SEO |
+| **Frontend Core** | [React](https://react.dev/) | `19.3.0` | UI Library thế hệ mới nhất |
+| **Language** | [TypeScript](https://www.typescriptlang.org/) | `6.0.x` | An toàn kiểu dữ liệu end-to-end |
+| **Styling** | [Tailwind CSS](https://tailwindcss.com/) | `4.3.3` | Thiết kế giao diện hiện đại theo Figma Design Tokens |
+| **Frontend Tooling** | [Oxlint](https://oxc.rs/) & [Oxfmt](https://oxc.rs/) | `1.87+` / `0.72+` | Bộ kiểm tra lint & định dạng code siêu tốc (~20ms) |
+| **Frontend Testing** | [Vitest](https://vitest.dev/) & Testing Library | `5.0.x` | Unit & Component testing với cấu hình jsdom |
 | **Backend Framework** | [Spring Boot](https://spring.io/projects/spring-boot) | `4.0.7` | Nền tảng backend chuẩn mực cho doanh nghiệp |
 | **Java Runtime** | [Eclipse Temurin OpenJDK](https://adoptium.net/) | `Java 25 LTS` | Runtime Java phiên bản hỗ trợ dài hạn mới nhất |
 | **Security** | Spring Security & JJWT | `7.0.x` | Stateless JWT + HttpOnly Cookie, bảo vệ CSRF/XSS |
 | **Database** | [PostgreSQL](https://www.postgresql.org/) | `16-alpine` | Cơ sở dữ liệu quan hệ chính với UUID primary keys |
-| **Database Migration** | [Flyway](https://flywaydb.org/) | `11.14.1` | Quản lý phiên bản migration cơ sở dữ liệu (V1–V30) |
+| **Database Migration** | [Flyway](https://flywaydb.org/) | `11.14.1` | Quản lý 35 file migration cơ sở dữ liệu (V1–V36) |
 | **Distributed Cache** | [Redis](https://redis.io/) | `8.8.0` | Cache danh mục khóa học, session và rate-limiting |
 | **Integration Testing**| [Testcontainers](https://testcontainers.com/) | `2.0.5` | Chạy database PostgreSQL 16 cô lập trong Docker khi test |
 | **Cloud Storage** | [Cloudflare R2](https://www.cloudflare.com/products/r2/) | S3 API | Lưu trữ ảnh và tài liệu bài học, presigned stream video |
@@ -247,7 +247,7 @@ pnpm frontend:dev
 
 Mở trình duyệt tại:
 ```text
-http://localhost:3002
+http://localhost:3000
 ```
 
 ---
@@ -324,7 +324,7 @@ pnpm backend:test
 │   │   ├── user/            # Quản lý người dùng, vai trò & hồ sơ cá nhân
 │   │   └── common/          # Cấu hình bảo mật, Redis, Swagger, exception
 │   ├── src/main/resources/
-│   │   └── db/migration/    # 30 file migration Flyway cho PostgreSQL
+│   │   └── db/migration/    # 35 file migration Flyway cho PostgreSQL (V1–V36)
 │   ├── Dockerfile           # Multi-stage Docker build cho backend
 │   └── pom.xml              # Maven dependencies & plugins
 ├── frontend/                # Mã nguồn Frontend Next.js 16 / React 19

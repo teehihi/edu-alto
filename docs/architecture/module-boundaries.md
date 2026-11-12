@@ -27,9 +27,9 @@ Cross-module dependency phải đi qua service/use case công khai của module 
 | `learning` | Progress, learning activity, learning signal emission | `enrollment`, `lesson`, `analytics` signal boundary | Không chứa AI recommendation logic. |
 | `quiz` | Quiz, question, attempt, answer, scoring policy | `course`, `lesson`, `enrollment`, `analytics` signal boundary | Không expose correct answers ngoài policy. |
 | `assignment` | Assignment, submission, grading | `course`, `lesson`, `enrollment`, file infrastructure, `notification` | Không lưu file bytes trong DB. |
-| `document` | Course document, saved document, note | `course`, `lesson`, file infrastructure | Không quản lý enrollment state. |
+| `document` *(capability merged into `course` + `learning`)* | Course lesson attachments (`course`: `lesson_attachments`) and student saved resources & notes (`learning`: `saved_lesson_resources`, `notes`). No separate `com.edualto.document` backend package. | `course`, `lesson`, `learning`, file infrastructure | Không tạo lại package `com.edualto.document` tách rời; không quản lý enrollment state. |
 | `discussion` | Discussion, comment, moderation state | `course`, `lesson`, `enrollment`, `notification` | Không thay thế messaging direct/group. |
-| `messaging` | Persistent instructor/student conversations, messages, read state, instructor block and hide state | `user` | Ghi tin nhắn vào DB trước; WebSocket và notification delivery chưa thuộc API hiện tại. |
+| `messaging` | Persistent instructor/student conversations, messages, read state, instructor block/hide state, realtime message push and presence | `user` | Ghi tin nhắn vào DB trước khi phát `RealtimeMessageEvent` qua `/user/queue/messages` sau commit; không cho phép đọc/gửi tin nhắn nếu không phải participant. |
 | `notification` | In-app/email notification, read state | `user`, WebSocket/email infrastructure | Không chứa business rule nguồn của event. |
 | `schedule` | Calendar event, deadline/event view | `user`, `course`, `assignment` read model | Không tự tạo assignment/lesson. |
 | `review` | Course review and rating | `user`, `course`, `enrollment` | Không tự cập nhật denormalized course rating nếu chưa có job rõ. |
@@ -37,6 +37,7 @@ Cross-module dependency phải đi qua service/use case công khai của module 
 | `analytics` | Learning signals, aggregate snapshots, instructor course metrics read model | read-only aggregates over source-module data | Không ghi vào dữ liệu nguồn của module khác. |
 | `admin` | Administrative use cases and governance | uses service APIs from owned modules | Không truy cập repository mọi module như shortcut mặc định. |
 | `ai` | Document curriculum import jobs, Gemini integration, grounded chatbot, curated education references; future recommendations | Public `CourseKnowledgeService` read model and `CourseStructureService` authoring use cases; `analytics` for future recommendations | AI provider logic stays in `ai`; course learning remains available when AI is disabled. Visitors only use public platform facts. |
+| `support` | Public contact inquiries (`contact_messages`), support intake and future triage | Standalone public intake (no dependency on `course`/`learning`) | Không nhồi logic khóa học, thanh toán hoặc auth vào `support`; bảo vệ endpoint công khai bằng rate limit. |
 
 ## Public boundary examples
 
@@ -58,12 +59,13 @@ Tên interface có thể thay đổi theo implementation, nhưng trách nhiệm 
 | Identity | `auth`, `user` | `users`, `roles`, `permissions`, `user_roles`, `role_permissions`, `email_otps`, `refresh_tokens` |
 | Profiles | `profile`, `instructor` | `student_profiles`, `instructor_profiles` |
 | Catalog | `course`, `lesson` | `categories`, `courses`, `course_categories`, `sections`, `lessons`, `lesson_contents` |
-| Participation | `enrollment`, `learning` | `enrollments`, `learning_progress`, `notes` |
+| Participation | `enrollment`, `learning` | `enrollments`, `learning_progress`, `notes`, `saved_lesson_resources` |
 | Assessment | `quiz`, `assignment` | `quizzes`, `questions`, `question_options`, `quiz_attempts`, `quiz_answers`, `assignments`, `assignment_submissions` |
-| Collaboration | `document`, `discussion`, `messaging` | `documents`, `saved_documents`, `discussions`, `discussion_comments`, `conversations`, `conversation_participants`, `messages` |
+| Collaboration | `course`/`learning` *(attachments/resources)*, `discussion`, `messaging` | `lesson_attachments`, `saved_lesson_resources`, `discussions`, `discussion_comments`, `conversations`, `conversation_participants`, `messages` |
 | Commerce | `commerce` | `orders`, `order_items`, `payments`, `manual_payment_confirmations`, `promotions`, `promotion_redemptions` |
 | Engagement | `notification`, `schedule`, `review`, `certificate` | `notifications`, `calendar_events`, `reviews`, `certificates` |
 | Insight | `analytics`, `ai` | `learning_signals`, `analytics_snapshots`, `ai_model_versions`, `recommendations`, `recommendation_items`, `recommendation_reasons` |
+| Support | `support` | `contact_messages` |
 
 ## Allowed cross-module flows
 

@@ -154,6 +154,11 @@ Database principles:
 
 Details: [database-design.md](../database/database-design.md)
 
+### Database Migration Notes
+
+- Flyway migrations are append-only (`backend/src/main/resources/db/migration/V*__*.sql`). Never renumber, edit, or retroactively insert already-applied version numbers, as that breaks Flyway checksum/history validation on running databases.
+- **Intentional `V23` gap (`V22__lesson_objectives.sql` -> `V24__lesson_attachments.sql`)**: `V23` was originally reserved for a standalone `document` module migration during planning, then superseded/merged into `V24__lesson_attachments.sql`, `V25__saved_lesson_resources.sql`, and `V27__merge_document_lessons_into_text.sql` (handling document capability inside `course` attachments and `learning` saved resources/notes). Do **not** add a retroactive `V23__*.sql` migration; new migrations must continue sequentially after the latest version (`V37+`).
+
 ![Database Overview](../database/diagrams/00-database-overview.svg)
 
 Full database ERD:

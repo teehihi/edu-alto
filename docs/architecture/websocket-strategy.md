@@ -4,13 +4,18 @@ EduAlto dự kiến dùng WebSocket/STOMP cho messaging, notification và trạn
 
 ## Implementation status
 
-WebSocket is currently disabled. Do not expose `/ws` until STOMP `CONNECT` authentication, destination authorization, and origin allowlisting are implemented and covered by integration tests. REST remains the planned primary transport for ordinary CRUD and query flows.
+WebSocket/STOMP is enabled and hardened for realtime notifications, messaging, and presence:
+
+- Handshake uses single-use short-lived tickets (`POST /api/v1/ws/ticket`, 30s TTL stored in Redis with bounded in-memory fallback) sent via `?ticket=...` (never JWT in query parameters) or `Authorization: Bearer ...` header.
+- Origin allowlisting reuses `SecurityConfig.resolveAllowedOriginPatterns(...)` without wildcard `"*"`.
+- STOMP `CONNECT` requires an authenticated `ACTIVE` user; `SUBSCRIBE` is restricted to `/user/queue/notifications`, `/user/queue/messages`, `/user/queue/presence`, and participant-verified `/topic/conversations/{conversationId}`; `SEND` requires `/app/...` and conversation participation for `/app/conversations/{conversationId}/...`.
+- `MessagingService` persists messages in PostgreSQL before emitting `RealtimeMessageEvent` to `/user/queue/messages` after commit, and `MessagingPresenceService` tracks active WebSocket sessions (`GET /api/v1/me/presence`). REST remains the primary transport for ordinary CRUD, history, and query flows.
 
 ## Transport
 
 - Endpoint: `/ws`
 - Protocol: STOMP over WebSocket.
-- Auth: JWT trong connect header hoặc cơ chế được Spring Security hỗ trợ.
+- Auth: Single-use handshake ticket (`POST /api/v1/ws/ticket` -> `/ws?ticket=...`) và `Authorization: Bearer ...` trong STOMP `CONNECT` header.
 - Fallback: frontend phải có REST polling nhẹ cho notification nếu WebSocket không khả dụng.
 
 ## Destinations
@@ -18,6 +23,7 @@ WebSocket is currently disabled. Do not expose `/ws` until STOMP `CONNECT` authe
 ```text
 SEND      /app/conversations/{conversationId}/messages
 SUBSCRIBE /topic/conversations/{conversationId}
+SUBSCRIBE /user/queue/messages
 SUBSCRIBE /user/queue/notifications
 SUBSCRIBE /user/queue/presence
 ```
