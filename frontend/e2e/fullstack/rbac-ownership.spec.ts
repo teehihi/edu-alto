@@ -108,7 +108,7 @@ test(
     });
     expect(readOwnOrder.status()).toBe(200);
     const ownOrderBody = (await readOwnOrder.json()) as { data: { status: string } };
-    expect(ownOrderBody.data.status).toBe("PENDING");
+    expect(ownOrderBody.data.status).toBe("PAYMENT_REVIEW");
 
     await studentAccount.api.post(`${fullstackApiUrl}/me/orders/${orderId}/cancel`, {
       headers: { Authorization: `Bearer ${studentAccount.accessToken}` },

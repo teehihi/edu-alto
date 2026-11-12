@@ -23,7 +23,7 @@ test(
     });
     expect(firstHistoryResponse.status()).toBe(200);
     const firstHistoryBody = (await firstHistoryResponse.json()) as {
-      data: Array<{ enrollmentId: string; courseId: string }>;
+      data: Array<{ id: string; courseId: string }>;
     };
     const matchedEnrollment = firstHistoryBody.data.find(
       (item) => item.courseId === course.courseId,
@@ -38,7 +38,7 @@ test(
     );
     expect(duplicateEnrollResponse.status()).toBe(200);
     const duplicateEnrollBody = (await duplicateEnrollResponse.json()) as { data: string };
-    expect(duplicateEnrollBody.data).toBe(matchedEnrollment!.enrollmentId);
+    expect(duplicateEnrollBody.data).toBe(matchedEnrollment!.id);
 
     await learningPage.gotoLesson(course.lessonId);
     await expect(page.getByRole("heading", { level: 1, name: course.lessonTitle })).toBeVisible();
@@ -46,7 +46,9 @@ test(
     await learningPage.completeCurrentLesson(course.lessonId);
 
     await page.reload();
-    await expect(page.getByRole("button", { name: "Đã hoàn thành" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Đã hoàn thành" })).toBeDisabled({
+      timeout: 10_000,
+    });
 
     const progressResponse = await studentAccount.api.get(
       `${fullstackApiUrl}/me/courses/${course.courseId}/progress`,

@@ -48,7 +48,8 @@ test(
       data: { accessToken: string };
     };
     expect(refreshedPayload.data.accessToken).toBeTruthy();
-    await expect(page.getByText(email).first()).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: fullName })).toBeVisible();
+    await expect(page.getByRole("button", { name: `Menu người dùng: ${fullName}` })).toBeVisible();
 
     await authPage.logoutFromUserMenu(fullName);
     await expect.poll(async () => getRefreshCookie(context)).toBeUndefined();
