@@ -4,9 +4,11 @@ import com.edualto.auth.infrastructure.AuthRateLimitFilter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -29,8 +31,13 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @EnableWebSecurity
 public class SecurityConfig {
 
+    private static final Set<String> LOCAL_NETWORK_PROFILES = Set.of("local", "dev", "test", "e2e");
+
     @Value("${edualto.cors.allowed-origins:http://localhost:3000}")
     private String allowedOrigins;
+
+    @Value("${edualto.cors.allow-local-network-origins:false}")
+    private boolean allowLocalNetworkOrigins;
 
     @Bean
     SecurityFilterChain securityFilterChain(
@@ -50,7 +57,7 @@ public class SecurityConfig {
                         .accessDeniedHandler(accessDeniedHandler)
                 )
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.POST, "/api/v1/ai/chat").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/ai/chat", "/api/v1/contact").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/ai/education-policy").permitAll()
                         .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/api/v1/payments/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/health", "/api/v1/courses", "/api/v1/courses/**", "/api/v1/recommendations/courses", "/api/v1/instructors", "/api/v1/media/**", "/api/v1/profiles", "/api/v1/profiles/*", "/api/v1/profiles/**", "/api/v1/users/*/profile", "/api/v1/certificates/verify/*", "/api/v1/certificates/*/pdf").permitAll()
@@ -77,6 +84,7 @@ public class SecurityConfig {
                                 "/api/v1/messaging/**",
                                 "/api/v1/notifications/**",
                                 "/api/v1/discussions/**",
+                                "/api/v1/ws/ticket",
                                 "/ws",
                                 "/ws/**"
                         ).authenticated()
@@ -100,23 +108,21 @@ public class SecurityConfig {
     }
 
     @Bean
-    CorsConfigurationSource corsConfigurationSource() {
+    CorsConfigurationSource corsConfigurationSource(Environment environment) {
+        return createCorsConfigurationSource(environment, allowedOrigins, allowLocalNetworkOrigins);
+    }
+
+    CorsConfigurationSource createCorsConfigurationSource(
+            Environment environment,
+            String configuredAllowedOrigins,
+            boolean allowLocalNetworkOriginsFlag
+    ) {
         CorsConfiguration configuration = new CorsConfiguration();
-        List<String> patterns = new ArrayList<>(Arrays.stream(allowedOrigins.split(","))
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
-                .toList());
-        patterns.add("http://192.168.*:*");
-        patterns.add("http://192.168.*");
-        patterns.add("http://10.*:*");
-        patterns.add("http://10.*");
-        patterns.add("http://172.*:*");
-        patterns.add("http://172.*");
-        patterns.add("http://localhost:*");
-        patterns.add("http://localhost");
-        patterns.add("http://127.0.0.1:*");
-        patterns.add("http://127.0.0.1");
-        configuration.setAllowedOriginPatterns(patterns);
+        configuration.setAllowedOriginPatterns(resolveAllowedOriginPatterns(
+                environment,
+                configuredAllowedOrigins,
+                allowLocalNetworkOriginsFlag
+        ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setExposedHeaders(List.of("Authorization"));
@@ -125,5 +131,32 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
+    }
+
+    public static List<String> resolveAllowedOriginPatterns(
+            Environment environment,
+            String configuredAllowedOrigins,
+            boolean allowLocalNetworkOriginsFlag
+    ) {
+        String originsCsv = configuredAllowedOrigins != null ? configuredAllowedOrigins : "";
+        List<String> patterns = new ArrayList<>(Arrays.stream(originsCsv.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList());
+        boolean isLocalNetworkProfile = environment != null
+                && Arrays.stream(environment.getActiveProfiles()).anyMatch(LOCAL_NETWORK_PROFILES::contains);
+        if (allowLocalNetworkOriginsFlag || isLocalNetworkProfile) {
+            patterns.add("http://192.168.*:*");
+            patterns.add("http://192.168.*");
+            patterns.add("http://10.*:*");
+            patterns.add("http://10.*");
+            patterns.add("http://172.*:*");
+            patterns.add("http://172.*");
+            patterns.add("http://localhost:*");
+            patterns.add("http://localhost");
+            patterns.add("http://127.0.0.1:*");
+            patterns.add("http://127.0.0.1");
+        }
+        return List.copyOf(patterns);
     }
 }

@@ -5,6 +5,7 @@ import com.edualto.admin.dto.AdminDashboardSummaryResponse;
 import com.edualto.admin.dto.AdminUserResponse;
 import com.edualto.admin.dto.CreateAdminUserRequest;
 import com.edualto.admin.repository.AdminRepository;
+import com.edualto.auth.service.RefreshTokenService;
 import com.edualto.common.exception.BusinessException;
 import com.edualto.user.domain.Role;
 import com.edualto.user.domain.RoleName;
@@ -13,6 +14,7 @@ import com.edualto.user.domain.UserStatus;
 import com.edualto.user.repository.RoleRepository;
 import com.edualto.user.repository.UserRepository;
 import com.edualto.user.service.UserService;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -32,19 +34,22 @@ public class AdminDashboardService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final RefreshTokenService refreshTokenService;
 
     public AdminDashboardService(
             AdminRepository adminRepository,
             UserService userService,
             UserRepository userRepository,
             RoleRepository roleRepository,
-            PasswordEncoder passwordEncoder
+            PasswordEncoder passwordEncoder,
+            RefreshTokenService refreshTokenService
     ) {
         this.adminRepository = adminRepository;
         this.userService = userService;
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
+        this.refreshTokenService = refreshTokenService;
     }
 
     @Transactional(readOnly = true)
@@ -105,6 +110,7 @@ public class AdminDashboardService {
 
         targetUser.setRoles(resolvedRoles);
         userRepository.save(targetUser);
+        refreshTokenService.revokeAll(targetUser);
     }
 
     @Transactional
@@ -123,6 +129,9 @@ public class AdminDashboardService {
                 user.setStatus(newStatus);
             }
             userRepository.save(user);
+            if (newStatus != UserStatus.ACTIVE) {
+                refreshTokenService.revokeAll(user);
+            }
         } catch (IllegalArgumentException e) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "INVALID_STATUS", "Trạng thái người dùng không hợp lệ");
         }
@@ -184,9 +193,18 @@ public class AdminDashboardService {
         if (newPassword == null || newPassword.trim().length() < 6) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "INVALID_PASSWORD", "Mật khẩu mới phải có ít nhất 6 ký tự");
         }
+        String trimmedPassword = newPassword.trim();
+        if (trimmedPassword.getBytes(StandardCharsets.UTF_8).length > 72) {
+            throw new BusinessException(
+                    HttpStatus.BAD_REQUEST,
+                    "PASSWORD_TOO_LONG",
+                    "Mật khẩu không được vượt quá 72 byte UTF-8. Vui lòng dùng mật khẩu ngắn hơn."
+            );
+        }
 
         User user = userService.requireById(targetUserId);
-        user.changePassword(passwordEncoder.encode(newPassword.trim()));
+        user.changePassword(passwordEncoder.encode(trimmedPassword));
         userRepository.save(user);
+        refreshTokenService.revokeAll(user);
     }
 }

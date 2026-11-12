@@ -295,20 +295,37 @@ public class AdminRepository {
 
     private List<AdminTopCourseDto> getTopCourses() {
         String sql = """
-                SELECT 
+                WITH enrollment_counts AS (
+                  SELECT e.course_id, COUNT(DISTINCT e.id) as students_count
+                  FROM enrollments e
+                  WHERE e.status = 'ACTIVE'
+                  GROUP BY e.course_id
+                ),
+                revenue_counts AS (
+                  SELECT oi.course_id, COALESCE(SUM(oi.unit_price), 0) as revenue
+                  FROM order_items oi
+                  JOIN orders o ON oi.order_id = o.id
+                  WHERE o.status = 'PAID'
+                  GROUP BY oi.course_id
+                ),
+                review_stats AS (
+                  SELECT cr.course_id, COALESCE(AVG(cr.rating), 0.0) as rating
+                  FROM course_reviews cr
+                  WHERE cr.status = 'PUBLISHED'
+                  GROUP BY cr.course_id
+                )
+                SELECT
                   c.id,
                   c.title,
                   u.full_name as instructor_name,
-                  COUNT(DISTINCT e.id) as students_count,
-                  COALESCE(SUM(oi.unit_price), 0) as revenue,
-                  COALESCE(AVG(cr.rating), 5.0) as rating
+                  COALESCE(ec.students_count, 0) as students_count,
+                  COALESCE(rc.revenue, 0) as revenue,
+                  COALESCE(rs.rating, 0.0) as rating
                 FROM courses c
                 JOIN users u ON c.instructor_id = u.id
-                LEFT JOIN enrollments e ON c.id = e.course_id
-                LEFT JOIN order_items oi ON c.id = oi.course_id
-                LEFT JOIN orders o ON oi.order_id = o.id AND o.status = 'PAID'
-                LEFT JOIN course_reviews cr ON c.id = cr.course_id AND cr.status = 'PUBLISHED'
-                GROUP BY c.id, c.title, u.full_name
+                LEFT JOIN enrollment_counts ec ON c.id = ec.course_id
+                LEFT JOIN revenue_counts rc ON c.id = rc.course_id
+                LEFT JOIN review_stats rs ON c.id = rs.course_id
                 ORDER BY students_count DESC, revenue DESC
                 LIMIT 5
                 """;
@@ -342,7 +359,7 @@ public class AdminRepository {
                   p.avatar_key,
                   COALESCE(e_count.cnt, 0) as enrolled_count,
                   COALESCE(t_count.cnt, 0) as teaching_count,
-                  STRING_AGG(r.name, ',') as roles
+                  STRING_AGG(DISTINCT r.name, ',') as roles
                 FROM users u
                 LEFT JOIN profiles p ON u.id = p.user_id
                 LEFT JOIN user_roles ur ON u.id = ur.user_id
@@ -362,8 +379,9 @@ public class AdminRepository {
         }
 
         if (role != null && !role.isBlank() && !"ALL".equalsIgnoreCase(role)) {
-            countSql.append(" AND r.name = ?");
-            dataSql.append(" AND r.name = ?");
+            String roleFilter = " AND EXISTS (SELECT 1 FROM user_roles ur2 JOIN roles r2 ON ur2.role_id = r2.id WHERE ur2.user_id = u.id AND r2.name = ?)";
+            countSql.append(roleFilter);
+            dataSql.append(roleFilter);
             params.add(role.trim().toUpperCase());
         }
 
@@ -473,34 +491,58 @@ public class AdminRepository {
         long completedLessonsCount = completedLessons != null ? completedLessons : 0L;
 
         Long enrollments = jdbc.queryForObject(
-                "SELECT COUNT(*) FROM enrollments",
+                "SELECT COUNT(*) FROM enrollments WHERE status = 'ACTIVE'",
                 Long.class
         );
         long totalEnrollmentsCount = enrollments != null ? enrollments : 0L;
 
-        Long totalLessons = jdbc.queryForObject(
-                "SELECT COUNT(*) FROM lessons",
-                Long.class
-        );
-        long lessonsCount = totalLessons != null && totalLessons > 0 ? totalLessons : 1L;
+        Map<String, Object> completionStats = jdbc.queryForMap("""
+                WITH course_published_lessons AS (
+                    SELECT s.course_id, COUNT(l.id) AS published_lessons
+                    FROM sections s
+                    JOIN lessons l ON l.section_id = s.id
+                    WHERE l.status = 'PUBLISHED'
+                    GROUP BY s.course_id
+                ),
+                expected_stats AS (
+                    SELECT COALESCE(SUM(cpl.published_lessons), 0) AS expected_lessons
+                    FROM enrollments e
+                    JOIN course_published_lessons cpl ON cpl.course_id = e.course_id
+                    WHERE e.status = 'ACTIVE'
+                ),
+                completed_stats AS (
+                    SELECT COUNT(lp.id) AS completed_published_lessons
+                    FROM learning_progress lp
+                    JOIN enrollments e ON e.id = lp.enrollment_id
+                    JOIN lessons l ON l.id = lp.lesson_id
+                    WHERE e.status = 'ACTIVE'
+                      AND l.status = 'PUBLISHED'
+                )
+                SELECT expected_stats.expected_lessons, completed_stats.completed_published_lessons
+                FROM expected_stats, completed_stats
+                """);
+        long expectedLessonsCount = ((Number) completionStats.getOrDefault("expected_lessons", 0L)).longValue();
+        long completedPublishedLessonsCount = ((Number) completionStats.getOrDefault("completed_published_lessons", 0L)).longValue();
 
         double courseCompletionRate = 0.0;
-        if (totalEnrollmentsCount > 0) {
-            double expectedTotal = (double) (lessonsCount * totalEnrollmentsCount);
-            courseCompletionRate = Math.round(((double) completedLessonsCount / expectedTotal * 100.0) * 10.0) / 10.0;
+        if (expectedLessonsCount > 0) {
+            courseCompletionRate = Math.min(
+                    100.0,
+                    Math.round(((double) completedPublishedLessonsCount / expectedLessonsCount * 100.0) * 10.0) / 10.0
+            );
         }
 
         Double avgQuiz = jdbc.queryForObject(
-                "SELECT COALESCE(AVG(score), 8.5) FROM quiz_attempts",
+                "SELECT COALESCE(AVG(score), 0.0) FROM quiz_attempts",
                 Double.class
         );
-        double averageQuizScore = avgQuiz != null ? Math.round(avgQuiz * 10.0) / 10.0 : 8.5;
+        double averageQuizScore = avgQuiz != null ? Math.round(avgQuiz * 10.0) / 10.0 : 0.0;
 
         Map<String, Object> reviewStats = jdbc.queryForMap(
-                "SELECT COUNT(*) as total_reviews, COALESCE(AVG(rating), 5.0) as avg_rating FROM course_reviews"
+                "SELECT COUNT(*) as total_reviews, COALESCE(AVG(rating), 0.0) as avg_rating FROM course_reviews WHERE status = 'PUBLISHED'"
         );
         long totalReviewsCount = ((Number) reviewStats.getOrDefault("total_reviews", 0L)).longValue();
-        double averageCourseRating = Math.round(((Number) reviewStats.getOrDefault("avg_rating", 5.0)).doubleValue() * 10.0) / 10.0;
+        double averageCourseRating = Math.round(((Number) reviewStats.getOrDefault("avg_rating", 0.0)).doubleValue() * 10.0) / 10.0;
 
         return new AdminAnalyticsResponse(
                 paymentMethods,

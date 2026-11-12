@@ -9,9 +9,13 @@ import com.edualto.common.exception.BusinessException;
 import com.edualto.learning.domain.LearningActivityType;
 import com.edualto.learning.service.LearningActivityService;
 import com.edualto.user.service.UserService;
+import java.net.URI;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -25,6 +29,7 @@ public class CertificateService {
     private final QrCodeGenerator qrCodeGenerator;
     private final LearningActivityService learningActivities;
     private final String frontendUrl;
+    private final Set<String> allowedBaseOrigins;
 
     public CertificateService(
             CertificateRepository certificates,
@@ -34,12 +39,26 @@ public class CertificateService {
             LearningActivityService learningActivities,
             @Value("${edualto.frontend-url:http://localhost:3000}") String frontendUrl
     ) {
+        this(certificates, users, pdfGenerator, qrCodeGenerator, learningActivities, frontendUrl, "");
+    }
+
+    @Autowired
+    public CertificateService(
+            CertificateRepository certificates,
+            UserService users,
+            CertificatePdfGenerator pdfGenerator,
+            QrCodeGenerator qrCodeGenerator,
+            LearningActivityService learningActivities,
+            @Value("${edualto.frontend-url:http://localhost:3000}") String frontendUrl,
+            @Value("${edualto.cors.allowed-origins:http://localhost:3000}") String allowedOriginsCsv
+    ) {
         this.certificates = certificates;
         this.users = users;
         this.pdfGenerator = pdfGenerator;
         this.qrCodeGenerator = qrCodeGenerator;
         this.learningActivities = learningActivities;
         this.frontendUrl = frontendUrl;
+        this.allowedBaseOrigins = buildAllowedBaseOrigins(frontendUrl, allowedOriginsCsv);
     }
 
     @Transactional
@@ -199,22 +218,72 @@ public class CertificateService {
     }
 
     private String buildVerificationUrl(String certificateNumber, String requestedBaseUrl) {
-        String base = null;
-        if (requestedBaseUrl != null && !requestedBaseUrl.isBlank()) {
-            String trimmed = requestedBaseUrl.trim();
-            if (!trimmed.contains("localhost") && !trimmed.contains("127.0.0.1")) {
-                base = trimmed;
-            }
-        }
-        if (base == null && frontendUrl != null && !frontendUrl.isBlank()) {
+        String normalizedRequested = normalizeOrigin(requestedBaseUrl);
+        String base;
+        if (normalizedRequested != null && allowedBaseOrigins.contains(normalizedRequested)) {
+            base = normalizedRequested;
+        } else if (frontendUrl != null && !frontendUrl.isBlank()) {
             base = frontendUrl.trim();
-        }
-        if (base == null || base.isBlank()) {
-            base = (requestedBaseUrl != null && !requestedBaseUrl.isBlank()) ? requestedBaseUrl.trim() : "http://localhost:3000";
+        } else {
+            base = "http://localhost:3000";
         }
         if (base.endsWith("/")) {
             base = base.substring(0, base.length() - 1);
         }
         return base + "/certificates/verify/" + certificateNumber;
+    }
+
+    private static Set<String> buildAllowedBaseOrigins(String frontendUrl, String allowedOriginsCsv) {
+        Set<String> origins = new LinkedHashSet<>();
+        String normalizedFrontend = normalizeOrigin(frontendUrl);
+        if (normalizedFrontend != null) {
+            origins.add(normalizedFrontend);
+        }
+        if (allowedOriginsCsv != null && !allowedOriginsCsv.isBlank()) {
+            for (String entry : allowedOriginsCsv.split(",")) {
+                String trimmed = entry.trim();
+                if (trimmed.isEmpty() || trimmed.contains("*")) {
+                    continue;
+                }
+                String normalizedEntry = normalizeOrigin(trimmed);
+                if (normalizedEntry != null) {
+                    origins.add(normalizedEntry);
+                }
+            }
+        }
+        return Set.copyOf(origins);
+    }
+
+    private static String normalizeOrigin(String rawUrl) {
+        if (rawUrl == null || rawUrl.isBlank()) {
+            return null;
+        }
+        URI uri;
+        try {
+            uri = URI.create(rawUrl.trim());
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+        String scheme = uri.getScheme();
+        String host = uri.getHost();
+        if (scheme == null || host == null || host.isBlank()) {
+            return null;
+        }
+        String normalizedScheme = scheme.toLowerCase(Locale.ROOT);
+        if (!"http".equals(normalizedScheme) && !"https".equals(normalizedScheme)) {
+            return null;
+        }
+        if (uri.getRawUserInfo() != null || uri.getRawQuery() != null || uri.getRawFragment() != null) {
+            return null;
+        }
+        String path = uri.getRawPath();
+        if (path != null && !path.isEmpty() && !"/".equals(path)) {
+            return null;
+        }
+        String normalizedHost = host.toLowerCase(Locale.ROOT);
+        int port = uri.getPort();
+        return port != -1
+                ? normalizedScheme + "://" + normalizedHost + ":" + port
+                : normalizedScheme + "://" + normalizedHost;
     }
 }
