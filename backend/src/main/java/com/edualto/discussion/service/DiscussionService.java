@@ -111,13 +111,20 @@ public class DiscussionService {
         String normalizedSort = sort != null ? sort.trim().toLowerCase(Locale.ROOT) : "latest";
 
         PageRequest pageRequest = PageRequest.of(page, size);
-        Page<Discussion> pageResult = discussions.searchLessonDiscussions(
-                lessonId,
-                onlyWithTimestamp,
-                normalizedQuery,
-                normalizedSort,
-                pageRequest
-        );
+        Page<Discussion> pageResult = normalizedQuery == null
+                ? discussions.findLessonDiscussions(
+                        lessonId,
+                        onlyWithTimestamp,
+                        normalizedSort,
+                        pageRequest
+                )
+                : discussions.searchLessonDiscussions(
+                        lessonId,
+                        onlyWithTimestamp,
+                        normalizedQuery,
+                        normalizedSort,
+                        pageRequest
+                );
 
         List<DiscussionResponse> responses = mapDiscussionsToResponses(
                 pageResult.getContent(),

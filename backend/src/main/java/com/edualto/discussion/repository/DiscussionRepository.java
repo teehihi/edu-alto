@@ -19,7 +19,23 @@ public interface DiscussionRepository extends JpaRepository<Discussion, UUID> {
             select d from Discussion d
             where d.lessonId = :lessonId and d.deletedAt is null
               and (:onlyWithTimestamp = false or d.videoTimestampSeconds is not null)
-              and (:query is null or lower(d.title) like lower(concat('%', :query, '%')) or lower(d.body) like lower(concat('%', :query, '%')))
+            order by
+              case when :sort = 'timestamp' then d.videoTimestampSeconds end asc nulls last,
+              case when :sort = 'oldest' then d.createdAt end asc,
+              d.createdAt desc
+            """)
+    Page<Discussion> findLessonDiscussions(
+            @Param("lessonId") UUID lessonId,
+            @Param("onlyWithTimestamp") boolean onlyWithTimestamp,
+            @Param("sort") String sort,
+            Pageable pageable
+    );
+
+    @Query("""
+            select d from Discussion d
+            where d.lessonId = :lessonId and d.deletedAt is null
+              and (:onlyWithTimestamp = false or d.videoTimestampSeconds is not null)
+              and (:query is null or :query = '' or lower(d.title) like lower(concat('%', cast(:query as string), '%')) or lower(d.body) like lower(concat('%', cast(:query as string), '%')))
             order by
               case when :sort = 'timestamp' then d.videoTimestampSeconds end asc nulls last,
               case when :sort = 'oldest' then d.createdAt end asc,
