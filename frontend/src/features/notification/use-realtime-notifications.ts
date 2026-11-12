@@ -44,44 +44,29 @@ export function useRealtimeNotifications(enabled = true) {
 
     void refresh();
 
-    let disconnectWs: (() => void) | null = null;
-
-    const setupWebSocket = async () => {
-      try {
-        const token = await getAccessToken();
-        if (!token || !userId) return;
-
-        disconnectWs = connectRealtimeNotifications({
-          token,
-          userId,
-          onNotification: (notification) => {
-            setItems((prev) => {
-              // Avoid duplicates
-              if (prev.some((item) => item.id === notification.id)) {
-                return prev;
-              }
-              return [notification, ...prev];
-            });
-            setUnreadCount((prev) => prev + 1);
-          },
-          onConnected: () => {
-            setIsConnected(true);
-          },
-          onError: () => {
-            setIsConnected(false);
-          },
+    const disconnectWs = connectRealtimeNotifications({
+      getAccessToken,
+      userId,
+      onNotification: (notification) => {
+        setItems((prev) => {
+          // Avoid duplicates
+          if (prev.some((item) => item.id === notification.id)) {
+            return prev;
+          }
+          return [notification, ...prev];
         });
-      } catch {
-        // Fallback to polling if token refresh fails
-      }
-    };
-
-    void setupWebSocket();
+        setUnreadCount((prev) => prev + 1);
+      },
+      onConnected: () => {
+        setIsConnected(true);
+      },
+      onError: () => {
+        setIsConnected(false);
+      },
+    });
 
     return () => {
-      if (disconnectWs) {
-        disconnectWs();
-      }
+      disconnectWs();
       setIsConnected(false);
     };
   }, [getAccessToken, isActive, refresh, userId]);

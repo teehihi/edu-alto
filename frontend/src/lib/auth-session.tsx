@@ -12,6 +12,7 @@ import {
 } from "react";
 import { ApiClientError, setUnauthorizedAccessTokenHandler } from "@/lib/api";
 import { authApi, currentUserApi } from "@/lib/auth-client";
+import { clearQueryClient } from "@/lib/query-provider";
 import type { AuthTokenResponse, CurrentUser, LoginRequest } from "@/types/auth";
 
 type InMemorySession = {
@@ -63,9 +64,13 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
     sessionVersionRef.current++;
     sessionRef.current = null;
     setSession(null);
+    clearQueryClient();
   }, []);
 
   const saveSession = useCallback((response: AuthTokenResponse): InMemorySession => {
+    if (sessionRef.current && sessionRef.current.user.id !== response.user.id) {
+      clearQueryClient();
+    }
     const nextSession: InMemorySession = {
       accessToken: response.accessToken,
       expiresAt: Date.now() + response.expiresInSeconds * 1000,

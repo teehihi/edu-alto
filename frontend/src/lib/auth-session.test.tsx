@@ -2,6 +2,7 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import { useState } from "react";
 import userEvent from "@testing-library/user-event";
 import { AuthSessionProvider, useAuthSession } from "@/lib/auth-session";
+import { getBrowserQueryClient } from "@/lib/query-provider";
 
 const activeUser = {
   id: "8a846b8b-7e11-4a0e-85d8-45e080e942e7",
@@ -335,6 +336,31 @@ describe("AuthSessionProvider", () => {
     } finally {
       Reflect.deleteProperty(navigator, "locks");
     }
+  });
+
+  it("clears the React Query cache on logout", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(tokenResponse("active-token"))
+      .mockResolvedValueOnce(jsonResponse(200, { success: true, data: {} }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const queryClient = getBrowserQueryClient();
+    queryClient.setQueryData(["learning", "enrollments", activeUser.id], [{ id: "en-1" }]);
+    expect(queryClient.getQueryCache().getAll()).toHaveLength(1);
+
+    render(
+      <AuthSessionProvider>
+        <Probe />
+      </AuthSessionProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByTestId("loading")).toHaveTextContent("false"));
+    await userEvent.click(screen.getByRole("button", { name: "Đăng xuất" }));
+
+    await waitFor(() => expect(screen.getByTestId("name")).toHaveTextContent("Chưa đăng nhập"));
+    expect(queryClient.getQueryCache().getAll()).toHaveLength(0);
+    expect(getBrowserQueryClient().getQueryCache().getAll()).toHaveLength(0);
   });
 });
 

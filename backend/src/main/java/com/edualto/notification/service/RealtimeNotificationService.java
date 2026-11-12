@@ -45,10 +45,9 @@ public class RealtimeNotificationService {
         Notification saved = repository.save(notification);
         NotificationResponse response = toResponse(saved);
 
-        // Push real-time via WebSocket
+        // Push real-time via WebSocket user queue only (no public topic broadcast)
         try {
             messagingTemplate.convertAndSendToUser(recipientId.toString(), "/queue/notifications", response);
-            messagingTemplate.convertAndSend("/topic/notifications/" + recipientId, response);
         } catch (Exception ignored) {
             // Safe fallback if client is currently offline
         }

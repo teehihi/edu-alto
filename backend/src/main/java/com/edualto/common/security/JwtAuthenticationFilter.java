@@ -6,6 +6,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.Optional;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -16,9 +17,14 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenService jwtTokenService;
+    private final WebSocketTicketService webSocketTicketService;
 
-    public JwtAuthenticationFilter(JwtTokenService jwtTokenService) {
+    public JwtAuthenticationFilter(
+            JwtTokenService jwtTokenService,
+            WebSocketTicketService webSocketTicketService
+    ) {
         this.jwtTokenService = jwtTokenService;
+        this.webSocketTicketService = webSocketTicketService;
     }
 
     @Override
@@ -27,26 +33,33 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain
     ) throws ServletException, IOException {
-        String token = null;
+        Optional<AuthenticatedUser> authenticatedUser = Optional.empty();
         String authorization = request.getHeader("Authorization");
+
+        boolean webSocketRequest = isWebSocketHandshakeRequest(request);
         if (StringUtils.hasText(authorization) && authorization.startsWith("Bearer ")) {
-            token = authorization.substring(7);
-        } else if (request.getRequestURI().startsWith("/ws") && StringUtils.hasText(request.getParameter("token"))) {
-            token = request.getParameter("token");
+            String token = authorization.substring(7);
+            authenticatedUser = jwtTokenService.parseAccessToken(token);
+        } else if (webSocketRequest && StringUtils.hasText(request.getParameter("ticket"))) {
+            authenticatedUser = webSocketTicketService.consumeTicket(request.getParameter("ticket"));
         }
 
-        if (token != null) {
-            jwtTokenService.parseAccessToken(token)
-                    .ifPresent(principal -> {
-                        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                                principal,
-                                null,
-                                principal.getAuthorities()
-                        );
-                        SecurityContextHolder.getContext().setAuthentication(authentication);
-                    });
-        }
+        authenticatedUser.ifPresent(principal -> {
+            UsernamePasswordAuthenticationToken authentication = webSocketRequest
+                    ? new WebSocketUserAuthentication(principal)
+                    : new UsernamePasswordAuthenticationToken(
+                            principal,
+                            null,
+                            principal.getAuthorities()
+                    );
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+        });
 
         filterChain.doFilter(request, response);
+    }
+
+    private boolean isWebSocketHandshakeRequest(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        return "/ws".equals(uri) || uri.startsWith("/ws/");
     }
 }

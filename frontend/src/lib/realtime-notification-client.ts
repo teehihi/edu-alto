@@ -24,6 +24,11 @@ export type RealtimeNotificationSummary = {
   totalElements: number;
 };
 
+export type WsTicketResponse = {
+  ticket: string;
+  expiresInSeconds: number;
+};
+
 export function fetchRealtimeNotifications(
   accessToken: string,
   page = 0,
@@ -55,22 +60,32 @@ export function markAllRealtimeNotificationsAsRead(accessToken: string): Promise
   });
 }
 
-function resolveWsUrl(token: string): string {
-  const envUrl = process.env.NEXT_PUBLIC_WS_URL;
+export function fetchWsTicket(accessToken: string): Promise<WsTicketResponse> {
+  return apiRequest<WsTicketResponse>("/ws/ticket", {
+    method: "POST",
+    accessToken,
+  });
+}
+
+export function resolveWsUrl(ticket: string): string {
+  const encodedTicket = encodeURIComponent(ticket);
+  const envUrl = process.env.NEXT_PUBLIC_WS_URL?.trim();
   if (envUrl) {
-    return `${envUrl}?token=${encodeURIComponent(token)}`;
+    const normalized = envUrl.endsWith("/") ? envUrl.slice(0, -1) : envUrl;
+    const separator = normalized.includes("?") ? "&" : "?";
+    return `${normalized}${separator}ticket=${encodedTicket}`;
   }
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+  const apiUrl = (process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL)?.trim();
   if (apiUrl) {
     const wsPrefix = apiUrl.startsWith("https:") ? "wss:" : "ws:";
     const cleanHost = apiUrl.replace(/^https?:\/\//, "").replace(/\/api\/v1\/?$/, "");
-    return `${wsPrefix}//${cleanHost}/ws?token=${encodeURIComponent(token)}`;
+    return `${wsPrefix}//${cleanHost}/ws?ticket=${encodedTicket}`;
   }
   if (typeof window !== "undefined") {
     const wsPrefix = window.location.protocol === "https:" ? "wss:" : "ws:";
-    return `${wsPrefix}//${window.location.hostname}:8080/ws?token=${encodeURIComponent(token)}`;
+    return `${wsPrefix}//${window.location.hostname}:8080/ws?ticket=${encodedTicket}`;
   }
-  return `ws://localhost:8080/ws?token=${encodeURIComponent(token)}`;
+  return `ws://localhost:8080/ws?ticket=${encodedTicket}`;
 }
 
 export interface StompSubscription {
@@ -78,56 +93,78 @@ export interface StompSubscription {
 }
 
 export function connectRealtimeNotifications(options: {
-  token: string;
-  userId: string;
+  getAccessToken?: () => Promise<string | null>;
+  token?: string;
+  userId?: string;
   onNotification: (notification: RealtimeNotification) => void;
   onConnected?: () => void;
   onError?: (err: Error) => void;
 }): () => void {
-  const { token, userId, onNotification, onConnected, onError } = options;
+  const { getAccessToken, token, onNotification, onConnected, onError } = options;
   let socket: WebSocket | null = null;
-  let heartbeatInterval: number | null = null;
-  let reconnectTimeout: number | null = null;
+  let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
+  let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
   let isClosedManually = false;
   let reconnectAttempts = 0;
 
-  function connect() {
+  async function resolveAccessToken(): Promise<string | null> {
+    if (getAccessToken) {
+      return getAccessToken();
+    }
+    return token ?? null;
+  }
+
+  async function connect() {
     if (isClosedManually) return;
 
+    let accessToken: string | null = null;
+    let ticketResponse: WsTicketResponse;
     try {
-      const url = resolveWsUrl(token);
+      accessToken = await resolveAccessToken();
+      if (isClosedManually) return;
+      if (!accessToken) {
+        onError?.(new Error("Không có phiên đăng nhập hợp lệ để kết nối thông báo"));
+        scheduleReconnect();
+        return;
+      }
+      ticketResponse = await fetchWsTicket(accessToken);
+      if (isClosedManually) return;
+      const url = resolveWsUrl(ticketResponse.ticket);
       socket = new WebSocket(url);
     } catch (err) {
-      if (onError && err instanceof Error) onError(err);
+      if (isClosedManually) return;
+      onError?.(err instanceof Error ? err : new Error("Không thể khởi tạo kết nối WebSocket"));
       scheduleReconnect();
       return;
     }
 
-    socket.onopen = () => {
+    const activeSocket = socket;
+
+    activeSocket.onopen = () => {
+      if (isClosedManually || socket !== activeSocket) {
+        return;
+      }
       reconnectAttempts = 0;
-      // Send STOMP CONNECT frame
       const connectFrame =
         [
           "CONNECT",
           "accept-version:1.2,1.1,1.0",
           "heart-beat:10000,10000",
-          `Authorization:Bearer ${token}`,
+          `Authorization:Bearer ${accessToken}`,
           "\n",
         ].join("\n") + "\0";
 
-      if (socket && socket.readyState === WebSocket.OPEN) {
-        socket.send(connectFrame);
+      if (activeSocket.readyState === WebSocket.OPEN) {
+        activeSocket.send(connectFrame);
       }
     };
 
-    socket.onmessage = (event) => {
+    activeSocket.onmessage = (event) => {
       const raw = typeof event.data === "string" ? event.data : "";
       if (!raw || raw === "\n" || raw === "\r\n") {
-        // Heartbeat ping from server
         return;
       }
 
-      // Parse STOMP frames (might contain multiple frames separated by \0)
       const frames = raw.split("\0");
       for (const frame of frames) {
         const trimmed = frame.trim();
@@ -139,33 +176,24 @@ export function connectRealtimeNotifications(options: {
         if (command === "CONNECTED") {
           onConnected?.();
 
-          // Subscribe to user queue and direct topic
           const subQueue =
             ["SUBSCRIBE", "id:sub-user-queue", "destination:/user/queue/notifications", "\n"].join(
               "\n",
             ) + "\0";
 
-          const subTopic =
-            [
-              "SUBSCRIBE",
-              `id:sub-topic-${userId}`,
-              `destination:/topic/notifications/${userId}`,
-              "\n",
-            ].join("\n") + "\0";
-
-          if (socket && socket.readyState === WebSocket.OPEN) {
-            socket.send(subQueue);
-            socket.send(subTopic);
+          if (activeSocket.readyState === WebSocket.OPEN) {
+            activeSocket.send(subQueue);
           }
 
-          // Start client heartbeat
-          heartbeatInterval = window.setInterval(() => {
-            if (socket && socket.readyState === WebSocket.OPEN) {
-              socket.send("\n");
+          if (heartbeatInterval) {
+            clearInterval(heartbeatInterval);
+          }
+          heartbeatInterval = setInterval(() => {
+            if (activeSocket.readyState === WebSocket.OPEN) {
+              activeSocket.send("\n");
             }
           }, 10000);
         } else if (command === "MESSAGE") {
-          // Find blank line separating headers and body
           const emptyLineIndex = lines.findIndex((l, idx) => idx > 0 && l.trim() === "");
           if (emptyLineIndex !== -1) {
             const body = lines
@@ -179,18 +207,23 @@ export function connectRealtimeNotifications(options: {
               // Ignore non-json payload
             }
           }
+        } else if (command === "ERROR") {
+          onError?.(new Error("Kết nối thông báo thời gian thực bị từ chối"));
         }
       }
     };
 
-    socket.onerror = () => {
+    activeSocket.onerror = () => {
       // Reconnect will be handled in onclose
     };
 
-    socket.onclose = () => {
+    activeSocket.onclose = () => {
       if (heartbeatInterval) {
-        window.clearInterval(heartbeatInterval);
+        clearInterval(heartbeatInterval);
         heartbeatInterval = null;
+      }
+      if (socket === activeSocket) {
+        socket = null;
       }
       if (!isClosedManually) {
         scheduleReconnect();
@@ -199,24 +232,25 @@ export function connectRealtimeNotifications(options: {
   }
 
   function scheduleReconnect() {
-    if (isClosedManually) return;
+    if (isClosedManually || reconnectTimeout) return;
     const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 15000);
     reconnectAttempts++;
-    reconnectTimeout = window.setTimeout(() => {
-      connect();
+    reconnectTimeout = setTimeout(() => {
+      reconnectTimeout = null;
+      void connect();
     }, delay);
   }
 
-  connect();
+  void connect();
 
   return () => {
     isClosedManually = true;
     if (heartbeatInterval) {
-      window.clearInterval(heartbeatInterval);
+      clearInterval(heartbeatInterval);
       heartbeatInterval = null;
     }
     if (reconnectTimeout) {
-      window.clearTimeout(reconnectTimeout);
+      clearTimeout(reconnectTimeout);
       reconnectTimeout = null;
     }
     if (socket) {

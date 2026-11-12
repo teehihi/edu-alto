@@ -34,6 +34,25 @@ public class MessagingRepository {
         return count != null && count > 0;
     }
 
+    public boolean isParticipant(UUID conversationId, UUID userId) {
+        Integer count = jdbcTemplate.queryForObject("""
+                select count(*) from conversations
+                where id = ? and (instructor_id = ? or student_id = ?)
+                """, Integer.class, conversationId, userId, userId);
+        return count != null && count > 0;
+    }
+
+    public List<UUID> findConversationPartnerIds(UUID userId, int limit) {
+        return jdbcTemplate.queryForList("""
+                select distinct partner_id from (
+                    select student_id as partner_id from conversations where instructor_id = ?
+                    union
+                    select instructor_id as partner_id from conversations where student_id = ?
+                ) partners
+                limit ?
+                """, UUID.class, userId, userId, limit);
+    }
+
     public UUID openConversation(UUID instructorId, UUID studentId) {
         UUID conversationId = UUID.randomUUID();
         jdbcTemplate.update("""

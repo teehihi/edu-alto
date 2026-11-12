@@ -4,23 +4,40 @@ import com.edualto.common.exception.BusinessException;
 import com.edualto.messaging.dto.ConversationResponse;
 import com.edualto.messaging.dto.ConversationStartResponse;
 import com.edualto.messaging.dto.MessageResponse;
+import com.edualto.messaging.dto.RealtimeMessageEvent;
 import com.edualto.messaging.repository.MessagingRepository;
 import com.edualto.messaging.repository.MessagingRepository.ConversationState;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 public class MessagingService {
+    private static final Logger log = LoggerFactory.getLogger(MessagingService.class);
+
     private final MessagingRepository repository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     public MessagingService(MessagingRepository repository) {
+        this(repository, null);
+    }
+
+    @Autowired
+    public MessagingService(MessagingRepository repository, SimpMessagingTemplate messagingTemplate) {
         this.repository = repository;
+        this.messagingTemplate = messagingTemplate;
     }
 
     @Transactional(readOnly = true)
@@ -65,7 +82,9 @@ public class MessagingService {
         ConversationState conversation = requireConversation(conversationId);
         requireInstructorAccess(conversation, instructorId);
         requireRole(conversation.studentId(), "STUDENT");
-        return repository.insertMessage(conversationId, instructorId, body);
+        MessageResponse saved = repository.insertMessage(conversationId, instructorId, body);
+        publishMessageCreated(conversationId, instructorId, conversation.studentId(), saved);
+        return saved;
     }
 
     @Transactional
@@ -77,7 +96,9 @@ public class MessagingService {
         if (conversation.blockedAt() != null) {
             throw new BusinessException(HttpStatus.FORBIDDEN, "MESSAGING_BLOCKED", "Giảng viên đã tạm dừng nhận tin nhắn từ bạn");
         }
-        return repository.insertMessage(conversationId, studentId, body);
+        MessageResponse saved = repository.insertMessage(conversationId, studentId, body);
+        publishMessageCreated(conversationId, studentId, conversation.instructorId(), saved);
+        return saved;
     }
 
     @Transactional
@@ -90,6 +111,7 @@ public class MessagingService {
             throw new BusinessException(HttpStatus.FORBIDDEN, "MESSAGING_BLOCKED", "Giảng viên đã tạm dừng nhận tin nhắn từ bạn");
         }
         MessageResponse message = repository.insertMessage(conversationId, studentId, body);
+        publishMessageCreated(conversationId, studentId, instructorId, message);
         return new ConversationStartResponse(conversationId, message);
     }
 
@@ -107,6 +129,43 @@ public class MessagingService {
         ConversationState conversation = requireConversation(conversationId);
         requireInstructorAccess(conversation, instructorId);
         repository.hideForInstructor(conversationId);
+    }
+
+    private void publishMessageCreated(UUID conversationId, UUID senderId, UUID recipientId, MessageResponse savedMessage) {
+        if (messagingTemplate == null) {
+            return;
+        }
+        RealtimeMessageEvent event = new RealtimeMessageEvent(
+                "MESSAGE_CREATED",
+                conversationId,
+                savedMessage,
+                Instant.now()
+        );
+        Runnable pushAction = () -> {
+            sendMessageEventSafely(recipientId, event);
+            if (!senderId.equals(recipientId)) {
+                sendMessageEventSafely(senderId, event);
+            }
+        };
+        if (TransactionSynchronizationManager.isSynchronizationActive()
+                && TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    pushAction.run();
+                }
+            });
+        } else {
+            pushAction.run();
+        }
+    }
+
+    private void sendMessageEventSafely(UUID userId, RealtimeMessageEvent event) {
+        try {
+            messagingTemplate.convertAndSendToUser(userId.toString(), "/queue/messages", event);
+        } catch (RuntimeException exception) {
+            log.warn("Không thể đẩy tin nhắn realtime tới user [{}]: {}", userId, exception.getMessage());
+        }
     }
 
     private Page<MessageResponse> messagePage(UUID conversationId, int page, int size) {
