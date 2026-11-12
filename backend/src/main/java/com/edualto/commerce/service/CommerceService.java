@@ -32,7 +32,6 @@ import com.edualto.common.exception.BusinessException;
 import com.edualto.learning.domain.LearningActivityType;
 import com.edualto.learning.service.LearningActivityService;
 import com.edualto.user.service.UserService;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
@@ -43,6 +42,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -55,6 +55,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
+import tools.jackson.databind.ObjectMapper;
 
 @Service
 public class CommerceService {
@@ -197,7 +198,15 @@ public class CommerceService {
             ActivePendingOrder existing = activePending.get();
             Set<UUID> existingCourseIds = new HashSet<>(existing.courseIds());
             Set<UUID> requestCourseIds = new HashSet<>(request.courseIds());
-            if (existingCourseIds.equals(requestCourseIds)) {
+            String requestedPromo = request.promotionCode() == null || request.promotionCode().isBlank()
+                    ? null
+                    : request.promotionCode().trim().toUpperCase(Locale.ROOT);
+            String existingPromo = existing.promotionCode() == null || existing.promotionCode().isBlank()
+                    ? null
+                    : existing.promotionCode().trim().toUpperCase(Locale.ROOT);
+            boolean samePromotion = Objects.equals(existingPromo, requestedPromo);
+            boolean sameTotal = existing.total() != null && existing.total().compareTo(total) == 0;
+            if (existingCourseIds.equals(requestCourseIds) && samePromotion && sameTotal) {
                 if (!existing.provider().equalsIgnoreCase(request.paymentMethod().name())) {
                     repository.updatePaymentProvider(existing.orderId(), request.paymentMethod().name());
                 }
@@ -495,7 +504,7 @@ public class CommerceService {
             return PaymentWebhookResult.failed(orderKey, "Order not found", result.responsePayload());
         }
 
-        if (result.amountMinorUnits() > 0 && result.amountMinorUnits() != payment.amountMinorUnits()) {
+        if (result.successful() && (result.amountMinorUnits() <= 0 || result.amountMinorUnits() != payment.amountMinorUnits())) {
             return PaymentWebhookResult.failed(orderKey, "Invalid amount", result.responsePayload());
         }
 

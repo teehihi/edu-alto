@@ -1,6 +1,5 @@
 package com.edualto.commerce.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -18,10 +17,5 @@ public class CommerceConfiguration {
     @Bean
     public RestClient paymentRestClient() {
         return RestClient.builder().build();
-    }
-
-    @Bean
-    public ObjectMapper paymentObjectMapper() {
-        return new ObjectMapper();
     }
 }

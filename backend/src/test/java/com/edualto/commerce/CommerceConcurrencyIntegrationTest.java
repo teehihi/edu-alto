@@ -37,7 +37,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.TestPropertySource;
 
+@TestPropertySource(properties = "edualto.payment.sepay.api-key=test-sepay-api-key")
 class CommerceConcurrencyIntegrationTest extends AbstractIntegrationTest {
 
     @Autowired
@@ -258,7 +260,12 @@ class CommerceConcurrencyIntegrationTest extends AbstractIntegrationTest {
 
         List<Callable<Map<String, Object>>> webhookCalls = new ArrayList<>();
         for (int index = 0; index < 5; index++) {
-            webhookCalls.add(() -> commerceService.processGatewayWebhook("SEPAY", webhookPayload, Map.of(), Map.of()));
+            webhookCalls.add(() -> commerceService.processGatewayWebhook(
+                    "SEPAY",
+                    webhookPayload,
+                    Map.of("authorization", "Apikey test-sepay-api-key"),
+                    Map.of()
+            ));
         }
 
         List<Map<String, Object>> responses = runConcurrently(webhookCalls);

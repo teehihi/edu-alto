@@ -9,8 +9,6 @@ import com.edualto.commerce.gateway.PaymentInitResult;
 import com.edualto.commerce.gateway.PaymentWebhookCommand;
 import com.edualto.commerce.gateway.PaymentWebhookResult;
 import com.edualto.commerce.gateway.util.PaymentCryptoUtils;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
@@ -26,6 +24,8 @@ import javax.crypto.spec.SecretKeySpec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 
 @Component
 public class SepayPaymentGateway implements PaymentGateway {
@@ -116,20 +116,47 @@ public class SepayPaymentGateway implements PaymentGateway {
     @Override
     public PaymentWebhookResult processWebhook(PaymentWebhookCommand command) {
         if (!isConfigured()) {
-            return processWebhookPayload(command);
+            log.warn("SePay webhook rejected: gateway not configured");
+            return PaymentWebhookResult.invalidSignature(
+                    "SePay webhook unconfigured",
+                    Map.of("success", false, "message", "Webhook unconfigured")
+            );
         }
 
         String xSecretKey = command.headers().get("x-secret-key");
         String authHeader = command.headers().get("authorization");
 
-        if (properties.hasMerchantPg() && xSecretKey != null) {
-            if (!PaymentCryptoUtils.constantTimeEquals(properties.secretKey(), xSecretKey.trim())) {
-                log.warn("SePay PG IPN rejected: invalid X-Secret-Key header");
-                return PaymentWebhookResult.invalidSignature("Unauthorized SePay IPN", Map.of("success", false, "message", "Unauthorized"));
+        if (properties.hasMerchantPg()) {
+            if (xSecretKey != null) {
+                if (xSecretKey.isBlank() || !PaymentCryptoUtils.constantTimeEquals(properties.secretKey(), xSecretKey.trim())) {
+                    log.warn("SePay PG IPN rejected: invalid X-Secret-Key header");
+                    return PaymentWebhookResult.invalidSignature(
+                            "Unauthorized SePay IPN",
+                            Map.of("success", false, "message", "Unauthorized")
+                    );
+                }
+            } else if (authHeader != null && !authHeader.isBlank()
+                    && properties.apiKey() != null && !properties.apiKey().isBlank()) {
+                if (!isValidAuth(authHeader)) {
+                    log.warn("SePay webhook rejected: invalid Authorization header");
+                    return PaymentWebhookResult.invalidSignature(
+                            "Unauthorized SePay webhook",
+                            Map.of("success", false, "message", "Unauthorized")
+                    );
+                }
+            } else {
+                log.warn("SePay PG webhook rejected: missing authentication headers");
+                return PaymentWebhookResult.invalidSignature(
+                        "Unauthorized SePay webhook",
+                        Map.of("success", false, "message", "Unauthorized")
+                );
             }
-        } else if (authHeader != null && !isValidAuth(authHeader)) {
-            log.warn("SePay webhook rejected: invalid Authorization header");
-            return PaymentWebhookResult.invalidSignature("Unauthorized SePay webhook", Map.of("success", false, "message", "Unauthorized"));
+        } else if (authHeader == null || authHeader.isBlank() || !isValidAuth(authHeader)) {
+            log.warn("SePay webhook rejected: missing or invalid Authorization header");
+            return PaymentWebhookResult.invalidSignature(
+                    "Unauthorized SePay webhook",
+                    Map.of("success", false, "message", "Unauthorized")
+            );
         }
 
         return processWebhookPayload(command);
@@ -197,9 +224,11 @@ public class SepayPaymentGateway implements PaymentGateway {
     }
 
     private boolean isValidAuth(String header) {
-        String expected = properties.secretKey() != null ? properties.secretKey() : properties.apiKey();
+        String expected = (properties.apiKey() != null && !properties.apiKey().isBlank())
+                ? properties.apiKey()
+                : properties.secretKey();
         if (expected == null || expected.isBlank()) {
-            return true;
+            return false;
         }
         String normalized = header.trim();
         if (normalized.regionMatches(true, 0, "Apikey ", 0, 7)) {

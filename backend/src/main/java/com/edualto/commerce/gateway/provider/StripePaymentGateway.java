@@ -9,18 +9,20 @@ import com.edualto.commerce.gateway.PaymentWebhookCommand;
 import com.edualto.commerce.gateway.PaymentWebhookResult;
 import com.edualto.commerce.gateway.util.PaymentCryptoUtils;
 import com.edualto.common.exception.BusinessException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.RoundingMode;
+import java.time.Clock;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 
 @Component
 public class StripePaymentGateway implements PaymentGateway {
@@ -28,14 +30,28 @@ public class StripePaymentGateway implements PaymentGateway {
     private static final Logger log = LoggerFactory.getLogger(StripePaymentGateway.class);
     private static final String STRIPE_API_URL = "https://api.stripe.com/v1/checkout/sessions";
 
+    private static final long MAX_WEBHOOK_AGE_SECONDS = 300L;
+
     private final StripeProperties properties;
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
+    private final Clock clock;
 
+    @Autowired
     public StripePaymentGateway(StripeProperties properties, RestClient paymentRestClient, ObjectMapper objectMapper) {
+        this(properties, paymentRestClient, objectMapper, Clock.systemUTC());
+    }
+
+    public StripePaymentGateway(
+            StripeProperties properties,
+            RestClient paymentRestClient,
+            ObjectMapper objectMapper,
+            Clock clock
+    ) {
         this.properties = properties;
         this.restClient = paymentRestClient;
         this.objectMapper = objectMapper;
+        this.clock = clock;
     }
 
     @Override
@@ -150,7 +166,14 @@ public class StripePaymentGateway implements PaymentGateway {
             return PaymentWebhookResult.failed(null, "Missing order ID in Stripe event", Map.of("received", true));
         }
 
-        long amountTotalVnd = parseAmount(objMap.get("amount_total"));
+        Object rawAmount = "payment_intent.succeeded".equals(eventType)
+                ? (objMap.get("amount_received") != null ? objMap.get("amount_received") : objMap.get("amount"))
+                : objMap.get("amount_total");
+        long amountTotalVnd = parseAmount(rawAmount);
+        if (amountTotalVnd <= 0) {
+            log.warn("Stripe event {} has invalid amount: {}", eventType, rawAmount);
+            return PaymentWebhookResult.failed(orderId, "Invalid amount in Stripe event", Map.of("received", true));
+        }
         long amountMinorUnits = amountTotalVnd * 100;
 
         return PaymentWebhookResult.success(orderId, amountMinorUnits, "Stripe payment succeeded", Map.of("received", true));
@@ -168,6 +191,16 @@ public class StripePaymentGateway implements PaymentGateway {
         }
 
         if (timestamp == null || timestamp.isBlank()) {
+            return false;
+        }
+
+        long parsedTimestamp;
+        try {
+            parsedTimestamp = Long.parseLong(timestamp.trim());
+        } catch (NumberFormatException exception) {
+            return false;
+        }
+        if (Math.abs(clock.instant().getEpochSecond() - parsedTimestamp) > MAX_WEBHOOK_AGE_SECONDS) {
             return false;
         }
 

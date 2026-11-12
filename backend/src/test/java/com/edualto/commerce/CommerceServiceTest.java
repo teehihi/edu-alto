@@ -13,14 +13,17 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import org.mockito.InOrder;
 import com.edualto.commerce.domain.PaymentMethod;
+import com.edualto.commerce.config.SepayProperties;
 import com.edualto.commerce.config.VnPayProperties;
 import com.edualto.commerce.dto.ConfirmManualPaymentRequest;
 import com.edualto.commerce.dto.CreateOrderRequest;
 import com.edualto.commerce.dto.OrderCreatedResponse;
 import com.edualto.commerce.dto.OrderResponse;
 import com.edualto.commerce.gateway.PaymentGatewayRegistry;
+import com.edualto.commerce.gateway.provider.SepayPaymentGateway;
 import com.edualto.commerce.gateway.provider.VnPayPaymentGateway;
 import com.edualto.commerce.repository.CommerceRepository;
+import com.edualto.commerce.repository.CommerceRepository.ActivePendingOrder;
 import com.edualto.commerce.repository.CommerceRepository.EnrolledOrderCourse;
 import com.edualto.commerce.repository.CommerceRepository.PaymentOrder;
 import com.edualto.commerce.repository.PromotionRepository;
@@ -49,6 +52,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
+import tools.jackson.databind.ObjectMapper;
 
 @ExtendWith(MockitoExtension.class)
 class CommerceServiceTest {
@@ -303,7 +307,20 @@ class CommerceServiceTest {
                 courseId, UUID.randomUUID(), "Khóa học SePay", new BigDecimal("300000"), "PUBLISHED")));
         when(repository.isEnrolled(studentId, courseId)).thenReturn(false);
 
-        OrderCreatedResponse order = service().createOrder(studentId,
+        VnPayProperties vnPayProps = new VnPayProperties(
+                "TESTTMNCODE", SECRET, "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html", "https://example.test/checkout/result");
+        SepayProperties sepayProps = SepayProperties.of(
+                "test-sepay-api-key", "1040489156", "VCB", "NGUYEN NHAT THIEN", "compact");
+        CommerceService sepayService = new CommerceService(
+                repository,
+                users,
+                vnPayProps,
+                promotions,
+                new PaymentGatewayRegistry(List.of(new SepayPaymentGateway(sepayProps, new ObjectMapper()))),
+                learningActivities
+        );
+
+        OrderCreatedResponse order = sepayService.createOrder(studentId,
                 new CreateOrderRequest(List.of(courseId), PaymentMethod.SEPAY, "0931652105", null), "127.0.0.1");
 
         assertThat(order.paymentMethod()).isEqualTo("SEPAY");
@@ -312,8 +329,6 @@ class CommerceServiceTest {
 
         String ref = order.instructions().transferReference();
         UUID orderId = order.orderId();
-        when(repository.lockPaymentOrder(ref)).thenReturn(Optional.of(
-                new PaymentOrder(orderId, 30000000L, "PENDING", "SEPAY", "PENDING_PAYMENT", studentId)));
 
         String webhookJson = """
                 {
@@ -325,7 +340,19 @@ class CommerceServiceTest {
                 }
                 """.formatted(ref);
 
-        Map<String, Object> result = service().processGatewayWebhook("SEPAY", webhookJson, Map.of(), Map.of());
+        Map<String, Object> unauthorizedResult = sepayService.processGatewayWebhook("SEPAY", webhookJson, Map.of(), Map.of());
+        assertThat(unauthorizedResult.get("success")).isEqualTo(false);
+        verify(repository, never()).markPaymentPaid(any(), any());
+
+        when(repository.lockPaymentOrder(ref)).thenReturn(Optional.of(
+                new PaymentOrder(orderId, 30000000L, "PENDING", "SEPAY", "PENDING_PAYMENT", studentId)));
+
+        Map<String, Object> result = sepayService.processGatewayWebhook(
+                "SEPAY",
+                webhookJson,
+                Map.of("authorization", "Apikey test-sepay-api-key"),
+                Map.of()
+        );
         assertThat(result.get("success")).isEqualTo(true);
         verify(repository).markPaymentPaid(orderId, studentId);
     }
@@ -415,6 +442,97 @@ class CommerceServiceTest {
         order.verify(repository).lockStudent(studentId);
         order.verify(repository).lockCourse(smallerCourseId);
         order.verify(repository).lockCourse(largerCourseId);
+    }
+
+    @Test
+    void webhookRejectsSuccessfulResultWithZeroAmount() {
+        UUID orderId = UUID.randomUUID();
+        UUID studentId = UUID.randomUUID();
+        String ref = "EA" + orderId.toString().replace("-", "").substring(0, 22).toUpperCase();
+        when(repository.lockPaymentOrder(ref)).thenReturn(Optional.of(
+                new PaymentOrder(orderId, 30000000L, "PENDING", "SEPAY", "PENDING_PAYMENT", studentId)));
+
+        VnPayProperties vnPayProps = new VnPayProperties(
+                "TESTTMNCODE", SECRET, "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html", "https://example.test/checkout/result");
+        SepayProperties sepayProps = SepayProperties.of(
+                "test-sepay-api-key", "1040489156", "VCB", "NGUYEN NHAT THIEN", "compact");
+        CommerceService sepayService = new CommerceService(
+                repository,
+                users,
+                vnPayProps,
+                promotions,
+                new PaymentGatewayRegistry(List.of(new SepayPaymentGateway(sepayProps, new ObjectMapper()))),
+                learningActivities
+        );
+
+        String webhookJson = """
+                {
+                    "gateway": "VCB",
+                    "accountNumber": "1040489156",
+                    "content": "Thanh toan %s",
+                    "transferType": "in",
+                    "transferAmount": 0
+                }
+                """.formatted(ref);
+
+        sepayService.processGatewayWebhook(
+                "SEPAY",
+                webhookJson,
+                Map.of("authorization", "Apikey test-sepay-api-key"),
+                Map.of()
+        );
+
+        verify(repository, never()).markPaymentPaid(any(), any());
+        verify(repository, never()).markPaymentFailed(any());
+    }
+
+    @Test
+    void createOrderDoesNotReusePendingOrderWhenPromotionCodeChanges() {
+        UUID studentId = UUID.randomUUID();
+        UUID courseId = UUID.randomUUID();
+        UUID oldOrderId = UUID.randomUUID();
+        UUID newPromotionId = UUID.randomUUID();
+        UUID newItemId = UUID.randomUUID();
+        var course = new CommerceRepository.CheckoutCourse(
+                courseId, UUID.randomUUID(), "Khóa học thử", new BigDecimal("250000"), "PUBLISHED");
+
+        when(repository.lockCourse(courseId)).thenReturn(Optional.of(course));
+        when(repository.isEnrolled(studentId, courseId)).thenReturn(false);
+        when(promotions.lockByCode("WELCOME20")).thenReturn(Optional.of(new PromotionRecord(
+                newPromotionId, courseId, "Ưu đãi 20%", "WELCOME20", "PERCENT", new BigDecimal("20"),
+                10, OffsetDateTime.now().minusDays(1), OffsetDateTime.now().plusDays(1), true)));
+        when(repository.findActivePendingOrder(studentId)).thenReturn(Optional.of(new ActivePendingOrder(
+                oldOrderId,
+                "PAYMENT_REVIEW",
+                "VND",
+                new BigDecimal("250000"),
+                new BigDecimal("25000"),
+                new BigDecimal("225000"),
+                "EA0000000000000000000001",
+                "0931652105",
+                OffsetDateTime.now().plusHours(2),
+                "VIETQR",
+                List.of(courseId),
+                "OLD10"
+        )));
+        when(repository.orderHasPromotion(oldOrderId)).thenReturn(true);
+        when(repository.insertOrderItem(any(UUID.class), eq(course), eq(new BigDecimal("200000")),
+                eq(new BigDecimal("50000")), eq(newPromotionId), eq("WELCOME20"))).thenReturn(newItemId);
+
+        OrderCreatedResponse response = service().createOrder(studentId,
+                new CreateOrderRequest(List.of(courseId), PaymentMethod.VIETQR, "0931652105", "WELCOME20"),
+                "127.0.0.1");
+
+        assertThat(response.orderId()).isNotEqualTo(oldOrderId);
+        assertThat(response.discountTotal()).isEqualByComparingTo("50000");
+        assertThat(response.total()).isEqualByComparingTo("200000");
+        verify(repository).markPaymentFailed(oldOrderId);
+        verify(promotions).releaseReservation(oldOrderId);
+        verify(repository).insertOrder(eq(response.orderId()), eq(studentId), eq("0931652105"),
+                eq(new BigDecimal("250000")), eq(new BigDecimal("50000")), eq(new BigDecimal("200000")),
+                eq("PAYMENT_REVIEW"), anyString(), any(OffsetDateTime.class));
+        verify(promotions).insertReservation(newPromotionId, response.orderId(), newItemId, studentId,
+                new BigDecimal("50000"), response.expiresAt());
     }
 
     private CommerceService service() {

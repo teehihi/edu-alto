@@ -97,7 +97,8 @@ public class CommerceRepository {
     public Optional<ActivePendingOrder> findActivePendingOrder(UUID studentId) {
         List<ActivePendingOrder> list = jdbc.query("""
                 select o.id, o.status, o.currency, o.subtotal, o.discount_total, o.total,
-                       o.transfer_reference, o.phone_number, o.expires_at, p.provider
+                       o.transfer_reference, o.phone_number, o.expires_at, p.provider,
+                       (select max(oi.promotion_code) from order_items oi where oi.order_id = o.id) as promotion_code
                 from orders o
                 join payments p on p.order_id = o.id
                 where o.student_id = ?
@@ -120,7 +121,8 @@ public class CommerceRepository {
                             rs.getString("phone_number"),
                             rs.getObject("expires_at", OffsetDateTime.class),
                             rs.getString("provider"),
-                            courseIds
+                            courseIds,
+                            rs.getString("promotion_code")
                     );
                 }, studentId);
         return list.stream().findFirst();
@@ -494,6 +496,6 @@ public class CommerceRepository {
     public record ActivePendingOrder(UUID orderId, String status, String currency, BigDecimal subtotal,
                                      BigDecimal discountTotal, BigDecimal total, String transferReference,
                                      String phoneNumber, OffsetDateTime expiresAt, String provider,
-                                     List<UUID> courseIds) {
+                                     List<UUID> courseIds, String promotionCode) {
     }
 }

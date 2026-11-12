@@ -10,8 +10,6 @@ import com.edualto.commerce.gateway.PaymentWebhookCommand;
 import com.edualto.commerce.gateway.PaymentWebhookResult;
 import com.edualto.commerce.gateway.util.PaymentCryptoUtils;
 import com.edualto.common.exception.BusinessException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.RoundingMode;
 import java.util.HashMap;
 import java.util.Map;
@@ -22,6 +20,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 
 @Component
 public class MoMoPaymentGateway implements PaymentGateway {

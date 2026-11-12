@@ -20,15 +20,18 @@ import com.edualto.commerce.gateway.provider.VietQrPaymentGateway;
 import com.edualto.commerce.gateway.provider.VnPayPaymentGateway;
 import com.edualto.commerce.gateway.util.PaymentCryptoUtils;
 import com.edualto.common.exception.BusinessException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestClient;
+import tools.jackson.databind.ObjectMapper;
 
 class PaymentGatewaysTest {
 
@@ -137,6 +140,59 @@ class PaymentGatewaysTest {
     }
 
     @Test
+    void sepayGatewayRejectsWebhookWhenUnconfigured() {
+        SepayProperties properties = new SepayProperties(
+                "", "", null, null, null, null, "", "1040489156", "VCB", "NGUYEN NHAT THIEN", "compact");
+        SepayPaymentGateway gateway = new SepayPaymentGateway(properties, objectMapper);
+
+        PaymentWebhookResult result = gateway.processWebhook(new PaymentWebhookCommand("{}", Map.of(), Map.of()));
+        assertThat(gateway.isConfigured()).isFalse();
+        assertThat(result.signatureValid()).isFalse();
+    }
+
+    @Test
+    void sepayGatewayRejectsWebhookWithMissingAuthHeaders() {
+        SepayProperties properties = SepayProperties.of("my-secret-sepay-key", "1040489156", "VCB", "NGUYEN NHAT THIEN", "compact");
+        SepayPaymentGateway gateway = new SepayPaymentGateway(properties, objectMapper);
+
+        PaymentWebhookResult result = gateway.processWebhook(new PaymentWebhookCommand("{}", Map.of(), Map.of()));
+        assertThat(result.signatureValid()).isFalse();
+    }
+
+    @Test
+    void sepayGatewayUsesApiKeyWhenSecretKeyIsBlankString() {
+        SepayProperties properties = new SepayProperties(
+                "", "", null, null, null, null, "bank-api-key", "1040489156", "VCB", "NGUYEN NHAT THIEN", "compact");
+        SepayPaymentGateway gateway = new SepayPaymentGateway(properties, objectMapper);
+
+        String ref = "EA12345678901234567890";
+        String payload = """
+                {
+                    "transferType": "in",
+                    "content": "Thanh toan %s",
+                    "transferAmount": 150000
+                }
+                """.formatted(ref);
+
+        PaymentWebhookResult invalidResult = gateway.processWebhook(new PaymentWebhookCommand(
+                payload,
+                Map.of("authorization", "Apikey wrong-key"),
+                Map.of()
+        ));
+        assertThat(invalidResult.signatureValid()).isFalse();
+
+        PaymentWebhookResult validResult = gateway.processWebhook(new PaymentWebhookCommand(
+                payload,
+                Map.of("authorization", "Apikey bank-api-key"),
+                Map.of()
+        ));
+        assertThat(validResult.signatureValid()).isTrue();
+        assertThat(validResult.successful()).isTrue();
+        assertThat(validResult.orderLookupKey()).isEqualTo(ref);
+        assertThat(validResult.amountMinorUnits()).isEqualTo(15000000L);
+    }
+
+    @Test
     void momoGatewayVerifiesValidIpnSignature() {
         String secretKey = "momo-secret-key";
         MoMoProperties properties = new MoMoProperties("MOMO_PARTNER", "MOMO_ACCESS", secretKey, "https://momo.test", "https://return.test", "https://ipn.test");
@@ -202,7 +258,8 @@ class PaymentGatewaysTest {
     void stripeGatewayVerifiesStripeSignatureAndExtractsOrder() {
         String webhookSecret = "whsec_test_secret_key";
         StripeProperties properties = new StripeProperties("sk_test_key", webhookSecret, "https://success.test", "https://cancel.test");
-        StripePaymentGateway gateway = new StripePaymentGateway(properties, restClient, objectMapper);
+        Clock fixedClock = Clock.fixed(Instant.ofEpochSecond(1728374400L), ZoneOffset.UTC);
+        StripePaymentGateway gateway = new StripePaymentGateway(properties, restClient, objectMapper, fixedClock);
 
         String orderId = UUID.randomUUID().toString();
         String payload = """
@@ -233,6 +290,82 @@ class PaymentGatewaysTest {
         assertThat(result.successful()).isTrue();
         assertThat(result.orderLookupKey()).isEqualTo(orderId);
         assertThat(result.amountMinorUnits()).isEqualTo(45000000L);
+    }
+
+    @Test
+    void stripeGatewayExtractsAmountFromPaymentIntentSucceeded() {
+        String webhookSecret = "whsec_test_secret_key";
+        StripeProperties properties = new StripeProperties("sk_test_key", webhookSecret, "https://success.test", "https://cancel.test");
+        Clock fixedClock = Clock.fixed(Instant.ofEpochSecond(1728374400L), ZoneOffset.UTC);
+        StripePaymentGateway gateway = new StripePaymentGateway(properties, restClient, objectMapper, fixedClock);
+
+        String orderId = UUID.randomUUID().toString();
+        String payload = """
+                {
+                    "type": "payment_intent.succeeded",
+                    "data": {
+                        "object": {
+                            "metadata": {
+                                "order_id": "%s"
+                            },
+                            "amount": 500000,
+                            "amount_received": 450000
+                        }
+                    }
+                }
+                """.formatted(orderId);
+
+        String timestamp = "1728374400";
+        String signedPayload = timestamp + "." + payload;
+        String signature = PaymentCryptoUtils.hmacSha256(webhookSecret, signedPayload);
+
+        PaymentWebhookCommand command = new PaymentWebhookCommand(
+                payload,
+                Map.of("stripe-signature", "t=" + timestamp + ",v1=" + signature),
+                Map.of()
+        );
+
+        PaymentWebhookResult result = gateway.processWebhook(command);
+
+        assertThat(result.signatureValid()).isTrue();
+        assertThat(result.successful()).isTrue();
+        assertThat(result.orderLookupKey()).isEqualTo(orderId);
+        assertThat(result.amountMinorUnits()).isEqualTo(45000000L);
+    }
+
+    @Test
+    void stripeGatewayRejectsExpiredSignatureTimestamp() {
+        String webhookSecret = "whsec_test_secret_key";
+        StripeProperties properties = new StripeProperties("sk_test_key", webhookSecret, "https://success.test", "https://cancel.test");
+        Clock fixedClock = Clock.fixed(Instant.ofEpochSecond(1728374400L + 301L), ZoneOffset.UTC);
+        StripePaymentGateway gateway = new StripePaymentGateway(properties, restClient, objectMapper, fixedClock);
+
+        String orderId = UUID.randomUUID().toString();
+        String payload = """
+                {
+                    "type": "checkout.session.completed",
+                    "data": {
+                        "object": {
+                            "client_reference_id": "%s",
+                            "amount_total": 450000
+                        }
+                    }
+                }
+                """.formatted(orderId);
+
+        String timestamp = "1728374400";
+        String signedPayload = timestamp + "." + payload;
+        String signature = PaymentCryptoUtils.hmacSha256(webhookSecret, signedPayload);
+
+        PaymentWebhookCommand command = new PaymentWebhookCommand(
+                payload,
+                Map.of("stripe-signature", "t=" + timestamp + ",v1=" + signature),
+                Map.of()
+        );
+
+        PaymentWebhookResult result = gateway.processWebhook(command);
+
+        assertThat(result.signatureValid()).isFalse();
     }
 
     @Test
