@@ -46,6 +46,7 @@ function Probe() {
 describe("AuthSessionProvider", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it("restores session via refresh cookie on mount, then handles 401 + retry on reloadCurrentUser", async () => {
@@ -188,6 +189,152 @@ describe("AuthSessionProvider", () => {
       "http://localhost:8080/api/v1/auth/logout",
       expect.objectContaining({ method: "POST" }),
     );
+  });
+
+  it("serializes cross-tab refresh calls through navigator.locks when BroadcastChannel is unavailable", async () => {
+    let lockTail = Promise.resolve();
+    const requestMock = vi.fn(
+      (_name: string, callback: () => Promise<unknown>) =>
+        new Promise((resolve, reject) => {
+          lockTail = lockTail
+            .then(() => callback())
+            .then(resolve, reject)
+            .catch(() => undefined);
+        }),
+    );
+    vi.stubGlobal("BroadcastChannel", undefined);
+    Object.defineProperty(navigator, "locks", {
+      configurable: true,
+      value: { request: requestMock },
+    });
+
+    let inFlightRefresh = 0;
+    let maxConcurrentRefresh = 0;
+    let callCount = 0;
+    const fetchMock = vi.fn(async () => {
+      inFlightRefresh++;
+      maxConcurrentRefresh = Math.max(maxConcurrentRefresh, inFlightRefresh);
+      await new Promise((resolve) => setTimeout(resolve, 15));
+      inFlightRefresh--;
+      callCount++;
+      return tokenResponse(`rotated-token-${callCount}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      render(
+        <>
+          <AuthSessionProvider>
+            <Probe />
+          </AuthSessionProvider>
+          <AuthSessionProvider>
+            <Probe />
+          </AuthSessionProvider>
+        </>,
+      );
+
+      await waitFor(() =>
+        expect(screen.getAllByTestId("loading").every((node) => node.textContent === "false")).toBe(
+          true,
+        ),
+      );
+
+      expect(requestMock).toHaveBeenCalledTimes(2);
+      expect(requestMock).toHaveBeenNthCalledWith(1, "edualto.auth.refresh", expect.any(Function));
+      expect(requestMock).toHaveBeenNthCalledWith(2, "edualto.auth.refresh", expect.any(Function));
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(maxConcurrentRefresh).toBe(1);
+    } finally {
+      Reflect.deleteProperty(navigator, "locks");
+    }
+  });
+
+  it("shares refreshed session and logout state across tabs when BroadcastChannel is available", async () => {
+    class MockBroadcastChannel {
+      private static channels = new Map<string, Set<MockBroadcastChannel>>();
+      private readonly name: string;
+      onmessage: ((event: MessageEvent) => void) | null = null;
+
+      constructor(name: string) {
+        this.name = name;
+        const peers = MockBroadcastChannel.channels.get(name) ?? new Set();
+        peers.add(this);
+        MockBroadcastChannel.channels.set(name, peers);
+      }
+
+      postMessage(data: unknown) {
+        const peers = MockBroadcastChannel.channels.get(this.name);
+        if (!peers) return;
+        for (const peer of peers) {
+          if (peer !== this && peer.onmessage) {
+            peer.onmessage(new MessageEvent("message", { data }));
+          }
+        }
+      }
+
+      close() {
+        MockBroadcastChannel.channels.get(this.name)?.delete(this);
+      }
+    }
+
+    let lockTail = Promise.resolve();
+    const requestMock = vi.fn(
+      (_name: string, callback: () => Promise<unknown>) =>
+        new Promise((resolve, reject) => {
+          lockTail = lockTail
+            .then(() => callback())
+            .then(resolve, reject)
+            .catch(() => undefined);
+        }),
+    );
+    vi.stubGlobal("BroadcastChannel", MockBroadcastChannel);
+    Object.defineProperty(navigator, "locks", {
+      configurable: true,
+      value: { request: requestMock },
+    });
+
+    const fetchMock = vi
+      .fn()
+      .mockImplementationOnce(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        return tokenResponse("shared-token");
+      })
+      .mockResolvedValueOnce(jsonResponse(200, { success: true, data: {} }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      render(
+        <>
+          <AuthSessionProvider>
+            <Probe />
+          </AuthSessionProvider>
+          <AuthSessionProvider>
+            <Probe />
+          </AuthSessionProvider>
+        </>,
+      );
+
+      await waitFor(() =>
+        expect(screen.getAllByTestId("loading").every((node) => node.textContent === "false")).toBe(
+          true,
+        ),
+      );
+      expect(screen.getAllByTestId("name").map((n) => n.textContent)).toEqual([
+        "Nguyen Van A",
+        "Nguyen Van A",
+      ]);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+
+      await userEvent.click(screen.getAllByRole("button", { name: "Đăng xuất" })[0]);
+      await waitFor(() =>
+        expect(screen.getAllByTestId("name").map((n) => n.textContent)).toEqual([
+          "Chưa đăng nhập",
+          "Chưa đăng nhập",
+        ]),
+      );
+    } finally {
+      Reflect.deleteProperty(navigator, "locks");
+    }
   });
 });
 

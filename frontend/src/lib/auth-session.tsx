@@ -34,6 +34,19 @@ type AuthSessionState = {
 };
 
 const REFRESH_SKEW_MS = 30_000;
+const AUTH_REFRESH_LOCK_NAME = "edualto.auth.refresh";
+const AUTH_BROADCAST_CHANNEL = "edualto.auth.session";
+
+type AuthBroadcastMessage =
+  | { type: "SESSION_SYNCED"; response: AuthTokenResponse; syncedAt: number }
+  | { type: "SESSION_CLEARED" };
+
+async function withRefreshLock<T>(task: () => Promise<T>): Promise<T> {
+  if (typeof navigator !== "undefined" && typeof navigator.locks?.request === "function") {
+    return navigator.locks.request(AUTH_REFRESH_LOCK_NAME, task);
+  }
+  return task();
+}
 
 const AuthSessionContext = createContext<AuthSessionState | null>(null);
 
@@ -43,6 +56,8 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
   const sessionRef = useRef<InMemorySession | null>(null);
   const sessionVersionRef = useRef(0);
   const refreshPromiseRef = useRef<Promise<InMemorySession | null> | null>(null);
+  const channelRef = useRef<BroadcastChannel | null>(null);
+  const lastCrossTabSyncAtRef = useRef(0);
 
   const clearSession = useCallback(() => {
     sessionVersionRef.current++;
@@ -61,12 +76,68 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
     return nextSession;
   }, []);
 
+  const postAuthBroadcast = useCallback((message: AuthBroadcastMessage) => {
+    try {
+      channelRef.current?.postMessage(message);
+    } catch {
+      // Ignore closed channel races during tab teardown.
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof BroadcastChannel === "undefined") {
+      return;
+    }
+
+    const channel = new BroadcastChannel(AUTH_BROADCAST_CHANNEL);
+    channelRef.current = channel;
+    channel.onmessage = (event: MessageEvent<AuthBroadcastMessage>) => {
+      const message = event.data;
+      if (!message) {
+        return;
+      }
+      if (message.type === "SESSION_SYNCED") {
+        lastCrossTabSyncAtRef.current = Math.max(lastCrossTabSyncAtRef.current, message.syncedAt);
+        saveSession(message.response);
+      } else if (message.type === "SESSION_CLEARED") {
+        clearSession();
+      }
+    };
+
+    return () => {
+      if (channelRef.current === channel) {
+        channelRef.current = null;
+      }
+      channel.close();
+    };
+  }, [clearSession, saveSession]);
+
   const refreshStoredSession = useCallback(async (): Promise<InMemorySession | null> => {
     if (!refreshPromiseRef.current) {
       const version = sessionVersionRef.current;
-      refreshPromiseRef.current = authApi
-        .refresh()
-        .then((response) => (version === sessionVersionRef.current ? saveSession(response) : null))
+      const requestedAt = Date.now();
+      refreshPromiseRef.current = withRefreshLock(async () => {
+        if (version !== sessionVersionRef.current) {
+          return null;
+        }
+        const syncedSession = sessionRef.current;
+        if (
+          lastCrossTabSyncAtRef.current >= requestedAt &&
+          syncedSession &&
+          syncedSession.expiresAt > Date.now() + REFRESH_SKEW_MS
+        ) {
+          return syncedSession;
+        }
+        const response = await authApi.refresh();
+        if (version !== sessionVersionRef.current) {
+          return null;
+        }
+        const nextSession = saveSession(response);
+        const syncedAt = Date.now();
+        lastCrossTabSyncAtRef.current = syncedAt;
+        postAuthBroadcast({ type: "SESSION_SYNCED", response, syncedAt });
+        return nextSession;
+      })
         .catch(() => {
           if (version === sessionVersionRef.current) clearSession();
           return null;
@@ -77,7 +148,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
     }
 
     return refreshPromiseRef.current;
-  }, [clearSession, saveSession]);
+  }, [clearSession, postAuthBroadcast, saveSession]);
 
   useEffect(() => {
     setUnauthorizedAccessTokenHandler(async (rejectedToken) => {
@@ -159,21 +230,27 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
       const version = ++sessionVersionRef.current;
       await refreshPromiseRef.current;
       const response = await authApi.login(request);
-      if (version === sessionVersionRef.current) saveSession(response);
+      if (version === sessionVersionRef.current) {
+        saveSession(response);
+        const syncedAt = Date.now();
+        lastCrossTabSyncAtRef.current = syncedAt;
+        postAuthBroadcast({ type: "SESSION_SYNCED", response, syncedAt });
+      }
       return response.user;
     },
-    [saveSession],
+    [postAuthBroadcast, saveSession],
   );
 
   const logout = useCallback(async () => {
     clearSession();
+    postAuthBroadcast({ type: "SESSION_CLEARED" });
     try {
       await refreshPromiseRef.current;
-      await authApi.logout();
+      await withRefreshLock(() => authApi.logout());
     } catch {
       // Local cleanup is complete; logout must not expose token state through errors.
     }
-  }, [clearSession]);
+  }, [clearSession, postAuthBroadcast]);
 
   const refreshSession = useCallback(async () => {
     const refreshed = await refreshStoredSession();
