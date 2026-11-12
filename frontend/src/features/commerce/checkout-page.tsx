@@ -15,7 +15,7 @@ import {
   ShieldCheck,
   WifiOff,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   cancelCheckoutOrder,
@@ -72,6 +72,7 @@ export function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("MOMO");
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
   const [cancelling, setCancelling] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
   const [isRecovered, setIsRecovered] = useState(false);
@@ -365,6 +366,9 @@ export function CheckoutPage() {
                 id="checkout-form"
                 onSubmit={async (event) => {
                   event.preventDefault();
+                  if (submittingRef.current || createdOrder) {
+                    return;
+                  }
                   if (isOffline) {
                     setMessage(
                       "Thiết bị đang mất kết nối mạng. Vui lòng kiểm tra lại đường truyền trước khi thanh toán.",
@@ -375,6 +379,7 @@ export function CheckoutPage() {
                     router.push(`/login?next=${encodeURIComponent("/checkout")}`);
                     return;
                   }
+                  submittingRef.current = true;
                   setSubmitting(true);
                   setMessage("");
                   try {
@@ -407,6 +412,7 @@ export function CheckoutPage() {
                     setCreatedOrder(order);
                     setIsRecovered(false);
                     setSubmitting(false);
+                    submittingRef.current = false;
                   } catch (reason) {
                     setMessage(
                       reason instanceof ApiClientError &&
@@ -417,6 +423,7 @@ export function CheckoutPage() {
                           : "Chưa thể tạo đơn hàng. Vui lòng thử lại.",
                     );
                     setSubmitting(false);
+                    submittingRef.current = false;
                   }
                 }}
                 className="rounded-2xl border border-slate-200/90 bg-white p-6 sm:p-8 shadow-xs space-y-6"
