@@ -6,12 +6,16 @@ import com.edualto.course.domain.CourseLevel;
 import com.edualto.course.domain.CourseStatus;
 import com.edualto.course.dto.CourseInstructorSummaryResponse;
 import com.edualto.course.repository.CourseRepository;
+import com.edualto.learning.domain.CourseWishlistEvent;
 import com.edualto.learning.dto.FavoriteCourseResponse;
 import com.edualto.learning.repository.CourseWishlistRepository;
 import com.edualto.learning.repository.CourseWishlistRepository.WishlistCourseRow;
 import com.edualto.storage.service.StorageService;
 import com.edualto.user.service.UserService;
+import java.time.Instant;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -25,13 +29,22 @@ public class CourseWishlistService {
     private final CourseRepository courses;
     private final UserService users;
     private final StorageService storage;
+    private final ApplicationEventPublisher eventPublisher;
 
     public CourseWishlistService(CourseWishlistRepository wishlists, CourseRepository courses,
                                  UserService users, StorageService storage) {
+        this(wishlists, courses, users, storage, null);
+    }
+
+    @Autowired
+    public CourseWishlistService(CourseWishlistRepository wishlists, CourseRepository courses,
+                                 UserService users, StorageService storage,
+                                 ApplicationEventPublisher eventPublisher) {
         this.wishlists = wishlists;
         this.courses = courses;
         this.users = users;
         this.storage = storage;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional(readOnly = true)
@@ -54,13 +67,19 @@ public class CourseWishlistService {
         if (course.getStatus() != CourseStatus.PUBLISHED) {
             throw courseNotFound();
         }
-        wishlists.insertIfAbsent(UUID.randomUUID(), userId, courseId);
+        int inserted = wishlists.insertIfAbsent(UUID.randomUUID(), userId, courseId);
+        if (inserted > 0 && eventPublisher != null) {
+            eventPublisher.publishEvent(new CourseWishlistEvent(userId, courseId, true, Instant.now()));
+        }
     }
 
     @Transactional
     public void delete(UUID userId, UUID courseId) {
         users.requireActiveStudent(userId);
-        wishlists.delete(userId, courseId);
+        int deleted = wishlists.delete(userId, courseId);
+        if (deleted > 0 && eventPublisher != null) {
+            eventPublisher.publishEvent(new CourseWishlistEvent(userId, courseId, false, Instant.now()));
+        }
     }
 
     private FavoriteCourseResponse toResponse(WishlistCourseRow row) {

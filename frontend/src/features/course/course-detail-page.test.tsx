@@ -9,6 +9,7 @@ import {
   fetchPublicCurriculum,
   fetchLessonPreview,
 } from "@/lib/course-client";
+import { fetchCourseRecommendations } from "@/lib/recommendation-client";
 
 const routerPushMock = vi.fn();
 
@@ -20,6 +21,11 @@ vi.mock("@/lib/course-client", () => ({
   getCachedCourseDetail: vi.fn(() => null),
   getCachedCurriculum: vi.fn(() => null),
   getCachedCoursePage: vi.fn(() => null),
+}));
+vi.mock("@/lib/recommendation-client", () => ({
+  fetchCourseRecommendations: vi.fn(),
+  recordCourseViewSignal: vi.fn().mockResolvedValue(undefined),
+  submitRecommendationFeedback: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("@/components/layout/app-header", () => ({ AppHeader: () => null }));
 vi.mock("@/components/layout/footer", () => ({ Footer: () => null }));
@@ -51,6 +57,15 @@ beforeEach(() => {
   vi.resetAllMocks();
   window.localStorage.clear();
   vi.mocked(fetchPublicCourses).mockResolvedValue([]);
+  vi.mocked(fetchCourseRecommendations).mockResolvedValue({
+    snapshotId: null,
+    algorithmVersion: "rule-tfidf-v1",
+    personalized: false,
+    personalizationEnabled: true,
+    onboardingCompleted: false,
+    generatedAt: "2026-11-12T00:00:00Z",
+    items: [],
+  });
   vi.mocked(fetchPublicCourseBySlug).mockResolvedValue(course);
   vi.mocked(fetchPublicCurriculum).mockResolvedValue({
     courseId: course.id,
@@ -169,4 +184,49 @@ it("shows curriculum errors without inventing sections", async () => {
   render(<CourseDetailPage slug="khoa-hoc" />);
   expect(await screen.findByRole("button", { name: "Tải lại giáo trình" })).toBeInTheDocument();
   expect(screen.queryByText("Bắt đầu")).not.toBeInTheDocument();
+});
+
+it("renders personalized recommended courses with Vietnamese explanation", async () => {
+  vi.mocked(fetchCourseRecommendations).mockResolvedValue({
+    snapshotId: "snap-1",
+    algorithmVersion: "rule-tfidf-v1",
+    personalized: true,
+    personalizationEnabled: true,
+    onboardingCompleted: true,
+    generatedAt: "2026-11-12T00:00:00Z",
+    items: [
+      {
+        id: "course-rec-1",
+        slug: "spring-boot-co-ban",
+        title: "Spring Boot Thực Chiến",
+        tagline: "REST API và PostgreSQL",
+        thumbnailUrl: null,
+        price: 399000,
+        originalPrice: 599000,
+        level: "INTERMEDIATE",
+        language: "vi",
+        status: "PUBLISHED",
+        publishedAt: "2026-10-01T00:00:00Z",
+        instructor: {
+          id: "inst-1",
+          fullName: "Trần Bảo Minh",
+          avatarUrl: null,
+          headline: null,
+          customHandle: null,
+        },
+        itemId: "item-1",
+        score: 0.92,
+        tier: "BEHAVIORAL_SIMILARITY",
+        reasonCode: "SAME_CATEGORY_NEXT_LEVEL",
+        reasonText: "Phù hợp bước tiếp theo sau khóa học bạn đang quan tâm",
+      },
+    ],
+  });
+
+  render(<CourseDetailPage slug="khoa-hoc" />);
+  expect(await screen.findByText("Spring Boot Thực Chiến")).toBeInTheDocument();
+  expect(
+    screen.getByText("Phù hợp bước tiếp theo sau khóa học bạn đang quan tâm"),
+  ).toBeInTheDocument();
+  expect(screen.getByText("Đề xuất cá nhân hóa")).toBeInTheDocument();
 });

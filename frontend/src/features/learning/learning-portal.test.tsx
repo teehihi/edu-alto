@@ -5,6 +5,7 @@ import { LearningPortal, resetLearningPortalCache } from "./learning-portal";
 import * as learningClient from "@/lib/learning-client";
 import * as instructorCourseClient from "@/lib/instructor-course-client";
 import * as studentAnalyticsClient from "@/lib/student-analytics-client";
+import * as recommendationClient from "@/lib/recommendation-client";
 import { ApiClientError } from "@/lib/api";
 
 const getAccessToken = vi.fn().mockResolvedValue("test-token");
@@ -74,6 +75,32 @@ describe("LearningPortal for instructors", () => {
         details: [],
       }),
     );
+
+    vi.spyOn(recommendationClient, "fetchLearningNextRecommendations").mockResolvedValue({
+      snapshotId: null,
+      algorithmVersion: "rule-tfidf-v1",
+      personalizationEnabled: true,
+      generatedAt: "2026-11-12T00:00:00Z",
+      items: [],
+    });
+    vi.spyOn(recommendationClient, "fetchCourseRecommendations").mockResolvedValue({
+      snapshotId: null,
+      algorithmVersion: "rule-tfidf-v1",
+      personalized: false,
+      personalizationEnabled: true,
+      onboardingCompleted: true,
+      generatedAt: "2026-11-12T00:00:00Z",
+      items: [],
+    });
+    vi.spyOn(recommendationClient, "fetchLearningPreferences").mockResolvedValue({
+      preferredTopics: [],
+      preferredLevel: null,
+      learningGoal: null,
+      weeklyTargetHours: null,
+      personalizationEnabled: true,
+      onboardingCompleted: true,
+      suggestedTopics: ["Lập trình Web", "Java & Spring Boot"],
+    });
   });
 
   it("renders the workspace topbar and displays instructor courses instead of crashing with 403", async () => {

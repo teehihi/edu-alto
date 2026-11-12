@@ -17,6 +17,7 @@ import {
   PackageCheck,
   Play,
   PlayCircle,
+  Sparkles,
   Star,
   X as CloseIcon,
 } from "lucide-react";
@@ -28,6 +29,11 @@ import { ApiClientError } from "@/lib/api";
 import { useAuthSession } from "@/lib/auth-session";
 import { enrollInCourse } from "@/lib/learning-client";
 import { addCourseToCart, type CartCourse } from "@/lib/cart";
+import {
+  fetchCourseRecommendations,
+  recordCourseViewSignal,
+  submitRecommendationFeedback,
+} from "@/lib/recommendation-client";
 import { CourseReviewSection } from "@/features/course/course-review-section";
 import { CourseTestimonialsSection } from "@/features/course/course-testimonials-section";
 import { CourseCurriculumSection } from "@/features/course/course-curriculum-section";
@@ -40,6 +46,8 @@ import {
   fetchLessonPreview,
   getCachedCurriculum,
 } from "@/lib/course-client";
+import type { CourseListItem } from "@/types/course";
+import type { CourseRecommendationItem } from "@/types/recommendation";
 
 const levels = {
   ALL_LEVELS: "Tất cả trình độ",
@@ -434,6 +442,7 @@ function CourseDetailPageInner({ slug }: { slug: string }) {
   const cartAnimationTimeoutRef = useRef<number | null>(null);
   const copyTimeoutRef = useRef<number | null>(null);
   const buyNowTimeoutRef = useRef<number | null>(null);
+  const trackedViewCourseIdRef = useRef<string | null>(null);
 
   const {
     data: course,
@@ -459,13 +468,53 @@ function CourseDetailPageInner({ slug }: { slug: string }) {
     return new Set(cached?.sections[0] ? [cached.sections[0].id] : []);
   });
 
-  const { data: related = [] } = useQuery({
-    queryKey: ["related-courses", slug],
+  const { data: relatedData = { snapshotId: null, personalized: false, items: [] } } = useQuery<{
+    snapshotId: string | null;
+    personalized: boolean;
+    items: (CourseRecommendationItem | CourseListItem)[];
+  }>({
+    queryKey: ["related-courses", slug, course?.id ?? null, user?.id ?? null],
     queryFn: async () => {
+      try {
+        const token = user ? await getAccessToken().catch(() => null) : null;
+        const recs = await fetchCourseRecommendations({
+          courseId: course?.id,
+          limit: 4,
+          accessToken: token,
+        });
+        const filtered = recs.items.filter((c) => c.slug !== slug).slice(0, 4);
+        if (filtered.length > 0) {
+          return {
+            snapshotId: recs.snapshotId,
+            personalized: recs.personalized,
+            items: filtered,
+          };
+        }
+      } catch {
+        // Fallback cleanly to public catalog listing when recommendation service is unavailable
+      }
       const data = await fetchPublicCourses({ size: 5 });
-      return data.filter((c) => c.slug !== slug).slice(0, 4);
+      return {
+        snapshotId: null,
+        personalized: false,
+        items: data.filter((c) => c.slug !== slug).slice(0, 4),
+      };
     },
   });
+  const related = relatedData.items;
+
+  useEffect(() => {
+    if (!user || !course?.id || trackedViewCourseIdRef.current === course.id) {
+      return;
+    }
+    trackedViewCourseIdRef.current = course.id;
+    void getAccessToken()
+      .then((token) => {
+        if (!token) return;
+        return recordCourseViewSignal(token, course.id);
+      })
+      .catch(() => undefined);
+  }, [course?.id, getAccessToken, user]);
 
   useEffect(() => {
     router.prefetch?.("/checkout");
@@ -1161,8 +1210,11 @@ function CourseDetailPageInner({ slug }: { slug: string }) {
                     <div className="mx-auto max-w-[1440px]">
                       <div className="mb-8 flex items-end justify-between">
                         <div>
-                          <span className="text-xs font-bold uppercase tracking-wider text-primary">
-                            Gợi ý dành cho bạn
+                          <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary">
+                            <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                            {relatedData.personalized
+                              ? "Đề xuất cá nhân hóa"
+                              : "Gợi ý dành cho bạn"}
                           </span>
                           <h2 className="mt-1 text-2xl font-bold text-heading sm:text-3xl">
                             Khóa học bạn có thể quan tâm
@@ -1176,36 +1228,66 @@ function CourseDetailPageInner({ slug }: { slug: string }) {
                         </Link>
                       </div>
                       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                        {related.map((item) => (
-                          <Link
-                            key={item.id}
-                            href={`/courses/${item.slug}`}
-                            className="focus-ring group flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs transition duration-300 hover:-translate-y-1.5 hover:shadow-cardHover"
-                          >
-                            <div className="relative aspect-video w-full overflow-hidden bg-slate-100">
-                              <CourseThumbnail url={item.thumbnailUrl} title={item.title} />
-                            </div>
-                            <div className="flex flex-1 flex-col p-5">
-                              <span className="text-xs font-semibold text-primary">
-                                {levels[item.level]}
-                              </span>
-                              <h3 className="mt-1.5 line-clamp-2 text-base font-bold text-heading group-hover:text-primary transition">
-                                {item.title}
-                              </h3>
-                              <p className="mt-2 text-xs text-muted">
-                                {item.instructor?.fullName || "Giảng viên EduAlto"}
-                              </p>
-                              <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between">
-                                <span className="text-base font-bold text-heading">
-                                  {money(item.price)}
-                                </span>
-                                <span className="text-xs font-semibold text-primary group-hover:underline">
-                                  Chi tiết
-                                </span>
+                        {related.map((item) => {
+                          const reasonText =
+                            "reasonText" in item && typeof item.reasonText === "string"
+                              ? item.reasonText
+                              : null;
+                          const itemId =
+                            "itemId" in item && typeof item.itemId === "string"
+                              ? item.itemId
+                              : null;
+                          return (
+                            <Link
+                              key={item.id}
+                              href={`/courses/${item.slug}`}
+                              onClick={() => {
+                                if (!user || !relatedData.snapshotId) return;
+                                void getAccessToken()
+                                  .then((token) => {
+                                    if (!token) return;
+                                    return submitRecommendationFeedback(token, {
+                                      snapshotId: relatedData.snapshotId,
+                                      recommendationItemId: itemId,
+                                      targetType: "COURSE",
+                                      targetId: item.id,
+                                      feedbackType: "CLICKED",
+                                    });
+                                  })
+                                  .catch(() => undefined);
+                              }}
+                              className="focus-ring group flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs transition duration-300 hover:-translate-y-1.5 hover:shadow-cardHover"
+                            >
+                              <div className="relative aspect-video w-full overflow-hidden bg-slate-100">
+                                <CourseThumbnail url={item.thumbnailUrl} title={item.title} />
                               </div>
-                            </div>
-                          </Link>
-                        ))}
+                              <div className="flex flex-1 flex-col p-5">
+                                <span className="text-xs font-semibold text-primary">
+                                  {levels[item.level]}
+                                </span>
+                                <h3 className="mt-1.5 line-clamp-2 text-base font-bold text-heading group-hover:text-primary transition">
+                                  {item.title}
+                                </h3>
+                                <p className="mt-2 text-xs text-muted">
+                                  {item.instructor?.fullName || "Giảng viên EduAlto"}
+                                </p>
+                                {reasonText ? (
+                                  <p className="mt-2.5 rounded-lg bg-[#F5FBF9] px-2.5 py-1.5 text-xs leading-snug text-emerald-900">
+                                    {reasonText}
+                                  </p>
+                                ) : null}
+                                <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between">
+                                  <span className="text-base font-bold text-heading">
+                                    {money(item.price)}
+                                  </span>
+                                  <span className="text-xs font-semibold text-primary group-hover:underline">
+                                    Chi tiết
+                                  </span>
+                                </div>
+                              </div>
+                            </Link>
+                          );
+                        })}
                       </div>
                     </div>
                   </section>

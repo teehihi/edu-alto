@@ -75,6 +75,7 @@ import { useAuthSession } from "@/lib/auth-session";
 import { cn } from "@/lib/cn";
 import { SavedLessonsView } from "@/features/learning/saved-lessons-view";
 import { CertificateListView } from "@/features/learning/certificate-list-view";
+import { LearningRecommendationsWidget } from "@/features/learning/learning-recommendations-widget";
 import {
   learningNavigationGroups as navGroups,
   type LearningPortalView,
@@ -1096,6 +1097,9 @@ function Overview({
               </div>
             )}
           </section>
+
+          {/* A2. Personalized Learning & Course Recommendations */}
+          <LearningRecommendationsWidget hasEnrollments={enrollments.length > 0} />
 
           {/* B. Weekly Learning Activity Chart */}
           <section className="portal-card">

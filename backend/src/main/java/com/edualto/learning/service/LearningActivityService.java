@@ -8,6 +8,7 @@ import com.edualto.course.repository.LessonRepository;
 import com.edualto.enrollment.domain.CourseEnrolledEvent;
 import com.edualto.enrollment.service.EnrollmentService;
 import com.edualto.learning.domain.LearningActivity;
+import com.edualto.learning.domain.LearningActivityRecordedEvent;
 import com.edualto.learning.domain.LearningActivityType;
 import com.edualto.learning.dto.LearningActivityResponse;
 import com.edualto.learning.dto.LearningActivitySummaryResponse;
@@ -24,6 +25,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -45,6 +48,7 @@ public class LearningActivityService {
     private final LessonRepository lessonRepository;
     private final EnrollmentService enrollmentService;
     private final JdbcTemplate jdbcTemplate;
+    private final ApplicationEventPublisher eventPublisher;
 
     public LearningActivityService(
             LearningActivityRepository activityRepository,
@@ -53,11 +57,24 @@ public class LearningActivityService {
             EnrollmentService enrollmentService,
             JdbcTemplate jdbcTemplate
     ) {
+        this(activityRepository, courseRepository, lessonRepository, enrollmentService, jdbcTemplate, null);
+    }
+
+    @Autowired
+    public LearningActivityService(
+            LearningActivityRepository activityRepository,
+            CourseRepository courseRepository,
+            LessonRepository lessonRepository,
+            EnrollmentService enrollmentService,
+            JdbcTemplate jdbcTemplate,
+            ApplicationEventPublisher eventPublisher
+    ) {
         this.activityRepository = activityRepository;
         this.courseRepository = courseRepository;
         this.lessonRepository = lessonRepository;
         this.enrollmentService = enrollmentService;
         this.jdbcTemplate = jdbcTemplate;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -107,6 +124,7 @@ public class LearningActivityService {
         );
 
         LearningActivity saved = activityRepository.save(activity);
+        publishActivityEvent(saved);
 
         return new LearningActivityResponse(
                 saved.getId(),
@@ -154,7 +172,25 @@ public class LearningActivityService {
                 metadata
         );
 
-        return activityRepository.save(activity);
+        LearningActivity saved = activityRepository.save(activity);
+        publishActivityEvent(saved);
+        return saved;
+    }
+
+    private void publishActivityEvent(LearningActivity activity) {
+        if (eventPublisher != null && activity != null) {
+            eventPublisher.publishEvent(new LearningActivityRecordedEvent(
+                    activity.getId(),
+                    activity.getStudentId(),
+                    activity.getCourseId(),
+                    activity.getSectionId(),
+                    activity.getLessonId(),
+                    activity.getActivityType(),
+                    activity.getSourceId(),
+                    activity.getOccurredAt(),
+                    activity.getMetadata()
+            ));
+        }
     }
 
     @EventListener

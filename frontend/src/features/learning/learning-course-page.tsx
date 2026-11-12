@@ -20,6 +20,7 @@ import {
   PanelRightClose,
   PanelRightOpen,
   PlayCircle,
+  Sparkles,
   Star,
   Video,
 } from "lucide-react";
@@ -54,7 +55,12 @@ import {
 } from "@/lib/review-client";
 import type { CourseReview, CourseReviewSummary } from "@/lib/review-client";
 import { fetchPublicCourseBySlug, fetchPublicCourses } from "@/lib/course-client";
+import {
+  fetchCourseRecommendations,
+  submitRecommendationFeedback,
+} from "@/lib/recommendation-client";
 import type { CourseDetail, CourseListItem } from "@/types/course";
+import type { CourseRecommendationItem } from "@/types/recommendation";
 import { sanitizeCourseDescription } from "@/lib/course-description";
 import { LearningQuizContent } from "@/features/learning/learning-quiz-content";
 import { cn } from "@/lib/cn";
@@ -176,11 +182,21 @@ function ReviewCard({
   );
 }
 
-function RelatedCourseCard({ course }: { course: CourseListItem }) {
+function RelatedCourseCard({
+  course,
+  onSelect,
+}: {
+  course: CourseRecommendationItem | CourseListItem;
+  onSelect?: () => void;
+}) {
+  const reasonText =
+    "reasonText" in course && typeof course.reasonText === "string" ? course.reasonText : null;
+
   return (
     <Link
       href={`/courses/${encodeURIComponent(course.slug)}`}
-      className="focus-ring group block min-w-[245px] overflow-hidden rounded-xl border border-[#e2e8f0] bg-white shadow-[0_1px_3px_rgba(16,24,40,0.07)] transition hover:-translate-y-0.5 hover:shadow-md sm:min-w-0"
+      onClick={onSelect}
+      className="focus-ring group flex min-w-[245px] flex-col overflow-hidden rounded-xl border border-[#e2e8f0] bg-white shadow-[0_1px_3px_rgba(16,24,40,0.07)] transition hover:-translate-y-0.5 hover:shadow-md sm:min-w-0"
     >
       <div className="relative aspect-[1.75] overflow-hidden bg-[#eaf7f3]">
         {course.thumbnailUrl ? (
@@ -198,14 +214,19 @@ function RelatedCourseCard({ course }: { course: CourseListItem }) {
           </div>
         )}
       </div>
-      <div className="p-3.5">
+      <div className="flex flex-1 flex-col p-3.5">
         <p className="line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-[#101a2c]">
           {course.title}
         </p>
         <p className="mt-1 truncate text-xs text-[#64748b]">
           {course.instructor?.fullName ?? "Giảng viên EduAlto"}
         </p>
-        <div className="mt-2 flex items-center justify-between gap-2">
+        {reasonText ? (
+          <p className="mt-2 line-clamp-2 rounded-md bg-[#F5FBF9] px-2 py-1 text-[11px] leading-snug text-emerald-900">
+            {reasonText}
+          </p>
+        ) : null}
+        <div className="mt-auto pt-2 flex items-center justify-between gap-2">
           <span className="inline-flex items-center gap-1 text-xs text-[#64748b]">
             <GraduationCap aria-hidden="true" className="h-3.5 w-3.5 text-primary" />
             {levelLabels[course.level] ?? "Mọi trình độ"}
@@ -232,7 +253,11 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
   const [savingReview, setSavingReview] = useState(false);
   const [reviewError, setReviewError] = useState("");
   const [reviewSuccessModalOpen, setReviewSuccessModalOpen] = useState(false);
-  const [relatedCourses, setRelatedCourses] = useState<CourseListItem[]>([]);
+  const [relatedCourses, setRelatedCourses] = useState<
+    (CourseRecommendationItem | CourseListItem)[]
+  >([]);
+  const [relatedSnapshotId, setRelatedSnapshotId] = useState<string | null>(null);
+  const [relatedPersonalized, setRelatedPersonalized] = useState(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
@@ -352,12 +377,37 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
         const ownReviewRequest = user.roles.includes("STUDENT")
           ? fetchMyCourseReview(token, courseId)
           : Promise.resolve(null);
+        const relatedLoader = async () => {
+          try {
+            const recs = await fetchCourseRecommendations({
+              courseId,
+              limit: 4,
+              accessToken: token,
+            });
+            const filtered = recs.items.filter((item) => item.id !== courseId).slice(0, 4);
+            if (filtered.length > 0) {
+              return {
+                snapshotId: recs.snapshotId,
+                personalized: recs.personalized,
+                items: filtered as (CourseRecommendationItem | CourseListItem)[],
+              };
+            }
+          } catch {
+            // Fall back to catalog listing
+          }
+          const fallback = await fetchPublicCourses({ size: 5, sort: "newest" });
+          return {
+            snapshotId: null,
+            personalized: false,
+            items: fallback.filter((item) => item.id !== courseId).slice(0, 4),
+          };
+        };
         void Promise.allSettled([
           fetchPublicCourseBySlug(match.courseSlug),
           fetchCourseReviews(courseId),
           fetchCourseReviewSummary(courseId),
           ownReviewRequest,
-          fetchPublicCourses({ size: 5, sort: "newest" }),
+          relatedLoader(),
         ] as const).then(
           ([courseResult, reviewsResult, summaryResult, ownReviewResult, relatedResult]) => {
             if (!active) return;
@@ -389,9 +439,9 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
               );
             }
             if (relatedResult.status === "fulfilled") {
-              setRelatedCourses(
-                relatedResult.value.filter((item) => item.id !== courseId).slice(0, 4),
-              );
+              setRelatedSnapshotId(relatedResult.value.snapshotId);
+              setRelatedPersonalized(relatedResult.value.personalized);
+              setRelatedCourses(relatedResult.value.items);
             }
           },
         );
@@ -1359,10 +1409,22 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
                 <section className="-mx-4 scroll-mt-28 border-b border-[#e2e8f0] bg-[#f8fafc] px-4 py-9 md:-mx-7 md:px-7">
                   <div className="mx-auto max-w-none">
                     <div className="mb-5 flex items-center justify-between gap-4">
-                      <h2 className="text-lg font-semibold text-[#101a2c]">
-                        Khóa học khác của{" "}
-                        <span className="text-primary">{instructor?.fullName ?? "giảng viên"}</span>
-                      </h2>
+                      <div>
+                        {relatedPersonalized ? (
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-primary">
+                            <Sparkles aria-hidden="true" className="h-3.5 w-3.5" />
+                            Đề xuất cá nhân hóa cho lộ trình của bạn
+                          </span>
+                        ) : null}
+                        <h2 className="text-lg font-semibold text-[#101a2c]">
+                          Khóa học gợi ý dành cho bạn{" "}
+                          {instructor?.fullName ? (
+                            <span className="text-sm font-normal text-[#64748b]">
+                              · Cùng lộ trình với {instructor.fullName}
+                            </span>
+                          ) : null}
+                        </h2>
+                      </div>
                       <div className="hidden gap-2 sm:flex">
                         <button
                           type="button"
@@ -1396,9 +1458,31 @@ export function LearningCoursePage({ courseId }: { courseId: string }) {
                       id="related-courses"
                       className="grid gap-4 overflow-x-auto pb-2 sm:grid-cols-2 lg:grid-cols-4"
                     >
-                      {relatedCourses.map((item) => (
-                        <RelatedCourseCard key={item.id} course={item} />
-                      ))}
+                      {relatedCourses.map((item) => {
+                        const itemId =
+                          "itemId" in item && typeof item.itemId === "string" ? item.itemId : null;
+                        return (
+                          <RelatedCourseCard
+                            key={item.id}
+                            course={item}
+                            onSelect={() => {
+                              if (!relatedSnapshotId) return;
+                              void getAccessToken()
+                                .then((token) => {
+                                  if (!token) return;
+                                  return submitRecommendationFeedback(token, {
+                                    snapshotId: relatedSnapshotId,
+                                    recommendationItemId: itemId,
+                                    targetType: "COURSE",
+                                    targetId: item.id,
+                                    feedbackType: "CLICKED",
+                                  });
+                                })
+                                .catch(() => undefined);
+                            }}
+                          />
+                        );
+                      })}
                     </div>
                   </div>
                 </section>
