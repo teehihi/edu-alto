@@ -33,10 +33,28 @@ export interface InstructorCoursePerformance {
   reviewCount: number;
 }
 
+export interface InstructorAtRiskStudent {
+  studentId: string;
+  studentName: string;
+  studentEmail: string;
+  courseId: string;
+  courseTitle: string;
+  riskLevel: "HIGH" | "MEDIUM" | "LOW" | string;
+  statusBadge: string;
+  badgeColor: "rose" | "amber" | "emerald" | string;
+  completionProbabilityPercentage: number;
+  primaryFactor: string;
+  primaryFactorLabel: string;
+  daysInactive: number;
+  enrolledAt: string;
+  actionHref: string;
+}
+
 export interface InstructorAnalyticsOverview {
   summary: InstructorAnalyticsSummary;
   monthlyTrends: InstructorMonthlyTrend[];
   coursePerformances: InstructorCoursePerformance[];
+  atRiskStudents?: InstructorAtRiskStudent[];
 }
 
 export async function fetchInstructorAnalyticsOverview(

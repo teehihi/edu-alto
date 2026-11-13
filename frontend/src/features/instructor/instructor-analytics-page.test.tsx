@@ -191,4 +191,43 @@ describe("InstructorAnalyticsPage", () => {
       expect(screen.getByText(/45.000.000đ/)).toBeInTheDocument();
     });
   });
+
+  it("renders at-risk students section with ML prediction indicators", async () => {
+    const overviewWithAtRisk: InstructorAnalyticsOverview = {
+      ...mockOverview,
+      atRiskStudents: [
+        {
+          studentId: "st-1",
+          studentName: "Lê Hoàng Long",
+          studentEmail: "long@example.com",
+          courseId: "course-1",
+          courseTitle: "Lập trình React & Next.js chuyên sâu",
+          riskLevel: "HIGH",
+          statusBadge: "Cần hỗ trợ",
+          badgeColor: "rose",
+          completionProbabilityPercentage: 20,
+          primaryFactor: "INACTIVE_DAYS",
+          primaryFactorLabel: "Nghỉ 15 ngày",
+          daysInactive: 15,
+          enrolledAt: "2026-10-01T00:00:00Z",
+          actionHref: "/instructor/courses/course-1/overview",
+        },
+      ],
+    };
+
+    vi.mocked(fetchInstructorAnalyticsOverview).mockResolvedValueOnce(overviewWithAtRisk);
+
+    render(<InstructorAnalyticsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Học viên cần hỗ trợ sớm")).toBeInTheDocument();
+      expect(screen.getByText("1 học viên")).toBeInTheDocument();
+      expect(screen.getByText("Lê Hoàng Long")).toBeInTheDocument();
+      expect(screen.getByText("long@example.com")).toBeInTheDocument();
+      expect(screen.getByText("Cần hỗ trợ")).toBeInTheDocument();
+      expect(screen.getAllByText("Nghỉ 15 ngày")).toHaveLength(2);
+      expect(screen.getByText("20%")).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: /Hỗ trợ/i })).toBeInTheDocument();
+    });
+  });
 });

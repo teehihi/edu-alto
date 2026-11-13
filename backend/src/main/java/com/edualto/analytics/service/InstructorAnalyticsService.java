@@ -2,6 +2,7 @@ package com.edualto.analytics.service;
 
 import com.edualto.analytics.dto.InstructorAnalyticsOverviewResponse;
 import com.edualto.analytics.dto.InstructorAnalyticsSummaryDto;
+import com.edualto.analytics.dto.InstructorAtRiskStudentDto;
 import com.edualto.analytics.dto.InstructorCoursePerformanceDto;
 import com.edualto.analytics.dto.InstructorMonthlyTrendDto;
 import com.edualto.analytics.repository.InstructorAnalyticsRepository;
@@ -91,10 +92,16 @@ public class InstructorAnalyticsService {
                 totalCompletedLessons
         );
 
+        List<InstructorAtRiskStudentDto> atRiskStudents = repository.findAtRiskStudents(
+                instructorId,
+                courseId
+        );
+
         return new InstructorAnalyticsOverviewResponse(
                 summary,
                 monthlyTrends,
-                coursePerformances
+                coursePerformances,
+                atRiskStudents
         );
     }
 }

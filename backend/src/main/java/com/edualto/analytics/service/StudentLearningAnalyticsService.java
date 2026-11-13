@@ -1,6 +1,7 @@
 package com.edualto.analytics.service;
 
 import com.edualto.analytics.dto.StudentAnalyticsSummaryDto;
+import com.edualto.analytics.dto.StudentCompletionPredictionDto;
 import com.edualto.analytics.dto.StudentCourseAnalyticsResponse;
 import com.edualto.analytics.dto.StudentCourseAssignmentItemDto;
 import com.edualto.analytics.dto.StudentCoursePerformanceSummaryDto;
@@ -17,6 +18,8 @@ import com.edualto.analytics.repository.StudentLearningAnalyticsRepository.Enrol
 import com.edualto.analytics.repository.StudentLearningAnalyticsRepository.QuizStatusRow;
 import com.edualto.common.exception.BusinessException;
 import com.edualto.user.service.UserService;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.DayOfWeek;
 import java.time.Instant;
@@ -215,6 +218,14 @@ public class StudentLearningAnalyticsService {
                 currentWeekActiveDays
         );
 
+        StudentCompletionPredictionDto prediction = buildStudentCompletionPrediction(
+                summary,
+                courses,
+                activeDatesDesc,
+                focusItems,
+                todayVn
+        );
+
         return new StudentLearningAnalyticsOverviewResponse(
                 days,
                 summary,
@@ -222,7 +233,8 @@ public class StudentLearningAnalyticsService {
                 windowDailyActivity,
                 scoreTrend,
                 coursePerformances,
-                focusItems
+                focusItems,
+                prediction
         );
     }
 
@@ -654,6 +666,186 @@ public class StudentLearningAnalyticsService {
             case SATURDAY -> "Thứ 7";
             case SUNDAY -> "Chủ nhật";
         };
+    }
+
+    private StudentCompletionPredictionDto buildStudentCompletionPrediction(
+            StudentAnalyticsSummaryDto summary,
+            List<CourseOverviewRow> courses,
+            List<LocalDate> activeDatesDesc,
+            List<StudentFocusItemDto> focusItems,
+            LocalDate todayVn
+    ) {
+        if (courses.isEmpty() || summary.totalLessons() == 0) {
+            return new StudentCompletionPredictionDto(
+                    0.50,
+                    50,
+                    0.50,
+                    "LOW",
+                    "Mới bắt đầu",
+                    "primary",
+                    "JUST_STARTED",
+                    "Chưa có khóa học",
+                    null,
+                    "Khám phá khóa học",
+                    "/courses",
+                    "Đăng ký học"
+            );
+        }
+
+        long daysSinceLastActivity = 0;
+        if (!activeDatesDesc.isEmpty()) {
+            daysSinceLastActivity = Math.max(0, ChronoUnit.DAYS.between(activeDatesDesc.get(0), todayVn));
+        }
+
+        double baseRisk = 0.20;
+
+        // Inactivity effect
+        if (daysSinceLastActivity >= 14) {
+            baseRisk += 0.55;
+        } else if (daysSinceLastActivity >= 7) {
+            baseRisk += 0.35;
+        } else if (daysSinceLastActivity >= 4) {
+            baseRisk += 0.15;
+        } else if (daysSinceLastActivity <= 1) {
+            baseRisk -= 0.10;
+        }
+
+        // Quiz score effect
+        if (summary.attemptedQuizzesCount() > 0 && summary.averageQuizScoreOutOf10() != null) {
+            if (summary.averageQuizScoreOutOf10() < 5.0) {
+                baseRisk += 0.25;
+            } else if (summary.averageQuizScoreOutOf10() < 7.0) {
+                baseRisk += 0.10;
+            } else if (summary.averageQuizScoreOutOf10() >= 8.5) {
+                baseRisk -= 0.15;
+            }
+        }
+
+        // Assignment score effect
+        if (summary.averageAssignmentScoreOutOf10() != null) {
+            if (summary.averageAssignmentScoreOutOf10() < 5.0) {
+                baseRisk += 0.20;
+            } else if (summary.averageAssignmentScoreOutOf10() >= 8.5) {
+                baseRisk -= 0.10;
+            }
+        }
+
+        // Study consistency & streaks
+        if (summary.currentStreakDays() >= 3) {
+            baseRisk -= 0.15;
+        }
+        if (summary.activeDaysInWindow() >= 5) {
+            baseRisk -= 0.10;
+        } else if (summary.activeDaysInWindow() <= 1 && daysSinceLastActivity >= 5) {
+            baseRisk += 0.20;
+        }
+
+        // Progress boost
+        if (summary.completionRate() >= 80.0) {
+            baseRisk -= 0.25;
+        } else if (summary.completionRate() >= 50.0) {
+            baseRisk -= 0.15;
+        }
+
+        double atRiskProbability = Math.max(0.04, Math.min(0.96, roundTwoDecimals(baseRisk)));
+        double completionProbability = Math.max(0.04, Math.min(0.96, roundTwoDecimals(1.0 - atRiskProbability)));
+        int completionPercentage = (int) Math.round(completionProbability * 100);
+
+        String riskLevel;
+        String statusBadge;
+        String badgeColor;
+        if (atRiskProbability >= 0.70) {
+            riskLevel = "HIGH";
+            statusBadge = "Cần hỗ trợ";
+            badgeColor = "rose";
+        } else if (atRiskProbability >= 0.35) {
+            riskLevel = "MEDIUM";
+            statusBadge = "Cần theo dõi";
+            badgeColor = "amber";
+        } else if (completionPercentage >= 80) {
+            riskLevel = "LOW";
+            statusBadge = "Rất tốt";
+            badgeColor = "emerald";
+        } else {
+            riskLevel = "LOW";
+            statusBadge = "Đúng tiến độ";
+            badgeColor = "primary";
+        }
+
+        String primaryFactor;
+        String primaryFactorLabel;
+        if (atRiskProbability >= 0.35) {
+            if (daysSinceLastActivity >= 7) {
+                primaryFactor = "INACTIVE_DAYS";
+                primaryFactorLabel = "Nghỉ " + daysSinceLastActivity + " ngày";
+            } else if (summary.attemptedQuizzesCount() > 0 && summary.averageQuizScoreOutOf10() != null
+                    && summary.averageQuizScoreOutOf10() < 5.0) {
+                primaryFactor = "LOW_QUIZ_SCORE";
+                primaryFactorLabel = "Quiz TB " + String.format(Locale.ROOT, "%.1f", summary.averageQuizScoreOutOf10()) + "/10";
+            } else if (summary.averageAssignmentScoreOutOf10() != null && summary.averageAssignmentScoreOutOf10() < 5.0) {
+                primaryFactor = "LOW_ASSIGNMENT_SCORE";
+                primaryFactorLabel = "Bài tập TB " + String.format(Locale.ROOT, "%.1f", summary.averageAssignmentScoreOutOf10()) + "/10";
+            } else if (summary.activeDaysInWindow() <= 2) {
+                primaryFactor = "LOW_ENGAGEMENT";
+                primaryFactorLabel = "Ít tương tác";
+            } else {
+                primaryFactor = "AT_RISK_PACE";
+                primaryFactorLabel = "Nhịp học chậm";
+            }
+        } else {
+            if (summary.overallAverageScoreOutOf10() != null && summary.overallAverageScoreOutOf10() >= 8.5) {
+                primaryFactor = "EXCELLENT_SCORES";
+                primaryFactorLabel = "Điểm số xuất sắc";
+            } else if (summary.currentStreakDays() >= 3) {
+                primaryFactor = "CONSISTENT_STREAK";
+                primaryFactorLabel = "Chuỗi " + summary.currentStreakDays() + " ngày";
+            } else {
+                primaryFactor = "ON_TRACK";
+                primaryFactorLabel = "Đúng tiến độ";
+            }
+        }
+
+        long remainingLessons = Math.max(0, summary.totalLessons() - summary.completedLessons());
+        String estimatedCompletionDate = null;
+        if (remainingLessons == 0) {
+            estimatedCompletionDate = "Đã hoàn tất";
+        } else {
+            long estimatedDays = Math.max(5, Math.min(90, (long) Math.ceil(remainingLessons * 2.5)));
+            estimatedCompletionDate = todayVn.plusDays(estimatedDays).format(SHORT_DATE_FORMATTER);
+        }
+
+        String priorityActionTitle;
+        String priorityActionHref;
+        String priorityActionLabel;
+        if (!focusItems.isEmpty()) {
+            StudentFocusItemDto focus = focusItems.get(0);
+            priorityActionTitle = focus.title();
+            priorityActionHref = focus.actionHref();
+            priorityActionLabel = focus.actionLabel();
+        } else if (remainingLessons > 0) {
+            priorityActionTitle = "Tiếp tục bài giảng";
+            priorityActionHref = "/learning/courses";
+            priorityActionLabel = "Vào học ngay";
+        } else {
+            priorityActionTitle = "Xem chứng chỉ khóa học";
+            priorityActionHref = "/learning/certificates";
+            priorityActionLabel = "Xem chứng chỉ";
+        }
+
+        return new StudentCompletionPredictionDto(
+                completionProbability,
+                completionPercentage,
+                atRiskProbability,
+                riskLevel,
+                statusBadge,
+                badgeColor,
+                primaryFactor,
+                primaryFactorLabel,
+                estimatedCompletionDate,
+                priorityActionTitle,
+                priorityActionHref,
+                priorityActionLabel
+        );
     }
 
     public record StreakMetrics(int currentStreakDays, int longestStreakDays) {

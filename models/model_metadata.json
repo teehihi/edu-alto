@@ -1,0 +1,146 @@
+{
+  "pipeline_version": "2.0.0",
+  "task_keys": [
+    "EDU-109",
+    "EDU-110",
+    "EDU-111",
+    "EDU-112"
+  ],
+  "target_variable": "target_at_risk",
+  "train_samples": 449,
+  "test_samples": 106,
+  "feature_count": 22,
+  "champion_model": "LightGBM",
+  "benchmark_comparison": [
+    {
+      "model_name": "Logistic Regression",
+      "roc_auc": 0.9696,
+      "pr_auc": 0.9359,
+      "f1_score": 0.9048,
+      "f1_macro": 0.9406,
+      "accuracy": 0.9623,
+      "precision": 1.0,
+      "recall": 0.8261,
+      "brier_score": 0.0387,
+      "confusion_matrix": [
+        [
+          83,
+          0
+        ],
+        [
+          4,
+          19
+        ]
+      ]
+    },
+    {
+      "model_name": "Random Forest",
+      "roc_auc": 0.9974,
+      "pr_auc": 0.9922,
+      "f1_score": 0.9362,
+      "f1_macro": 0.959,
+      "accuracy": 0.9717,
+      "precision": 0.9167,
+      "recall": 0.9565,
+      "brier_score": 0.0206,
+      "confusion_matrix": [
+        [
+          81,
+          2
+        ],
+        [
+          1,
+          22
+        ]
+      ]
+    },
+    {
+      "model_name": "LightGBM (Champion)",
+      "roc_auc": 0.9969,
+      "pr_auc": 0.991,
+      "f1_score": 0.9778,
+      "f1_macro": 0.9859,
+      "accuracy": 0.9906,
+      "precision": 1.0,
+      "recall": 0.9565,
+      "brier_score": 0.0098,
+      "confusion_matrix": [
+        [
+          83,
+          0
+        ],
+        [
+          1,
+          22
+        ]
+      ]
+    }
+  ],
+  "top_features_by_gain": [
+    {
+      "rank": 1,
+      "feature": "avg_quiz_score",
+      "gain": 4251.429,
+      "split_count": 114
+    },
+    {
+      "rank": 2,
+      "feature": "days_since_last_activity",
+      "gain": 1571.4849,
+      "split_count": 269
+    },
+    {
+      "rank": 3,
+      "feature": "active_learning_days_count",
+      "gain": 574.2889,
+      "split_count": 169
+    },
+    {
+      "rank": 4,
+      "feature": "max_quiz_score",
+      "gain": 366.3617,
+      "split_count": 47
+    },
+    {
+      "rank": 5,
+      "feature": "quiz_accuracy_pct",
+      "gain": 309.5071,
+      "split_count": 15
+    },
+    {
+      "rank": 6,
+      "feature": "learning_notes_count",
+      "gain": 161.769,
+      "split_count": 63
+    },
+    {
+      "rank": 7,
+      "feature": "total_study_time_seconds",
+      "gain": 120.3627,
+      "split_count": 173
+    },
+    {
+      "rank": 8,
+      "feature": "lesson_views_count",
+      "gain": 118.7637,
+      "split_count": 55
+    },
+    {
+      "rank": 9,
+      "feature": "text_reading_seconds",
+      "gain": 97.9712,
+      "split_count": 88
+    },
+    {
+      "rank": 10,
+      "feature": "video_watch_seconds",
+      "gain": 97.4218,
+      "split_count": 78
+    }
+  ],
+  "artifacts": {
+    "joblib_model": "models/lgbm_at_risk_model.joblib",
+    "txt_booster": "models/lgbm_at_risk_model.txt",
+    "decision_rules": "models/decision_rules.json"
+  }
+}

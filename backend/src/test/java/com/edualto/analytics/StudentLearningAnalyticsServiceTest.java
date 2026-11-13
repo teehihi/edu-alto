@@ -196,6 +196,12 @@ class StudentLearningAnalyticsServiceTest {
                 .containsExactly("FAILED_QUIZ", "OVERDUE_ASSIGNMENT", "INACTIVE_COURSE");
         assertThat(response.focusItems().get(0).actionHref())
                 .isEqualTo("/learning/lessons/" + failedLessonId);
+
+        assertThat(response.prediction()).isNotNull();
+        assertThat(response.prediction().completionPercentage()).isGreaterThan(0);
+        assertThat(response.prediction().statusBadge()).isNotEmpty();
+        assertThat(response.prediction().priorityActionTitle()).isEqualTo(response.focusItems().get(0).title());
+        assertThat(response.prediction().priorityActionHref()).isEqualTo(response.focusItems().get(0).actionHref());
     }
 
     @Test

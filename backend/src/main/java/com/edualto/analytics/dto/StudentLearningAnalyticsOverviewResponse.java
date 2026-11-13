@@ -9,6 +9,7 @@ public record StudentLearningAnalyticsOverviewResponse(
         List<StudentDailyActivityDto> windowDailyActivity,
         List<StudentScoreTrendPointDto> scoreTrend,
         List<StudentCoursePerformanceSummaryDto> coursePerformances,
-        List<StudentFocusItemDto> focusItems
+        List<StudentFocusItemDto> focusItems,
+        StudentCompletionPredictionDto prediction
 ) {
 }

@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.edualto.analytics.dto.InstructorAnalyticsOverviewResponse;
+import com.edualto.analytics.dto.InstructorAtRiskStudentDto;
 import com.edualto.analytics.dto.InstructorCoursePerformanceDto;
 import com.edualto.analytics.dto.InstructorMonthlyTrendDto;
 import com.edualto.analytics.repository.InstructorAnalyticsRepository;
@@ -75,6 +76,27 @@ class InstructorAnalyticsServiceTest {
         when(repository.countCompletedLessons(instructorId, null))
                 .thenReturn(150L);
 
+        List<InstructorAtRiskStudentDto> mockAtRisk = List.of(
+                new InstructorAtRiskStudentDto(
+                        UUID.randomUUID(),
+                        "Lê Văn Nam",
+                        "nam@edualto.local",
+                        courseId,
+                        "Lập trình Spring Boot",
+                        "HIGH",
+                        "Cần hỗ trợ",
+                        "rose",
+                        20,
+                        "INACTIVE_DAYS",
+                        "Nghỉ 15 ngày",
+                        15,
+                        java.time.Instant.now(),
+                        "/learning/courses/" + courseId
+                )
+        );
+        when(repository.findAtRiskStudents(instructorId, null))
+                .thenReturn(mockAtRisk);
+
         InstructorAnalyticsOverviewResponse response = service.getOverview(instructorId, null);
 
         verify(users).requireActiveInstructor(instructorId);
@@ -87,6 +109,9 @@ class InstructorAnalyticsServiceTest {
         assertThat(response.summary().averageCompletionRate()).isEqualTo(75.0);
         assertThat(response.monthlyTrends()).hasSize(2);
         assertThat(response.coursePerformances()).hasSize(1);
+        assertThat(response.atRiskStudents()).hasSize(1);
+        assertThat(response.atRiskStudents().get(0).studentName()).isEqualTo("Lê Văn Nam");
+        assertThat(response.atRiskStudents().get(0).statusBadge()).isEqualTo("Cần hỗ trợ");
     }
 
     @Test

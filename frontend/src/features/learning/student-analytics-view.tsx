@@ -266,7 +266,88 @@ export function StudentAnalyticsView({
       </div>
 
       {/* Phase 3 Extensible Slot (EDU-127: ML Predictions & Recommendations) */}
-      {predictionSlot ? <div data-slot="ml-prediction-slot">{predictionSlot}</div> : null}
+      {predictionSlot ? (
+        <div data-slot="ml-prediction-slot">{predictionSlot}</div>
+      ) : overview?.prediction ? (
+        <div
+          data-slot="ml-prediction-slot"
+          className="relative overflow-hidden rounded-xl border border-slate-200/90 bg-gradient-to-r from-emerald-50/40 via-white to-slate-50/50 p-4 shadow-xs sm:p-5"
+        >
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3.5">
+              <div
+                className={cn(
+                  "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-bold",
+                  overview.prediction.badgeColor === "emerald"
+                    ? "bg-emerald-100 text-emerald-700"
+                    : overview.prediction.badgeColor === "amber"
+                      ? "bg-amber-100 text-amber-800"
+                      : "bg-rose-100 text-rose-700",
+                )}
+              >
+                <Award className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-semibold text-[#101a2c]">
+                    Khả năng nhận chứng chỉ
+                  </span>
+                  <span
+                    className={cn(
+                      "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold",
+                      overview.prediction.badgeColor === "emerald"
+                        ? "border border-emerald-200 bg-emerald-50 text-emerald-700"
+                        : overview.prediction.badgeColor === "amber"
+                          ? "border border-amber-200 bg-amber-50 text-amber-800"
+                          : "border border-rose-200 bg-rose-50 text-rose-700",
+                    )}
+                  >
+                    {overview.prediction.statusBadge}
+                  </span>
+                  {overview.prediction.primaryFactorLabel ? (
+                    <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs text-[#667085]">
+                      {overview.prediction.primaryFactorLabel}
+                    </span>
+                  ) : null}
+                </div>
+                <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-[#667085]">
+                  <span>
+                    Xác suất:{" "}
+                    <strong className="text-[#101a2c]">
+                      {overview.prediction.completionPercentage}%
+                    </strong>
+                  </span>
+                  <span>•</span>
+                  <span>
+                    Dự kiến hoàn thành:{" "}
+                    <strong className="text-[#101a2c]">
+                      {overview.prediction.estimatedCompletionDate}
+                    </strong>
+                  </span>
+                  {overview.prediction.priorityActionTitle ? (
+                    <>
+                      <span>•</span>
+                      <span className="font-medium text-[#101a2c]">
+                        Ưu tiên: {overview.prediction.priorityActionTitle}
+                      </span>
+                    </>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+
+            {overview.prediction.priorityActionHref ? (
+              <Link
+                href={overview.prediction.priorityActionHref}
+                className="focus-ring inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-primary/90 focus-visible:outline-none"
+              >
+                <span>{overview.prediction.priorityActionLabel || "Tiếp tục học"}</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
 
       {/* 4 Core KPI Cards */}
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

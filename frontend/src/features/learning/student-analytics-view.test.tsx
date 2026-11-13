@@ -295,4 +295,37 @@ describe("StudentAnalyticsView", () => {
       expect(screen.getByRole("link", { name: /Khám phá khóa học/i })).toBeInTheDocument();
     });
   });
+
+  it("renders ML completion prediction card when prediction is present", async () => {
+    vi.spyOn(studentAnalyticsClient, "fetchStudentLearningAnalytics").mockResolvedValue({
+      ...sampleOverview7,
+      prediction: {
+        completionProbability: 85,
+        completionPercentage: 85,
+        riskLevel: "LOW",
+        statusBadge: "Đúng tiến độ",
+        badgeColor: "emerald",
+        primaryFactor: "CONSISTENT_PACE",
+        primaryFactorLabel: "Học đều đặn",
+        estimatedCompletionDate: "2026-12-15",
+        priorityActionTitle: "Hoàn thành bài tập tiếp theo",
+        priorityActionLabel: "Tiếp tục học",
+        priorityActionHref: "/learning/lessons/lesson-1",
+      },
+    });
+
+    render(<StudentAnalyticsView />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Khả năng nhận chứng chỉ")).toBeInTheDocument();
+      expect(screen.getByText("Đúng tiến độ")).toBeInTheDocument();
+      expect(screen.getByText("Học đều đặn")).toBeInTheDocument();
+      expect(screen.getByText("85%")).toBeInTheDocument();
+      expect(screen.getByText(/2026-12-15/)).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: /Tiếp tục học/i })).toHaveAttribute(
+        "href",
+        "/learning/lessons/lesson-1",
+      );
+    });
+  });
 });

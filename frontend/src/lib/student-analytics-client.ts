@@ -73,6 +73,20 @@ export interface StudentFocusItem {
   actionLabel: string;
 }
 
+export interface StudentCompletionPrediction {
+  completionProbability: number;
+  completionPercentage: number;
+  riskLevel: "LOW" | "MEDIUM" | "HIGH";
+  statusBadge: string;
+  badgeColor: "emerald" | "amber" | "rose" | string;
+  primaryFactor: string;
+  primaryFactorLabel: string;
+  estimatedCompletionDate: string;
+  priorityActionTitle: string;
+  priorityActionLabel: string;
+  priorityActionHref: string;
+}
+
 export interface StudentLearningAnalyticsOverview {
   windowDays: number;
   summary: StudentAnalyticsSummary;
@@ -81,6 +95,7 @@ export interface StudentLearningAnalyticsOverview {
   scoreTrend: StudentScoreTrendPoint[];
   coursePerformances: StudentCoursePerformanceSummary[];
   focusItems: StudentFocusItem[];
+  prediction?: StudentCompletionPrediction | null;
 }
 
 export interface StudentCourseQuizItem {

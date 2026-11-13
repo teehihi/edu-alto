@@ -1,0 +1,97 @@
+{
+  "model_type": "LightGBM",
+  "algorithm_version": "edualto-lgbm-v1",
+  "target": "target_at_risk",
+  "feature_columns": [
+    "total_study_time_seconds",
+    "active_learning_days_count",
+    "lesson_views_count",
+    "video_watch_seconds",
+    "text_reading_seconds",
+    "quiz_duration_seconds",
+    "resource_downloads_count",
+    "quiz_starts_count",
+    "total_quiz_attempts",
+    "avg_quiz_score",
+    "max_quiz_score",
+    "quizzes_attempted_count",
+    "quizzes_passed_count",
+    "quiz_accuracy_pct",
+    "assignments_submitted_count",
+    "avg_assignment_score",
+    "submissions_on_time_count",
+    "submissions_late_count",
+    "on_time_submission_rate_pct",
+    "discussions_count",
+    "learning_notes_count",
+    "days_since_last_activity"
+  ],
+  "risk_thresholds": {
+    "high_risk_prob": 0.7,
+    "medium_risk_prob": 0.35
+  },
+  "heuristics": {
+    "inactive_days_threshold": 7,
+    "low_quiz_score_threshold": 5.0,
+    "low_assignment_score_threshold": 5.0,
+    "low_active_days_threshold": 3,
+    "low_study_time_seconds": 3600
+  },
+  "reason_code_mappings": {
+    "INACTIVE_DAYS": "Nghỉ > 7 ngày",
+    "LOW_QUIZ_SCORE": "Quiz điểm thấp",
+    "LOW_ASSIGNMENT_SCORE": "Bài tập điểm thấp",
+    "LOW_ENGAGEMENT": "Ít tương tác",
+    "ON_TRACK": "Đúng tiến độ"
+  },
+  "top_features": [
+    {
+      "rank": 1,
+      "feature": "avg_quiz_score",
+      "gain": 4251.429,
+      "split_count": 114
+    },
+    {
+      "rank": 2,
+      "feature": "days_since_last_activity",
+      "gain": 1571.4849,
+      "split_count": 269
+    },
+    {
+      "rank": 3,
+      "feature": "active_learning_days_count",
+      "gain": 574.2889,
+      "split_count": 169
+    },
+    {
+      "rank": 4,
+      "feature": "max_quiz_score",
+      "gain": 366.3617,
+      "split_count": 47
+    },
+    {
+      "rank": 5,
+      "feature": "quiz_accuracy_pct",
+      "gain": 309.5071,
+      "split_count": 15
+    },
+    {
+      "rank": 6,
+      "feature": "learning_notes_count",
+      "gain": 161.769,
+      "split_count": 63
+    },
+    {
+      "rank": 7,
+      "feature": "total_study_time_seconds",
+      "gain": 120.3627,
+      "split_count": 173
+    },
+    {
+      "rank": 8,
+      "feature": "lesson_views_count",
+      "gain": 118.7637,
+      "split_count": 55
+    }
+  ]
+}

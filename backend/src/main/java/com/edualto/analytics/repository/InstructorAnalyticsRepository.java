@@ -1,11 +1,14 @@
 package com.edualto.analytics.repository;
 
+import com.edualto.analytics.dto.InstructorAtRiskStudentDto;
 import com.edualto.analytics.dto.InstructorCoursePerformanceDto;
 import com.edualto.analytics.dto.InstructorMonthlyTrendDto;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -303,5 +306,146 @@ public class InstructorAnalyticsRepository {
                 params.toArray()
         );
         return count != null ? count : 0L;
+    }
+
+    public List<InstructorAtRiskStudentDto> findAtRiskStudents(UUID instructorId, UUID courseId) {
+        String courseFilter = courseId != null ? " AND id = ?" : "";
+        String sql = """
+                WITH instructor_courses AS (
+                    SELECT id, title
+                    FROM courses
+                    WHERE instructor_id = ?
+                    __COURSE_FILTER__
+                ),
+                student_last_activity AS (
+                    SELECT e.student_id, e.course_id,
+                           MAX(la.occurred_at) AS last_activity_at
+                    FROM enrollments e
+                    JOIN instructor_courses c ON c.id = e.course_id
+                    LEFT JOIN learning_activities la ON la.student_id = e.student_id AND la.course_id = e.course_id
+                    WHERE e.status = 'ACTIVE'
+                    GROUP BY e.student_id, e.course_id
+                ),
+                quiz_stats AS (
+                    SELECT qa.student_id, s.course_id,
+                           AVG(qa.score / 10.0) AS avg_quiz_score,
+                           COUNT(qa.id) AS quiz_attempts
+                    FROM quiz_attempts qa
+                    JOIN quizzes q ON q.id = qa.quiz_id
+                    JOIN lessons l ON l.id = q.lesson_id
+                    JOIN sections s ON s.id = l.section_id
+                    JOIN instructor_courses c ON c.id = s.course_id
+                    GROUP BY qa.student_id, s.course_id
+                ),
+                assignment_stats AS (
+                    SELECT asub.student_id, a.course_id,
+                           AVG(asub.score / a.max_score * 10) AS avg_assignment_score,
+                           COUNT(asub.id) AS assignments_count
+                    FROM assignment_submissions asub
+                    JOIN assignments a ON a.id = asub.assignment_id
+                    JOIN instructor_courses c ON c.id = a.course_id
+                    WHERE asub.score IS NOT NULL
+                    GROUP BY asub.student_id, a.course_id
+                ),
+                completed_certs AS (
+                    SELECT student_id, course_id
+                    FROM certificates
+                )
+                SELECT e.student_id, u.full_name AS student_name, u.email AS student_email,
+                       e.course_id, c.title AS course_title, e.enrolled_at,
+                       sla.last_activity_at,
+                       GREATEST(0, CAST(FLOOR(EXTRACT(EPOCH FROM (NOW() - COALESCE(sla.last_activity_at, e.enrolled_at))) / 86400) AS integer)) AS days_inactive,
+                       COALESCE(qs.avg_quiz_score, 0) AS avg_quiz_score,
+                       COALESCE(qs.quiz_attempts, 0) AS quiz_attempts,
+                       COALESCE(astat.avg_assignment_score, 0) AS avg_assignment_score,
+                       COALESCE(astat.assignments_count, 0) AS assignments_count
+                FROM enrollments e
+                JOIN users u ON u.id = e.student_id
+                JOIN instructor_courses c ON c.id = e.course_id
+                LEFT JOIN student_last_activity sla ON sla.student_id = e.student_id AND sla.course_id = e.course_id
+                LEFT JOIN quiz_stats qs ON qs.student_id = e.student_id AND qs.course_id = e.course_id
+                LEFT JOIN assignment_stats astat ON astat.student_id = e.student_id AND astat.course_id = e.course_id
+                LEFT JOIN completed_certs cc ON cc.student_id = e.student_id AND cc.course_id = e.course_id
+                WHERE e.status = 'ACTIVE'
+                  AND cc.student_id IS NULL
+                  AND (
+                      GREATEST(0, CAST(FLOOR(EXTRACT(EPOCH FROM (NOW() - COALESCE(sla.last_activity_at, e.enrolled_at))) / 86400) AS integer)) >= 5
+                      OR (qs.quiz_attempts > 0 AND qs.avg_quiz_score < 5.0)
+                      OR (astat.assignments_count > 0 AND astat.avg_assignment_score < 5.0)
+                  )
+                ORDER BY days_inactive DESC, e.enrolled_at ASC
+                LIMIT 50
+                """.replace("__COURSE_FILTER__", courseFilter);
+
+        List<Object> params = new ArrayList<>();
+        params.add(instructorId);
+        if (courseId != null) {
+            params.add(courseId);
+        }
+
+        return jdbcTemplate.query(sql, (rs, rowNum) -> {
+            UUID studentId = rs.getObject("student_id", UUID.class);
+            String studentName = rs.getString("student_name");
+            String studentEmail = rs.getString("student_email");
+            UUID cId = rs.getObject("course_id", UUID.class);
+            String courseTitle = rs.getString("course_title");
+            Instant enrolledAt = rs.getTimestamp("enrolled_at").toInstant();
+            int daysInactive = Math.max(0, rs.getInt("days_inactive"));
+            double avgQuiz = rs.getDouble("avg_quiz_score");
+            int quizAttempts = rs.getInt("quiz_attempts");
+            double avgAssign = rs.getDouble("avg_assignment_score");
+            int assignCount = rs.getInt("assignments_count");
+
+            String riskLevel;
+            String statusBadge;
+            String badgeColor;
+            int completionProbPct;
+            if (daysInactive >= 14 || (quizAttempts > 0 && avgQuiz < 4.0)) {
+                riskLevel = "HIGH";
+                statusBadge = "Cần hỗ trợ";
+                badgeColor = "rose";
+                completionProbPct = Math.max(10, 35 - daysInactive);
+            } else {
+                riskLevel = "MEDIUM";
+                statusBadge = "Cần theo dõi";
+                badgeColor = "amber";
+                completionProbPct = Math.max(30, 60 - daysInactive * 2);
+            }
+
+            String primaryFactor;
+            String primaryFactorLabel;
+            if (daysInactive >= 7) {
+                primaryFactor = "INACTIVE_DAYS";
+                primaryFactorLabel = "Nghỉ " + daysInactive + " ngày";
+            } else if (quizAttempts > 0 && avgQuiz < 5.0) {
+                primaryFactor = "LOW_QUIZ_SCORE";
+                primaryFactorLabel = "Quiz TB " + String.format(Locale.ROOT, "%.1f", avgQuiz) + "/10";
+            } else if (assignCount > 0 && avgAssign < 5.0) {
+                primaryFactor = "LOW_ASSIGNMENT_SCORE";
+                primaryFactorLabel = "Bài tập TB " + String.format(Locale.ROOT, "%.1f", avgAssign) + "/10";
+            } else {
+                primaryFactor = "AT_RISK_PACE";
+                primaryFactorLabel = "Nhịp học chậm";
+            }
+
+            String actionHref = "/learning/courses/" + cId;
+
+            return new InstructorAtRiskStudentDto(
+                    studentId,
+                    studentName,
+                    studentEmail,
+                    cId,
+                    courseTitle,
+                    riskLevel,
+                    statusBadge,
+                    badgeColor,
+                    completionProbPct,
+                    primaryFactor,
+                    primaryFactorLabel,
+                    daysInactive,
+                    enrolledAt,
+                    actionHref
+            );
+        }, params.toArray());
     }
 }

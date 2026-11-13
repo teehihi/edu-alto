@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
+  AlertTriangle,
   Award,
   BarChart3,
   CheckCircle2,
@@ -100,6 +101,7 @@ export function InstructorAnalyticsPage() {
 
   const trends = useMemo(() => data?.monthlyTrends ?? [], [data]);
   const courses = useMemo(() => data?.coursePerformances ?? [], [data]);
+  const atRiskStudents = useMemo(() => data?.atRiskStudents ?? [], [data]);
   const summary = data?.summary ?? {
     totalStudents: 0,
     newStudentsThisMonth: 0,
@@ -737,6 +739,138 @@ export function InstructorAnalyticsPage() {
             )}
           </div>
         )}
+      </section>
+
+      {/* At-Risk Students Section (EDU-127: AI/ML Risk Prediction) */}
+      <section aria-label="Học viên cần quan tâm & hỗ trợ" className="mb-6 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="size-5 text-amber-500" aria-hidden="true" />
+            <h2 className="text-base font-semibold text-heading">Học viên cần hỗ trợ sớm</h2>
+            <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">
+              {atRiskStudents.length} học viên
+            </span>
+          </div>
+          <span className="text-xs text-muted">
+            Dự báo nguy cơ bỏ dở qua tần suất học và điểm số
+          </span>
+        </div>
+
+        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xs">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="border-b border-slate-200 bg-slate-50/80 font-semibold text-slate-700">
+                <tr>
+                  <th scope="col" className="px-4 py-3 sm:px-6">
+                    Học viên
+                  </th>
+                  <th scope="col" className="px-3 py-3">
+                    Khóa học
+                  </th>
+                  <th scope="col" className="px-3 py-3 text-center">
+                    Cảnh báo
+                  </th>
+                  <th scope="col" className="px-3 py-3">
+                    Dấu hiệu chính
+                  </th>
+                  <th scope="col" className="px-4 py-3 min-w-[140px]">
+                    Khả năng hoàn thành
+                  </th>
+                  <th scope="col" className="px-4 py-3 text-center">
+                    Thao tác
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {loading ? (
+                  Array.from({ length: 2 }).map((_, i) => (
+                    <tr key={i}>
+                      <td colSpan={6} className="px-6 py-4">
+                        <Skeleton className="h-6 w-full" />
+                      </td>
+                    </tr>
+                  ))
+                ) : atRiskStudents.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-6 text-center text-xs text-muted">
+                      Không có học viên nào trong diện nguy cơ bỏ dở.
+                    </td>
+                  </tr>
+                ) : (
+                  atRiskStudents.map((st) => (
+                    <tr
+                      key={`${st.studentId}-${st.courseId}`}
+                      className="hover:bg-slate-50/70 transition-colors"
+                    >
+                      <td className="px-4 py-3.5 sm:px-6">
+                        <p className="font-medium text-slate-900">{st.studentName}</p>
+                        <p className="text-[11px] text-muted">{st.studentEmail}</p>
+                      </td>
+                      <td className="px-3 py-3.5 text-slate-700">
+                        <span className="line-clamp-1 max-w-[200px]" title={st.courseTitle}>
+                          {st.courseTitle}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3.5 text-center whitespace-nowrap">
+                        <span
+                          className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-semibold ${
+                            st.badgeColor === "rose"
+                              ? "bg-rose-50 text-rose-700 ring-1 ring-rose-200"
+                              : "bg-amber-50 text-amber-800 ring-1 ring-amber-200"
+                          }`}
+                        >
+                          {st.statusBadge}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3.5 whitespace-nowrap">
+                        <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700">
+                          {st.primaryFactorLabel}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="font-semibold text-slate-900">
+                              {st.completionProbabilityPercentage}%
+                            </span>
+                            <span className="text-[10px] text-muted">
+                              Nghỉ {st.daysInactive} ngày
+                            </span>
+                          </div>
+                          <div
+                            className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100"
+                            role="progressbar"
+                            aria-valuenow={st.completionProbabilityPercentage}
+                            aria-valuemin={0}
+                            aria-valuemax={100}
+                          >
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${
+                                st.badgeColor === "rose" ? "bg-rose-500" : "bg-amber-500"
+                              }`}
+                              style={{
+                                width: `${Math.min(100, st.completionProbabilityPercentage)}%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3.5 text-center whitespace-nowrap">
+                        <Link
+                          href={`/instructor/courses/${encodeURIComponent(st.courseId)}/overview`}
+                          className="focus-ring inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-medium text-primary border border-primary/20 hover:bg-primary/5 transition"
+                        >
+                          <span>Hỗ trợ</span>
+                          <ExternalLink className="size-3" />
+                        </Link>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </section>
 
       {/* Course Performance Breakdown Table */}
