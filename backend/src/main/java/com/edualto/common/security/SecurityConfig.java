@@ -84,6 +84,7 @@ public class SecurityConfig {
                                 "/api/v1/messaging/**",
                                 "/api/v1/notifications/**",
                                 "/api/v1/discussions/**",
+                                "/api/v1/admin/ml/**",
                                 "/api/v1/ws/ticket",
                                 "/ws",
                                 "/ws/**"
