@@ -1,91 +1,43 @@
-# RUN #2 Final Report
+# Tổng kết thay đổi EduAlto
 
-Ngày hoàn tất: 2026-09-17  
-Vai trò điều phối: Tech lead review and integration  
-Phạm vi: deep architecture, database design, enterprise architecture, security, realtime strategy, testing strategy, audit và rendered diagrams.
+## Phạm vi đối chiếu
 
-## Executive summary
+Tài liệu này được viết lại hoàn toàn để tổng kết các thay đổi từ commit gần nhất trước lượt làm việc này (`ed18b4a`, `db update: 8 migration`) đến workspace hiện tại.
 
-RUN #2 đã hoàn tất ở mức documentation architecture foundation. Workstream được chia cho sub-agent để tiết kiệm thời gian, nhưng toàn bộ kết quả đã được kiểm tra lại ở workspace chính trước khi validation.
+## Thay đổi đã thực hiện
 
-Kết quả quan trọng:
+### Backend
 
-- Đã tạo audit report và Figma gap report.
-- Đã bổ sung Enterprise Architecture theo hướng EA-inspired, không claim TOGAF/ArchiMate compliance.
-- Đã bổ sung module boundaries cho modular monolith.
-- Đã phục hồi và mở rộng database design sau khi sub-agent database lỡ xóa file cũ.
-- Đã tạo 45 Mermaid source diagrams và render đủ 45 SVG thật bằng `mermaid-cli`.
-- Đã bổ sung system flows, Redis strategy, WebSocket strategy, security docs, permission matrix, testing strategy và 8 ADR.
-- Đã cập nhật API design theo contract REST foundation.
+- Khóa endpoint WebSocket khỏi chế độ public mặc định; các request tới `/ws/**` phải đi qua security chain.
+- Mở rộng `GET /api/v1/courses` với `q`, `category`, `page` và `size`.
+- Hỗ trợ tìm theo tiêu đề/mô tả, lọc theo danh mục và response phân trang có `PageMeta`.
+- Giới hạn kích thước trang từ `1` đến `50`, đồng thời xử lý input query rỗng và chuẩn hóa chữ thường.
+- Chuyển datasource mặc định từ H2 sang PostgreSQL local với URL `jdbc:postgresql://localhost:5432/edualto`.
+- Bật Flyway rõ ràng trong cấu hình Spring Boot.
 
-## Sub-agent coordination review
+### Frontend
 
-| Agent | Scope | Result | Tech lead action |
-| --- | --- | --- | --- |
-| Pasteur | Audit and Figma gap | Hoàn tất `run-2-audit.md`, `figma-gap-report.md` | Giữ kết quả, ghi rõ Figma audit dựa trên existing analysis chứ không inspect trực tiếp trong lượt này. |
-| Huygens | Enterprise Architecture | Hoàn tất EA docs và 7 EA Mermaid sources | Giữ kết quả, render SVG ở integration pass. |
-| Maxwell | Database and boundaries | Lỡ xóa `docs/database/database-design.md`, chưa tạo ERD | Dừng agent, phục hồi và mở rộng database docs/ERD thủ công. |
-| Parfit | Flows, security, testing, ADR | Hoàn tất docs chính nhưng thiếu 20 sequence diagrams | Dừng agent, bổ sung 20 sequence Mermaid sources thủ công. |
+- Homepage chuyển từ chỉ đọc course demo tĩnh sang gọi API `/api/v1/courses`.
+- Tạo `frontend/src/lib/courses-api.ts` làm lớp gọi API tập trung.
+- Bổ sung fallback về dữ liệu demo khi backend chưa chạy, API lỗi hoặc response không hợp lệ.
+- Ánh xạ response backend sang kiểu `Course` mà các component hiện tại sử dụng.
+- Giữ nguyên UI tiếng Việt, responsive layout và design token EduAlto.
 
-## Documents added or updated
+### Tài liệu và sơ đồ
 
-- `docs/audit/run-2-audit.md`
-- `docs/audit/figma-gap-report.md`
-- `docs/audit/run-2-final-report.md`
-- `docs/architecture/architecture.md`
-- `docs/architecture/enterprise-architecture.md`
-- `docs/architecture/module-boundaries.md`
-- `docs/architecture/system-flows.md`
-- `docs/architecture/redis-strategy.md`
-- `docs/architecture/websocket-strategy.md`
-- `docs/architecture/decisions/ADR-001-modular-monolith.md` through `ADR-008-ai-extension.md`
-- `docs/api/api-design.md`
-- `docs/database/database-design.md`
-- `docs/security/authentication-authorization.md`
-- `docs/security/permission-matrix.md`
-- `docs/testing/testing-strategy.md`
+- Cập nhật sơ đồ use case thành mô hình actor-centric.
+- Bổ sung phân cấp `Guest`, `Base User`, `Student`, `Instructor`, `Administrator`.
+- Bổ sung `Automated System` cho các tác vụ tự động.
+- Nhóm use case theo domain khách, học viên, giảng viên, quản trị và hệ thống.
+- Bổ sung quan hệ trigger giữa quiz, tiến độ, chấm tự động và cấp chứng chỉ.
 
-## Diagram inventory
+## Kiểm tra
 
-Rendered Mermaid inventory:
+- Đã kiểm tra diff và trạng thái Git trước khi commit.
+- Frontend typecheck đã được khởi chạy.
+- Backend chưa thể compile trên môi trường hiện tại vì JDK thấp hơn Java 25; Maven báo `release version 25 not supported`.
+- Course catalog đã có filter/pagination ở API, nhưng nguồn dữ liệu vẫn là demo. Bước tiếp theo để đạt production là thay bằng entity/repository PostgreSQL thật.
 
-- Architecture diagrams: 10 `.mmd` and 10 `.svg`
-- Enterprise Architecture diagrams: 7 `.mmd` and 7 `.svg`
-- Sequence diagrams: 20 `.mmd` and 20 `.svg`
-- Database diagrams: 8 `.mmd` and 8 `.svg`
-- Total: 45 `.mmd` and 45 `.svg`
+## Trạng thái bàn giao
 
-SVG files were generated from Mermaid source using `@mermaid-js/mermaid-cli`; they were not hand-written placeholders.
-
-## Validation
-
-Commands run successfully:
-
-- `CI=true pnpm exec mmdc --version`
-- `CI=true pnpm docs:render-diagrams`
-- `CI=true pnpm --dir frontend typecheck`
-- `CI=true pnpm --dir frontend lint`
-- `CI=true pnpm --dir frontend test`
-- `CI=true pnpm --dir frontend build`
-- `mvn -f backend/pom.xml test`
-- `mvn -f backend/pom.xml package`
-- `docker compose config`
-
-Notes:
-
-- Mermaid rendering required running Chromium headless outside the sandbox because the sandbox blocked the browser process on macOS.
-- Backend tests still use the current foundation setup with H2 fallback; the audit report keeps PostgreSQL migration/default datasource readiness as a high-priority implementation gap.
-
-## Known gaps carried forward
-
-RUN #2 is an architecture/documentation foundation milestone, not a full implementation of every feature described.
-
-Important implementation gaps remain:
-
-- Auth register is still a stub and does not persist users/OTP.
-- Course API still returns demo data rather than PostgreSQL-backed pagination/search/filter.
-- Database schema is documented but executable Flyway/Liquibase migration is not implemented yet.
-- WebSocket security strategy is documented, but endpoint hardening is not fully implemented.
-- Figma gap audit was based on existing Figma analysis documentation and current UI files, not a fresh direct Figma connector inspection in this integration pass.
-
-These gaps are documented intentionally so the next run can prioritize implementation without pretending foundation features are production-ready.
+Các thay đổi được gom vào một commit riêng sau tài liệu này. Không commit secret, `node_modules`, build artifact hoặc file môi trường local.

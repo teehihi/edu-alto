@@ -1,57 +1,91 @@
 @startuml
-title EduAlto Use Case View
+title EduAlto Actor-Centric Use Case View
 left to right direction
 
-actor Guest
-actor Student
-actor Instructor
-actor Administrator as Admin
+' --- ACTOR HIERARCHY ---
+actor "Guest / Visitor" as Guest
+actor "Base User" as User
+actor "Student" as Student
+actor "Instructor" as Instructor
+actor "Administrator" as Admin
+actor "Automated System" as System
 
-rectangle "EduAlto LMS" {
-  usecase "Browse courses" as Browse
-  usecase "Register and verify\nemail" as Register
-  usecase "Login / logout" as Login
+Guest <|-- User
+User <|-- Student
+User <|-- Instructor
+User <|-- Admin
 
-  usecase "Enroll in course" as Enroll
-  usecase "Learn lesson" as Learn
-  usecase "View learning\nprogress" as Progress
-  usecase "Submit quiz" as Quiz
-  usecase "Submit assignment" as Assignment
-  usecase "Save document\nand notes" as Document
-  usecase "Discuss and message" as Discuss
-  usecase "Receive\nnotification" as Notify
-  usecase "Review course" as Review
-  usecase "Receive\ncertificate" as Certificate
-  usecase "Receive future\nrecommendations" as Recommend
+' --- USE CASE DOMAINS BY ACTOR ---
 
-  usecase "Manage course\ncontent" as CourseManage
-  usecase "Review submissions" as Grade
-
-  usecase "Manage users,\nroles, content" as AdminManage
-  usecase "View analytics" as Analytics
+package "1. Common / Guest Domain" {
+  usecase "UC01: Register / Login / OAuth" as UC_Auth
+  usecase "UC02: Forgot Password & OTP" as UC_Forgot
+  usecase "UC03: Manage Profile" as UC_Profile
+  usecase "UC04: Browse & Search Courses" as UC_Browse
 }
 
-Guest -- Browse
-Guest -- Register
-Guest -- Login
+package "2. Student Domain" {
+  usecase "UC05: Enroll in Course" as UC_Enroll
+  usecase "UC06: Learn Lesson & Track Progress" as UC_Learn
+  usecase "UC07: Take Quiz Assessment" as UC_Quiz
+  usecase "UC08: Submit Assignment" as UC_Assign
+  usecase "UC09: Q&A Discussion & Course Review" as UC_Interact
+  usecase "UC10: Download & Verify Certificate" as UC_Cert
+}
 
-Student -- Enroll
-Student -- Learn
-Student -- Progress
-Student -- Quiz
-Student -- Assignment
-Student -- Document
-Student -- Discuss
-Student -- Notify
-Student -- Review
-Student -- Certificate
-Student .. Recommend : future
+package "3. Instructor Domain" {
+  usecase "UC11: Create & Manage Course" as UC_CourseMgr
+  usecase "UC12: Build Curriculum & Lessons" as UC_Curriculum
+  usecase "UC13: Grade Assignments & Manage Students" as UC_Grading
+  usecase "UC14: Answer Q&A & Reply Reviews" as UC_ReplyQA
+  usecase "UC15: View Teaching Analytics & Revenue" as UC_InstStats
+}
 
-Instructor -- CourseManage
-Instructor -- Grade
-Instructor -- Discuss
-Instructor -- Notify
+package "4. Admin Domain" {
+  usecase "UC16: Approve / Reject Course" as UC_Approve
+  usecase "UC17: Manage Categories & Settings" as UC_Category
+  usecase "UC18: Manage Users & Roles" as UC_UserAdmin
+  usecase "UC19: Admin Dashboard & Moderate Violations" as UC_Dashboard
+}
 
-Admin -- AdminManage
-Admin -- Analytics
+package "5. Automated System Services" {
+  usecase "UC20: Auto-Grade Quiz & Progress Calculation" as UC_AutoGrade
+  usecase "UC21: Auto-Generate Certificate PDF" as UC_AutoCert
+  usecase "UC22: Send System Notifications & Emails" as UC_Notify
+}
+
+' --- ACTOR ASSOCIATIONS ---
+Guest -- UC_Auth
+Guest -- UC_Forgot
+Guest -- UC_Browse
+
+User -- UC_Profile
+
+Student -- UC_Enroll
+Student -- UC_Learn
+Student -- UC_Quiz
+Student -- UC_Assign
+Student -- UC_Interact
+Student -- UC_Cert
+
+Instructor -- UC_CourseMgr
+Instructor -- UC_Curriculum
+Instructor -- UC_Grading
+Instructor -- UC_ReplyQA
+Instructor -- UC_InstStats
+
+Admin -- UC_Approve
+Admin -- UC_Category
+Admin -- UC_UserAdmin
+Admin -- UC_Dashboard
+
+System -- UC_AutoGrade
+System -- UC_AutoCert
+System -- UC_Notify
+
+' --- INCLUDE / TRIGGER RELATIONS ---
+UC_Quiz ..> UC_AutoGrade : <<trigger>>
+UC_Learn ..> UC_AutoGrade : <<update progress>>
+UC_AutoGrade ..> UC_AutoCert : <<if 100% complete>>
+
 @enduml
